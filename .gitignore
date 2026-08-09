@@ -1,0 +1,13 @@
+.gradle/
+build/
+local.properties
+# Local Docker environment; see .env.sample for the template.
+.env
+.kotlin/
+.idea/
+*.iml
+xcuserdata/
+*.xcworkspace/xcuserdata/
+DerivedData/
+.DS_Store
+__pycache__/

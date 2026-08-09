@@ -1,0 +1,163 @@
+[versions]
+agp = "9.3.1"
+kotlin = "2.4.10"
+
+# The rules engine, published from the `tto-core` repository — `:core` in this build until it left.
+# The server pins this same number, and a match is verified by replaying it with the engine both
+# sides linked, so the two must move together: an app submitting a transcript its server replays
+# with a different engine is the one bug the extraction exists to make impossible.
+#
+# Raising it is two edits and one release, in this order: tag `tto-core`, then this line, then
+# `tto-server`'s. A local `publishToMavenLocal` is how a change is tried before any of that — see
+# `settings.gradle.kts` for why the local copy wins over the published one.
+core = "0.1.0"
+
+compose = "1.11.1"
+# Material 3 is versioned apart from the rest of Compose Multiplatform and has been since 1.11:
+# `org.jetbrains.compose.material3:material3` has published nothing stable past 1.9.0, while
+# runtime/foundation/ui are at 1.11.1. The `compose.material3` DSL accessor resolved 1.9.0 all by
+# itself; naming it here changes nothing about what is built and makes the split visible.
+composeMaterial3 = "1.9.0"
+activityCompose = "1.13.0"
+androidxCore = "1.19.0"
+serializationJson = "1.11.0"
+# `runTest` and `kotlinx-coroutines-core` must agree, and this pin is what keeps them agreeing —
+# the hazard it guards against is the whole build being upgraded silently by a *test* dependency.
+#
+# Raised from 1.8.1 to 1.11.0 on 2026-08-07, deliberately and in its own commit, ahead of adding
+# Ktor Client. Ktor 3.5.2 brings the coroutines **BOM**, whose constraint outranks a plain
+# `version.ref`, so the network layer would have moved this number on its own and buried the change
+# in an unrelated diff. Moving it first makes it a decision with its own test run rather than a
+# side effect.
+#
+# Checked before the bump: Compose Multiplatform 1.9.3 asks for 1.8.0 transitively, not 1.8.1, so
+# nothing here was pinned to Compose's needs. The server has been resolving `:core` against 1.11.0
+# since it started consuming it, so this is the version the engine was already running on.
+coroutines = "1.11.0"
+# The same version the server runs, and deliberately so: they speak to each other, and a mismatch
+# between two Ktor majors is a class of bug nobody should spend an evening on. Bump both together.
+#
+# **Was held at 3.3.1 by Kotlin, and no longer is.** From 3.4.0 Ktor publishes its Kotlin/Native
+# klibs compiled by Kotlin 2.3, whose ABI this project's Kotlin 2.2.20 refused to consume:
+# `:shared:compileKotlinIosSimulatorArm64` failed with "KLIB resolver: incompatible ABI version".
+# Kotlin went to 2.4.10 on 2026-08-08 and that constraint went with it. The note is kept because
+# the shape of the trap remains: the failure is invisible to every task normally run on a Windows
+# host and shows up only under `./gradlew check`, so whoever raises Ktor next still raises Kotlin
+# first.
+ktor = "3.5.2"
+
+# KotlinCrypto, for the two primitives the peer handshake needs and Kotlin Multiplatform has no
+# common answer for: SHA-256 and a random source that is safe to commit to. Both publish for every
+# target this project declares, including the two iOS ones.
+kotlincryptoHash = "0.8.0"
+kotlincryptoRand = "0.6.0"
+# Ktor 3.3.1 resolves this itself; pinned here so the import is a declared dependency and not
+# a transitive one that a Ktor upgrade could take away. Tests only — see the library entry.
+kotlinxIo = "0.9.1"
+# **Held at 12.1.2 on purpose.** 14.2.0 bundles a ktlint whose parameter-list rules disagree with
+# this repository's `.editorconfig` — `parameter-list-spacing` fires on hundreds of multi-line
+# signatures that `ktlint_code_style = intellij_idea` and the disabled `function-signature` rule are
+# there to allow. Taking it would mean either reformatting most of the codebase or adding
+# suppressions to fight the tool, and neither buys anything: this is a linter, not a shipped
+# dependency, and the code it checks does not change. Revisit when the formatting is worth touching
+# for its own sake.
+ktlintPlugin = "12.1.2"
+detekt = "1.23.8"
+
+androidCompileSdk = "37"
+androidMinSdk = "24"
+androidTargetSdk = "36"
+
+[libraries]
+# The engine and the game data. Everything under `com.tripletriad.model`, `.data` and `.protocol`
+# that this app compiles against comes from here; `:shared` re-exports it with `api` so the UI sees
+# `Card` and `MatchState` under the names it always used.
+tripletriad-core = { module = "com.tripletriad:core", version.ref = "core" }
+
+androidx-activity-compose ={ module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
+# For WindowCompat / WindowInsetsControllerCompat: hiding the system bars back to minSdk 24
+# without a per-API-level branch in MainActivity.
+androidx-core = { module = "androidx.core:core", version.ref = "androidxCore" }
+kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+# `runTest`, so `commonTest` can exercise suspending code. `runBlocking` is not in
+# common code — it exists on JVM and Native but is not declared in commonMain.
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+# Declared explicitly rather than taken transitively from `compose.runtime`, which does bring it:
+# `commonMain` uses `sync.Mutex` (BundledCardRepository) and the host modules use `Dispatchers.IO`,
+# so it is a direct dependency and should say so. Leaving it implicit would mean a Compose upgrade
+# that reorganised its own dependencies could break this module's compilation for no visible reason.
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+# `androidx.compose.ui.backhandler.BackHandler`, which is multiplatform but ships in its own
+# artifact that `compose.ui` does not bring in. Needed so the Android system back gesture
+# returns to the menu instead of finishing the activity mid-match.
+compose-backhandler = { module = "org.jetbrains.compose.ui:ui-backhandler", version.ref = "compose" }
+
+# ---- Compose Multiplatform, by coordinate ------------------------------------------------------
+#
+# Declared rather than taken from the `compose.runtime` / `compose.foundation` DSL accessors, which
+# Compose 1.11 deprecates in favour of exactly this ("Specify dependency directly"). The accessors
+# still resolve, and identically — this is the same graph written where the other versions live.
+compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "compose" }
+compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "compose" }
+compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "compose" }
+compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "composeMaterial3" }
+# The generated `Res` class and the bundled `files/` — cards, opponents, campaigns, locales.
+compose-components-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "compose" }
+# `runComposeUiTest`. Desktop test source set only.
+compose-ui-test = { module = "org.jetbrains.compose.ui:ui-test", version.ref = "compose" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serializationJson" }
+
+# ---- Ktor Client -------------------------------------------------------------------------------
+#
+# The client half of Phase 5. Only the **client** artifacts appear here: `ktor-server-*` is excluded
+# from this repository by the migration's decision 3 — no server code inside the APKs — and the
+# server lives in its own repository precisely so that rule cannot be undone by an import.
+#
+# The engine is per-platform because there is no such thing as a common one; `ktor-client-core` in
+# `commonMain` is the API, and each host supplies the transport underneath it. That is the same
+# shape as DocumentStore and SettingsStore, and it is why iOS costs a line here rather than a port.
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
+ktor-serialization-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
+# OkHttp on Android rather than CIO: it is what the platform's own HTTP stack is tuned for, and it
+# honours the system proxy and trust store that a device may well have.
+ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
+# CIO on desktop: no native dependency, and nothing on a desktop JVM to integrate with.
+ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
+# Declared so the iOS targets stay honest. They are compiled only on macOS, so this costs nothing
+# here and prevents `iosMain` becoming the one source set that does not build the day it is needed.
+ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
+# A fake engine that answers from a lambda. It makes the network layer testable in `commonTest`
+# with no socket, no server and no port — so these tests run on every target and in CI unchanged.
+ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
+
+# ---- The peer handshake ------------------------------------------------------------------------
+#
+# SHA-256, for the nonce commitment and the five hand commitments. Written by hand it would be
+# 150 lines of bit twiddling that has to be right on every target; taken from a library it is one
+# line and someone else's test vectors.
+kotlincrypto-sha2 = { module = "org.kotlincrypto.hash:sha2", version.ref = "kotlincryptoHash" }
+# A cryptographically secure random. `kotlin.random.Random` is not one — it is a seeded PRNG, and a
+# guessable nonce makes a commitment worthless, since the other side can try the few thousand
+# nonces a weak generator could have produced and know the seed before revealing its own.
+kotlincrypto-rand = { module = "org.kotlincrypto.random:crypto-rand", version.ref = "kotlincryptoRand" }
+
+# `kotlinx.io.IOException`, which is what a Ktor engine throws when it cannot reach a host and what
+# the tests that simulate an unreachable server therefore have to throw. Ktor's own
+# `io.ktor.utils.io.errors.IOException` was a typealias for it and is deprecated. Test-only: no
+# production code in this repository catches an IOException by type — see `SaveRepository`.
+kotlinx-io-core = { module = "org.jetbrains.kotlinx:kotlinx-io-core", version.ref = "kotlinxIo" }
+
+[plugins]
+androidApplication = { id = "com.android.application", version.ref = "agp" }
+# The KMP-aware Android library plugin. `com.android.library` cannot be applied next to Kotlin
+# Multiplatform under AGP 9, and `org.jetbrains.kotlin.android` is no longer applicable at all
+# next to `com.android.application` — AGP brings Kotlin itself. Neither alias is listed any more.
+androidKmpLibrary = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
+kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "compose" }
+kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlintPlugin" }
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }

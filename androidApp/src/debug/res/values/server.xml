@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The local container, as seen from the device.
+
+    `127.0.0.1` is the *phone's* loopback, not the development machine's, so this address only
+    resolves to the container once the two are bridged:
+
+        adb reverse tcp:8080 tcp:8080
+
+    That has to be re-run after every reconnect, and it is still the right way round. The
+    alternative is the machine's LAN address, which means publishing `8080` past `127.0.0.1` in
+    `compose.yaml` — putting a development build of the server, and its development credentials, on
+    whatever network the machine happens to be on. A tunnel that lapses is a better failure than a
+    port that does not.
+
+    On an emulator with no tunnel, the host is reachable as `10.0.2.2` instead.
+
+    The deployed server is listed last and on purpose. A debug build defaults to the first entry, so
+    the local container stays the default here — a developer's uncommitted engine change must not
+    submit transcripts to the host real players are on. Switching to it is one tap on the servers
+    screen, which is the point of that screen existing.
+-->
+<resources>
+    <string name="servers" translatable="false">Local=http://127.0.0.1:8080, Emul=http://10.0.2.21:8080, Moebius=https://tto.moebiuscore.fr</string>
+</resources>

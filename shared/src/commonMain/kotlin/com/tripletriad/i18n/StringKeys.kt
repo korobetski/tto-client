@@ -93,6 +93,9 @@ object StringKeys {
     /** No AS3 key: nothing in the original ever said a save list was empty. */
     const val NO_PROFILE: String = "APP_NO_PROFILE"
 
+    /** No AS3 key: `AvatarChooser` was a bare grid with the screen around it doing the talking. */
+    const val AVATAR: String = "APP_AVATAR"
+
     // ---- Opponents.
     const val OPPONENTS: String = "STR_OPPONENTS"
     const val RULES: String = "STR_RULES"
@@ -377,7 +380,7 @@ object StringKeys {
         STARTUP_SETTINGS, STARTUP_ART, STARTUP_OPPONENTS, STARTUP_READY,
         PROFILE, PROFILES, NEW_PROFILE, USERNAME, COLLECTION,
         LEVEL, MGP, WINS, DEFEATS, DRAWS,
-        DELETE, DELETE_CONFIRM, CANCEL, START, NO_PROFILE,
+        DELETE, DELETE_CONFIRM, CANCEL, START, NO_PROFILE, AVATAR,
         OPPONENTS, RULES, MATCH_FEE, REWARDS, CHALLENGE, NO_OPPONENT,
         XP, DIFFICULTY, OPPONENT_TURN, ACHIEVEMENT_EARNED, REMATCH,
         MULTIPLAYER, CARD_LIST, CARDS, HOME, CARD_DECKS, INVENTORY, SHOP, HELP, LOGOUT,

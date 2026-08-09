@@ -66,22 +66,21 @@ internal enum class Tab(val root: Screen, val labelKey: String, val icon: ImageV
 /**
  * Which tab a screen belongs to, or null for one that is outside the bar entirely.
  *
- * The record and the rules answer [Tab.HOME] rather than null: they are opened from the dashboard
- * and they are still *in* the character's shell, so the bar stays and shows where they hang from.
- * A bar that vanished on the two screens reachable from Home would be a bar that flickers.
+ * The record, the rules and the avatar picker answer [Tab.HOME] rather than null: they hang off the
+ * dashboard and are still *in* the character's shell, so the bar stays and shows where they came
+ * from. A bar that vanished on the screens reachable from Home would be a bar that flickers.
  *
- * The seven screens ahead of a character — splash, menu, the two chooser flows, the servers, the
- * options — and the three match screens answer null. A match is immersive by design; the others
- * have no character and so no bar to draw.
+ * The screens ahead of a character and the three match screens answer null. A match is immersive by
+ * design; the others have no character and so no bar to draw.
  */
 internal val Screen.tab: Tab?
     get() = when (this) {
-        Screen.DASHBOARD, Screen.STATS, Screen.HELP -> Tab.HOME
+        Screen.DASHBOARD, Screen.STATS, Screen.HELP, Screen.AVATAR -> Tab.HOME
         Screen.OPPONENTS -> Tab.PLAY
         Screen.CARDS, Screen.DECKS -> Tab.CARDS
         Screen.SHOP, Screen.INVENTORY -> Tab.STORE
         Screen.SPLASH, Screen.MENU, Screen.PROFILES, Screen.PROFILE_NEW,
-        Screen.ACCOUNT, Screen.SERVERS, Screen.OPTIONS,
+        Screen.ACCOUNT, Screen.SERVERS, Screen.COLLECTION_CHOICE, Screen.OPTIONS,
         Screen.MATCH, Screen.TUTORIAL, Screen.CAMPAIGN, Screen.CAMPAIGN_MATCH,
         -> null
     }

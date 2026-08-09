@@ -1,6 +1,7 @@
 package com.tripletriad.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -81,12 +82,12 @@ fun achievementRowTestTag(id: String): String = "stats-$id"
  * orders the list and nothing more.
  */
 @Composable
-internal fun StatsScreen(profile: GameSave, onBack: () -> Unit) {
+internal fun StatsScreen(profile: GameSave, onAvatar: () -> Unit, onBack: () -> Unit) {
     val strings = LocalStrings.current
     val achievements = remember(profile) { rankedAchievements(profile) }
 
     CharacterScaffold(profile = profile, title = strings[StringKeys.PROFILE], onBack = onBack) {
-        LevelBar(profile)
+        LevelBar(profile, onAvatar = onAvatar)
 
         Column(
             modifier = Modifier
@@ -145,19 +146,24 @@ internal fun StatsScreen(profile: GameSave, onBack: () -> Unit) {
 /**
  * The avatar, the level and how far into it the profile is — the original's `profile.jpg` header.
  *
- * `ProgressBar` between `Level.steps[level - 1]` and `steps[level]` (`:127-134`), now with the
- * portrait beside it that `GameSave.AVATAR_ID` has been naming since Phase 2 with nothing to draw.
- * The 27 FFXIV portraits are imported; **choosing** one still is not, so this shows the profile's
- * own and does not offer to change it. A picker is a screen, not a corner of this one.
+ * `ProgressBar` between `Level.steps[level - 1]` and `steps[level]` (`:127-134`), with the portrait
+ * `GameSave.AVATAR_ID` names beside it.
+ *
+ * @param onAvatar opens [AvatarScreen], where the portrait is chosen. Null on the dashboard, which
+ *   draws the same bar as a summary: the record is where a character is edited, and two ways in
+ *   would be two places to keep in step.
  */
 @Composable
-internal fun LevelBar(profile: GameSave) {
+internal fun LevelBar(profile: GameSave, onAvatar: (() -> Unit)? = null) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        AvatarBadge(profile = profile)
+        AvatarBadge(
+            profile = profile,
+            modifier = onAvatar?.let { Modifier.clickable(onClick = it) } ?: Modifier,
+        )
         Box(modifier = Modifier.weight(1f)) { LevelMeter(profile) }
     }
 }

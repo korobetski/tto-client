@@ -4,7 +4,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.v2.runComposeUiTest
+import com.tripletriad.i18n.AppLocale
+import com.tripletriad.i18n.StringKeys
+import com.tripletriad.i18n.loadStrings
+import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -95,6 +102,43 @@ class TalkBubbleTest {
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { isVisible(LINE) }
     }
 
+    /**
+     * The longest line the tutorial can speak, in the bubble, with nothing hanging out of it.
+     *
+     * The bubble was drawn at the AS3's authored 544x144 whatever it held, and the AS3 could
+     * afford that: its stage is 1024 wide and desktop-only. Here the nine tutorial lines run to
+     * 189 characters in French and wrap to seven lines in a frame that holds three, so the
+     * sentence spilled out of the picture and onto the board behind it.
+     *
+     * Read out of the shipped bundles rather than pinned as a literal, so a line added or a
+     * translation revised is measured too — which is the only version of this test that keeps
+     * working.
+     */
+    @Test
+    fun theLongestLineAnyLocaleCanSpeakFitsInsideTheFrame() = runComposeUiTest {
+        val longest = longestTutorialLine()
+        setContent { TalkBubble(message = longest, speaker = SPEAKER) {} }
+
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { isVisible(longest) }
+
+        val frame = onNodeWithTag(TALK_FRAME_TEST_TAG).getUnclippedBoundsInRoot()
+        val line = onNode(hasText(longest, substring = true)).getUnclippedBoundsInRoot()
+
+        assertTrue(
+            line.top >= frame.top && line.bottom <= frame.bottom,
+            "the line runs from ${line.top} to ${line.bottom}, " +
+                "the frame from ${frame.top} to ${frame.bottom}",
+        )
+    }
+
+    /** The widest of the nine lines across all four bundles, by rendered length. */
+    private fun longestTutorialLine(): String = runBlocking {
+        AppLocale.entries
+            .map { loadStrings(it) }
+            .flatMap { strings -> TUTORIAL_KEYS.map { strings[it] } }
+            .maxBy { it.length }
+    }
+
     private companion object {
         const val LINE = "Place a card on any free cell."
         const val SECOND = "Now capture one of mine."
@@ -102,5 +146,11 @@ class TalkBubbleTest {
 
         /** Past the 0.4s entry and comfortably inside the 5s hold. */
         const val SETTLED_MS = 1_000L
+
+        val TUTORIAL_KEYS = listOf(
+            StringKeys.TUTORIAL_1, StringKeys.TUTORIAL_2, StringKeys.TUTORIAL_3,
+            StringKeys.TUTORIAL_4, StringKeys.TUTORIAL_5, StringKeys.TUTORIAL_6,
+            StringKeys.TUTORIAL_7, StringKeys.TUTORIAL_8, StringKeys.TUTORIAL_9,
+        )
     }
 }

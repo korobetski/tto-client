@@ -43,14 +43,13 @@ const val DASHBOARD_LOGOUT_TEST_TAG: String = "dashboard-logout"
  *
  * ### Why this screen exists at all
  *
- * It is the piece the first pass of Phase 4 left out, and its absence is what made the six screens
- * behind it impossible to place. `dashboardScreen.as:49-59` builds this exact stack, and **every
- * one of the screens it opens returns here** (`dispatchEventWith('gotoScreen', false, 'DASHBOARD')`
- * appears in all seven). So the original's flow is Menu → Load → *Dashboard* → everything, and
- * putting Play on the main menu — which is what this port did while it had only one destination —
- * gives the collection, the decks, the bag and the shop nowhere to hang.
+ * It is the hub every other screen hangs off. `dashboardScreen.as:49-59` builds this exact stack,
+ * and **every one of the screens it opens returns here**
+ * (`dispatchEventWith('gotoScreen', false, 'DASHBOARD')` appears in all seven). So the original's
+ * flow is Menu → Load → *Dashboard* → everything; putting Play on the main menu instead would give
+ * the collection, the decks, the bag and the shop nowhere to hang.
  *
- * ### Why it is a grid of cards and no longer a stack of nine buttons
+ * ### Why it is a grid of cards rather than a stack of nine buttons
  *
  * Nine identical full-width bars say that nine things are equally likely, and they are not: playing
  * a match is what the screen is for and the other seven are places to go between matches. A stack

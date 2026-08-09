@@ -1,4 +1,4 @@
-rootProject.name = "triple-triad-kmp"
+rootProject.name = "tto-client"
 
 pluginManagement {
     repositories {

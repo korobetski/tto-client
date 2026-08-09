@@ -9,9 +9,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,19 +23,27 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 
 /** The bubble while it is on screen. */
 const val TALK_BUBBLE_TEST_TAG: String = "talk-bubble"
+
+/** The frame artwork alone, so a test can ask whether the line is inside it. */
+const val TALK_FRAME_TEST_TAG: String = "talk-frame"
 
 /**
  * `TalkAnim` — an NPC saying one line.
@@ -96,6 +105,7 @@ internal fun TalkBubble(message: String, speaker: String, onFinished: () -> Unit
         Box(
             modifier = Modifier
                 .padding(top = BubbleTop)
+                .width(BubbleWidth)
                 .graphicsLayer {
                     scaleX = scale.value
                     scaleY = scale.value
@@ -103,44 +113,94 @@ internal fun TalkBubble(message: String, speaker: String, onFinished: () -> Unit
                 },
             contentAlignment = Alignment.Center,
         ) {
-            Frame(art?.talk)
-            if (textUp) {
-                Line(message = message, speaker = speaker)
-            }
+            // `matchParentSize` keeps the frame out of the measuring, so the box is exactly as
+            // tall as the line and the frame then fills that.
+            Frame(art?.talk, modifier = Modifier.matchParentSize().testTag(TALK_FRAME_TEST_TAG))
+            // The line is **laid out** from the first frame and only revealed on `textUp`, so the
+            // bubble flies in at the size it will keep; composing it late would have the frame
+            // snap taller the moment the text arrived. Hidden by alpha *and* by clearing its
+            // semantics, so it is no more readable to a screen reader than to the eye —
+            // `predispose()` did not build the fields until the tween had landed.
+            Line(
+                message = message,
+                speaker = speaker,
+                modifier = if (textUp) {
+                    Modifier
+                } else {
+                    Modifier.alpha(0f).clearAndSetSemantics {}
+                },
+            )
         }
     }
 }
 
 /**
- * The bubble itself, at its authored size.
+ * The bubble itself, stretched to whatever height its line needs.
  *
- * A fixed size rather than one derived from the text, because the artwork is a **fixed frame**
- * with a tail and a highlight — a nine-slice would need slice metrics the AS3 never had, since it
- * draws the texture at 1:1 and lets the text overflow if it must.
+ * ### Why this is sliced and not simply drawn
+ *
+ * The AS3 draws `talk_basic.tex` at 1:1 into a 544x144 frame and lets a long line overflow it,
+ * which on a phone means sentences hanging outside the bubble: the nine tutorial lines run to 189
+ * characters in French, and at this width that is seven wrapped lines against a frame that holds
+ * three.
+ *
+ * The artwork makes the fix cheap. It is a capsule with **no tail and no asymmetry** — rows 62 to
+ * 82 of the texture are pixel-for-pixel identical, the widest part of the lens — so the top and
+ * bottom caps can be drawn at their authored size and that seam band stretched to cover the rest.
+ * A horizontal slice would need the same treatment for the two side notches; nothing asks for it,
+ * since the width is fixed and only the height varies.
+ *
+ * @param modifier sized by the caller, which sizes it from the text — see [TalkBubble].
  */
 @Composable
-private fun Frame(bitmap: ImageBitmap?) {
-    val modifier = Modifier.size(BubbleWidth, BubbleHeight)
+private fun Frame(bitmap: ImageBitmap?, modifier: Modifier) {
     if (bitmap == null) {
         // No artwork, no frame — the line is still readable, which is the part that matters.
         Box(modifier = modifier)
-    } else {
-        Image(
-            bitmap = bitmap,
-            contentDescription = null,
-            contentScale = ContentScale.Fit,
-            modifier = modifier,
+        return
+    }
+    Column(modifier = modifier) {
+        Slice(bitmap, top = 0, height = CAP_PIXELS, modifier = Modifier.height(CapHeight))
+        // The one band that may be stretched, and the only one that takes the slack.
+        Slice(bitmap, top = CAP_PIXELS, height = SEAM_PIXELS, modifier = Modifier.weight(1f))
+        Slice(
+            bitmap,
+            top = bitmap.height - CAP_PIXELS,
+            height = CAP_PIXELS,
+            modifier = Modifier.height(CapHeight),
         )
     }
 }
 
+/** One horizontal band of the texture, drawn across the full width of the bubble. */
+@Composable
+private fun Slice(bitmap: ImageBitmap, top: Int, height: Int, modifier: Modifier) {
+    Image(
+        painter = BitmapPainter(
+            image = bitmap,
+            srcOffset = IntOffset(0, top),
+            srcSize = IntSize(bitmap.width, height),
+        ),
+        contentDescription = null,
+        // FillBounds and not Fit: the point of the middle band is that it may be the wrong shape.
+        contentScale = ContentScale.FillBounds,
+        modifier = modifier.fillMaxWidth(),
+    )
+}
+
 /** The speaker above their line: white over the frame's dark lip, dark grey inside it. */
 @Composable
-private fun Line(message: String, speaker: String) {
+private fun Line(message: String, speaker: String, modifier: Modifier) {
     Column(
-        modifier = Modifier.widthIn(max = TextWidth).padding(horizontal = 16.dp),
+        modifier = modifier
+            // The insets clear the frame's border and its two side notches, and the minimum is
+            // the authored 72 dp: a three-word line should still be drawn in the bubble the
+            // original had, not in a lozenge shrunk around it.
+            .heightIn(min = BubbleHeight)
+            .width(TextWidth)
+            .padding(horizontal = TextInset, vertical = TextInset),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
     ) {
         Text(
             text = speaker,
@@ -173,18 +233,37 @@ private const val HOLD_MILLIS = 5_000
 private const val ENTER_SCALE = 1.5f
 private const val EXIT_SCALE = 0.5f
 
-/** The `talk_basic.tex` texture is 544x144. Drawn at its authored size — see [Frame]. */
+/** The `talk_basic.tex` texture is 544x144, drawn at half that — the AS3 art is 2x. */
 private val BubbleWidth = 272.dp
 private val BubbleHeight = 72.dp
 
+/**
+ * Where the texture may be cut, in its own pixels.
+ *
+ * Rows 62 to 82 are identical — the widest span of the lens, `x` 9 to 533 on every one of them —
+ * so that band is what stretches and the 62-row caps above and below it are drawn as they are.
+ */
+private const val CAP_PIXELS = 62
+private const val SEAM_PIXELS = 20
+private val CapHeight = 31.dp
+
 /** `TextField(450, …)` against a 544-wide frame: the text stops short of the border. */
-private val TextWidth = 225.dp
+private val TextWidth = 272.dp
+
+/** Enough to clear the border and the two side notches at the frame's narrowest. */
+private val TextInset = 24.dp
 
 /** `stage.height / 6`, as a distance from the top rather than a fraction of an unknown stage. */
 private val BubbleTop = 48.dp
 
-/** `0xffffff`, `14` — the name sits on the frame's darker lip. */
-private val SpeakerText = Color(0xFFFFFFFF)
+/**
+ * `0xffffff`, `14` in the AS3 — where the name sat on the frame's dark lip.
+ *
+ * Dark here, because it no longer does: a bubble that grows with its line puts the name inside the
+ * light fill on every line long enough to matter, and white on parchment is not readable. Same ink
+ * as the line, a size smaller and left-aligned, which is what separates a label from its sentence.
+ */
+private val SpeakerText = Color(0xFF202020)
 private val SpeakerSize = 12.sp
 
 /** `0x202020`, `16` — the line is inside the frame, which is light. */

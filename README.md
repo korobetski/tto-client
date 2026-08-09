@@ -1,4 +1,4 @@
-# Triple Triad — Kotlin Multiplatform PoC
+# Triple Triad — Kotlin Multiplatform client
 
 Proof of concept for the migration described in
 [docs/migration/00-INDEX.md](docs/migration/00-INDEX.md).
@@ -27,7 +27,7 @@ It does seven things:
 
 Everything else (drag-and-drop, AI, network, save games, the collection and deck-builder
 screens) is deliberately out of scope. See
-[§ What this PoC does and does not prove](#what-this-poc-does-and-does-not-prove).
+[§ What is proven, and what is left](#what-is-proven-and-what-is-left).
 
 This replaces the earlier `poc/` directory, which was reported as validating the
 technology stack but had never been compiled and contained 12 build-blocking defects.
@@ -68,79 +68,69 @@ icons — is committed here, so a plain `./gradlew build` never touches the AS3 
 ├── tools/as3_tree.py            where the AS3 original is — every script below reads it
 ├── tools/extract_cards.py       regenerates cards.json from the AS3 source
 ├── tools/extract_npcs.py        regenerates npcs.json — the 85 PvE opponents
+├── tools/extract_campaigns.py   the two tournament ladders, as campaigns.json
 ├── tools/import_card_art.py     copies the card artwork into composeResources
+├── tools/import_ui_art.py       avatars, opponent portraits, bag icons, thumbnail atlases
+├── tools/import_rule_banners.py the twenty match captions, in four locales
 ├── tools/import_locales.py      normalises the four AS3 string bundles
 ├── tools/make_launcher_icons.py regenerates the Android launcher icon from the AIR art
 ├── tools/import_sounds.py       copies the ten sounds this port plays into res/raw
 ├── tools/import_fonts.py        copies Raleway — the AS3 theme's own face — and its licence
-├── shared/                      KMP module: model + data + Compose UI
+├── docker/postgres/             the local account server's database, for end-to-end runs
+├── shared/                      KMP module: data + network + Compose UI
 │   └── src/
 │       ├── commonMain/
 │       │   ├── kotlin/com/tripletriad/
-│       │   │   ├── model/Card.kt        Card, CardColor, CardType, powerLabel()
-│       │   │   ├── model/GameRules.kt   12 rule slots: 3 enums + 9 booleans
-│       │   │   ├── model/Board.kt       immutable 3×3 board, Side, PlacedCard
-│       │   │   ├── model/Power.kt       effective power, clamping, ascension tally
-│       │   │   ├── model/RulesEngine.kt capture resolution + combo, pure
-│       │   │   ├── model/Match.kt       turn order, scoring
-│       │   │   ├── data/CardRepository.kt  CardCatalog + parser + resource loader
-│       │   │   ├── i18n/Strings.kt      AppLocale, lookup + fallback, LocalStrings
-│       │   │   ├── i18n/StringKeys.kt   every key the UI names, in one place
-│       │   │   ├── log/Log.kt           levels, lazy messages, pluggable sink
-│       │   │   ├── audio/AudioPlayer.kt Sound, the loop point, silent + recording players
-│       │   │   ├── settings/SettingsStore.kt   interface + in-memory implementation
-│       │   │   ├── settings/UserSettings.kt    UserSettings.json, load/save, first run
+│       │   │   ├── data/            CatalogLoaders, SaveRepository, MatchHistoryRepository
+│       │   │   ├── storage/         DocumentStore + SaveCodec — the obfuscated .sav format
+│       │   │   ├── net/             AccountClient, ServerDirectory, SessionStore,
+│       │   │   │                    TranscriptQueue, MatchReporter, ServerStatus
+│       │   │   ├── i18n/            AppLocale, lookup + fallback, every key the UI names
+│       │   │   ├── time/Clock.kt    the wall clock, injected so tests can pin the hour
+│       │   │   ├── log/Log.kt       levels, lazy messages, pluggable sink
+│       │   │   ├── audio/AudioPlayer.kt  Sound, the loop point, silent + recording players
+│       │   │   ├── settings/        SettingsStore + UserSettings.json
+│       │   │   ├── platform/OpenUrl.kt   the one thing only a host can do
 │       │   │   └── ui/
-│       │   │       ├── theme/          the AS3 palette, Raleway, and the type scale
-│       │   │       ├── App.kt           root composable, back handling
-│       │   │       ├── Screen.kt        the 14 destinations, and where back goes from each
-│       │   │       ├── Startup.kt       StartupPhase, the splash's own model
-│       │   │       ├── SplashScreen.kt  logo + phase line + progress
-│       │   │       ├── MainMenuScreen.kt   play / characters / options / quit
-│       │   │       ├── OptionsScreen.kt    language + the two volumes
-│       │   │       ├── ProfileSession.kt   the loaded character; the only thing that writes
-│       │   │       ├── ProfileScreen.kt    character list + creation, with the collection
-│       │   │       ├── DashboardScreen.kt  the character's own menu, and the hub
-│       │   │       ├── OpponentScreen.kt   who can be challenged, by collection and hour
-│       │   │       ├── CardListScreen.kt   the whole card table, owned and not
-│       │   │       ├── DecksScreen.kt      five slots, and an editor behind each
-│       │   │       ├── InventoryScreen.kt  the bag: use, sell, discard
-│       │   │       ├── ShopScreen.kt       the two shelves, and buying from them
-│       │   │       ├── StatsScreen.kt      the record, and all 22 achievements
-│       │   │       ├── HelpScreen.kt       the seventeen rules, as an accordion
-│       │   │       ├── DeckSelectorScreen.kt  which deck to play, inside the match
-│       │   │       ├── ItemRow.kt          naming, keying and refusing a bag item
+│       │   │       ├── theme/           the AS3 palette, Raleway, and the type scale
+│       │   │       ├── App.kt           root composable, the routing table, back handling
+│       │   │       ├── Screen.kt        the 21 destinations, and where back goes from each
+│       │   │       ├── Navigation.kt    the four-tab bar and rail, and the width that picks
 │       │   │       ├── Controls.kt      WideButton, the scaffolds, the shared row palette
-│       │   │       ├── CardArt.kt       texture loading, face cache, digit atlas
-│       │   │       ├── MatchScreen.kt   the match: state, effects, status bar, result panel
-│       │   │       ├── MatchBoard.kt    the board, both hands, the drag, orientation layout
-│       │   │       ├── BoardDragState.kt  a card in the air, and where the cells are
-│       │   │       ├── CardView.kt      CardFace + CardDigits, scalable
-│       │   │       └── CardColors.kt    colours and geometry lifted from the AS3 source
+│       │   │       ├── Startup.kt       the phases, and SplashScreen.kt which shows them
+│       │   │       ├── MainMenuScreen.kt / OptionsScreen.kt
+│       │   │       ├── ProfileGate.kt   where the character comes from: a .sav, or an account
+│       │   │       ├── ProfileSession.kt / ProfileScreen.kt   local characters, and the
+│       │   │       │                    collection chosen at creation
+│       │   │       ├── AccountSession.kt / AccountScreen.kt / ServersScreen.kt
+│       │   │       ├── Connectivity.kt  the five-state indicator and the update notice
+│       │   │       ├── DashboardScreen.kt  the character's own menu, and the hub
+│       │   │       ├── StatsScreen.kt   the record, all 22 achievements, and the level bar
+│       │   │       ├── AvatarScreen.kt  the 27 portraits, and choosing one
+│       │   │       ├── CollectionScreen.kt + CardListBody / DecksBody   cards and decks
+│       │   │       ├── StoreScreen.kt + ShopBody / InventoryBody        shop and bag
+│       │   │       ├── OpponentScreen.kt   who can be challenged, by collection and hour
+│       │   │       ├── CampaignScreen.kt / TutorialScreen.kt / MatchScript.kt   scripted
+│       │   │       ├── DeckSelectorScreen.kt   which deck to play, inside the match
+│       │   │       ├── MatchScreen.kt / MatchBoard.kt / MatchChrome.kt   the match itself
+│       │   │       ├── MatchBanner.kt / MatchBannerOverlay.kt / MatchAnimations.kt
+│       │   │       ├── CardArt.kt / UiArt.kt / Portraits.kt   every image the app draws
+│       │   │       └── CardView.kt / CardColors.kt   the card face, lifted from the AS3
 │       │   └── composeResources/files/
-│       │       ├── cards.json    263 cards, generated
-│       │       ├── art/          283 PNGs, 7.01 MB, imported (incl. the logo)
+│       │       ├── cards.json / npcs.json / campaigns.json   generated from the AS3 source
+│       │       ├── art/          card faces, avatars, portraits, icons and thumbnail atlases
 │       │       └── locales/      tto-<tag>.json imported ×4, app-<tag>.json authored ×4
-│       ├── commonTest/…         CardTest (5) + CardCatalogTest (8) + RulesEngineTest (37)
-│       │                        + MatchStateTest (27) + StringsTest (9)
-│       │                        + UserSettingsTest (12) + LogTest (7)
-│       │                        + SoundTest (5) = 110,
-│       │                        run on desktop + androidHostTest
-│       ├── desktopTest/…        MatchUiTest (10) + NavigationTest (9) + MatchAudioTest (9)
-│       │                        + StringsBundleTest (8) + OptionsUiTest (7)
-│       │                        + MatchLayoutTest (6) + CardBundleTest (4)
-│       │                        + CardFaceTest (2) = 55
+│       ├── commonTest/…         263 tests, run on desktop and on androidHostTest
+│       ├── desktopTest/…        260 more — the real Compose tree on the JVM, plus the
+│       │                        JVM-only bundle reads
 │       └── iosMain/…/MainViewController.kt
-├── androidApp/                  Android host: settings store, logcat sink, audio player
+├── androidApp/                  Android host: document store, logcat sink, audio player
 │   └── src/main/res/            generated launcher icon + the ten sounds, in raw/
-├── desktopApp/                  JVM host + DesktopSettingsStore — run the UI without an emulator
+├── desktopApp/                  JVM host — run the UI without an emulator
 └── iosApp/*.swift               SwiftUI host sources (see the iOS caveat below)
 ```
 
-CI is [`.github/workflows/build.yml`](.github/workflows/build.yml). It used to need
-`working-directory: kotlin` in every job, because the Gradle build sat in a subdirectory while
-GitHub only reads workflows from the repository root; now that the build *is* the root, that
-is gone and the path filters are `paths-ignore` rather than a `kotlin/**` allow-list.
+CI is [`.github/workflows/build.yml`](.github/workflows/build.yml).
 
 ## Toolchain
 
@@ -398,16 +388,14 @@ wired into `check`, so a coverage collapse fails the build rather than waiting t
 
 | Counter | Covered | Gate |
 |---|--:|--:|
-| line | **97.8%** (1267/1296) | 90% |
-| branch | **85.9%** (486/566) | 75% |
-| instruction | 95.8% (11 731/12 242) | — |
-| method | 93.6% (424/453) | — |
+| line | **96.8%** (5662/5852) | 90% |
+| branch | **78.9%** (1722/2183) | 75% |
+| instruction | 95.7% (51 535/53 832) | — |
+| method | 93.1% (1273/1367) | — |
 
-The gates are **floors, not targets**, set well under the measured figures on purpose: they
-exist to catch a test file being deleted or a whole area going untested, not to turn every
-refactor into a coverage negotiation. That the gate can actually fail was checked by raising the
-line minimum to 99% and watching the build stop
-(`lines covered ratio is 0.96, but expected minimum is 0.99`).
+The gates are **floors, not targets**: they exist to catch a test file being deleted or a whole
+area going untested, not to turn every refactor into a coverage negotiation. The branch figure now
+sits close to its floor — 78.9% against 75% — which is worth watching rather than acting on.
 
 ### JaCoCo, not Kover
 
@@ -473,50 +461,58 @@ followed by a repaired file holding the device's own language.
 
 ## Screens and navigation
 
-Fourteen destinations, in a `remember`ed enum. The shape is a tree of depth three:
+Twenty-one destinations, in a `remember`ed enum. The shape is a tree of depth three, and it forks
+once at the top: without a server the character is a local `.sav`, with one it is an account.
 
 ```
-SPLASH ──(startup finishes)──▶ MENU ──▶ PROFILES ──▶ PROFILE_NEW
-                                │           │
-                                │           └──────▶ DASHBOARD ──▶ OPPONENTS ──▶ MATCH
-                                │                        │                        └ deck selector
-                                │                        ├───────▶ STATS
-                                │                        ├───────▶ CARDS
-                                │                        ├───────▶ DECKS
-                                │                        ├───────▶ INVENTORY
-                                │                        ├───────▶ SHOP
-                                │                        └───────▶ HELP
-                                ├────▶ OPTIONS
-                                └────▶ onQuit  (the host's business)
+SPLASH ─(startup finishes)─▶ MENU ─▶ PROFILES ──▶ PROFILE_NEW        (no server)
+                              │      ACCOUNT ───▶ COLLECTION_CHOICE  (with one)
+                              │        │  └────▶ SERVERS
+                              │        ▼
+                              │    DASHBOARD ─▶ OPPONENTS ─▶ MATCH
+                              │        │            │         └ deck selector
+                              │        │            ├───────▶ TUTORIAL
+                              │        │            └───────▶ CAMPAIGN ─▶ CAMPAIGN_MATCH
+                              │        ├───────▶ STATS ─▶ AVATAR
+                              │        ├───────▶ CARDS / DECKS
+                              │        ├───────▶ SHOP / INVENTORY
+                              │        └───────▶ HELP
+                              ├────▶ OPTIONS
+                              └────▶ onQuit  (the host's business)
 ```
+
+`CARDS`/`DECKS` and `SHOP`/`INVENTORY` are two tabs each of one screen, and four of these are the
+navigation bar's own entries — see [`Navigation`](shared/src/commonMain/kotlin/com/tripletriad/ui/Navigation.kt).
+[`ProfileGate`](shared/src/commonMain/kotlin/com/tripletriad/ui/ProfileGate.kt) is what lets the
+thirteen screens behind the dashboard ignore which of the two sources the character came from.
 
 The deck selector is a **step inside the match**, not a destination — which is where the original
 put it, and for a reason: under `RULE_RANDOM` the hand is dealt from the whole collection and the
 panel never opens, so whether the player is asked at all is not known until the roulette has been
 drawn. `MatchScreen` resolves the rules first and asks only if they permit it.
 
+`COLLECTION_CHOICE` is the other one-time step: `POST /accounts` carries a name and a password and
+nothing else, so an account's character always starts on `ff14_`, and this is the only moment the
+collection can be changed harmlessly — before a card, a deck or a match depends on it.
+
 Every arrow reverses with the ‹ chevron or the system back gesture. **Play** on the menu goes to
-the dashboard when a character is loaded and to the character list when none is — the original's
-Continue and Load Game behind one button, chosen by what is loaded rather than by asking.
+the dashboard when a character is loaded and to the chooser when none is — the original's Continue
+and Load Game behind one button, chosen by what is loaded rather than by asking.
 
 **The dashboard is the hub, and that is the original's shape**, not an invention:
-`dashboardScreen.as:49-59` builds this exact stack and all seven screens behind it return to it.
-Putting Play on the main menu — which this port did while it had one destination — leaves the
-collection, the decks, the bag and the shop nowhere to hang.
+`dashboardScreen.as:49-59` builds this exact stack and every screen behind it returns to it.
 
-**Still no Compose Navigation.** `docs/migration/08-PHASE-4-UI-LAYER.md` Task 4.3 specifies a
-`NavHost` with named routes. There are no deep links, no arguments beyond what the session already
-holds, and nothing to restore across process death that is not already on disk; what a navigation
-library would replace is `Screen.up` and two `when`s. The point named for reconsidering this was "a
-screen reachable from two places with a different back destination from each" — and the dashboard is
-what keeps that from happening: every screen behind it has exactly one way in.
+**No Compose Navigation.** `docs/migration/08-PHASE-4-UI-LAYER.md` Task 4.3 specifies a `NavHost`
+with named routes. There are no deep links, no arguments beyond what the session already holds, and
+nothing to restore across process death that is not already on disk; what a navigation library would
+replace is `Screen.up` and two `when`s. The point to reconsider it is "a screen reachable from two
+places with a different back destination from each", which the dashboard is what prevents.
 
-**The Android system back gesture is handled**, which it was not before: `BackHandler` from
-`androidx.compose.ui.backhandler` — multiplatform in Compose 1.9, so no Android-only source set —
-returns to the menu from a match or the options. Without it, back mid-match finished the activity
-and the app appeared to quit from the middle of a game. It is deliberately *disabled* on the menu,
-where leaving the app is the right answer. It needs the `ui-backhandler` artifact, which
-`compose.ui` does not bring in.
+**The Android system back gesture is handled**: `BackHandler` from
+`androidx.compose.ui.backhandler` — multiplatform, so no Android-only source set — returns to the
+menu from a match or the options. Without it, back mid-match finished the activity and the app
+appeared to quit from the middle of a game. It is deliberately *disabled* on the menu, where
+leaving the app is the right answer.
 
 ### Splash
 
@@ -549,14 +545,18 @@ with four actions: **Play, Characters, Options, Quit**, and a line under the log
 character. The original's Continue / New Game / Load Game are the first two of those, folded
 together: which one Play means is decided by whether a character is loaded, not by asking.
 
-### Dashboard, and the six screens behind it
+### Dashboard, and what hangs off it
 
-The character's own menu: Play, Multiplayer (drawn disabled — it needs Phase 5), the record, the
-collection, the decks, the bag, the shop, the rules, and Logout. Everything Phase 2 built a data
-layer for is reachable from here, and everything these screens change is written through
-`ProfileSession`, which is the one thing that writes a profile.
+The character's own menu: Play, the record, the collection, the decks, the bag, the shop, the rules,
+and Logout. Everything the data layer exists for is reachable from here, and everything these
+screens change is written through [`ProfileGate`](shared/src/commonMain/kotlin/com/tripletriad/ui/ProfileGate.kt)
+— a local `.sav` through `ProfileSession`, an account through `AccountSession`, and no screen below
+it knows which.
 
-Three of them fix something the original got wrong rather than merely porting it: **a purchase is
+Logout means what it says on a build with a server: the token is dropped and the session ended, not
+merely the screen changed. The original navigated away and left `Game.PROFILE_DATAS` loaded.
+
+Three screens fix something the original got wrong rather than merely porting it: **a purchase is
 now saved** (`shopScreen.as:149` ends on a commented-out `Save.save`), **Reset on a deck actually
 empties it** (`resetDeckHandler` calls `slice` where `splice` was meant, so the deck came back on the
 next load), and **discarding a bag item asks twice** (the original's handler opens on
@@ -689,7 +689,7 @@ played nor explained:
 
 * **ten are referenced by no call site at all** in the AS3 source — including `flip`, whose only two
   calls are commented out in favour of `se_ttriad.scd_157`, and `win`, which the win sounds are not;
-* **two belong to the coin flip** (`anims/PileOuFace.as`), which this port has not implemented.
+* **two belong to the coin flip** (`anims/PileOuFace.as`), whose own sounds the AS3 never wired up.
 
 That is 0.31 MB of sounds nothing could play, left out of the APK.
 
@@ -754,9 +754,13 @@ need someone to listen.
 ## Rules engine
 
 The rules are implemented as **pure functions over immutable state** — no UI, no coroutines,
-no display objects. `RulesEngine.resolve(board, position, card, player, tally)` returns a
-[`Resolution`](shared/src/commonMain/kotlin/com/tripletriad/model/RulesEngine.kt): the
-resulting board plus every capture, each tagged with its kind and its combo wave.
+no display objects. `RulesEngine.resolve(board, position, card, player, tally)` returns a `Resolution`: the resulting
+board plus every capture, each tagged with its kind and its combo wave.
+
+The engine and the model it works over live in **`tto-core`**, published as
+`com.tripletriad:core` and consumed here as an ordinary dependency — see `settings.gradle.kts`
+for the two repositories that can serve it. What follows describes that library; it is here
+because it is what the app plays by.
 
 That shape is the point. The AS3 original keeps domain state *inside* Starling display
 objects — `Card.modifier` has no backing field, it is stored in a `TextField` and parsed back
@@ -802,9 +806,10 @@ reference anyone can check by playing it. Flip either option to reverse the choi
 
 ### What is not implemented
 
-Roulette rule generation, the pre-match phase chain (Random hand, Swap, the coin flip), Order
-and Chaos enforcement, Sudden Death, the AI, and the match state machine that sequences turns.
-The engine resolves *one placement*; nothing yet drives a whole match.
+Nothing, on the solo side: the roulette, the pre-match chain (Random hand, Swap, Open, the coin
+flip), Order and Chaos, Sudden Death, the AI and the match state machine are all in place and
+driven from the screens. What is left is **local PvP** — the peer half of `MatchView`, whose
+transport is still undecided.
 
 ## Running on a real Android device
 
@@ -874,8 +879,8 @@ Run on Windows 11, JDK 17 (Temurin), Android SDK platform 36.1 / build-tools 36.
 | `./gradlew :androidApp:assembleDebug` | **BUILD SUCCESSFUL** — `androidApp-debug.apk`, 19 070 KB |
 | `./gradlew :androidApp:assembleRelease` | **BUILD SUCCESSFUL** — `androidApp-release-unsigned.apk`, 16 141 KB |
 | `./gradlew :desktopApp:build` | **BUILD SUCCESSFUL** — `desktopApp.jar` |
-| `./gradlew :shared:desktopTest` | **95 tests, 0 failures** |
-| `./gradlew :shared:build` (all targets) | **222 test executions, 0 failures** |
+| `./gradlew :shared:desktopTest` | **523 tests, 0 failures** |
+| `./gradlew :shared:build` (all targets) | **786 test executions, 0 failures** |
 | `./gradlew ktlintCheck detekt` | **BUILD SUCCESSFUL** — 0 findings, `maxIssues = 0` |
 | `./gradlew :shared:lint` | **0 errors**, warnings only ("a newer version is available") |
 | `./gradlew :desktopApp:run` | window opens, titled "Triple Triad", nothing on stderr |
@@ -924,90 +929,36 @@ gated on targeting 37.
 
 ### Test breakdown
 
-```
-commonTest — runs on desktop and androidHostTest
-  com.tripletriad.settings.UserSettingsTest 12 tests
-  com.tripletriad.log.LogTest              7 tests
-  com.tripletriad.i18n.StringsTest         9 tests
-  com.tripletriad.model.CardTest          5 tests
-    oppositeIsAnInvolution
-    captureChangesOwnerAndNothingElse
-    captureTwiceReturnsTheOriginal
-    aceIsRenderedAsA
-    invalidFieldsAreRejected
-  com.tripletriad.data.CardCatalogTest    8 tests
-    bothCollectionsAreParsed
-    powersKeepTheAs3TopRightBottomLeftOrder
-    hexPowerAIsTen
-    typeCoversBothTheFf14TribesAndTheFf8Elements
-    ownerDefaultsToBlueBecauseTheDataDoesNotStoreIt
-    collectionsAreLookedUpByTheAs3TexturePrefix
-    unknownFieldsDoNotBreakParsing
-    invalidDataIsRejectedAtConstruction
+**523 distinct tests; 786 executions** — the 263 in `commonTest` run once per target
+(`desktopTest` and `testAndroidHostTest`) and the 260 in `desktopTest` once. 0 failures.
 
-desktopTest — real Compose tree on the JVM, plus the JVM-only bundle reads
-  com.tripletriad.ui.MatchUiTest         10 tests
-  com.tripletriad.i18n.StringsBundleTest  8 tests
-  com.tripletriad.ui.MatchLayoutTest      6 tests
-  com.tripletriad.data.CardBundleTest     4 tests
-  com.tripletriad.ui.CardFaceTest         2 tests
-```
+`commonTest` is everything that needs no resources and no Compose tree: the save format and its
+repositories, the string lookup and its fallback chain, the settings, the log, the sounds, the
+network client and the offline queue. `desktopTest` is the rest — the real `App()` driven through
+the real screens, plus the reads of the shipped bundles, which are JVM-only because they go through
+the packaged resources.
 
-`RulesEngineTest` is the
-[§ 16 test matrix](docs/analysis/game-rules.md#16-test-matrix-for-the-port) from the rules
-specification, case for case: basic capture and Reverse, Fallen Ace and its interactions,
-Same / Plus / Same Wall, combo propagation, the three type rules, turn order and scoring.
-
-165 distinct tests; **275 executions** — the 110 in `commonTest` run once per target
-(`desktopTest` and `testAndroidHostTest`) and the 55 in `desktopTest` once — 0 failures.
-
-Line coverage is **97.8%**, branch **85.9%**, measured on the desktop target and gated in
+Line coverage is **96.8%**, branch **78.9%**, measured on the desktop target and gated in
 `check` — see [§ Coverage](#coverage).
 
-It used to be 249, over three targets, and the drop is not a loss of coverage. AGP 9 stopped
-creating a release unit-test variant for library modules, and the module then moved to
-`com.android.kotlin.multiplatform.library`, where the Android unit tests run once under
-`:shared:testAndroidHostTest`. The runs that disappeared were the same 77 tests against
-variants differing only in flags no unit test reads — unit tests do not go through R8.
+`RulesEngineTest` lives in `tto-core` now, with the engine: it is the
+[§ 16 test matrix](docs/analysis/game-rules.md#16-test-matrix-for-the-port) from the rules
+specification, case for case.
 
-**The suite is not vacuous.** Mutating `RulesEngine.beats` from `defence < attack` to
-`defence <= attack` — the single most plausible way to get capture wrong — makes
-`equalPowersNeverCapture` fail, and only that test. Reverting restores green. Ties are the
-case a plausible-looking port gets wrong, because `reverse` looks like a negation and is not:
-both comparisons are strict, so equal powers hold under both.
+**The suite is not vacuous.** Three checks that are load-bearing rather than incidental:
 
-`CardBundleTest` reads the shipped `cards.json` out of the actual resource bundle, so it
-fails if the resource is dropped from packaging, if the generated `Res` accessor moves, or
-if the JSON schema drifts from the model. The parser is tested separately and purely in
-`commonTest`.
-
-`MatchUiTest` drives the real `App()` — pick a card, pick a cell, nine times over — and
-asserts invariants rather than a particular board: the turn passes, an illegal placement is
-swallowed rather than thrown, the score always totals 10, a finished match announces a result.
-Every one of its tests also covers resource packaging, because `App()` shows nothing but
-"loading cards…" until the bundle is parsed, so they all hang at `awaitCatalog()` if it is
-missing.
-
-`CardFaceTest` asserts that a card is drawn with **its own** artwork, which is there because
-it was not. `rememberCardFace` used `produceState`, whose value lives in an unkeyed `remember`:
-changing the keys restarts the producer but keeps the previous value, and the producer only
-loaded when the value was null. A composable slot handed a second card therefore kept drawing
-the first one's picture. It needs a *reused* slot to show up, which the hand does constantly —
-slots close up as cards are played — and no assertion had ever looked at which bitmap a slot
-held, so it was found by playing the game and not by the suite. The test compares bitmap
-identity rather than pixels, since `CardArt` caches one instance per texture id. Mutation-checked:
-restoring the `produceState` version fails `theFaceFollowsTheCardWhenASlotIsReused` and nothing
-else.
-
-`MatchLayoutTest` covers `matchLayout`, which is a pure function of a measured width and
-height precisely so it *can* be covered. Its load-bearing test is
-`theArrangementAlwaysFitsInTheSpaceItWasGiven`: across nine viewports, the footprint of two
-hand areas plus the board must not exceed the bounds. Three earlier revisions of this screen
-estimated the space instead of measuring it and each one over-subscribed its column on some
-device — which is not a visible error, because `Modifier.size` silently coerces into the
-constraints it is given, so children collapse to zero height while continuing to draw at full
-size. The symptom is cards drawn on top of each other; the test is the thing that would have
-caught it.
+- `CardBundleTest` reads the shipped `cards.json` out of the actual resource bundle, so it fails if
+  the resource is dropped from packaging, if the generated `Res` accessor moves, or if the JSON
+  schema drifts from the model.
+- `MatchUiTest` drives the real `App()` — pick a card, pick a cell, nine times over — and asserts
+  invariants rather than a particular board: the turn passes, an illegal placement is swallowed
+  rather than thrown, the score always totals 10, a finished match announces a result. Every one of
+  its tests also covers resource packaging, because `App()` shows nothing until the bundle parses.
+- `MatchLayoutTest` covers `matchLayout`, a pure function of a measured width and height precisely
+  so it *can* be covered. `theArrangementAlwaysFitsInTheSpaceItWasGiven` checks, across nine
+  viewports, that two hand areas plus the board do not exceed the bounds — an over-subscribed
+  column is not a visible error, since `Modifier.size` silently coerces into its constraints, so
+  children collapse to zero height while continuing to draw at full size.
 
 ## Localisation
 
@@ -1128,45 +1079,20 @@ prints exactly these, all from plugin internals and all scheduled for removal in
 | `The archives configuration has been deprecated for artifact declaration` | Kotlin Multiplatform, when `jvm("desktop")` registers its jar |
 | `Declaring dependencies using multi-string notation has been deprecated` | Kotlin Multiplatform, resolving `kotlin-native-prebuilt` |
 
-Everything else was fixed rather than documented — see
-[Toolchain](#toolchain). Gone with it: the four `API 'applicationVariants' /
-'libraryVariants' / 'testVariants' / 'unitTestVariants' is obsolete` warnings, and seven
-deprecated `android.*` option settings.
-
-**No frame-timing measurement.** `dumpsys gfxinfo` recorded zero frames because the
-device's screen locked partway through the session. The plan's "60+ FPS" criterion is
-therefore unverified — the flip looks smooth, which is not a measurement. The commands to
-fill this in are in
+**No frame-timing measurement.** `dumpsys gfxinfo` recorded zero frames because the device's screen
+locked partway through the session, so the plan's "60+ FPS" criterion is unverified — the
+animations look smooth, which is not a measurement. The commands to fill this in are in
 [docs/analysis/performance-baseline.md](docs/analysis/performance-baseline.md) §2.
 
-**No card-internal layout assertions.** `MatchLayoutTest` covers the *arrangement* — which
-hand goes where, at what scale, and that it fits. Nothing asserts where a layer sits *inside*
-a card, so a regression that moved the digit badge would pass CI. Since the whole point of
-`CardColors.kt` is reproducing exact AS3 coordinates,
-`assertLeftPositionInRootIsEqualTo` and friends would close the gap.
+**No card-internal layout assertions.** `MatchLayoutTest` covers the *arrangement* — which hand
+goes where, at what scale, and that it fits. Nothing asserts where a layer sits *inside* a card, so
+a regression that moved the digit badge would pass CI. Since the whole point of `CardColors.kt` is
+reproducing exact AS3 coordinates, `assertLeftPositionInRootIsEqualTo` and friends would close it.
 
-**Starling's easing curves are not Compose's.** `Transitions.EASE_IN` / `EASE_OUT` are
-mapped to `FastOutLinearInEasing` / `LinearOutSlowInEasing`, which are the closest
-equivalents and not the same functions. A visual diff pass against the original is still
-owed — see [docs/analysis/api-mapping.md](docs/analysis/api-mapping.md).
-
-**The mid-flip frame was never photographed.** `adb shell screencap` PNG-encodes a
-1080×2400 frame in roughly 300 ms, so a 24-shot burst fired at the tap lands at most one
-frame inside a 400 ms animation, and both attempts landed after it had settled. What is
-verified is the settled result — the card changed hands, and its artwork, stars and digits
-are upright. That the *intermediate* frames cannot mirror is an argument rather than an
-observation: `scaleX` and `scaleY` only ever take values in [0, 1.2], so no axis is ever
-inverted. Catching the frame needs `screenrecord` plus a frame extractor, which is not
-installed here.
-
-**A card is scaled by multiplying its geometry, not by scaling its render layer.** The first
-implementation measured `CardFace` at its authored 88×118 (`requiredSize`) and shrank it with
-`graphicsLayer { scaleX = scale }`. That reports a small size while drawing a large one, so
-anything that promotes the composable to an offscreen layer clips it — and the dimmed hand does
-exactly that, because `alpha < 1` forces one. The symptom was the waiting side's cards rendering
-as slivers while the active side's looked correct. Multiplying every dp and sp by `scale` keeps
-drawn bounds and reported bounds equal, which is the only version of this that composes safely.
-Noted on `CardFace`.
+**Starling's easing curves are not Compose's.** `Transitions.EASE_IN` / `EASE_OUT` are mapped to
+`FastOutLinearInEasing` / `LinearOutSlowInEasing`, which are the closest equivalents and not the
+same functions. A visual diff pass against the original is still owed — see
+[docs/analysis/api-mapping.md](docs/analysis/api-mapping.md).
 
 **Portrait support is a deliberate departure.** `application.xml` declares
 `<aspectRatio>landscape</aspectRatio>` and the AS3 build is desktop-only, so the original has
@@ -1177,51 +1103,21 @@ their own scale, always ≥ the hand scale, because a portrait hand is five card
 board is three and would otherwise leave a third of the screen empty; FFXIV draws the board
 larger than the hands too.
 
-**CI is green, on the second attempt.**
-[`.github/workflows/build.yml`](.github/workflows/build.yml) failed on its first run at
-the first step of every job:
+**A card is scaled by multiplying its geometry, not by scaling its render layer.** Measuring at the
+authored size and shrinking with `graphicsLayer` reports a small size while drawing a large one, so
+anything that promotes the composable to an offscreen layer — a dimmed hand does, because
+`alpha < 1` forces one — clips it. Multiplying every dp and sp by the scale keeps drawn bounds and
+reported bounds equal. Noted on `CardFace`.
 
-```
-./gradlew: Permission denied      (exit code 126)
-```
+**CI runs five jobs** from [`.github/workflows/build.yml`](.github/workflows/build.yml), including
+`ios-framework` on `macos-latest` — `linkDebugFrameworkIosSimulatorArm64` plus
+`iosSimulatorArm64Test`, which is the only Apple compilation this project gets, since it cannot be
+run from the Windows host. It proves the framework links and its common tests pass; there is still
+no `.xcodeproj`, so no iOS *app* has been built.
 
-`gradlew` was committed from Windows, where `core.filemode` is `false`, so it
-landed in the git index as `100644` instead of `100755`. Fixed with
-`git update-index --chmod=+x gradlew`; see
-[git-workflow.md § File modes on Windows](docs/development/git-workflow.md#file-modes-on-windows).
-
-All five jobs then passed. Three risks flagged before that run are now settled, and they
-were the interesting ones:
-
-- **The Compose UI tests run headless on Linux.** `runComposeUiTest` gets a rendering
-  surface on `ubuntu-latest` without `xvfb-run`. That was the failure I expected first and
-  it did not happen.
-- **`compileSdk 36` resolves on the runner** via `android-actions/setup-android`.
-- **`ios-framework` passed**, which makes it the project's first successful Apple
-  compilation — `linkDebugFrameworkIosSimulatorArm64` plus `iosSimulatorArm64Test` on
-  `macos-latest`. It has never been built from this Windows host and cannot be.
-
-Two caveats on that green. The result is reported from the Actions UI, not something
-measured here, so the per-target test counts on CI have not been read back — the
-`shared-test-results` artifact uploads on `always()` and is where that would be checked.
-And `ios-framework` proves the framework links and its common tests pass; there is still no
-`.xcodeproj`, so no iOS *app* has been built (see [iOS caveat](#ios-caveat)).
-
-The missing Android SDK is *not* a risk for the `quality`, `desktop` and `ios-framework`
-jobs, which have no `setup-android` step: AGP 8.x resolves the SDK location at task
-execution, not at configuration, so those jobs configure `:shared` fine without one. That
-was verified locally by moving `local.properties` aside and running `ktlintCheck --dry-run`
-and `:desktopApp:build --dry-run` with `ANDROID_HOME` unset, and then confirmed by those
-three jobs passing on CI.
-
-**Action versions are pinned to Node 24 majors.** The first green run warned that
-`actions/checkout@v4`, `actions/setup-java@v4`, `actions/upload-artifact@v4` and
-`android-actions/setup-android@v3` declare `using: node20` and were being forced onto Node
-24. They are now `v6`, `v5`, `v6` and `v4` respectively. `gradle/actions/setup-gradle` is
-pinned to **v5, deliberately not v6**: v5 is the oldest major on Node 24, and v6 moves
-caching into a proprietary `gradle-actions-caching` component whose use implies accepting
-Gradle's Terms of Use. That is a licensing call for the project owner, not a maintenance
-bump, and the rationale is recorded in the workflow itself.
+`gradle/actions/setup-gradle` is pinned to **v5, deliberately not v6**: v6 moves caching into a
+proprietary `gradle-actions-caching` component whose use implies accepting Gradle's Terms of Use.
+That is a licensing call for the project owner, not a maintenance bump.
 
 ### iOS caveat
 
@@ -1244,39 +1140,31 @@ shared framework links for `iosSimulatorArm64` and its common tests run there. T
 the "does the shared code compile for Apple at all" question and leaves only the app shell
 — no simulator run, no UI, no `.xcodeproj`.
 
-## What this PoC does and does not prove
+## What is proven, and what is left
 
-Proven, by execution:
+Proven by execution — the game is playable end to end, on Android and on the JVM desktop, against
+a real account server:
 
 - Kotlin 2.2.20 + Compose Multiplatform 1.9.3 + kotlinx.serialization 1.9.0 + AGP 9.3.1
-  + Gradle 9.6.1 are a working combination.
-- One `commonMain` Compose UI runs on Android and on the JVM from a single source.
-- **Structured data loads from a JSON resource through the Compose resource bundle** on
-  both, and the same parser tests run on three targets.
-- A 3D-ish Y-axis flip with a mid-animation state change works in common code
-  (`Animatable` + `graphicsLayer { rotationY }` + `cameraDistance`, un-mirroring the face
-  past 90°).
-- Common-code tests and Compose UI tests both run in Gradle tasks, and the UI tests were
-  shown capable of failing.
-- ktlint and detekt run clean at `maxIssues = 0` on this codebase.
+  + Gradle 9.6.1 + Ktor are a working combination.
+- One `commonMain` Compose UI runs on Android and on the JVM from a single source: 28 of the
+  original's 32 screens, the whole rules engine, the tutorial and both tournament ladders.
+- **The artwork is the original's.** 263 card faces as individual files, three thumbnail atlases
+  sliced with `BitmapPainter`, 27 avatars, 84 opponent portraits, and the twenty match captions in
+  four locales — which was the highest unvalidated risk when this was a proof of concept.
+- Drag-and-drop alongside tap, on a 3×3 board, in common code — Feathers' `DragDropManager` has no
+  Compose equivalent and needed none.
+- Accounts, sessions and an offline queue over Ktor, verified against the local Docker/Postgres
+  container. The legacy socket protocol was abandoned rather than ported; matches are replayed and
+  verified server-side from a signed transcript, which only works because the engine is pure.
+- ktlint and detekt run clean at `maxIssues = 0`, and coverage is gated in `check`.
 
-Not proven — these are the actual risks of the migration:
+Left:
 
-- **Card artwork from Starling texture atlases.** The PoC draws cards programmatically and
-  loads no texture. The real game slices 263 card images out of atlases, and Compose has
-  no atlas support. Highest unvalidated risk; see
-  [docs/analysis/api-mapping.md](docs/analysis/api-mapping.md) §7.
-- **iOS.** Never compiled (see above).
-- **The 3×3 board and drag-and-drop.** Feathers' `DragDropManager` broker has no Compose
-  equivalent; see [docs/analysis/event-catalog.md](docs/analysis/event-catalog.md) §3.1.
-- **The rules engine**, including the Same/Plus/Combo cascade — 20 rules that interact.
-- **Networking.** `net/Socket.as` is largely dead code: 27 of its 29 handlers are
-  unreachable. See
-  [docs/analysis/network-protocol.md](docs/analysis/network-protocol.md).
-- **Performance.** No frame timings. The APK sizes above are for cards drawn from
-  primitives with no artwork; the runtime asset payload is roughly 40 MB.
-- **Any library outside the table above** — Ktor, SQLDelight, Koin, Media3 are all
-  unverified with this Kotlin/Compose combination.
+- **Local PvP** — `MatchView` and the peer protocol; the transport is undecided.
+- **iOS.** The SwiftUI host sources exist; nothing has ever compiled them, and doing so needs a
+  Mac. See the caveat below.
+- **Store release**, which is out of scope by decision.
 
 ## Fidelity to the AS3 source
 
@@ -1304,22 +1192,17 @@ line-for-line.
 | artwork 104×128 at (0, 0), over the colour quad | `Card.as:169-170` |
 | card back on top, shown while flipping | `Card.as:93-94` |
 
-An earlier revision of this PoC had three geometry errors, all now fixed: the card was
-modelled as a bare 88 × 118 sprite, the digit badge was 36 × 24 at the **top-left** of the
-card rather than 44 × 30 near the bottom, and `Digit()` shifted each glyph by −4 dp,
-putting the left digit at x = −2. The current values are the ones in the table.
-
 ## Licensing note
 
-⚠️ **This changed when card data was added.**
-[`cards.json`](shared/src/commonMain/composeResources/files/cards.json) now contains the
-**names and stats of all 263 cards** — "Dodo", "Geezard", "Odin", the FFXIV tribes, the
-`STR_FF14_CARD_*` i18n keys — extracted from the AS3 source and the shipped locale files.
-Those names are Square Enix's.
+⚠️ **This repository ships Square Enix material, and there is no reading of it that does not.**
 
-No art or audio is included, and the card is still drawn from primitives. But the earlier
-claim that "nothing here uses Square Enix assets" no longer holds, and this PoC is **not**
-a demonstration that the IP problem can be side-stepped.
+[`cards.json`](shared/src/commonMain/composeResources/files/cards.json) carries the **names and
+stats of all 263 cards** — "Dodo", "Geezard", "Odin", the FFXIV tribes, the `STR_FF14_CARD_*` i18n
+keys — and `composeResources/files/art/` carries the **artwork itself**: card faces, thumbnail
+atlases, avatars, opponent portraits, icons and the match captions. The four locale bundles are
+imported Square Enix wording, and ten of the original's sounds are in `androidApp/src/main/res/raw/`.
+
+So nothing here is a demonstration that the IP problem can be side-stepped.
 
 BR-003 in
 [docs/migration/16-RISK-ASSESSMENT.md](docs/migration/16-RISK-ASSESSMENT.md) —

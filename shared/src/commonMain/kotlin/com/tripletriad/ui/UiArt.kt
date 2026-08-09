@@ -191,6 +191,23 @@ val LocalUiArt = staticCompositionLocalOf<UiArt?> { null }
 
 private const val THUMBS_TABLE = "files/thumbs.json"
 
+/**
+ * The 27 portraits a character may wear, in the order the picker shows them.
+ *
+ * Written out rather than discovered: Compose resources have no directory listing, so the only way
+ * to know what is in `art/avatars/` at runtime is to say so. Exactly what `tools/import_ui_art.py`
+ * copies — the two lists have to say the same thing, as with [ICON_NAMES].
+ */
+internal val AVATAR_NAMES: List<String> = listOf(
+    "ffxiv_twi01001", "ffxiv_twi01002", "ffxiv_twi01003", "ffxiv_twi01004", "ffxiv_twi01005",
+    "ffxiv_twi01006", "ffxiv_twi01007", "ffxiv_twi01008", "ffxiv_twi01009", "ffxiv_twi01010",
+    "ffxiv_twi02001", "ffxiv_twi02002", "ffxiv_twi02003", "ffxiv_twi02004", "ffxiv_twi02005",
+    "ffxiv_twi02006", "ffxiv_twi02007", "ffxiv_twi02008",
+    "ffxiv_twi03001", "ffxiv_twi03002", "ffxiv_twi03003", "ffxiv_twi03004", "ffxiv_twi03005",
+    "ffxiv_twi03006", "ffxiv_twi03007",
+    "ffxiv_twi04001", "ffxiv_twi04002",
+)
+
 /** Exactly what `tools/import_ui_art.py` copies — the two lists have to say the same thing. */
 private val ICON_NAMES = listOf(
     "card_r1_icon", "card_r2_icon", "card_r3_icon", "card_r4_icon", "card_r5_icon",

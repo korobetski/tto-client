@@ -204,11 +204,10 @@ fun App(
 /**
  * The three things that have to happen once, in order, before the menu is shown.
  *
- * Extracted from [App] because they are a sequence with a reason — the server, then the session on
+ * Separate from [App] because they are a sequence with a reason — the server, then the session on
  * it, then the local profiles if there is no session — and because [App] is otherwise the shell:
- * theme, locale, audio, back gesture. They were inline until detekt called the shell out at a
- * cyclomatic complexity of 15, and the rule was right; a reader wanting to know why the splash ends
- * when it does had to find three effects among the volume plumbing.
+ * theme, locale, audio, back gesture. A reader asking why the splash ends when it does should not
+ * have to find three effects among the volume plumbing.
  *
  * @param onReady called when every phase has completed and a stored session, if any, has been
  *   tried. A callback and not a returned flag because the destination is [App]'s decision: from
@@ -309,9 +308,8 @@ private fun rememberedAccount(
  * One screen.
  *
  * Split out of [App] so that `App` is the shell — theme, startup, locale, audio, back gesture — and
- * this is the routing table. They were one function until detekt called it out at a cyclomatic
- * complexity of 20, and the rule was right: a reader wanting to know where "Play" goes had to
- * scroll past the volume plumbing to find out.
+ * this is the routing table: where "Play" goes should not be found by scrolling past the volume
+ * plumbing.
  *
  * @param onNavigate where a screen asks to go next. A single callback rather than one per
  *   destination: the transitions are `screen = x` and nothing else, and seven lambdas that each
@@ -395,7 +393,7 @@ private fun Destination(
         // Grouped rather than delegated behind an `else`, so that adding a fourteenth screen is a
         // compile error here instead of a destination that silently renders blank.
         Screen.DASHBOARD, Screen.OPPONENTS, Screen.MATCH, Screen.TUTORIAL, Screen.STATS,
-        Screen.CAMPAIGN, Screen.CAMPAIGN_MATCH,
+        Screen.CAMPAIGN, Screen.CAMPAIGN_MATCH, Screen.AVATAR, Screen.COLLECTION_CHOICE,
         Screen.CARDS, Screen.DECKS, Screen.INVENTORY, Screen.SHOP, Screen.HELP,
         -> gate.profile?.let { profile ->
             // The navigation bar, for the screens that have one. Provided here rather than passed
@@ -455,7 +453,11 @@ private fun AccountDestination(
         else -> AccountScreen(
             session = session,
             update = state.update,
-            onSignedIn = { onNavigate(Screen.DASHBOARD) },
+            // A new account goes through the collection step first — the one moment it can be
+            // asked, since registration does not carry one and no match has been played yet.
+            onSignedIn = { isNew ->
+                onNavigate(if (isNew) Screen.COLLECTION_CHOICE else Screen.DASHBOARD)
+            },
             onBack = { onNavigate(Screen.MENU) },
         )
     }
@@ -562,7 +564,12 @@ private fun CharacterDestination(
             onExit = { onNavigate(Screen.OPPONENTS) },
         )
 
-        Screen.STATS -> StatsScreen(profile = profile, onBack = toDashboard)
+        Screen.STATS, Screen.AVATAR, Screen.COLLECTION_CHOICE -> RecordDestination(
+            destination = destination,
+            profile = profile,
+            gate = gate,
+            onNavigate = onNavigate,
+        )
 
         Screen.HELP -> HelpScreen(profile = profile, onBack = toDashboard)
 
@@ -587,6 +594,47 @@ private fun CharacterDestination(
         Screen.SPLASH, Screen.MENU, Screen.PROFILES, Screen.PROFILE_NEW,
         Screen.ACCOUNT, Screen.SERVERS, Screen.OPTIONS,
         -> Unit
+    }
+}
+
+/**
+ * The record and the two screens that edit the character it describes.
+ *
+ * Grouped because they are one subject — who this character *is*, as opposed to what they own or
+ * who they play — and because the three arms together were what pushed [CharacterDestination] past
+ * the complexity detekt allows.
+ *
+ * Both edits go through [ProfileGate.persist], so neither knows whether it is writing a local
+ * `.sav` or an account the server holds.
+ */
+@Composable
+private fun RecordDestination(
+    destination: Screen,
+    profile: GameSave,
+    gate: ProfileGate,
+    onNavigate: (Screen) -> Unit,
+) {
+    when (destination) {
+        Screen.AVATAR -> AvatarScreen(
+            profile = profile,
+            onChoose = gate.persist,
+            onBack = { onNavigate(Screen.STATS) },
+        )
+
+        Screen.COLLECTION_CHOICE -> CollectionChoiceScreen(
+            profile = profile,
+            onChosen = { chosen ->
+                gate.persist(chosen)
+                onNavigate(Screen.DASHBOARD)
+            },
+            onBack = { onNavigate(Screen.DASHBOARD) },
+        )
+
+        else -> StatsScreen(
+            profile = profile,
+            onAvatar = { onNavigate(Screen.AVATAR) },
+            onBack = { onNavigate(Screen.DASHBOARD) },
+        )
     }
 }
 

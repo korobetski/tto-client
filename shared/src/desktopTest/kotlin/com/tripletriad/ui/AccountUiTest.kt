@@ -13,6 +13,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.i18n.AppLocale
+import com.tripletriad.model.CardCollection
 import com.tripletriad.model.GameSave
 import com.tripletriad.net.AccountClient
 import com.tripletriad.net.MatchReporter
@@ -33,6 +34,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.MockRequestHandleScope
 import io.ktor.client.engine.mock.respond
+import io.ktor.client.engine.mock.toByteArray
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.HttpResponseData
 import io.ktor.http.ContentType
@@ -88,6 +90,11 @@ class AccountUiTest {
 
         awaitDashboard()
         assertVisible("kuplu", "the dashboard did not show the account's character")
+        // And straight there: an account that already exists has a collection, so the step that
+        // follows a registration must not appear again on every sign-in.
+        check(!exists(COLLECTION_CONFIRM_TEST_TAG)) {
+            "an existing account was asked to choose its collection again"
+        }
     }
 
     /**
@@ -263,17 +270,33 @@ class AccountUiTest {
         check(!asked) { "the form sent credentials it had already judged invalid" }
     }
 
-    /** Registering is the same form with the toggle flipped, and it reaches the same dashboard. */
+    /**
+     * Registering is the same form with the toggle flipped, and it reaches the same dashboard — by
+     * way of the collection step, which is the one thing `POST /accounts` cannot carry.
+     *
+     * The choice has to reach the *server*: the account arrives on `ff14_` whatever the player
+     * picks, so a step that only changed the local copy would look right for one session and be
+     * gone on the next sign-in.
+     */
     @Test
-    fun registeringLandsOnTheDashboardToo() = runComposeUiTest {
-        val creating = MockEngine { respondJson(HttpStatusCode.Created, encode(session)) }
-        setContent { App(store = english(), server = connection(engine = creating)) }
+    fun registeringAsksForACollectionAndSendsIt() = runComposeUiTest {
+        val saved = mutableListOf<String>()
+        val engine = MockEngine { request ->
+            if (request.url.encodedPath == "/me/save") {
+                saved += request.body.toByteArray().decodeToString()
+            }
+            respondJson(HttpStatusCode.Created, encode(session))
+        }
+        setContent { App(store = english(), server = connection(engine = engine)) }
 
-        openForm()
-        onNodeWithTag(ACCOUNT_TOGGLE_TEST_TAG).performClick()
-        submitCredentials()
-
+        register()
+        onNodeWithTag(collectionChoiceTestTag(CardCollection.FF8)).performClick()
+        onNodeWithTag(COLLECTION_CONFIRM_TEST_TAG).performClick()
         awaitDashboard()
+
+        check(saved.any { it.contains("\"MODE\":\"ff8_\"") }) {
+            "the chosen collection never reached the server: $saved"
+        }
     }
 
     // ---- Fixtures ---------------------------------------------------------
@@ -382,4 +405,22 @@ class AccountUiTest {
         val player = PlayerState(save = GameSave(username = "kuplu", mgp = 4200))
         val session = Session(token = TOKEN, expiresAt = LATER, player = player)
     }
+}
+
+/**
+ * Through the sign-in form with the toggle flipped, as far as the collection step.
+ *
+ * File-level rather than a member: `AccountUiTest` is already at the number of functions detekt
+ * allows in one class, and a navigation helper is not what that limit is protecting.
+ */
+@OptIn(ExperimentalTestApi::class)
+private fun ComposeUiTest.register() {
+    awaitMenu()
+    onNodeWithTag(MENU_PLAY_TEST_TAG).performClick()
+    waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(ACCOUNT_SCREEN_TEST_TAG) }
+    onNodeWithTag(ACCOUNT_TOGGLE_TEST_TAG).performClick()
+    onNodeWithTag(ACCOUNT_NAME_TEST_TAG).performTextInput("kuplu")
+    onNodeWithTag(ACCOUNT_PASSWORD_TEST_TAG).performTextInput("not-a-real-password")
+    onNodeWithTag(ACCOUNT_SUBMIT_TEST_TAG).performClick()
+    waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(COLLECTION_CONFIRM_TEST_TAG) }
 }

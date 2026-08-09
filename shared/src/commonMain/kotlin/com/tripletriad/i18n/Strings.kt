@@ -20,10 +20,9 @@ import tripletriad.shared.generated.resources.Res
  * [displayName] is that map's value, which is deliberately written in the language it names —
  * a language picker must be readable by someone who cannot read the current language.
  *
- * `application.xml` declared the same four:
- * `<supportedLanguages>de en fr ja</supportedLanguages>`. An earlier revision of the migration
- * plan listed only English and French, which would have silently dropped two thirds of the
- * translated text that already exists.
+ * `application.xml` declares the same four:
+ * `<supportedLanguages>de en fr ja</supportedLanguages>`. All four ship, because all four are
+ * already translated in the imported bundles.
  */
 enum class AppLocale(val tag: String, val displayName: String) {
     EN_US("en_US", "English"),

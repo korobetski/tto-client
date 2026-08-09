@@ -111,7 +111,7 @@ exactly one way in.
    the only sink for a duplicate the game has. Without a line saying which card, the pack simply
    vanishes and a row appears further up a scrolled list.
 
-### Three things deliberately not reproduced
+### Two things deliberately not reproduced
 
 - **Item icons.** `ItemIcon` resolves `potionItem`, `booster_pack_icon` and `card_r{n}_icon` out of
   the UI atlas, which `tools/import_card_art.py` does not import — it imports the card art. A card
@@ -120,7 +120,6 @@ exactly one way in.
 - **The `UserBar` jump menu**, which listed every dashboard screen except the current one. It
   existed because these screens had no back button; this port has one, so returning and picking
   again is two taps against the callout's two.
-- **The avatar.** `AVATAR_ID` names one of forty FFXIV portraits, and nothing but the bar reads one.
 
 ### Two AS3 keys that do not exist
 
@@ -353,7 +352,8 @@ opponent that plays itself, Open visibility, the rules strip, the result panel),
 | `MenuScreen` | ✅ Tier 1. Four actions, and it names the loaded character |
 | `SettingsScreen` | ✅ Tier 1, as `OptionsScreen` (Phase 1) |
 | `LoadScreen` | ✅ Tier 1, as `ProfileListScreen` — a *character* list, which is what the original's was |
-| `NewGameScreen` | ✅ Tier 2, as `ProfileCreateScreen`, **plus the collection choice the original never offered** |
+| `NewGameScreen` | ✅ Tier 2, as `ProfileCreateScreen`, **plus the collection choice the original never offered** — and `CollectionChoiceScreen`, the same choice one step after registering an account |
+| `AvatarChooser` | ✅ as `AvatarScreen` — the 27 portraits, opened from the record, written through `ProfileGate` |
 | `PVEScreen` | ✅ Tier 4, as `OpponentScreen` — the one item of that tier that needs no network |
 | `BaseMatchScreen` + `PVEMatchScreen` + `Board` + `RulesDigest` + `RematchPanel` | ✅ Tier 2, as `MatchScreen` and its result panel |
 | `HelpScreen` | ✅ Tier 1, as an accordion over the seventeen rules |

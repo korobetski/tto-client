@@ -1075,771 +1075,771 @@
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 2,
-      "y": 2
+      "x": 0,
+      "y": 0
     },
     "ff8_10": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 44,
-      "y": 2
+      "x": 40,
+      "y": 0
     },
     "ff8_100": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 86,
-      "y": 2
+      "x": 80,
+      "y": 0
     },
     "ff8_101": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 128,
-      "y": 2
+      "x": 120,
+      "y": 0
     },
     "ff8_102": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 170,
-      "y": 2
+      "x": 160,
+      "y": 0
     },
     "ff8_103": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 212,
-      "y": 2
+      "x": 200,
+      "y": 0
     },
     "ff8_104": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 254,
-      "y": 2
+      "x": 240,
+      "y": 0
     },
     "ff8_105": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 296,
-      "y": 2
+      "x": 280,
+      "y": 0
     },
     "ff8_106": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 338,
-      "y": 2
+      "x": 320,
+      "y": 0
     },
     "ff8_107": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 380,
-      "y": 2
+      "x": 360,
+      "y": 0
     },
     "ff8_108": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 2,
-      "y": 44
+      "x": 400,
+      "y": 0
     },
     "ff8_109": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 44,
-      "y": 44
+      "x": 440,
+      "y": 0
     },
     "ff8_11": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 86,
-      "y": 44
+      "x": 0,
+      "y": 40
     },
     "ff8_110": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 128,
-      "y": 44
+      "x": 40,
+      "y": 40
     },
     "ff8_12": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 170,
-      "y": 44
+      "x": 80,
+      "y": 40
     },
     "ff8_13": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 212,
-      "y": 44
+      "x": 120,
+      "y": 40
     },
     "ff8_14": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 254,
-      "y": 44
+      "x": 160,
+      "y": 40
     },
     "ff8_15": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 296,
-      "y": 44
+      "x": 200,
+      "y": 40
     },
     "ff8_16": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 338,
-      "y": 44
+      "x": 240,
+      "y": 40
     },
     "ff8_17": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 380,
-      "y": 44
+      "x": 280,
+      "y": 40
     },
     "ff8_18": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 2,
-      "y": 86
+      "x": 320,
+      "y": 40
     },
     "ff8_19": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 44,
-      "y": 86
+      "x": 360,
+      "y": 40
     },
     "ff8_2": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 86,
-      "y": 86
+      "x": 400,
+      "y": 40
     },
     "ff8_20": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 128,
-      "y": 86
+      "x": 440,
+      "y": 40
     },
     "ff8_21": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 170,
-      "y": 86
+      "x": 0,
+      "y": 80
     },
     "ff8_22": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 212,
-      "y": 86
+      "x": 40,
+      "y": 80
     },
     "ff8_23": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 254,
-      "y": 86
+      "x": 80,
+      "y": 80
     },
     "ff8_24": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 296,
-      "y": 86
+      "x": 120,
+      "y": 80
     },
     "ff8_25": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 338,
-      "y": 86
+      "x": 160,
+      "y": 80
     },
     "ff8_26": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 380,
-      "y": 86
+      "x": 200,
+      "y": 80
     },
     "ff8_27": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 2,
-      "y": 128
+      "x": 240,
+      "y": 80
     },
     "ff8_28": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 44,
-      "y": 128
+      "x": 280,
+      "y": 80
     },
     "ff8_29": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 86,
-      "y": 128
+      "x": 320,
+      "y": 80
     },
     "ff8_3": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 128,
-      "y": 128
+      "x": 360,
+      "y": 80
     },
     "ff8_30": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 170,
-      "y": 128
+      "x": 400,
+      "y": 80
     },
     "ff8_31": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 212,
-      "y": 128
+      "x": 440,
+      "y": 80
     },
     "ff8_32": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 254,
-      "y": 128
+      "x": 0,
+      "y": 120
     },
     "ff8_33": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 296,
-      "y": 128
+      "x": 40,
+      "y": 120
     },
     "ff8_34": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 338,
-      "y": 128
+      "x": 80,
+      "y": 120
     },
     "ff8_35": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 380,
-      "y": 128
+      "x": 120,
+      "y": 120
     },
     "ff8_36": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 2,
-      "y": 170
+      "x": 160,
+      "y": 120
     },
     "ff8_37": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 44,
-      "y": 170
+      "x": 200,
+      "y": 120
     },
     "ff8_38": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 86,
-      "y": 170
+      "x": 240,
+      "y": 120
     },
     "ff8_39": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 128,
-      "y": 170
+      "x": 280,
+      "y": 120
     },
     "ff8_4": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 170,
-      "y": 170
+      "x": 320,
+      "y": 120
     },
     "ff8_40": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 212,
-      "y": 170
+      "x": 360,
+      "y": 120
     },
     "ff8_41": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 254,
-      "y": 170
+      "x": 400,
+      "y": 120
     },
     "ff8_42": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 296,
-      "y": 170
+      "x": 440,
+      "y": 120
     },
     "ff8_43": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 338,
-      "y": 170
+      "x": 0,
+      "y": 160
     },
     "ff8_44": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 380,
-      "y": 170
+      "x": 40,
+      "y": 160
     },
     "ff8_45": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 2,
-      "y": 212
+      "x": 80,
+      "y": 160
     },
     "ff8_46": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 44,
-      "y": 212
+      "x": 120,
+      "y": 160
     },
     "ff8_47": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 86,
-      "y": 212
+      "x": 160,
+      "y": 160
     },
     "ff8_48": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 128,
-      "y": 212
+      "x": 200,
+      "y": 160
     },
     "ff8_49": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 170,
-      "y": 212
+      "x": 240,
+      "y": 160
     },
     "ff8_5": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 212,
-      "y": 212
+      "x": 280,
+      "y": 160
     },
     "ff8_50": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 254,
-      "y": 212
+      "x": 320,
+      "y": 160
     },
     "ff8_51": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 296,
-      "y": 212
+      "x": 360,
+      "y": 160
     },
     "ff8_52": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 338,
-      "y": 212
+      "x": 400,
+      "y": 160
     },
     "ff8_53": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 380,
-      "y": 212
+      "x": 440,
+      "y": 160
     },
     "ff8_54": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 2,
-      "y": 254
+      "x": 0,
+      "y": 200
     },
     "ff8_55": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 44,
-      "y": 254
+      "x": 40,
+      "y": 200
     },
     "ff8_56": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 86,
-      "y": 254
+      "x": 80,
+      "y": 200
     },
     "ff8_57": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 128,
-      "y": 254
+      "x": 120,
+      "y": 200
     },
     "ff8_58": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 170,
-      "y": 254
+      "x": 160,
+      "y": 200
     },
     "ff8_59": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 212,
-      "y": 254
+      "x": 200,
+      "y": 200
     },
     "ff8_6": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 254,
-      "y": 254
+      "x": 240,
+      "y": 200
     },
     "ff8_60": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 296,
-      "y": 254
+      "x": 280,
+      "y": 200
     },
     "ff8_61": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 338,
-      "y": 254
+      "x": 320,
+      "y": 200
     },
     "ff8_62": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 380,
-      "y": 254
+      "x": 360,
+      "y": 200
     },
     "ff8_63": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 2,
-      "y": 296
+      "x": 400,
+      "y": 200
     },
     "ff8_64": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 44,
-      "y": 296
+      "x": 440,
+      "y": 200
     },
     "ff8_65": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 86,
-      "y": 296
+      "x": 0,
+      "y": 240
     },
     "ff8_66": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 128,
-      "y": 296
+      "x": 40,
+      "y": 240
     },
     "ff8_67": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 170,
-      "y": 296
+      "x": 80,
+      "y": 240
     },
     "ff8_68": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 212,
-      "y": 296
+      "x": 120,
+      "y": 240
     },
     "ff8_69": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 254,
-      "y": 296
+      "x": 160,
+      "y": 240
     },
     "ff8_7": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 296,
-      "y": 296
+      "x": 200,
+      "y": 240
     },
     "ff8_70": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 338,
-      "y": 296
+      "x": 240,
+      "y": 240
     },
     "ff8_71": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 380,
-      "y": 296
+      "x": 280,
+      "y": 240
     },
     "ff8_72": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 2,
-      "y": 338
+      "x": 320,
+      "y": 240
     },
     "ff8_73": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 44,
-      "y": 338
+      "x": 360,
+      "y": 240
     },
     "ff8_74": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 86,
-      "y": 338
+      "x": 400,
+      "y": 240
     },
     "ff8_75": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 128,
-      "y": 338
+      "x": 440,
+      "y": 240
     },
     "ff8_76": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 170,
-      "y": 338
+      "x": 0,
+      "y": 280
     },
     "ff8_77": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 212,
-      "y": 338
+      "x": 40,
+      "y": 280
     },
     "ff8_78": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 254,
-      "y": 338
+      "x": 80,
+      "y": 280
     },
     "ff8_79": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 296,
-      "y": 338
+      "x": 120,
+      "y": 280
     },
     "ff8_8": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 338,
-      "y": 338
+      "x": 160,
+      "y": 280
     },
     "ff8_80": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 380,
-      "y": 338
+      "x": 200,
+      "y": 280
     },
     "ff8_81": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 2,
-      "y": 380
+      "x": 240,
+      "y": 280
     },
     "ff8_82": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 44,
-      "y": 380
+      "x": 280,
+      "y": 280
     },
     "ff8_83": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 86,
-      "y": 380
+      "x": 320,
+      "y": 280
     },
     "ff8_84": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 128,
-      "y": 380
+      "x": 360,
+      "y": 280
     },
     "ff8_85": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 170,
-      "y": 380
+      "x": 400,
+      "y": 280
     },
     "ff8_86": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 212,
-      "y": 380
+      "x": 440,
+      "y": 280
     },
     "ff8_87": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 254,
-      "y": 380
+      "x": 0,
+      "y": 320
     },
     "ff8_88": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 296,
-      "y": 380
+      "x": 40,
+      "y": 320
     },
     "ff8_89": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 338,
-      "y": 380
+      "x": 80,
+      "y": 320
     },
     "ff8_9": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 380,
-      "y": 380
+      "x": 120,
+      "y": 320
     },
     "ff8_90": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 2,
-      "y": 422
+      "x": 160,
+      "y": 320
     },
     "ff8_91": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 44,
-      "y": 422
+      "x": 200,
+      "y": 320
     },
     "ff8_92": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 86,
-      "y": 422
+      "x": 240,
+      "y": 320
     },
     "ff8_93": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 128,
-      "y": 422
+      "x": 280,
+      "y": 320
     },
     "ff8_94": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 170,
-      "y": 422
+      "x": 320,
+      "y": 320
     },
     "ff8_95": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 212,
-      "y": 422
+      "x": 360,
+      "y": 320
     },
     "ff8_96": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 254,
-      "y": 422
+      "x": 400,
+      "y": 320
     },
     "ff8_97": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 296,
-      "y": 422
+      "x": 440,
+      "y": 320
     },
     "ff8_98": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 338,
-      "y": 422
+      "x": 0,
+      "y": 360
     },
     "ff8_99": {
       "height": 40,
       "sheet": "ff8_card_thumbs",
       "width": 40,
-      "x": 380,
-      "y": 422
+      "x": 40,
+      "y": 360
     }
   }
 }

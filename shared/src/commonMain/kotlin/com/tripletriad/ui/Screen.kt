@@ -3,17 +3,16 @@ package com.tripletriad.ui
 /**
  * Which screen is showing.
  *
- * A `remember`ed value and not a navigation library. There are nineteen destinations now and the
+ * A `remember`ed value and not a navigation library. There are twenty-one destinations now and the
  * flow is still a **tree of depth three** — menu → characters → dashboard → one of seven — with one
  * [up] per screen and no deep links, no arguments beyond what the session already holds, and no
  * state to restore across process death that is not already on disk. Compose Navigation would buy a
  * `NavHost`, a route DSL and typed arguments; what it would replace is [up] and two `when`s.
  *
- * The point to reconsider was named in Phase 4's first pass as "a screen reachable from two places
- * with a different back destination from each", and the dashboard is what keeps that from
- * happening: every screen behind it has exactly one way in. [MATCH] is the nearest thing to an
- * exception — a rematch re-enters it from itself — and that is a state change rather than a
- * navigation.
+ * The point to reconsider this is "a screen reachable from two places with a different back
+ * destination from each", and the dashboard is what keeps that from happening: every screen behind
+ * it has exactly one way in. [MATCH] is the nearest thing to an exception — a rematch re-enters it
+ * from itself — and that is a state change rather than a navigation.
  */
 internal enum class Screen {
     SPLASH,
@@ -22,6 +21,7 @@ internal enum class Screen {
     PROFILE_NEW,
     ACCOUNT,
     SERVERS,
+    COLLECTION_CHOICE,
     DASHBOARD,
     OPPONENTS,
     MATCH,
@@ -29,6 +29,7 @@ internal enum class Screen {
     CAMPAIGN,
     CAMPAIGN_MATCH,
     STATS,
+    AVATAR,
     CARDS,
     DECKS,
     INVENTORY,
@@ -60,7 +61,11 @@ internal enum class Screen {
             PROFILES, ACCOUNT, SERVERS, OPTIONS -> MENU
             PROFILE_NEW -> PROFILES
             DASHBOARD -> PROFILES
+            // Back out of the collection step keeps `ff14_`, which is what the account already
+            // has — so skipping it is a decision the player is allowed to make silently.
+            COLLECTION_CHOICE -> DASHBOARD
             OPPONENTS, STATS, CARDS, DECKS, INVENTORY, SHOP, HELP -> DASHBOARD
+            AVATAR -> STATS
             MATCH, TUTORIAL, CAMPAIGN -> OPPONENTS
             CAMPAIGN_MATCH -> CAMPAIGN
         }

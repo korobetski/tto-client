@@ -53,6 +53,8 @@ import shutil
 import sys
 import xml.etree.ElementTree as ElementTree
 
+from PIL import Image
+
 from as3_tree import AS3_SOURCES
 
 # tools/import_ui_art.py -> repository root
@@ -63,6 +65,29 @@ ART = RESOURCES / "art"
 
 # The three TexturePacker sheets, and the one name each frame is addressed by.
 THUMB_ATLASES = ["ff14_card_thumbs", "ff14_card_addon_thumbs", "ff8_card_thumbs"]
+
+# Where a frame table for one of them might be, and why there are two places.
+#
+# The AS3 tree carries each sheet twice: a working PNG under `assets/card_thumbs/` and the
+# packed ATF the game actually loaded under `bin/assets/atlas/`, each with its own XML. **The
+# two are not the same packing**, and which XML belongs to the PNG differs per sheet — the
+# ff14 PNG is the 42-pixel-pitch padded layout its own XML describes, while the ff8 PNG is the
+# edge-to-edge 40-pitch layout that only the *atlas* XML describes. Pairing every PNG with the
+# XML beside it puts every ff8 thumbnail a fraction of a cell out.
+#
+# So the table is chosen by measurement rather than by folder — see `frame_table`.
+THUMB_XML_DIRS = [ASSETS / "card_thumbs", AS3_SOURCES / "bin" / "assets" / "atlas"]
+
+# Every naming the two eras use for one frame: `ff14_12_t` and `ff8_1_t` on the working sheets,
+# a bare zero-padded `081_t` on the FFXIV addon one, and `ff14_thumb_12` in the atlas. `int()`
+# drops the padding and a missing collection means ff14, which is the only one the addon sheet
+# holds — its cards are ids 81 and up.
+FRAME_NAME = re.compile(r"(?:(ff14|ff8)_)?(?:thumb_)?0*(\d+)(?:_t)?$")
+
+# How far a frame table's own extent may sit from the sheet's opaque bounds and still be
+# called its table. Two pixels is the trailing margin TexturePacker leaves; anything near the
+# 40-pixel cell size is a different packing.
+FRAME_FIT_TOLERANCE = 8
 
 # Exactly the names `Item.iconId` and `Achievement.iconId` resolve to. Kept as a literal list
 # rather than grepped out of the Kotlin: a missing icon should fail this script loudly, and a
@@ -121,6 +146,62 @@ def npc_names() -> list[str]:
     return sorted({npc["iconID"] for group in catalog.values() for npc in group})
 
 
+def frames_in(xml: pathlib.Path) -> dict[str, dict] | None:
+    """The `{card key: rectangle}` this table declares, or None if it is not there."""
+    if not xml.is_file():
+        return None
+    frames = {}
+    for entry in ElementTree.parse(xml).getroot().findall("SubTexture"):
+        card = FRAME_NAME.fullmatch(entry.get("name") or "")
+        if card is None:
+            continue
+        frames[f"{card.group(1) or 'ff14'}_{int(card.group(2))}"] = {
+            "x": int(entry.get("x", 0)),
+            "y": int(entry.get("y", 0)),
+            "width": int(entry.get("width", 0)),
+            "height": int(entry.get("height", 0)),
+        }
+    return frames or None
+
+
+def misfit(frames: dict[str, dict], sheet: pathlib.Path) -> int:
+    """
+    How far this table's own extent is from where the sheet's pixels actually stop.
+
+    The whole discriminator. A table that belongs to a sheet ends where its artwork ends, to
+    within TexturePacker's trailing margin; one packed for a different sheet is out by cells.
+    Measured against the opaque bounding box and not the file's dimensions, because these
+    sheets are padded to a power of two and 512x512 would say nothing.
+    """
+    with Image.open(sheet) as image:
+        box = image.convert("RGBA").getbbox() or (0, 0, 0, 0)
+    right = max(f["x"] + f["width"] for f in frames.values())
+    bottom = max(f["y"] + f["height"] for f in frames.values())
+    return abs(right - box[2]) + abs(bottom - box[3])
+
+
+def frame_table(atlas: str, sheet: pathlib.Path) -> dict[str, dict] | None:
+    """
+    The frame table that actually describes [sheet], out of the candidates in THUMB_XML_DIRS.
+
+    Returns None if none of them fits, which is a real failure and not a shrug: a table that
+    is out by a cell renders every thumbnail as a slice of its neighbours, and that is a
+    picture, so nothing downstream can notice. Better to stop here than to ship it.
+    """
+    scored = []
+    for directory in THUMB_XML_DIRS:
+        frames = frames_in(directory / f"{atlas}.xml")
+        if frames is not None:
+            scored.append((misfit(frames, sheet), directory.name, frames))
+    if not scored:
+        return None
+    gap, source, frames = min(scored, key=lambda entry: entry[0])
+    if gap > FRAME_FIT_TOLERANCE:
+        return None
+    print(f"  {atlas}: {len(frames)} frames from {source} (off by {gap}px)")
+    return frames
+
+
 def import_thumbs() -> tuple[int, list[str]]:
     """Copies the three sheets and writes the frame table they are addressed through."""
     out = ART / "thumbs"
@@ -130,27 +211,16 @@ def import_thumbs() -> tuple[int, list[str]]:
 
     for atlas in THUMB_ATLASES:
         sheet = ASSETS / "card_thumbs" / f"{atlas}.png"
-        table = ASSETS / "card_thumbs" / f"{atlas}.xml"
-        if not (sheet.is_file() and table.is_file()):
+        if not sheet.is_file():
             missing.append(f"{atlas} -> {sheet}")
             continue
+        table = frame_table(atlas, sheet)
+        if table is None:
+            missing.append(f"{atlas} -> no frame table fits this sheet")
+            continue
         shutil.copyfile(sheet, out / f"{atlas}.png")
-        for entry in ElementTree.parse(table).getroot().findall("SubTexture"):
-            name = entry.get("name")
-            # Two namings, because the sheets were packed years apart: `ff14_12_t` on the two
-            # older ones, and a bare zero-padded `081_t` on the FFXIV addon sheet — which is
-            # ff14 by the only collection it could be, since the addon cards are ids 81 and up.
-            # `int()` drops the padding, so both arrive as the same key.
-            card = re.fullmatch(r"(?:(ff14|ff8)_)?0*(\d+)_t", name or "")
-            if card is None:
-                continue
-            frames[f"{card.group(1) or 'ff14'}_{int(card.group(2))}"] = {
-                "sheet": atlas,
-                "x": int(entry.get("x", 0)),
-                "y": int(entry.get("y", 0)),
-                "width": int(entry.get("width", 0)),
-                "height": int(entry.get("height", 0)),
-            }
+        for key, rectangle in table.items():
+            frames[key] = {"sheet": atlas, **rectangle}
 
     (RESOURCES / "thumbs.json").write_text(
         json.dumps({"frames": frames}, indent=2, sort_keys=True) + "\n",

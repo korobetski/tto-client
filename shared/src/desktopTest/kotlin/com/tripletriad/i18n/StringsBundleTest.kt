@@ -135,65 +135,25 @@ class StringsBundleTest {
         const val REGISTER_MATCH = "STR_REGISTER_MATCH"
 
         /**
-         * Keys defined by any of the four bundles: `import_locales.py`'s reported union of 691
-         * plus the 100 `APP_*` strings this port authored.
+         * Keys defined by any of the four bundles: `import_locales.py`'s union of 691 imported
+         * strings plus the 101 `APP_*` strings this port authored.
          */
-        const val UNION_KEYS = 791
+        const val UNION_KEYS = 792
 
         /**
-         * Imported key count plus however many `APP_*` strings that locale translates: 687 + 100,
-         * 688 + 100, then 647 and 680 with no app-owned strings at all.
+         * Imported key count plus however many `APP_*` strings that locale translates: 687 + 101,
+         * 688 + 101, then 647 and 680 with no app-owned strings at all.
          *
-         * **Almost everything the ported screens show is already translated in four languages**,
-         * because the AS3 bundles have it: `STR_PROFILE`, `STR_LOAD_GAME`, `STR_NEW_GAME`,
-         * `STR_USERNAME`, `STR_MODE`, `STR_LEVEL`, `STR_MGP`, `STR_WINS`, `STR_DRAWS`,
-         * `STR_DEFEATS`, `STR_DELETE`, `STR_START`, `STR_OPPONENTS`, `STR_MATCH_FEE`,
-         * `STR_REWARDS`, `STR_REMATCH`, the whole dashboard stack, `STR_USE` / `STR_SELL` /
-         * `STR_DISCARD` / `STR_BUY`, `STR_DECK_POWER`, every `RULE_*` name and every
-         * `STR_NPC_LEVEL_*`.
-         *
-         * The 86 that had to be written are the ones the original never needed a sentence for: the
-         * five splash phases, the options pane's two, an empty character list, an empty opponent
-         * list, an empty bag, `XP` (there is a `STR_MGP` but no `STR_XP`), a difficulty label, the
-         * two turn lines and the two side names, "the opponent is playing", "achievement unlocked",
-         * "no achievement yet", "pick a card", "owned", "obtained {0}", "already owned", "unknown
-         * item", a win rate, a boons label, a matches label (`STR_MATCHES` is asked for by
-         * `profileScreen.as:191` and defined by no bundle), Back, `APP_CARDS` — the title over
-         * the collection and the decks now that they share a screen, which neither of the two
-         * imported names it covers could carry without being wrong on the other tab — and
-         * `APP_HOME`, the navigation bar's name for the dashboard, which the original never
-         * labelled because it never had a bar.
-         *
-         * Six more came with the menu's resume card, and for the same reason as `APP_HOME`: the
-         * original had one hard-coded host and no account, so it never had to name a server list
-         * (`APP_SERVERS`), say whether a stored session was restored, still connecting or expired
-         * (`APP_SESSION_*`), offer to sign in again, or offer to switch account. `STR_CONTINUE` is
-         * the card's other label and is imported — the AS3 menu had exactly that word.
-         *
-         * The last thirteen are the sign-in form and its refusals, which were the only screen in
-         * the app still written in hard-coded English. Same cause again: the AS3 build had no
-         * accounts, so no bundle names a password field, a "create an account" link, or any of the
-         * six things a server can refuse a sign-in with.
-         *
-         * And twenty-three more that were **already being asked for and resolving to nothing**:
-         * the six NPC level bands, the fifteen item descriptions the shop draws under every row,
-         * and the opponent list's locked-count footnote. `NPCs.as` and `BoosterItem.as` ask for
-         * `STR_NPC_LEVEL_*` and `STR_*_DESC`; no bundle in the original defines any of them, so
-         * the AS3 shop drew raw keys too. `DerivedKeysTest` is what now says otherwise — they are
-         * composed from enum names and so were invisible to the list below.
-         *
-         * And fifteen for the server list — its blurb, its probe button, one phrase per
-         * `ServerStatus` and the update notice — which had no translated string on it at all: the
-         * AS3 build talked to one hard-coded host and never had a list to describe.
-         *
-         * The last ten are the tutorial's: its nine lines and the campaign entry that opens it.
-         * Those nine are `APP_` for a different reason from the rest — the AS3 *has* the sentences,
-         * as Flash string literals in the middle of `TutorialScreen`, with no `gettext` around them
-         * and no key in any bundle. It taught every player Triple Triad in English.
+         * Almost everything the ported screens show was already translated in four languages by
+         * the AS3 bundles. The `APP_*` strings are the ones the original never needed a sentence
+         * for — the splash phases, the empty-list notes, the turn lines, the navigation bar's own
+         * labels — plus three groups it could not have had: the sign-in form and its refusals, the
+         * server list and its update notice, and the tutorial's nine lines, which the AS3 held as
+         * English string literals inside `TutorialScreen` with no key anywhere.
          */
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 787,
-            AppLocale.FR_FR to 788,
+            AppLocale.EN_US to 788,
+            AppLocale.FR_FR to 789,
             AppLocale.DE_DE to 647,
             AppLocale.JA_JA to 680,
         )
@@ -210,9 +170,9 @@ class StringsBundleTest {
         val EXPECTED_GAPS = mapOf(
             AppLocale.EN_US to 4,
             AppLocale.FR_FR to 3,
-            // 44 imported keys short, plus all 100 app-owned; and 11 short, plus the 100.
-            AppLocale.DE_DE to 144,
-            AppLocale.JA_JA to 111,
+            // 44 imported keys short, plus all 101 app-owned; and 11 short, plus the 101.
+            AppLocale.DE_DE to 145,
+            AppLocale.JA_JA to 112,
         )
     }
 }

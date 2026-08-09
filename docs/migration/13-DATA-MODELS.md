@@ -64,7 +64,7 @@
 | `XPLabel` | `ui/components/controls/XPLabel.kt` | MEDIUM | LOW | XP display |
 | `RoundChart` | `ui/components/controls/RoundChart.kt` | LOW | LOW | Progress chart |
 | `TouchLabel` | `ui/components/controls/TouchLabel.kt` | LOW | LOW | Interactive label |
-| `AvatarChooser` | `ui/components/controls/AvatarChooser.kt` | MEDIUM | MEDIUM | Avatar selection |
+| `AvatarChooser` | `ui/AvatarScreen.kt` | ✅ done | MEDIUM | A screen rather than a control: the 27 portraits, written through `ProfileGate` |
 | `cardScore` | `ui/components/cards/CardScore.kt` | MEDIUM | LOW | Score display |
 
 ---

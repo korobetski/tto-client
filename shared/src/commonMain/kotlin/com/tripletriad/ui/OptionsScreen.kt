@@ -47,17 +47,18 @@ fun optionsLanguageTestTag(locale: AppLocale): String = "options-language-${loca
  * language redraws this screen in it, which *is* the confirmation — a toast saying "saved" would
  * be telling the user something the screen already showed them.
  *
- * ### The volumes are honest about doing nothing
+ * ### The caveat under the volumes is now only half true
  *
- * They persist, and the AS3 file has carried both fields all along, so they are here rather than
- * hidden. But no audio is implemented (Task 1.5), so the caveat under them says so. Silent sliders
- * with no explanation would read as a bug.
+ * `APP_AUDIO_PENDING` — "saved, but nothing plays yet" — was written when nothing did. The Android
+ * host installs a real `AndroidAudioPlayer` and the match has had music and effects since Phase 1;
+ * the **desktop host still installs `SilentAudioPlayer`**, so the line is right there and wrong on
+ * a phone. Left in place rather than deleted because which of the two to fix is a product call, not
+ * a wording one.
  *
  * ### On the shell, like everything else
  *
- * It used to draw its own centred title and its own `‹ Back` text button, which made it the one
- * screen whose back control sat somewhere different from every other screen's. [ScreenScaffold] now
- * provides both, and the two groups are cards rather than headings over bare rows — a settings
+ * [ScreenScaffold] provides the title and the back control, so this screen's back sits where every
+ * other screen's does. The two groups are cards rather than headings over bare rows — a settings
  * pane is a list of *groups*, and a group whose edge the eye cannot find is a heading pretending to
  * be one.
  */

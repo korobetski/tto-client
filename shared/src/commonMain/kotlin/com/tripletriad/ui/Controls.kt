@@ -114,13 +114,12 @@ internal fun WideButton(
  * header, the same max width and the same padding, and the first one to be edited alone is the one
  * that starts looking different.
  *
- * ### Why a real [TopAppBar] and not the two-`Text` row this used to be
+ * ### Why a real [TopAppBar] and not a two-`Text` row
  *
- * The row worked and cost nothing, and that is exactly what was wrong with it: it had no touch
- * target worth the name — a 20 sp glyph with 4 dp of padding is 28 dp of tappable width against
- * Material's 48 — no elevation when content scrolled beneath it, and no slot for anything but the
- * title. Every one of those is something the bar has to grow the moment a screen wants an action in
- * the corner, and the purse is that action on eleven screens.
+ * A row has no touch target worth the name — a 20 sp glyph with 4 dp of padding is 28 dp of
+ * tappable width against Material's 48 — no elevation when content scrolls beneath it, and no slot
+ * for anything but the title. The bar needs all three the moment a screen wants an action in the
+ * corner, and the purse is that action on eleven screens.
  *
  * The bar is held to the content's own width and centred rather than spanning the window, so its
  * title sits over the column it belongs to. A full-bleed bar is the phone-shaped answer; on a

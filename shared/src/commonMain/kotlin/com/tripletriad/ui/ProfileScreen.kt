@@ -40,6 +40,7 @@ const val PROFILE_NEW_TEST_TAG: String = "profile-new"
 const val PROFILE_NAME_TEST_TAG: String = "profile-name"
 const val PROFILE_CREATE_TEST_TAG: String = "profile-create"
 const val PROFILE_EMPTY_TEST_TAG: String = "profile-empty"
+const val COLLECTION_CONFIRM_TEST_TAG: String = "collection-confirm"
 
 /** `profile-row-<key>`, so a test can find a specific profile without knowing its position. */
 fun profileRowTestTag(key: String): String = "profile-row-$key"
@@ -235,25 +236,7 @@ internal fun ProfileCreateScreen(
             modifier = Modifier.testTag(PROFILE_NAME_TEST_TAG).fillMaxWidth(),
         )
 
-        Text(
-            text = strings[StringKeys.COLLECTION],
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
-            style = MaterialTheme.typography.labelMedium,
-            modifier = Modifier.padding(top = 16.dp),
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            for (choice in CardCollection.entries) {
-                CollectionChoice(
-                    collection = choice,
-                    isSelected = collection == choice,
-                    modifier = Modifier.weight(1f),
-                    onClick = { collection = choice },
-                )
-            }
-        }
+        CollectionChoiceRow(selected = collection, onSelect = { collection = it })
 
         Box(modifier = Modifier.weight(1f))
 
@@ -268,6 +251,78 @@ internal fun ProfileCreateScreen(
                 }
             },
         )
+    }
+}
+
+/**
+ * The collection, for a character the server made without asking — a freshly registered account.
+ *
+ * `POST /accounts` takes a name and a password and nothing else, so an account's character always
+ * starts on `ff14_`. Shown once, immediately after registering, while the profile is still the
+ * starter five cards and no match has been played: that is the only window in which changing
+ * [GameSave.mode] is harmless, because every card id, deck and opponent it could invalidate is
+ * still the default one.
+ *
+ * The choice is sent through [ProfileGate.persist] like any other profile change. Skipping it —
+ * with Back — leaves `ff14_`, which is what the account already has, so there is nothing to
+ * confirm and no way to end up without a collection.
+ */
+@Composable
+internal fun CollectionChoiceScreen(
+    profile: GameSave,
+    onChosen: suspend (GameSave) -> Unit,
+    onBack: () -> Unit,
+) {
+    val strings = LocalStrings.current
+    val scope = rememberCoroutineScope()
+    var collection by remember(profile.mode) { mutableStateOf(profile.mode) }
+
+    ScreenScaffold(title = strings[StringKeys.COLLECTION], onBack = onBack) {
+        Text(
+            text = profile.username,
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+
+        CollectionChoiceRow(selected = collection, onSelect = { collection = it })
+
+        Box(modifier = Modifier.weight(1f))
+
+        WideButton(
+            label = strings[StringKeys.START],
+            tag = COLLECTION_CONFIRM_TEST_TAG,
+            onClick = { scope.launch { onChosen(profile.copy(mode = collection)) } },
+        )
+    }
+}
+
+/** The labelled FFXIV / FFVIII pair, shared by profile creation and the post-registration step. */
+@Composable
+private fun CollectionChoiceRow(
+    selected: CardCollection,
+    onSelect: (CardCollection) -> Unit,
+) {
+    val strings = LocalStrings.current
+
+    Text(
+        text = strings[StringKeys.COLLECTION],
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
+        style = MaterialTheme.typography.labelMedium,
+        modifier = Modifier.padding(top = 16.dp),
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        for (choice in CardCollection.entries) {
+            CollectionChoice(
+                collection = choice,
+                isSelected = selected == choice,
+                modifier = Modifier.weight(1f),
+                onClick = { onSelect(choice) },
+            )
+        }
     }
 }
 

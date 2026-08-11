@@ -406,7 +406,13 @@ private fun HandArea(
                             // state. That is what made cards draw each other's artwork
                             // (`rememberCardFace`, and `CardFaceTest`); nothing else in a slot
                             // holds state today, and this is what stops the next thing that does.
-                            key(card.textureId) {
+                            //
+                            // The copy ordinal is part of the key because a hand can now hold two
+                            // of one card: `key` requires its keys to be unique within a group,
+                            // and the texture id alone would repeat. Counting the identical cards
+                            // *ahead* of this one keeps the key attached to the copy rather than
+                            // to the slot, so it still survives the hand closing up.
+                            key(card.textureId, cards.take(slot).count { it.id == card.id }) {
                                 HandCard(
                                     card = card,
                                     owner = owner,
@@ -426,7 +432,8 @@ private fun HandArea(
                                     // says — `openPhase` assigns `RULE_ALL_OPEN` to `bluePlayer` on
                                     // both of its branches (`BaseMatchScreen.as:172`, `:176`), so
                                     // Open is only ever about the opponent.
-                                    faceUp = owner == CardColor.BLUE || visibility.isVisible(card),
+                                    faceUp = owner == CardColor.BLUE ||
+                                        visibility.isVisible(slot),
                                     scale = layout.scale,
                                     onSelect = onSelect,
                                 )

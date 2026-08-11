@@ -1,5 +1,6 @@
 package com.tripletriad.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,6 +16,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -46,6 +48,9 @@ const val CARD_DETAIL_EMPTY_TEST_TAG: String = "card-detail-empty"
 /** `card-cell-<id>`. Ids are per-collection, and only one collection is ever on screen. */
 fun cardCellTestTag(cardId: Int): String = "card-cell-$cardId"
 
+/** `card-copies-<id>` — the copy badge, present only above one copy. */
+fun cardCopiesTestTag(cardId: Int): String = "card-copies-$cardId"
+
 /**
  * The whole collection, owned and not — the original's `cardListScreen`.
  *
@@ -73,14 +78,14 @@ fun cardCellTestTag(cardId: Int): String = "card-cell-$cardId"
 internal fun ColumnScope.CardListBody(profile: GameSave, catalog: CardCatalog) {
     val strings = LocalStrings.current
     val cards = remember(catalog, profile.mode) { catalog.collection(profile.mode.prefix) }
-    val owned = remember(profile.cards) { profile.cards.toSet() }
+    val owned = profile.cards
     var selected by remember(profile.mode) { mutableStateOf<Card?>(null) }
 
     Text(
         // Counted over the *table* and not over `CARDS`, so an id the profile holds that names
         // no card in its own collection cannot push the total past the collection's size.
         text = "${strings[StringKeys.OWNED]}$DOT_SEPARATOR" +
-            "${cards.count { it.id in owned }} / ${cards.size}",
+            "${cards.count { owned.containsKey(it.id) }} / ${cards.size}",
         color = MaterialTheme.colorScheme.onSurface.copy(alpha = SUBDUED),
         style = MaterialTheme.typography.labelMedium,
         maxLines = 1,
@@ -97,7 +102,7 @@ internal fun ColumnScope.CardListBody(profile: GameSave, catalog: CardCatalog) {
             items(cards, key = { it.id }) { card ->
                 CardCell(
                     card = card,
-                    isOwned = card.id in owned,
+                    copies = owned[card.id] ?: 0,
                     isSelected = selected?.id == card.id,
                     onClick = { selected = if (selected?.id == card.id) null else card },
                 )
@@ -125,7 +130,7 @@ internal fun ColumnScope.CardListBody(profile: GameSave, catalog: CardCatalog) {
 }
 
 @Composable
-private fun CardCell(card: Card, isOwned: Boolean, isSelected: Boolean, onClick: () -> Unit) {
+private fun CardCell(card: Card, copies: Int, isSelected: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .testTag(cardCellTestTag(card.id))
@@ -144,8 +149,30 @@ private fun CardCell(card: Card, isOwned: Boolean, isSelected: Boolean, onClick:
         CardThumb(
             card = card,
             size = ThumbWidth,
-            modifier = if (isOwned) Modifier else Modifier.alpha(UNOWNED_ALPHA),
+            modifier = if (copies > 0) Modifier else Modifier.alpha(UNOWNED_ALPHA),
         )
+
+        // A badge and not a second cell. The grid answers "what is there, and what do I have",
+        // and two identical thumbnails answer it worse — the second one reads as a different card
+        // until you look twice. Absent at one copy, because "x1" on 200 cells is noise.
+        if (copies > 1) {
+            Text(
+                text = "$COPIES_PREFIX$copies",
+                color = MaterialTheme.colorScheme.onPrimary,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                modifier = Modifier
+                    .testTag(cardCopiesTestTag(card.id))
+                    .align(Alignment.BottomEnd)
+                    .padding(2.dp)
+                    .background(
+                        MaterialTheme.colorScheme.primary,
+                        RoundedCornerShape(CopiesBadgeCorner),
+                    )
+                    .padding(horizontal = 3.dp),
+            )
+        }
     }
 }
 
@@ -236,3 +263,7 @@ private val DetailPaneWidth = 260.dp
 
 /** `adjustSaturation(-1)` in the original; alpha here. See [CardListBody]. */
 private const val UNOWNED_ALPHA = 0.28f
+
+/** The multiplication sign, not the letter x — it sits beside a numeral. */
+private const val COPIES_PREFIX = "\u00d7"
+private val CopiesBadgeCorner = 3.dp

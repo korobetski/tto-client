@@ -40,7 +40,7 @@ class DeckSelectorUiTest {
 
     /** A profile with two complete decks that share no card, plus a partial one. */
     private fun withDecks(): GameSave = GameSave.new(createdAt = 0L).copy(
-        cards = (STARTER + EXTRA).sorted(),
+        cards = (STARTER + EXTRA).associateWith { 1 },
         decks = listOf(
             Deck(name = "Starters", cards = STARTER),
             Deck(name = "Halfling", cards = STARTER.take(2)),
@@ -125,7 +125,7 @@ class DeckSelectorUiTest {
     @Test
     fun anUnnamedDeckIsLabelledByItsSaveSlotAndNotItsRow() = runComposeUiTest {
         val profile = GameSave.new(createdAt = 0L).copy(
-            cards = (STARTER + EXTRA).sorted(),
+            cards = (STARTER + EXTRA).associateWith { 1 },
             decks = listOf(
                 Deck(name = "Starters", cards = STARTER),
                 Deck(name = "", cards = emptyList()),

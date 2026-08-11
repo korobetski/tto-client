@@ -1,5 +1,6 @@
 package com.tripletriad.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -25,6 +27,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -56,6 +59,9 @@ fun deckPositionTestTag(index: Int): String = "deck-position-$index"
 
 /** `deck-pick-<cardId>` in the owned-cards grid of the editor. */
 fun deckPickTestTag(cardId: Int): String = "deck-pick-$cardId"
+
+/** `deck-remaining-<cardId>` — unspent copies, shown only for a card owned more than once. */
+fun deckRemainingTestTag(cardId: Int): String = "deck-remaining-$cardId"
 
 /**
  * The five deck slots and the deck editor — the original's `DecksScreen`.
@@ -183,7 +189,11 @@ private fun DeckEditor(
     // the previous deck's cards across. Nothing here reaches the profile until Save.
     var draft by remember(slot) { mutableStateOf(stored) }
     var name by remember(slot) { mutableStateOf(deckLabel(strings, stored, slot)) }
-    val owned = remember(profile.cards, cards) { profile.cards.mapNotNull(cards::get) }
+    // Distinct cards, ascending — the grid draws one cell per card and says how many copies are
+    // still free on it, rather than one cell per copy. See [remaining].
+    val owned = remember(profile.cards, cards) {
+        profile.cards.keys.sorted().mapNotNull(cards::get)
+    }
 
     Column(
         modifier = Modifier.testTag(DECK_EDITOR_TEST_TAG).fillMaxWidth(),
@@ -268,14 +278,45 @@ private fun DeckEditor(
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             items(owned, key = { it.id }) { card ->
+                // How many copies this deck has not spent yet. A card whose copies are all in the
+                // deck is dimmed and refuses the tap, because `Deck.isAffordable` would refuse the
+                // deck and the server would refuse the match — a rule the player meets as a
+                // rejection they cannot act on is worse than one they can see coming.
+                val remaining = profile.copiesOf(card.id) - draft.copiesUsed(card.id)
+
                 Box(
                     modifier = Modifier
                         .testTag(deckPickTestTag(card.id))
                         .rowSurface(selected = card.id in draft.cards)
-                        .clickable(enabled = !draft.isComplete) { draft = draft.plusCard(card.id) }
+                        .clickable(enabled = !draft.isComplete && remaining > 0) {
+                            draft = draft.plusCard(card.id)
+                        }
                         .padding(1.dp),
                 ) {
-                    CardThumb(card = card, size = DeckThumbSize)
+                    CardThumb(
+                        card = card,
+                        size = DeckThumbSize,
+                        modifier = if (remaining > 0) Modifier else Modifier.alpha(SPENT_ALPHA),
+                    )
+
+                    if (profile.copiesOf(card.id) > 1) {
+                        Text(
+                            text = "$REMAINING_PREFIX$remaining",
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            modifier = Modifier
+                                .testTag(deckRemainingTestTag(card.id))
+                                .align(Alignment.BottomEnd)
+                                .padding(2.dp)
+                                .background(
+                                    MaterialTheme.colorScheme.primary,
+                                    RoundedCornerShape(3.dp),
+                                )
+                                .padding(horizontal = 3.dp),
+                        )
+                    }
                 }
             }
         }
@@ -334,3 +375,9 @@ private const val MAX_DECK_NAME = 24
  * on a 3x display they sit lower than the text they belong to.
  */
 internal val DeckThumbSize = 44.dp
+
+/** A card whose every copy is already in the deck. Dimmer than unowned is in the browser. */
+private const val SPENT_ALPHA = 0.3f
+
+/** The multiplication sign, not the letter x — it sits beside a numeral. */
+private const val REMAINING_PREFIX = "\u00d7"

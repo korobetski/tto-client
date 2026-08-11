@@ -31,7 +31,7 @@ class SaveRepositoryTest {
         val (repository, _) = repository()
         val original = GameSave.new(username = "Mao", createdAt = 1_000).copy(
             mgp = 4_200,
-            cards = listOf(1, 3, 6, 7, 10, 42),
+            cards = listOf(1, 3, 6, 7, 10, 42).associateWith { 1 },
             bag = listOf(CardItem(42, 2)),
         )
 

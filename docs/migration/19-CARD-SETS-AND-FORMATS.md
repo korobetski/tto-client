@@ -5,6 +5,14 @@
 [18-MULTI-CHARACTER-ACCOUNTS.md](./18-MULTI-CHARACTER-ACCOUNTS.md), which must not be implemented
 before this one is settled.
 
+> ⚠️ **Extended by
+> [20-CARD-COPIES-AND-PLATFORM-ACCOUNTS.md](./20-CARD-COPIES-AND-PLATFORM-ACCOUNTS.md).** Ownership
+> stops being *"a plain set of ids"* and becomes a multiset — a card may be owned several times, and
+> a deck may not use more copies than are owned. 20 also splits `Card.type` into a shared `element`
+> and a per-set `group`, which this document leaves undecided, and says what the collection browser
+> becomes once `MODE` is gone. It is where the mythology sets are costed. Settle it alongside this
+> one; both feed the same migration and the same version bump.
+
 > **The decision.** A set is a property of a **card**, not of a character. A player owns cards from
 > any number of sets. Restriction to a set is a property of a **match** — its format — and is
 > checked when a match is entered, not when a card is acquired or a deck is saved.

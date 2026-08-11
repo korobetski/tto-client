@@ -270,7 +270,7 @@ class KtorMatchSubmitterTest {
         collection = CardCollection.FF14,
         opponentIconId = "tt-master",
         deck = listOf(1, 2, 3, 4, 5),
-        ownedCards = listOf(1, 2, 3, 4, 5),
+        ownedCards = (1..5).associateWith { 1 },
         moves = listOf(TranscriptMove(cardId = 1, position = 0)),
     )
 

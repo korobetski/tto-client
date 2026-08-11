@@ -45,6 +45,7 @@ import com.tripletriad.model.Board
 import com.tripletriad.model.Card
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.GameSave
+import com.tripletriad.model.HandVisibility
 import com.tripletriad.model.MatchAi
 import com.tripletriad.model.MatchOutcome
 import com.tripletriad.model.MatchPreparation
@@ -362,6 +363,7 @@ internal fun MatchScreen(
         )
         val next = ai.play(state, random)
         if (next.placement > state.placement) {
+            visibility = visibility.reindexedFor(next)
             state = next
             sound(audio, next)
         }
@@ -953,3 +955,20 @@ private val ExitButtonSize = 34.dp
 
 /** Smaller than the opponent list's 50 px plate — a face, not a portrait. */
 private val BannerPortraitSize = 26.dp
+
+/**
+ * This visibility after [played]'s most recent placement, if it was the opponent's.
+ *
+ * The opponent's hand closes up when it plays, so every revealed position behind the played one
+ * moves down one. [HandVisibility] is indexed by position and cannot re-index itself; skip this and
+ * the Open rule goes on showing the right *number* of cards and the wrong ones, which is the
+ * failure hardest to notice. See `PlayResult.handIndex`.
+ *
+ * A function rather than three lines in the effect because [MatchScreen] sits at the cyclomatic
+ * complexity detekt allows, and a branch is what this is.
+ */
+private fun HandVisibility.reindexedFor(played: MatchState): HandVisibility =
+    played.lastPlay
+        ?.takeIf { it.player == CardColor.RED }
+        ?.let { afterPlaying(it.handIndex) }
+        ?: this

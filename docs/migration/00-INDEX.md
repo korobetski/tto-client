@@ -34,6 +34,9 @@ This directory contains the complete migration plan for moving **Triple Triad On
     account, a relational character, and password recovery — proposed, spans all three repositories**
 19. **[19-CARD-SETS-AND-FORMATS.md](./19-CARD-SETS-AND-FORMATS.md) - The collection stops being a
     property of the character and becomes one of the card — decided, and a prerequisite of 18**
+20. **[20-CARD-COPIES-AND-PLATFORM-ACCOUNTS.md](./20-CARD-COPIES-AND-PLATFORM-ACCOUNTS.md) -
+    Several copies of a card, one account across several games, and the set browser — proposed,
+    reads on top of 19 and amends both 18 and 19**
 
 ### Phase 0 outputs (produced, not planned)
 

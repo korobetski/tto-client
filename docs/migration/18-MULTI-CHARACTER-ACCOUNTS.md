@@ -9,6 +9,13 @@ repositories and a database migration, so the cost of getting it wrong is paid t
 > foreign keys to a `cards` table. **Do not write the V2 migration before that document is
 > settled**, or it will be written twice. Document 19 § "What changes in document 18" lists the
 > four differences.
+>
+> ⚠️ **Further amended by
+> [20-CARD-COPIES-AND-PLATFORM-ACCOUNTS.md](./20-CARD-COPIES-AND-PLATFORM-ACCOUNTS.md)**, which adds
+> an axis *above* the character — an account plays several games — and makes ownership a multiset.
+> `characters` gains `app_id`, the character-name index and the per-account cap become per app,
+> `character_cards` gains a `copies` count, and the version gate becomes per app. **Both sets of
+> changes belong in the V2 below, not in a later migration.** See 20 §1 and §2.
 
 Three strands, deliberately in one document because they touch the same two tables and must ship
 behind the same version gate:

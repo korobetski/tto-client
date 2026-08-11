@@ -95,7 +95,7 @@ internal fun ColumnScope.InventoryBody(
     val cards = remember(catalog, profile.mode) {
         catalog.collection(profile.mode.prefix).associateBy { it.id }
     }
-    val owned = remember(profile.cards) { profile.cards.toSet() }
+    val owned = profile.cards
 
     // The selection is held as an [itemKey] and looked up in the *current* bag on every
     // composition, so selling one of three leaves the same row selected and emptying the stack
@@ -122,7 +122,7 @@ internal fun ColumnScope.InventoryBody(
                 ItemRow(
                     item = item,
                     cards = cards,
-                    refusal = useRefusal(strings, item, owned),
+                    note = ownedNote(strings, item, owned),
                     isSelected = itemKey(item) == selectedKey,
                     onClick = {
                         selectedKey = itemKey(item).takeIf { it != selectedKey }
@@ -137,7 +137,7 @@ internal fun ColumnScope.InventoryBody(
         BagActions(
             item = item,
             isArmed = armed,
-            canUse = item.useable && useRefusal(strings, item, owned) == null,
+            canUse = item.useable,
             onUse = {
                 val outcome = Inventory.use(profile, item, random)
                 note = useNote(strings, outcome, cards)
@@ -171,14 +171,14 @@ internal fun ColumnScope.InventoryBody(
  *
  * A card item draws its card beside the name — see [InventoryScreen] for why there are no icons.
  *
- * @param refusal why Use is greyed out, shown on the row rather than only implied by a dead button.
- *   [useRefusal] is the one case where the item's own flag says yes and the screen says no.
+ * @param note what else the row has to say — today, that a card item is not the first copy. See
+ *   [ownedNote], which is where the AS3's "already owned, Use disabled" rule used to live.
  */
 @Composable
 private fun ItemRow(
     item: Item,
     cards: Map<Int, Card>,
-    refusal: String?,
+    note: String?,
     isSelected: Boolean,
     onClick: () -> Unit,
 ) {
@@ -214,8 +214,8 @@ private fun ItemRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = itemFacts(strings, item, refusal),
-                color = if (refusal == null) {
+                text = itemFacts(strings, item, note),
+                color = if (note == null) {
                     MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT)
                 } else {
                     LocalTtoColors.current.transient
@@ -309,8 +309,8 @@ private fun useNote(strings: Strings, outcome: ItemUse, cards: Map<Int, Card>): 
         is ItemUse.BoonRaised, is ItemUse.NotUseable -> null
     }
 
-/** `Sells for 52  ·  already owned`, with whichever halves apply. */
-private fun itemFacts(strings: Strings, item: Item, refusal: String?): String = buildList {
+/** `Sells for 52  ·  already owned x2`, with whichever halves apply. */
+private fun itemFacts(strings: Strings, item: Item, note: String?): String = buildList {
     if (item.sellable && item.value > 0) add("${strings[StringKeys.SELL]} ${item.value}")
-    refusal?.let(::add)
+    note?.let(::add)
 }.joinToString(DOT_SEPARATOR)

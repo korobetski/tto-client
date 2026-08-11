@@ -109,6 +109,34 @@ class CollectionUiTest {
         assertTrue(found.isFailure, "card $FF14_ONLY_CARD is outside the ff8 table")
     }
 
+
+    /**
+     * A second copy is a badge on the one cell, not a second cell — see `CardListBody`.
+     *
+     * Both halves matter: absent at one copy, because "x1" on 153 cells is noise, and the total
+     * still counts distinct cards, because owning two of something is not owning two more cards.
+     */
+    @Test
+    fun aSecondCopyShowsAsABadgeAndDoesNotInflateTheTotal() = runComposeUiTest {
+        val twin = GameSave.DEFAULT_CARDS.first()
+        val single = GameSave.DEFAULT_CARDS.last()
+        val documents = seeded(
+            GameSave.new(createdAt = 0L)
+                .copy(cards = GameSave.DEFAULT_CARDS.associateWith { 1 } + (twin to 3)),
+        )
+        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openFromBar("cards", CARD_GRID_TEST_TAG)
+
+        // Unmerged: the badge sits inside the cell's own `clickable`, which absorbs it. See
+        // `existsUnmerged`.
+        onNodeWithTag(cardCopiesTestTag(twin), useUnmergedTree = true).assertTextEquals("\u00d73")
+        assertFalse(existsUnmerged(cardCopiesTestTag(single)), "one copy carries no badge")
+        onNodeWithTag(CARD_TOTAL_TEST_TAG).assertTextEquals(
+            "Owned$DOT_SEPARATOR${GameSave.DEFAULT_CARDS.size} / $FF14_CARDS",
+        )
+    }
+
     private companion object {
         /** `CardBundleTest`'s counts, which is where the two tables' sizes are pinned. */
         const val FF14_CARDS = 153

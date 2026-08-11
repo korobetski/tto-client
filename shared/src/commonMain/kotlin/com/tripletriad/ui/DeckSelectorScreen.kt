@@ -138,7 +138,9 @@ internal fun DeckSelectorScreen(
         ) {
             Box(modifier = Modifier.weight(1f)) {
                 WideButton(strings[StringKeys.RANDOM_DECK], DECK_SELECT_RANDOM_TEST_TAG) {
-                    val collection = profile.cards.mapNotNull(cards::get)
+                    // One entry per copy: Random draws five without replacement, and a second
+                    // copy is a card the draw can reach. See `GameSave.ownedCardIds`.
+                    val collection = profile.ownedCardIds().mapNotNull(cards::get)
                     onChoose(MatchPreparation.randomHand(collection, random).map { it.id })
                 }
             }

@@ -179,23 +179,26 @@ class InventoryUiTest {
     }
 
     /**
-     * Use is refused for a card the profile already owns.
+     * Use is **offered** for a card the profile already owns, and the row says it is a duplicate.
      *
-     * The one case where the item's own [Item.useable] says yes and the screen says no — the AS3
-     * enables the button from the flag and then disables it again two lines later
-     * (`InventoryScreen.as:107-113`). Without it, [Inventory.use] would consume the card to grant
-     * something the profile already has.
+     * The inverse of what this test asserted, and the inversion is the point. The AS3 enables the
+     * button from [Item.useable] and disables it two lines later for an owned card
+     * (`InventoryScreen.as:107-113`), because a second copy did nothing. A second copy is now a
+     * card the player can put in a deck — § 1 of
+     * `docs/migration/20-CARD-COPIES-AND-PLATFORM-ACCOUNTS.md` — so refusing would withhold the
+     * one thing that makes a duplicate worth keeping. The fact is still shown; only the refusal
+     * has gone. See `ownedNote`.
      */
     @Test
-    fun useIsRefusedForACardAlreadyInTheCollection() = runComposeUiTest {
+    fun useIsOfferedForACardAlreadyInTheCollectionAndSaysHowMany() = runComposeUiTest {
         val documents = seeded(withBag())
         setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openBag(documents)
 
         select(CardItem(GameSave.DEFAULT_CARDS.first()))
 
-        onNodeWithTag(INVENTORY_USE_TEST_TAG).assertIsNotEnabled()
-        assertTrue(isVisible("already owned"), "the row should say why, not just grey the button")
+        onNodeWithTag(INVENTORY_USE_TEST_TAG).assertIsEnabled()
+        assertTrue(isVisible("already owned \u00d71"), "the row still says it is not the first")
     }
 
     /**

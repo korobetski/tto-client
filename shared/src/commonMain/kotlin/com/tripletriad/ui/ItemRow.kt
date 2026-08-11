@@ -64,15 +64,25 @@ internal fun itemCard(item: Item, cards: Map<Int, Card>): Card? =
     (item as? CardItem)?.let { cards[it.cardId] }
 
 /**
- * Why the bag's Use control is refused for [item], or null when it is not.
+ * What the row should add about [item], or null when there is nothing to add.
  *
- * The one non-obvious case is a card already in the collection: `InventoryScreen.as:111-113`
- * disables Use for it after enabling it from `item.useable`, so the flag says yes and the screen
- * says no. That is right — using it would consume the card to grant something the profile has — and
- * it is the only reason the port has to state out loud, because
- * [com.tripletriad.data.Inventory.use] would happily consume it (see there).
+ * ### This used to be `useRefusal`, and the refusal is gone
+ *
+ * `InventoryScreen.as:111-113` disables Use for a card already in the collection, after enabling it
+ * from `item.useable` — the flag said yes and the screen said no. That was right while cards were a
+ * set: using the item would have consumed it to grant something the profile already had, and
+ * `Inventory.use` would happily have done it.
+ *
+ * A card can be owned several times now (§ 1 of
+ * `docs/migration/20-CARD-COPIES-AND-PLATFORM-ACCOUNTS.md`), so a second copy is exactly what the
+ * player wants out of that item, and refusing would withhold the only thing that made a duplicate
+ * worth keeping. What the player still needs is the *fact* — that this is not their first copy —
+ * so the same slot on the row now says how many are held instead of why Use is dead.
  */
-internal fun useRefusal(strings: Strings, item: Item, owned: Set<Int>): String? = when {
-    item is CardItem && item.cardId in owned -> strings[StringKeys.ALREADY_OWNED]
-    else -> null
+internal fun ownedNote(strings: Strings, item: Item, owned: Map<Int, Int>): String? {
+    val copies = (item as? CardItem)?.let { owned[it.cardId] } ?: 0
+    return if (copies > 0) "${strings[StringKeys.ALREADY_OWNED]} $COPIES_PREFIX$copies" else null
 }
+
+/** The multiplication sign, not the letter x — it sits beside a numeral. */
+private const val COPIES_PREFIX = "\u00d7"

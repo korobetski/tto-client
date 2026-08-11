@@ -2,12 +2,14 @@ package com.tripletriad.ui
 
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.i18n.AppLocale
+import com.tripletriad.model.Deck
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.HAND_SIZE
 import kotlin.test.Test
@@ -134,7 +136,7 @@ class DecksUiTest {
     @Test
     fun aDeckCannotGrowPastFive() = runComposeUiTest {
         val extra = GameSave.new(createdAt = 0L)
-            .copy(cards = GameSave.DEFAULT_CARDS + SIXTH_CARD)
+            .copy(cards = (GameSave.DEFAULT_CARDS + SIXTH_CARD).associateWith { 1 })
         val documents = seeded(extra)
         setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
@@ -150,6 +152,61 @@ class DecksUiTest {
         val deck = storedSave(documents).decks.first()
         assertEquals(HAND_SIZE, deck.cards.size)
         assertFalse(SIXTH_CARD in deck.cards, "a full deck should not have taken a sixth card")
+    }
+
+
+    /**
+     * A card whose every copy is already in the deck refuses the tap.
+     *
+     * The editor's half of the rule `Deck.isAffordable` states and `TranscriptVerifier` enforces.
+     * Meeting it here rather than as a rejected match is the whole reason the editor knows about
+     * copies at all — see § 1 of `docs/migration/20-CARD-COPIES-AND-PLATFORM-ACCOUNTS.md`.
+     */
+    @Test
+    fun theEditorRefusesACardWhoseCopiesAreAllSpent() = runComposeUiTest {
+        val single = GameSave.DEFAULT_CARDS.first()
+        val profile = GameSave.new(createdAt = 0L).copy(
+            cards = GameSave.DEFAULT_CARDS.associateWith { 1 },
+            decks = listOf(Deck(name = "Half", cards = listOf(single))),
+        )
+        val documents = seeded(profile)
+        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
+
+        onNodeWithTag(deckSlotTestTag(0)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
+        // The deck already holds the only copy, so this tap has nothing left to spend.
+        onNodeWithTag(deckPickTestTag(single)).performClick()
+        onNodeWithTag(DECK_SAVE_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_LIST_TEST_TAG) }
+
+        assertEquals(listOf(single), storedSave(documents).decks.first().cards)
+    }
+
+    /** And accepts the second tap once a second copy is held, up to the copies owned. */
+    @Test
+    fun theEditorAcceptsASecondCopyWhenOneIsOwned() = runComposeUiTest {
+        val twin = GameSave.DEFAULT_CARDS.first()
+        val profile = GameSave.new(createdAt = 0L).copy(
+            cards = GameSave.DEFAULT_CARDS.associateWith { 1 } + (twin to 2),
+            decks = listOf(Deck(name = "Half", cards = listOf(twin))),
+        )
+        val documents = seeded(profile)
+        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
+
+        onNodeWithTag(deckSlotTestTag(0)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
+        // Unmerged: the badge sits inside the pick cell's `clickable`. See `existsUnmerged`.
+        onNodeWithTag(deckRemainingTestTag(twin), useUnmergedTree = true)
+            .assertTextEquals("\u00d71")
+        onNodeWithTag(deckPickTestTag(twin)).performClick()
+        onNodeWithTag(DECK_SAVE_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_LIST_TEST_TAG) }
+
+        assertEquals(listOf(twin, twin), storedSave(documents).decks.first().cards)
     }
 
     private companion object {

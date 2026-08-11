@@ -71,6 +71,17 @@ jobs:
     name: Signed APK
     needs: verify
     runs-on: ubuntu-latest
+    # On `publish` and not on `verify`, so the approval is asked for only once the build is green —
+    # being paged to approve something that then fails its own tests is how an approval becomes a
+    # reflex. Add a required reviewer to this environment in the repository settings to make it a
+    # prompt; left without one it gates nothing and only records the publication in the deployment
+    # history, which is why the line is worth having either way.
+    #
+    # What it protects is not a server but a file leaving the building: once an APK is attached to a
+    # public release and someone has downloaded it, deleting the release does not take it back.
+    environment:
+      name: production
+      url: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}
     timeout-minutes: 30
     env:
       # The keystore travels as base64 because a GitHub secret is a string and a `.jks` is not

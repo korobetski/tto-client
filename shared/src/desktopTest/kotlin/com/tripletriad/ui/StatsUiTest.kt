@@ -69,6 +69,11 @@ class StatsUiTest {
      *
      * `profileScreen.as:210-220` walks `PROFILE_DATAS.ACHIEVEMENTS`, so an unearned one was
      * invisible and the screen could not say what there was to aim at.
+     *
+     * The MGP tier is the example rather than the collector's: a fresh profile holds
+     * [GameSave.STARTING_MGP] against the thousand `ac-mp1` wants, which is the "unearned and
+     * measurably far off" pair a Boolean condition could not express. It used to be `ac-td1`, and
+     * that stopped being unearned — see [theCollectorsFirstTierIsMetOnArrival].
      */
     @Test
     fun unearnedAchievementsAreListedWithTheirProgress() = runComposeUiTest {
@@ -76,11 +81,37 @@ class StatsUiTest {
         newCharacter()
         openStats()
 
-        // `ac-td1` wants ten cards and a fresh profile has five, so it is both unearned and
-        // measurably close — the pair a Boolean condition could not express.
+        onNodeWithTag(STATS_ACHIEVEMENTS_TEST_TAG)
+            .performScrollToNode(hasTestTag(achievementRowTestTag(HOARDER_I)))
+        assertTrue(
+            isVisible("${GameSave.STARTING_MGP} / $MGP_POT_I"),
+            "a hundred of the thousand it wants",
+        )
+    }
+
+    /**
+     * **A new character already satisfies `ac-td1`.** Pinned, because nobody decided it.
+     *
+     * The tier wants ten distinct cards and document 19's starter pack is exactly ten, so the
+     * collector's first step is met on the first frame — it is credited by the next match's
+     * `AchievementCatalog.newlyEarned`, which is why the row still reads as unearned here rather
+     * than carrying a date.
+     *
+     * Document 19 fixes the composition at ten and the thresholds come from `Achievements.as`;
+     * neither says which gives. Three ways out — raise `ac-td1`, accept it as a welcome award, or
+     * drop it from the family — and all three are game design rather than a defect. This test is
+     * here so whichever is chosen is chosen, instead of drifting.
+     */
+    @Test
+    fun theCollectorsFirstTierIsMetOnArrival() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        newCharacter()
+        openStats()
+
         onNodeWithTag(STATS_ACHIEVEMENTS_TEST_TAG)
             .performScrollToNode(hasTestTag(achievementRowTestTag(COLLECTOR_I)))
-        assertTrue(isVisible("${STARTER_CARDS.size} / 10"), "five of the ten it wants")
+        onNodeWithTag(achievementRowTestTag(COLLECTOR_I))
+            .assertTextEquals("${STARTER_CARDS.size} / ${STARTER_CARDS.size}")
     }
 
     /** An earned achievement heads the list, which is the original's `unlockDate` ordering. */
@@ -170,6 +201,10 @@ class StatsUiTest {
     private companion object {
         /** `ac-td1` — the Triple-decker tier's first step, at ten cards. */
         const val COLLECTOR_I = "ac-td1"
+
+        /** `ac-mp1` — hold a thousand MGP, which a fresh character is a long way from. */
+        const val HOARDER_I = "ac-mp1"
+        const val MGP_POT_I = 1_000
 
         /** `ac-tt1` — defeat one NPC. */
         const val FIRST_WIN = "ac-tt1"

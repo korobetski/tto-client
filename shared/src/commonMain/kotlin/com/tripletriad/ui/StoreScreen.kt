@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import com.tripletriad.data.CardCatalog
 import com.tripletriad.data.ShopCatalog
+import com.tripletriad.data.StarterCatalog
 import com.tripletriad.data.StarterPack
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
@@ -54,6 +55,7 @@ internal enum class StoreTab {
 internal fun StoreScreen(
     profile: GameSave,
     catalog: CardCatalog,
+    starters: StarterCatalog,
     initial: StoreTab,
     onPersist: suspend (GameSave) -> Unit,
     onBack: () -> Unit,
@@ -120,6 +122,7 @@ internal fun StoreScreen(
                 profile = profile,
                 offers = offers,
                 cards = cards,
+                starters = starters,
                 selectedTag = selectedTag,
                 onSelect = { selectedTag = it },
                 // Read from the profile rather than from a flag on it, so the panel disappears the
@@ -129,7 +132,7 @@ internal fun StoreScreen(
                 } else {
                     {
                         scope.launch {
-                            onPersist(StarterPack.grantedTo(profile))
+                            onPersist(StarterPack.grantedTo(profile, starters))
                             note.show(
                                 strings.format(
                                     StringKeys.OBTAINED,

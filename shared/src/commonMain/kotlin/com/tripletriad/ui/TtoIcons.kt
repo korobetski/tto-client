@@ -171,6 +171,21 @@ internal object TtoIcons {
     }
 
     /**
+     * The same chevron pointing down — an accordion that can be opened.
+     *
+     * Drawn rather than rotated from [Back] at the call site, because the row rotates it *again* to
+     * point up when it is open, and a glyph that starts at 90° would make that second rotation
+     * read as 180° in the code for a quarter turn on screen.
+     */
+    val Expand: ImageVector by lazy {
+        icon("Expand") {
+            moveTo(4.5f, 9f)
+            lineTo(12f, 16.5f)
+            lineTo(19.5f, 9f)
+        }
+    }
+
+    /**
      * One stroked path on a 24-unit grid.
      *
      * `defaultWidth`/`defaultHeight` are 24 dp because that is what an [androidx.compose.material3

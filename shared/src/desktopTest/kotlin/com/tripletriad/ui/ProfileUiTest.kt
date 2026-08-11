@@ -35,6 +35,50 @@ class ProfileUiTest {
     private fun stored(documents: InMemoryDocumentStore): List<GameSave> =
         runBlocking { SaveRepository(documents).list().map { it.save } }
 
+    /**
+     * A locally created character opens the **authored** box, not `GameSave.new`'s five.
+     *
+     * The two creation paths disagreed until this: registering an account and then choosing a
+     * collection went through the catalogue, while creating a character on this device still got
+     * the AS3's `Save.as:30`. Same game, same screen one hop earlier, different ten cards — see
+     * `StarterPack.opened`.
+     */
+    @Test
+    fun creatingACharacterGrantsTheAuthoredStarter() = runComposeUiTest {
+        val documents = store()
+        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        newCharacter(CardCollection.FF8)
+
+        val save = stored(documents).single()
+        val starter = starterFor(CardCollection.FF8)
+
+        assertEquals(starter.cards.associateWith { 1 }, save.cards)
+        assertEquals(listOf(starter.deck), save.decks.map { it.cards })
+    }
+
+    /** And the screen shows what is being chosen, rather than only which game the art is from. */
+    @Test
+    fun theCreationScreenShowsTheStarterItWouldGrant() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        awaitMenu()
+        onNodeWithTag(MENU_PLAY_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_NEW_TEST_TAG) }
+        onNodeWithTag(PROFILE_NEW_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_CREATE_TEST_TAG) }
+
+        val ff14 = starterFor(CardCollection.FF14)
+        assertTrue(
+            exists(starterPreviewTestTag(ff14.id)),
+            "the default collection's starter should be previewed on arrival",
+        )
+
+        // And it follows the choice, which is the half that makes the preview worth having.
+        val ff8 = starterFor(CardCollection.FF8)
+        onNodeWithTag(collectionChoiceTestTag(CardCollection.FF8)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(starterPreviewTestTag(ff8.id)) }
+        assertFalse(exists(starterPreviewTestTag(ff14.id)), "one starter at a time")
+    }
+
     @Test
     fun aFreshInstallHasNoCharacters() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }

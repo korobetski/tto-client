@@ -16,7 +16,6 @@ import com.tripletriad.net.isNewerThanRunning
 import com.tripletriad.net.isUsable
 import com.tripletriad.net.serverInfo
 import com.tripletriad.protocol.AppVersion
-import com.tripletriad.protocol.CURRENT_VERSION
 import com.tripletriad.protocol.ClientRelease
 import com.tripletriad.protocol.ServerInfo
 import kotlinx.coroutines.async
@@ -62,13 +61,6 @@ class Connectivity internal constructor(
     val status: ServerStatus get() = statusOf(selected)
 
     /**
-     * This build's standing with the selected server.
-     *
-     * Null when there is nothing to say: it is fine, or nothing is known yet. Non-null is the whole
-     * of the update story — either the server will not have this build, or it would rather this
-     * build were newer — and it is what the screens render.
-     */
-    /**
      * What the releases page last said, or null if it has not been asked or had nothing to say.
      *
      * Held rather than re-fetched because [update] is read on every recomposition of three screens
@@ -79,6 +71,10 @@ class Connectivity internal constructor(
 
     /**
      * This build's standing, from whichever source has something to say.
+     *
+     * Null when there is nothing to say: it is fine, or nothing is known yet. Non-null is the whole
+     * of the update story — either the server will not have this build, or a newer one is published
+     * — and it is what the screens render.
      *
      * The **server wins** when it has an opinion, and the order is not arbitrary: only a deployment
      * can say "this build cannot be served at all", and letting a suggestion from the releases page
@@ -144,17 +140,34 @@ class Connectivity internal constructor(
         }
     }
 
+    /**
+     * What the probed deployment has to say about this build.
+     *
+     * ### The comparison is against the app, not the protocol
+     *
+     * It used to be `published > CURRENT_VERSION`, and that was wrong in a way nobody could see
+     * from here: `CURRENT_VERSION` is the **protocol** version — 1.0.0, moving only on a
+     * replay-affecting break — while the app ships its own release number. A deployment setting
+     * `TTO_CLIENT_VERSION` to the real app version therefore told every client it was out of date,
+     * forever, including one already running that exact build. `tto-core`'s `docs/RELEASING.md`
+     * § 7 parks it and prescribes the workaround: put the protocol version in that variable, which
+     * makes the notice incapable of announcing an app release.
+     *
+     * Both sources now go through [isNewerThanRunning], so the deployment's advice and the
+     * releases page's agree about what "newer" means. See [RunningVersion].
+     */
     private fun adviceFor(status: ServerStatus): UpdateAdvice? {
         val info = status.serverInfo ?: return null
-        val published = info.release?.version
 
         return when {
-            // Blocking: this build cannot be served, and the only remedy is a new one.
+            // Blocking: this build cannot be served, and the only remedy is a new one. Still the
+            // protocol's business — `ServerStatus.Outdated` is what `minimumClient` refused, and
+            // that gate is about the wire format rather than about which app is installed.
             status is ServerStatus.Outdated -> UpdateAdvice.fromServer(info, isRequired = true)
 
             // A suggestion. The deployment publishes a newer build than this one and will still
             // talk to us, so this is worth saying once and never worth standing in the way.
-            published != null && published > CURRENT_VERSION ->
+            info.release?.isNewerThanRunning() == true ->
                 UpdateAdvice.fromServer(info, isRequired = false)
 
             else -> null

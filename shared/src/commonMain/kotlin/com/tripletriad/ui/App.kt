@@ -25,6 +25,7 @@ import com.tripletriad.audio.Sound
 import com.tripletriad.data.Campaign
 import com.tripletriad.data.CardCatalog
 import com.tripletriad.data.SaveRepository
+import com.tripletriad.data.StarterCatalog
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.rememberStrings
@@ -377,6 +378,8 @@ private fun Destination(
 
         Screen.PROFILE_NEW -> ProfileCreateScreen(
             session = session,
+            // Behind the splash, so the empty fallback is unreachable — see `CharacterDestination`.
+            starters = startup.starters ?: StarterCatalog(emptyList()),
             onCreated = { onNavigate(Screen.DASHBOARD) },
             onBack = { onNavigate(Screen.PROFILES) },
         )
@@ -491,6 +494,11 @@ private fun CharacterDestination(
 ) {
     val toDashboard = { onNavigate(Screen.DASHBOARD) }
     val scope = rememberCoroutineScope()
+    // Loaded in the same startup phase as the card table, and this whole function is behind the
+    // splash — so the empty fallback is unreachable rather than a degraded mode. It is here so the
+    // two destinations that need it are not each a null check, which is what took this `when` past
+    // the complexity detekt allows.
+    val starters = startup.starters ?: StarterCatalog(emptyList())
 
     when (destination) {
         Screen.DASHBOARD -> DashboardScreen(
@@ -575,6 +583,7 @@ private fun CharacterDestination(
         Screen.STATS, Screen.AVATAR, Screen.COLLECTION_CHOICE -> RecordDestination(
             destination = destination,
             profile = profile,
+            starters = starters,
             gate = gate,
             onNavigate = onNavigate,
         )
@@ -591,6 +600,7 @@ private fun CharacterDestination(
                     destination = destination,
                     profile = profile,
                     catalog = catalog,
+                    starters = starters,
                     onPersist = gate.persist,
                     onBack = toDashboard,
                 )
@@ -619,6 +629,7 @@ private fun CharacterDestination(
 private fun RecordDestination(
     destination: Screen,
     profile: GameSave,
+    starters: StarterCatalog,
     gate: ProfileGate,
     onNavigate: (Screen) -> Unit,
 ) {
@@ -631,6 +642,7 @@ private fun RecordDestination(
 
         Screen.COLLECTION_CHOICE -> CollectionChoiceScreen(
             profile = profile,
+            starters = starters,
             onChosen = { chosen ->
                 gate.persist(chosen)
                 onNavigate(Screen.DASHBOARD)
@@ -834,10 +846,12 @@ private fun queueKeyFor(
  * screens and a dashboard away. See [CollectionScreen] for why these four were the ones to pair.
  */
 @Composable
+@Suppress("LongParameterList")
 private fun CollectionDestination(
     destination: Screen,
     profile: GameSave,
     catalog: CardCatalog,
+    starters: StarterCatalog,
     onPersist: suspend (GameSave) -> Unit,
     onBack: () -> Unit,
 ) {
@@ -857,6 +871,7 @@ private fun CollectionDestination(
         Screen.SHOP, Screen.INVENTORY -> StoreScreen(
             profile = profile,
             catalog = catalog,
+            starters = starters,
             initial = if (destination == Screen.INVENTORY) StoreTab.BAG else StoreTab.SHOP,
             onPersist = onPersist,
             onBack = onBack,

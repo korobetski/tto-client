@@ -27,6 +27,9 @@ const val NPC_CATALOG_PATH: String = "files/npcs.json"
 /** Path of the tournament ladders inside `commonMain/composeResources`. */
 const val CAMPAIGN_CATALOG_PATH: String = "files/campaigns.json"
 
+/** Path of the starter packs inside `commonMain/composeResources`. */
+const val STARTER_CATALOG_PATH: String = "files/starters.json"
+
 /**
  * Reads and parses `cards.json` out of the Compose Multiplatform resource bundle.
  *
@@ -46,3 +49,8 @@ suspend fun loadNpcCatalog(): NpcCatalog =
 @OptIn(ExperimentalResourceApi::class)
 suspend fun loadCampaignCatalog(): CampaignCatalog =
     CampaignCatalogParser.parse(Res.readBytes(CAMPAIGN_CATALOG_PATH).decodeToString())
+
+/** Reads and parses `starters.json` out of the Compose Multiplatform resource bundle. */
+@OptIn(ExperimentalResourceApi::class)
+suspend fun loadStarterCatalog(): StarterCatalog =
+    StarterCatalogParser.parse(Res.readBytes(STARTER_CATALOG_PATH).decodeToString())

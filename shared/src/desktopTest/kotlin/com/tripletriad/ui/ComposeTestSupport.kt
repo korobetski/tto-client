@@ -233,10 +233,13 @@ internal fun ComposeUiTest.settleDeck() {
 internal const val ANY_LEVEL: Int = 99
 
 /**
- * The five cards a fresh ff14 character owns.
+ * The cards a fresh ff14 character owns — the **authored** starter, ten of them.
  *
- * One declaration rather than `GameSave.defaultCards(CardCollection.FF14)` at a dozen call sites:
- * the starter stopped being a constant when ids went global — it is now a function of the set the
- * character plays — and spelling that out everywhere buys nothing a name does not.
+ * One declaration rather than the expression at a dozen call sites: the starter stopped being a
+ * constant when ids went global, and stopped being `GameSave.defaultCards` when document 19's
+ * `starters.json` replaced it. Both moves would have been a dozen edits without a name.
+ *
+ * Read off the shipped file rather than hard-coded, so a card swapped for flavour is a content
+ * change and not a test failure. See [starterFor].
  */
-internal val STARTER_CARDS: List<Int> = GameSave.defaultCards(CardCollection.FF14)
+internal val STARTER_CARDS: List<Int> = starterFor(CardCollection.FF14).cards

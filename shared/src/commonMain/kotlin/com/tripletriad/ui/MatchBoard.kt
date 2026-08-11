@@ -4,6 +4,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -34,11 +35,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -50,6 +53,7 @@ import com.tripletriad.model.HAND_SIZE
 import com.tripletriad.model.HandVisibility
 import com.tripletriad.model.MatchState
 import com.tripletriad.model.PlacedCard
+import com.tripletriad.model.elementalModifier
 import com.tripletriad.ui.theme.LocalTtoColors
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -96,8 +100,11 @@ internal fun PlayArea(
             state = state,
             scale = layout.boardScale,
             drag = drag,
-            // Armed by either gesture: a tapped card and a lifted one both need somewhere to go.
-            armed = selected != null || drag.isDragging,
+            // The card looking for a cell, by either gesture — a tapped one and a lifted one both
+            // need somewhere to go. Carried rather than reduced to a boolean because under the
+            // Elemental rule the cells are not interchangeable: which of them helps depends on
+            // *this* card's own element. See [TileCell].
+            held = selected ?: drag.card.takeIf { drag.isDragging },
             onPlace = onPlace,
         )
     }
@@ -183,16 +190,17 @@ private fun DragGhost(drag: BoardDragState, scale: Float) {
  * (`Tile.as:107-127`), which is the same pair of rules — an occupied cell simply never highlights,
  * so the refusal is visible before the finger lifts rather than after.
  *
- * @param armed a card is in hand and waiting for a cell. Every free cell outlines faintly while it
- *   is — "where can this go" answered before the attempt rather than by it, which matters most on a
- *   phone, where the finger covers the cell it is aiming at.
+ * @param held the card waiting for a cell, or null. Every free cell outlines faintly while there is
+ *   one — "where can this go" answered before the attempt rather than by it, which matters most on
+ *   a phone, where the finger covers the cell it is aiming at. Under the Elemental rule it answers
+ *   the better question too: every free elemental cell shows what it would do to *this* card.
  */
 @Composable
 private fun BoardGrid(
     state: MatchState,
     scale: Float,
     drag: BoardDragState,
-    armed: Boolean,
+    held: Card?,
     onPlace: (Int) -> Unit,
 ) {
     val hovered = drag.hovered()
@@ -212,11 +220,13 @@ private fun BoardGrid(
                     }
 
                     TileCell(
+                        position = position,
                         placed = state.board[position],
                         element = state.board.elements[position],
                         scale = scale,
                         isTarget = hovered == position && free,
-                        isOpen = armed && free,
+                        isOpen = held != null && free,
+                        held = held,
                         modifier = Modifier
                             .testTag(tileTestTag(position))
                             .onGloballyPositioned { coordinates ->
@@ -239,20 +249,44 @@ private fun BoardGrid(
 /**
  * One cell.
  *
+ * ### The Elemental rule, made visible
+ *
+ * `Board.elements` has been populated under `TypeRule.ELEMENTAL` since the engine was ported, and
+ * `elementalModifier` has been deciding matches with it — but the only thing on screen was the
+ * first three letters of the enum name on an *empty* cell. So the rule was invisible exactly when
+ * it mattered: once a card was down, nothing said the 7 fighting for that edge was really a 6.
+ *
+ * Three things are drawn now, all from data that was already there:
+ *
+ * - **the element itself**, as the card artwork's own type icon rather than `EAR` / `LIG`. The
+ *   glyphs are in the bundle ([CardArt.typeIcon]) and are what the same element looks like on a
+ *   card, which is the comparison a player has to make.
+ * - **what the cell did**, on the card sitting on it: `+1` or `−1`.
+ * - **what the cell would do**, on every free elemental cell while a card is held. This is the
+ *   half that changes play: a hand card has one element, the nine cells have nine, and working out
+ *   which cell suits it by reading nine icons is arithmetic the screen can do.
+ *
+ * An untyped card takes `−1` on any elemental cell — see [elementalModifier], where that is
+ * documented as intended rather than accidental — so the badge appears for typeless cards too, and
+ * it should: that is the case a player is most likely to get wrong.
+ *
  * @param isTarget the finger is over it with a card, and it can take one. The border is what says
  *   so — Feathers drew a `dropIndicatorSkin` over the whole tile, and a border is the same claim
  *   without an atlas.
  * @param isOpen it could take the card currently in hand, but is not the one being aimed at. The
  *   same ring at a third of its weight: three states on one border, so a cell never has to grow.
+ * @param held the card looking for a cell, or null. Only its type is read.
  */
 @Composable
 @Suppress("LongParameterList")
 private fun TileCell(
+    position: Int,
     placed: PlacedCard?,
     element: CardType?,
     scale: Float,
     isTarget: Boolean,
     isOpen: Boolean,
+    held: Card?,
     modifier: Modifier,
 ) {
     val game = LocalTtoColors.current
@@ -274,17 +308,96 @@ private fun TileCell(
         contentAlignment = Alignment.Center,
     ) {
         if (placed == null) {
-            element?.let {
-                Text(
-                    text = it.name.take(ELEMENT_LABEL_CHARS),
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
-                    fontSize = ElementFontSize * scale,
-                )
-            }
+            element?.let { ElementBadge(position = position, element = it, scale = scale) }
         } else {
             BoardCard(placed, scale)
         }
+
+        // The card's own modifier once it is down; the held card's prospective one while the cell
+        // is free. Never both — a cell holds a card or it does not.
+        val modifierValue = when {
+            element == null -> 0
+            placed != null -> elementalModifier(placed.card.type, element)
+            held != null -> elementalModifier(held.type, element)
+            else -> 0
+        }
+        if (modifierValue != 0) {
+            ElementalModifier(
+                position = position,
+                value = modifierValue,
+                scale = scale,
+                modifier = Modifier.align(Alignment.BottomEnd),
+            )
+        }
     }
+}
+
+/**
+ * The cell's element, as the icon a card of that element wears.
+ *
+ * Faint, and behind whatever else the cell draws: it is the cell's property, not an event. The
+ * enum name is kept as the content description so the element is still nameable to a screen reader
+ * and to a test, which the three-letter label was doing by accident.
+ */
+@Composable
+private fun ElementBadge(position: Int, element: CardType, scale: Float) {
+    val icon = LocalCardArt.current?.typeIcon(element)
+    val size = ElementIconSize * scale
+
+    if (icon == null) {
+        // No artwork loaded — a preview, or a test with no bundle. The name is a worse answer than
+        // the glyph and a much better one than an empty cell.
+        Text(
+            text = element.name.take(ELEMENT_LABEL_CHARS),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ELEMENT_ALPHA),
+            fontSize = ElementFontSize * scale,
+            modifier = Modifier.testTag(tileElementTestTag(position)),
+        )
+    } else {
+        Image(
+            bitmap = icon,
+            contentDescription = element.name,
+            contentScale = ContentScale.Fit,
+            alpha = ELEMENT_ALPHA,
+            modifier = Modifier.testTag(tileElementTestTag(position)).size(size),
+        )
+    }
+}
+
+/**
+ * `+1` or `−1`, in the corner of the cell.
+ *
+ * Tertiary for the bonus and error for the penalty, which is the theme's own pair for "this went
+ * your way" and "this did not" — the same two colours the shop and the achievements list use, so
+ * the board does not invent a third vocabulary. A plate behind it because the badge sits over card
+ * artwork whose colours are not the theme's to choose.
+ *
+ * The minus is U+2212, not a hyphen: it is a sign, and beside a numeral a hyphen reads short.
+ */
+@Composable
+private fun ElementalModifier(position: Int, value: Int, scale: Float, modifier: Modifier) {
+    val positive = value > 0
+
+    Text(
+        text = if (positive) "+$value" else "−${-value}",
+        color = MaterialTheme.colorScheme.onSurface,
+        fontSize = ModifierFontSize * scale,
+        fontWeight = FontWeight.Bold,
+        maxLines = 1,
+        softWrap = false,
+        modifier = modifier
+            .testTag(tileModifierTestTag(position))
+            .padding(ModifierInset * scale)
+            .clip(ModifierShape)
+            .background(
+                if (positive) {
+                    MaterialTheme.colorScheme.tertiary
+                } else {
+                    MaterialTheme.colorScheme.error
+                },
+            )
+            .padding(horizontal = ModifierPadding * scale),
+    )
 }
 
 /**
@@ -580,6 +693,9 @@ private const val MIN_CARD_SCALE = 0.22f
 /** 1.0 is the authored 88x118 face. Drawing bigger than the source art would only blur it. */
 private const val MAX_CARD_SCALE = 1f
 private const val ELEMENT_LABEL_CHARS = 3
+
+/** The element belongs to the cell, not to the play. Present, and never louder than a card. */
+private const val ELEMENT_ALPHA = 0.55f
 private const val INACTIVE_HAND_ALPHA = 0.45f
 
 /** The card following the finger. Slightly transparent, so the cell under it stays readable. */
@@ -656,6 +772,13 @@ private val TileGap = 4.dp
 private val TileShape = RoundedCornerShape(6.dp)
 private val SelectionRingWidth = 2.dp
 private val ElementFontSize = 9.sp
+
+/** The type glyphs are authored at 16 px; a board tile is 104 wide, so this is a quarter of it. */
+private val ElementIconSize = 26.dp
+private val ModifierFontSize = 10.sp
+private val ModifierShape = RoundedCornerShape(3.dp)
+private val ModifierInset = 2.dp
+private val ModifierPadding = 3.dp
 private val HandGap = 3.dp
 
 internal fun matchLayout(width: Dp, height: Dp): MatchLayout {

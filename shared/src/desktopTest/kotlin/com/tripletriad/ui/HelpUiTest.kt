@@ -113,6 +113,37 @@ class HelpUiTest {
         )
     }
 
+    /**
+     * The four headings are on the screen, and every rule is under exactly one of them.
+     *
+     * The second half is what makes the grouping safe to maintain: [HELP_RULES] is *derived* from
+     * [HELP_FAMILIES], so a rule cannot be listed and shown nowhere — and this is the assertion
+     * that keeps it derived rather than quietly forked back into two hand-kept lists.
+     */
+    @Test
+    fun theRulesAreGroupedUnderFourHeadings() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        openHelp()
+
+        assertEquals(FAMILIES, HELP_FAMILIES.size)
+        for (family in HELP_FAMILIES) {
+            onNodeWithTag(HELP_LIST_TEST_TAG)
+                .performScrollToNode(hasTestTag(helpFamilyTestTag(family.labelKey)))
+        }
+        assertEquals(
+            HELP_RULES.size,
+            HELP_FAMILIES.sumOf { it.rules.size },
+            "a rule is in exactly one family",
+        )
+    }
+
+    /** And the headings are translated, like every other string this port authored. */
+    @Test
+    fun everyHeadingResolves() {
+        val unresolved = HELP_FAMILIES.map { it.labelKey }.filter { english[it] == it }
+        assertTrue(unresolved.isEmpty(), "unresolved: $unresolved")
+    }
+
     private companion object {
         val FIRST_RULE = HELP_RULES.first()
         val SECOND_RULE = HELP_RULES[1]
@@ -121,5 +152,8 @@ class HelpUiTest {
 
         /** `HelpScreen.as:72-89` lists eighteen, with `RULE_CHAOS` twice. */
         const val RULES_LISTED = 17
+
+        /** Sight, play, capture, elements — see [HELP_FAMILIES]. */
+        const val FAMILIES = 4
     }
 }

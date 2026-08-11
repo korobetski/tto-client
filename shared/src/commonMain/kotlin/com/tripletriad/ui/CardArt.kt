@@ -82,7 +82,17 @@ class CardArt internal constructor(
  * Four digits covers blocks up to 255, which is every set this will ever ship; a wider id would
  * simply print wider, and the importer derives the same name from the same expression.
  */
-internal val Card.textureId: String get() = id.toString(HEX_RADIX).padStart(HEX_WIDTH, '0')
+internal val Card.textureId: String get() = cardTextureId(id)
+
+/**
+ * The atlas frame a card id names, for a caller holding the id and not the card.
+ *
+ * The starter preview is the one: it draws five cards off `starters.json` on a screen that has no
+ * `CardCatalog` to resolve them through, and resolving one only to read its id back would be a
+ * catalogue threaded through two screens for a string.
+ */
+internal fun cardTextureId(cardId: Int): String =
+    cardId.toString(HEX_RADIX).padStart(HEX_WIDTH, '0')
 
 private const val HEX_RADIX = 16
 private const val HEX_WIDTH = 4

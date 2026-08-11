@@ -7,6 +7,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.tripletriad.data.SaveRepository
 import com.tripletriad.data.SaveSlot
+import com.tripletriad.data.Starter
 import com.tripletriad.log.Log
 import com.tripletriad.model.CardCollection
 import com.tripletriad.model.GameSave
@@ -82,9 +83,11 @@ class ProfileSession internal constructor(
      * `setToDefaultValues()` names an unnamed character `Kuplu Kopo`, and refusing to create is a
      * worse answer than naming it something. The creation screen still asks for a name.
      */
-    suspend fun create(username: String, mode: CardCollection) {
+    suspend fun create(username: String, mode: CardCollection, starter: Starter? = null) {
         val name = username.trim().ifEmpty { GameSave.DEFAULT_USERNAME }
-        guard("create '$name'") { active = repository.create(name, mode, clock.nowMillis()) }
+        guard("create '$name'") {
+            active = repository.create(name, mode, clock.nowMillis(), starter)
+        }
     }
 
     /** Deletes [key], and forgets the active profile if that is what was deleted. */

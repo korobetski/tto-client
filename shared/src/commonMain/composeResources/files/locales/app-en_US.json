@@ -105,5 +105,11 @@
   "APP_FREE": "Free",
   "APP_CLAIM": "Claim",
   "APP_REWARD_CARDS": "Cards to win",
-  "APP_NEXT_TIER": "Next: {0}"
+  "APP_NEXT_TIER": "Next: {0}",
+  "APP_HELP_FAMILY_SIGHT": "What you can see",
+  "APP_HELP_FAMILY_PLAY": "How the match is played",
+  "APP_HELP_FAMILY_CAPTURE": "How cards are captured",
+  "APP_HELP_FAMILY_ELEMENTS": "Elements",
+  "APP_STARTER_FF14_BEASTS": "Beasts of Eorzea",
+  "APP_STARTER_FF8_MONSTERS": "Monsters of Balamb"
 }

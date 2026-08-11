@@ -29,6 +29,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tripletriad.data.SaveSlot
+import com.tripletriad.data.Starter
+import com.tripletriad.data.StarterCatalog
 import com.tripletriad.data.StarterPack
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
@@ -48,6 +50,9 @@ fun profileRowTestTag(key: String): String = "profile-row-$key"
 
 /** `profile-delete-<key>`. */
 fun profileDeleteTestTag(key: String): String = "profile-delete-$key"
+
+/** `starter-preview-<id>` — the box the chosen set opens with. */
+fun starterPreviewTestTag(starterId: String): String = "starter-preview-$starterId"
 
 /** `collection-ff14_` / `collection-ff8_`, by the string the choice is stored as. */
 fun collectionChoiceTestTag(collection: CardCollection): String =
@@ -212,6 +217,7 @@ private fun ProfileRow(
 @Composable
 internal fun ProfileCreateScreen(
     session: ProfileSession,
+    starters: StarterCatalog,
     onCreated: (GameSave) -> Unit,
     onBack: () -> Unit,
 ) {
@@ -238,7 +244,11 @@ internal fun ProfileCreateScreen(
             modifier = Modifier.testTag(PROFILE_NAME_TEST_TAG).fillMaxWidth(),
         )
 
-        CollectionChoiceRow(selected = collection, onSelect = { collection = it })
+        CollectionChoiceRow(
+            selected = collection,
+            starters = starters,
+            onSelect = { collection = it },
+        )
 
         Box(modifier = Modifier.weight(1f))
 
@@ -248,7 +258,10 @@ internal fun ProfileCreateScreen(
             enabled = !session.isBusy,
             onClick = {
                 scope.launch {
-                    session.create(name, collection)
+                    // The authored box, not `GameSave.new`'s five. Both creation paths go through
+                    // the catalogue now; see [StarterPack.opened] for why that had to be one place.
+                    val starter = StarterPack.forCollection(starters, collection)
+                    session.create(name, collection, starter)
                     session.active?.let(onCreated)
                 }
             },
@@ -281,6 +294,7 @@ internal fun ProfileCreateScreen(
 @Composable
 internal fun CollectionChoiceScreen(
     profile: GameSave,
+    starters: StarterCatalog,
     onChosen: suspend (GameSave) -> Unit,
     onBack: () -> Unit,
 ) {
@@ -296,14 +310,22 @@ internal fun CollectionChoiceScreen(
             fontWeight = FontWeight.Bold,
         )
 
-        CollectionChoiceRow(selected = collection, onSelect = { collection = it })
+        CollectionChoiceRow(
+            selected = collection,
+            starters = starters,
+            onSelect = { collection = it },
+        )
 
         Box(modifier = Modifier.weight(1f))
 
         WideButton(
             label = strings[StringKeys.START],
             tag = COLLECTION_CONFIRM_TEST_TAG,
-            onClick = { scope.launch { onChosen(StarterPack.startingIn(profile, collection)) } },
+            onClick = {
+                scope.launch {
+                    onChosen(StarterPack.startingIn(profile, collection, starters))
+                }
+            },
         )
     }
 }
@@ -312,6 +334,7 @@ internal fun CollectionChoiceScreen(
 @Composable
 private fun CollectionChoiceRow(
     selected: CardCollection,
+    starters: StarterCatalog,
     onSelect: (CardCollection) -> Unit,
 ) {
     val strings = LocalStrings.current
@@ -333,6 +356,58 @@ private fun CollectionChoiceRow(
                 modifier = Modifier.weight(1f),
                 onClick = { onSelect(choice) },
             )
+        }
+    }
+
+    StarterPreview(starter = StarterPack.forCollection(starters, selected))
+}
+
+/**
+ * What the chosen box actually contains: its name, and the five cards it opens with.
+ *
+ * ### Why the cards are drawn
+ *
+ * Because the choice is otherwise between two proper nouns. `FFXIV` and `FFVIII` say which game
+ * the art comes from and nothing about what is being handed over, and this is the one
+ * irreversible decision the game asks for — `MODE` cannot be changed after this screen. Document
+ * 19 removes the irreversibility, not the choice; until it does, showing the hand is what makes
+ * the choice informed.
+ *
+ * The **deck** and not all ten cards, as in the shop: it is the five the starter is about, it is
+ * what the character will be holding in its first match, and ten thumbnails wrap on a phone.
+ *
+ * Absent rather than empty when no starter is authored for the set — a content bug
+ * [StarterCatalog.violations] refuses, and one this screen should not invent a placeholder for.
+ */
+@Composable
+private fun StarterPreview(starter: Starter?) {
+    val strings = LocalStrings.current
+    if (starter == null) return
+
+    Column(
+        modifier = Modifier
+            .testTag(starterPreviewTestTag(starter.id))
+            .fillMaxWidth()
+            .padding(top = 12.dp)
+            .rowSurface()
+            .padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(
+            text = strings[starter.nameKey],
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            // By id: this screen has no `CardCatalog`, and the thumbnail is the only thing being
+            // drawn. A card whose art has not loaded is a plate rather than a crash, which is
+            // [UiArt]'s contract everywhere else.
+            for (id in starter.deck) {
+                CardThumb(cardId = id)
+            }
         }
     }
 }

@@ -109,6 +109,17 @@ fun turnTestTag(player: CardColor): String = "turn-${player.name.lowercase()}"
 /** `tile-0` … `tile-8`, row-major, matching `Board.cells`. */
 fun tileTestTag(position: Int): String = "tile-$position"
 
+/** `tile-element-0` — the element drawn on a cell. Absent unless the Elemental rule is in force. */
+fun tileElementTestTag(position: Int): String = "tile-element-$position"
+
+/**
+ * `tile-modifier-0` — the `+1` or `-1` an elemental cell is worth.
+ *
+ * Present on a cell holding a card, and on a free elemental cell while a card is in hand. See
+ * [com.tripletriad.model.elementalModifier].
+ */
+fun tileModifierTestTag(position: Int): String = "tile-modifier-$position"
+
 /**
  * `hand-blue-0` … `hand-blue-4`, by **slot** rather than card id.
  * Slots close up as cards are played, so slot 0 is always the first remaining card. That makes a

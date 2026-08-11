@@ -65,7 +65,7 @@ class DecksUiTest {
     /** Tap a card in the deck to take it out; Save is what writes it. */
     @Test
     fun removingACardAndSavingWritesTheShorterDeck() = runComposeUiTest {
-        val documents = seeded(GameSave.new(createdAt = 0L))
+        val documents = seeded(freshSave())
         setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
         openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
@@ -79,7 +79,7 @@ class DecksUiTest {
         }
 
         val deck = storedSave(documents).decks.first()
-        assertEquals(STARTER_CARDS.drop(1), deck.cards, "the first position was removed")
+        assertEquals(STARTER_DECK.drop(1), deck.cards, "the first position was removed")
         assertEquals(GameSave.DEFAULT_DECK_NAME, deck.name, "and the name is kept")
     }
 
@@ -112,14 +112,16 @@ class DecksUiTest {
     /** A second slot can be built from the owned cards and saved beside the first. */
     @Test
     fun anEmptySlotCanBeFilledFromTheCollection() = runComposeUiTest {
-        val documents = seeded(GameSave.new(createdAt = 0L))
+        val documents = seeded(freshSave())
         setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
         openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
 
         onNodeWithTag(deckSlotTestTag(1)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
-        for (cardId in STARTER_CARDS) {
+        // The deck's five, not the collection's ten: a slot takes `HAND_SIZE` and `plusCard`
+        // ignores the rest, so clicking all ten would build the same deck and prove less.
+        for (cardId in STARTER_DECK) {
             onNodeWithTag(deckPickTestTag(cardId)).performClick()
         }
         onNodeWithTag(DECK_NAME_TEST_TAG).performTextClearance()
@@ -129,7 +131,7 @@ class DecksUiTest {
 
         val second = storedSave(documents).decks[1]
         assertEquals(SECOND_DECK, second.name)
-        assertEquals(STARTER_CARDS, second.cards)
+        assertEquals(STARTER_DECK, second.cards)
         assertTrue(second.isComplete, "five cards is a playable deck")
     }
 

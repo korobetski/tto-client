@@ -206,7 +206,7 @@ class ShopUiTest {
         }
 
         val save = storedSave(documents)
-        for (id in StarterPack.cardsFor(CardCollection.FF8)) {
+        for (id in starterFor(CardCollection.FF8).cards) {
             assertTrue(save.ownsCard(id), "starter card $id was not granted")
         }
         assertTrue(save.decks.first().isComplete, "and a deck was left ready to play")

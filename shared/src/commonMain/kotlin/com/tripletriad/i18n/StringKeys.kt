@@ -362,6 +362,18 @@ object StringKeys {
     const val REWARD_CARDS: String = "APP_REWARD_CARDS"
 
     /**
+     * The four headings the help screen groups the rules under.
+     *
+     * No AS3 equivalent: `HelpScreen.as` lists all seventeen in one column with no headings at all.
+     * See [com.tripletriad.ui.HELP_FAMILIES] for why the grouping is editorial rather than derived
+     * from `GameRules`.
+     */
+    const val HELP_FAMILY_SIGHT: String = "APP_HELP_FAMILY_SIGHT"
+    const val HELP_FAMILY_PLAY: String = "APP_HELP_FAMILY_PLAY"
+    const val HELP_FAMILY_CAPTURE: String = "APP_HELP_FAMILY_CAPTURE"
+    const val HELP_FAMILY_ELEMENTS: String = "APP_HELP_FAMILY_ELEMENTS"
+
+    /**
      * `{0} more open up as you level.` — under the opponent list.
      *
      * The list is filtered by the player's level now, and a list that silently omits three quarters
@@ -426,6 +438,7 @@ object StringKeys {
         ERROR_OFFLINE, ERROR_UPDATE, ERROR_STATUS,
         ERROR_NAME_TAKEN, ERROR_BAD_CREDENTIALS, ERROR_EXPIRED,
         OPPONENTS_LOCKED, REWARD_CARDS,
+        HELP_FAMILY_SIGHT, HELP_FAMILY_PLAY, HELP_FAMILY_CAPTURE, HELP_FAMILY_ELEMENTS,
         SERVERS_BLURB, SERVERS_CHECK, SERVERS_CHECKING,
         SERVER_UNKNOWN, SERVER_CHECKING, SERVER_ONLINE, SERVER_DEGRADED,
         SERVER_OUTDATED, SERVER_UNREACHABLE, SERVER_UNUSABLE,

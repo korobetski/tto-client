@@ -162,15 +162,21 @@ class SaveRepository(
      *   `DATAS.MODE = 'ff14_'` in `setToDefaultValues()` and offers no way to change it either.
      * @param createdAt used for both `CREATION_DATE` and `LAST_SAVE`, so the two agree on a new
      *   profile as they do in `setToDefaultValues()`.
+     * @param starter the box this character opens with — document 19 § The starter pack, and the
+     *   replacement for `GameSave.DEFAULT_CARDS`. **Null falls back to
+     *   the AS3's five**, which is what `GameSave.new` still seeds: a profile created before the
+     *   catalogue has loaded is a profile with a playable hand rather than an empty one, and the
+     *   fallback is unreachable behind the splash. See [StarterPack.opened].
      */
     suspend fun create(
         username: String = GameSave.DEFAULT_USERNAME,
         mode: CardCollection = CardCollection.FF14,
         createdAt: Long,
-    ): GameSave = save(
-        GameSave.new(username = username, mode = mode, createdAt = createdAt),
-        createdAt,
-    )
+        starter: Starter? = null,
+    ): GameSave {
+        val fresh = GameSave.new(username = username, mode = mode, createdAt = createdAt)
+        return save(starter?.let { StarterPack.opened(fresh, it) } ?: fresh, createdAt)
+    }
 
     companion object {
         private const val TAG = "Save"

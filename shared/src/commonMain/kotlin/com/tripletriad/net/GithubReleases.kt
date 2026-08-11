@@ -1,6 +1,5 @@
 package com.tripletriad.net
 
-import com.tripletriad.CLIENT_VERSION
 import com.tripletriad.log.Log
 import com.tripletriad.protocol.AppVersion
 import com.tripletriad.protocol.ClientPlatform
@@ -189,25 +188,3 @@ internal data class GithubAsset(
     val name: String,
     @SerialName("browser_download_url") val browserDownloadUrl: String,
 )
-
-/**
- * The release number this build was compiled with, or null if it is not a version.
- *
- * Null is unreachable while `:androidApp` validates the same property at configuration time, and
- * is handled rather than asserted because the alternative is an app that refuses to start over a
- * string it only wanted to print.
- */
-val runningVersion: AppVersion? by lazy { AppVersion.parse(CLIENT_VERSION) }
-
-/**
- * Whether [this] is worth telling the player about.
- *
- * A *newer* release only. Equal is the ordinary case and older happens during a rollout — an APK
- * built from a tag that has not been published yet, or a hand-built one — and neither is an update.
- * Unknown ([runningVersion] null) is treated as up to date: a build that cannot say what it is has
- * no business claiming it is behind.
- */
-fun ClientRelease.isNewerThanRunning(): Boolean {
-    val running = runningVersion ?: return false
-    return version > running
-}

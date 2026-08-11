@@ -11,6 +11,7 @@ import com.tripletriad.net.ServerStatus
 import com.tripletriad.net.SessionStore
 import com.tripletriad.net.clientPlatform
 import com.tripletriad.net.matchProtocolJson
+import com.tripletriad.net.runningVersion
 import com.tripletriad.net.serverEntries
 import com.tripletriad.protocol.AppVersion
 import com.tripletriad.protocol.CURRENT_VERSION
@@ -166,6 +167,46 @@ class ConnectivityTest {
         val advice = assertNotNullAdvice(connectivity.update)
         assertFalse(advice.isRequired)
         assertEquals(newer, advice.target)
+    }
+
+    /**
+     * A deployment announcing **the build that is running** says nothing.
+     *
+     * The regression `tto-core`'s `docs/RELEASING.md` § 7 parks. The comparison used to be against
+     * `CURRENT_VERSION` — the protocol version, 1.0.0 — so a deployment that set
+     * `TTO_CLIENT_VERSION` to the app's own release number told every client it was out of date,
+     * including one already running it. The documented workaround was to put the protocol version
+     * in that variable instead, which left the notice unable to announce an app release at all.
+     *
+     * Pinned with [runningVersion] rather than a literal so it keeps testing the claim after the
+     * next `clientVersion` bump — a hard-coded 1.0.3 would start passing for the wrong reason.
+     */
+    @Test
+    fun aDeploymentAnnouncingThisVeryBuildAdvisesNothing() = runTest {
+        val running = requireNotNull(runningVersion) { "this build must know its own version" }
+        val connectivity = connectivityOver {
+            respondInfo(healthy.copy(release = ClientRelease(version = running)))
+        }
+
+        connectivity.refreshSelected()
+
+        assertNull(connectivity.update)
+    }
+
+    /** And one publishing a genuinely newer app *does* — which is the notice's whole purpose. */
+    @Test
+    fun aDeploymentAnnouncingANewerAppSuggestsIt() = runTest {
+        val running = requireNotNull(runningVersion)
+        val next = running.copy(patch = running.patch + 1)
+        val connectivity = connectivityOver {
+            respondInfo(healthy.copy(release = ClientRelease(version = next)))
+        }
+
+        connectivity.refreshSelected()
+
+        val advice = assertNotNullAdvice(connectivity.update)
+        assertFalse(advice.isRequired)
+        assertEquals(next, advice.target)
     }
 
     /** A deployment publishing an *older* build than this one is not a reason to say anything. */

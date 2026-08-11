@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tripletriad.data.ShopCatalog
 import com.tripletriad.data.ShopOffer
+import com.tripletriad.data.StarterCatalog
 import com.tripletriad.data.StarterPack
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
@@ -81,12 +82,18 @@ internal fun ColumnScope.ShopBody(
     profile: GameSave,
     offers: List<ShopOffer>,
     cards: Map<Int, Card>,
+    starters: StarterCatalog,
     selectedTag: String?,
     onSelect: (String?) -> Unit,
     onClaimStarter: (() -> Unit)? = null,
 ) {
     if (onClaimStarter != null) {
-        StarterPackPanel(profile = profile, cards = cards, onClaim = onClaimStarter)
+        StarterPackPanel(
+            profile = profile,
+            starters = starters,
+            cards = cards,
+            onClaim = onClaimStarter,
+        )
     }
 
     LazyColumn(
@@ -112,15 +119,23 @@ internal fun ColumnScope.ShopBody(
  * cannot play is looking at a list of things they cannot buy, and the one row that would help them
  * must not be the one they have to find.
  *
- * The thumbnails are the point. This is the same five cards for every character of a collection —
- * [StarterPack.cardsFor] — so showing them is showing exactly what the button does, which is what a
+ * The thumbnails are the point. This is the authored starter of the character's own set — see
+ * [StarterCatalog] — so showing them is showing exactly what the button does, which is what a
  * sentence about "starter cards" cannot do for a player who has never seen the table.
+ *
+ * The **deck** is drawn rather than all ten cards: it is the five the pack is about, it is what the
+ * character will be holding on its next match, and ten thumbnails would wrap on a phone.
  */
 @Composable
-private fun StarterPackPanel(profile: GameSave, cards: Map<Int, Card>, onClaim: () -> Unit) {
+private fun StarterPackPanel(
+    profile: GameSave,
+    starters: StarterCatalog,
+    cards: Map<Int, Card>,
+    onClaim: () -> Unit,
+) {
     val strings = LocalStrings.current
-    val granted = remember(profile.mode, cards) {
-        StarterPack.cardsFor(profile.mode).mapNotNull(cards::get)
+    val granted = remember(profile.mode, starters, cards) {
+        StarterPack.forCollection(starters, profile.mode)?.deck.orEmpty().mapNotNull(cards::get)
     }
 
     Column(

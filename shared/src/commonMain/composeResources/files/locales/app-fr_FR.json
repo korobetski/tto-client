@@ -105,5 +105,11 @@
   "APP_FREE": "Gratuit",
   "APP_CLAIM": "Récupérer",
   "APP_REWARD_CARDS": "Cartes à gagner",
-  "APP_NEXT_TIER": "Suivant : {0}"
+  "APP_NEXT_TIER": "Suivant : {0}",
+  "APP_HELP_FAMILY_SIGHT": "Ce que vous voyez",
+  "APP_HELP_FAMILY_PLAY": "Le déroulement de la partie",
+  "APP_HELP_FAMILY_CAPTURE": "La capture des cartes",
+  "APP_HELP_FAMILY_ELEMENTS": "Les éléments",
+  "APP_STARTER_FF14_BEASTS": "Bêtes d'Éorzéa",
+  "APP_STARTER_FF8_MONSTERS": "Monstres de Balamb"
 }

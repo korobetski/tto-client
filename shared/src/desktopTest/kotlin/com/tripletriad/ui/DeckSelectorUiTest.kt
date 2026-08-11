@@ -243,7 +243,8 @@ class DeckSelectorUiTest {
 
     private companion object {
         /** The five a fresh profile owns. */
-        val STARTER = STARTER_CARDS
+/** The starter's **opening deck** — five cards, so a `Deck` built from it is complete. */
+        val STARTER = starterFor(CardCollection.FF14).deck
 
         /** Five ff14 cards outside the starter set, so the two decks share nothing. */
         val EXTRA = listOf(44, 45, 51, 63, 74).map { Card.idFor(block = 1, number = it) }

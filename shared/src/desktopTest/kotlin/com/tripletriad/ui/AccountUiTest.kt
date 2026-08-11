@@ -13,7 +13,6 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.CLIENT_VERSION
-import com.tripletriad.data.StarterPack
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.CardCollection
 import com.tripletriad.model.GameSave
@@ -317,10 +316,10 @@ class AccountUiTest {
         // could not play once ids went global: five FFXIV cards, an FFVIII character, and no deck
         // any screen would show it. See `StarterPack.startingIn`.
         val body = saved.last { it.contains("\"MODE\":\"ff8_\"") }
-        for (id in StarterPack.cardsFor(CardCollection.FF8)) {
+        for (id in starterFor(CardCollection.FF8).cards) {
             check(body.contains("\"$id\"")) { "the FF8 starter card $id is not in the save: $body" }
         }
-        for (id in StarterPack.cardsFor(CardCollection.FF14)) {
+        for (id in starterFor(CardCollection.FF14).cards) {
             check(!body.contains("\"$id\"")) { "an FFXIV card survived the move: $body" }
         }
     }

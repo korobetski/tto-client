@@ -8,9 +8,11 @@ import androidx.compose.runtime.setValue
 import com.tripletriad.data.CampaignCatalog
 import com.tripletriad.data.CardCatalog
 import com.tripletriad.data.NpcCatalog
+import com.tripletriad.data.StarterCatalog
 import com.tripletriad.data.loadCampaignCatalog
 import com.tripletriad.data.loadCardCatalog
 import com.tripletriad.data.loadNpcCatalog
+import com.tripletriad.data.loadStarterCatalog
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.rememberDeviceLocale
 import com.tripletriad.settings.SettingsStore
@@ -63,11 +65,15 @@ enum class StartupPhase(val labelKey: String) {
  * @property opponents null until [StartupPhase.OPPONENTS] completes. Non-null once [isReady].
  * @property campaigns the tournament ladders, loaded with the opponents and on the same footing:
  *   null until that phase completes, non-null once [isReady].
+ * @property starters the boxes a character can open with — `starters.json`, and document 19's
+ *   replacement for `GameSave.DEFAULT_CARDS`. Loaded with the cards rather than with the opponents,
+ *   because a character can be created before an opponent is ever listed.
  */
 data class StartupState(
     val phase: StartupPhase = StartupPhase.SETTINGS,
     val settings: UserSettings? = null,
     val catalog: CardCatalog? = null,
+    val starters: StarterCatalog? = null,
     val art: CardArt? = null,
     val ui: UiArt? = null,
     val opponents: NpcCatalog? = null,
@@ -100,11 +106,12 @@ fun rememberStartup(store: SettingsStore): StartupState {
         value = StartupState(StartupPhase.CARDS, settings)
 
         val catalog = loadCardCatalog()
-        value = StartupState(StartupPhase.ART, settings, catalog)
+        val starters = loadStarterCatalog()
+        value = StartupState(StartupPhase.ART, settings, catalog, starters)
 
         val art = loadCardArt()
         val ui = loadUiArt()
-        value = StartupState(StartupPhase.OPPONENTS, settings, catalog, art, ui)
+        value = StartupState(StartupPhase.OPPONENTS, settings, catalog, starters, art, ui)
 
         val opponents = loadNpcCatalog()
         val campaigns = loadCampaignCatalog()
@@ -112,6 +119,7 @@ fun rememberStartup(store: SettingsStore): StartupState {
             phase = StartupPhase.READY,
             settings = settings,
             catalog = catalog,
+            starters = starters,
             art = art,
             ui = ui,
             opponents = opponents,

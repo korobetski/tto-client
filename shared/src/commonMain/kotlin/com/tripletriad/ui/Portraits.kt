@@ -200,11 +200,34 @@ internal fun CardThumb(
     size: Dp = THUMB_SIZE,
     modifier: Modifier = Modifier,
 ) {
-    val painter: Painter? = LocalUiArt.current?.thumb(card)
+    CardThumb(
+        painter = LocalUiArt.current?.thumb(card),
+        size = size,
+        modifier = modifier.testTag(thumbTestTag(card.textureId)),
+    )
+}
 
+/**
+ * [CardThumb] for a caller holding an id rather than a card.
+ *
+ * The starter preview draws five cards straight off `starters.json`, on a screen that has no
+ * `CardCatalog`. See [cardTextureId].
+ */
+@Composable
+internal fun CardThumb(cardId: Int, size: Dp = THUMB_SIZE, modifier: Modifier = Modifier) {
+    val texture = cardTextureId(cardId)
+    CardThumb(
+        painter = LocalUiArt.current?.thumb(texture),
+        size = size,
+        modifier = modifier.testTag(thumbTestTag(texture)),
+    )
+}
+
+/** The plate, and the slice on it if there is one. Drawn whether or not the atlas has loaded. */
+@Composable
+private fun CardThumb(painter: Painter?, size: Dp, modifier: Modifier) {
     Box(
         modifier = modifier
-            .testTag(thumbTestTag(card.textureId))
             .size(size)
             .clip(RoundedCornerShape(4.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant),

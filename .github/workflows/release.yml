@@ -210,10 +210,34 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            "${{ steps.artifact.outputs.path }}" \
-            --title "$GITHUB_REF_NAME" \
-            --generate-notes
+          asset="${{ steps.artifact.outputs.path }}"
+
+          # `gh release create` fails outright when the tag already carries a release, which is the
+          # normal state on a re-run: every attempt that got this far had already created it, and
+          # every attempt that failed earlier — a bad secret, a rejected approval — leaves a release
+          # somebody made by hand or a previous run left behind. Refusing to continue there turns a
+          # transient failure into one that can only be cleared by deleting the release.
+          if ! gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            gh release create "$GITHUB_REF_NAME" "$asset" \
+              --title "$GITHUB_REF_NAME" \
+              --generate-notes
+            exit 0
+          fi
+
+          # The release exists. Attaching the APK is the missing half and is safe to repeat — but
+          # **replacing** one is not, and that is why there is no `--clobber` here. An asset already
+          # published is an asset players may have downloaded, and overwriting it serves different
+          # bytes under a URL that names a version, which is the mutable-tag problem `tto-server`'s
+          # release workflow argues against for images. A rebuild that must go out is a new tag.
+          if gh release view "$GITHUB_REF_NAME" --json assets \
+              --jq '.assets[].name' | grep -qxF "$asset"; then
+            echo "::error::$GITHUB_REF_NAME already carries $asset - refusing to replace an" \
+              "artifact that may already have been downloaded. Tag a new version instead." >&2
+            exit 1
+          fi
+
+          echo "$GITHUB_REF_NAME exists without $asset - attaching it."
+          gh release upload "$GITHUB_REF_NAME" "$asset"
 
       - name: Summarise
         if: always()

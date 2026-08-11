@@ -19,3 +19,10 @@ __pycache__/
 *.jks
 *.keystore
 *.p12
+# And the encoded forms. A base64 of the keystore is the keystore — it is what the release secret
+# holds — and it is the shape that actually lands in the working tree, since producing it is a step
+# somebody performs by hand next to the file it encodes.
+*.jks.b64
+*.keystore.b64
+*.p12.b64
+*.b64

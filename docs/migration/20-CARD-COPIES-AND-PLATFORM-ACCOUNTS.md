@@ -8,6 +8,11 @@
 | § 2 — one account, several games | Not started. It needs 18's V2, which needs 19. |
 | § 3 — the set browser | Not started. It needs 19, which removes `MODE`. |
 
+Document 19 has since been started on `feature/global-card-ids`, which branches off the above:
+`:core` carries the `(block << 8) | number` id scheme and is green (442 tests, every target), and
+the shipped data and artwork are migrated. The server and client are not yet migrated, and formats,
+starters and the `MODE` removal are not in it.
+
 `AppVersion` is already at **1.0.0** and `TRANSCRIPT_VERSION` at **2** on that branch. Per § Order
 of work that is the one major bump for all of 18, 19 and 20 — the strands still to land ride this
 number and must not bump it again.

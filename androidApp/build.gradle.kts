@@ -70,6 +70,78 @@ androidComponents.onVariants { variant ->
     variant.sources.assets?.addGeneratedSourceDirectory(assets, ComposeAssets::outputDirectory)
 }
 
+/**
+ * `versionCode` and `versionName`, both derived from the one `clientVersion` in `gradle.properties`.
+ *
+ * They were `1` and `"0.1.0"`, written by hand and never moved. `versionCode` being the one that
+ * had to move: Android refuses an APK whose code is not **greater** than the installed one, so a
+ * value frozen at 1 does not produce a release that fails to install — it produces one that cannot
+ * be installed at all, and the message the player gets says nothing about a version.
+ *
+ * The mapping reserves two digits each for minor and patch, which makes the code readable back —
+ * `10203` is `1.2.3` — and orders exactly as the version does, which is the only property Android
+ * actually requires. Both bounds are checked rather than trusted: `1.2.100` would otherwise encode
+ * as `10300` and collide with `1.3.0`, silently, on a number nobody reads until an update refuses
+ * to install.
+ */
+val clientVersion = providers.gradleProperty("clientVersion").get()
+val versionParts = clientVersion.split(".").mapNotNull(String::toIntOrNull)
+require(versionParts.size == 3 && versionParts.none { it < 0 }) {
+    "clientVersion is '$clientVersion'; expected major.minor.patch, all non-negative"
+}
+val (versionMajor, versionMinor, versionPatch) = versionParts
+require(versionMinor < 100 && versionPatch < 100) {
+    "clientVersion is '$clientVersion'; minor and patch must each be below 100 — see the mapping " +
+        "in androidApp/build.gradle.kts"
+}
+
+/**
+ * The release signing material, read from properties or the environment and **never from a file in
+ * this repository**.
+ *
+ * `~/.gradle/gradle.properties`   ttoKeystore / ttoKeystorePassword / ttoKeyAlias / ttoKeyPassword
+ * the environment                 TTO_KEYSTORE / TTO_KEYSTORE_PASSWORD / TTO_KEY_ALIAS / TTO_KEY_PASSWORD
+ *
+ * The same two sources, in the same order, that `tto-server` reads its GitHub Packages credentials
+ * from — developers configure a file once, CI passes secrets through the environment.
+ *
+ * ### Why a missing keystore is not an error
+ *
+ * `assembleDebug` is what a contributor builds, and it signs itself with the debug key; failing the
+ * configuration of the whole module because a *release* credential is absent would make the project
+ * unbuildable for everyone who never signs anything. So a build without this material still
+ * produces an unsigned release APK, exactly as before — and `release.yml` refuses to publish one,
+ * which is where the check belongs. An unsigned APK is only dangerous once it is offered to a
+ * player as an update.
+ */
+val releaseSigning: Map<String, String>? = run {
+    fun secret(property: String, environment: String): String? =
+        providers.gradleProperty(property)
+            .orElse(providers.environmentVariable(environment))
+            .orNull
+            ?.takeIf { it.isNotBlank() }
+
+    val material = mapOf(
+        "storeFile" to secret("ttoKeystore", "TTO_KEYSTORE"),
+        "storePassword" to secret("ttoKeystorePassword", "TTO_KEYSTORE_PASSWORD"),
+        "keyAlias" to secret("ttoKeyAlias", "TTO_KEY_ALIAS"),
+        "keyPassword" to secret("ttoKeyPassword", "TTO_KEY_PASSWORD"),
+    )
+    // All four or none. A partial set is a typo in someone's `gradle.properties`, and silently
+    // signing with three of them is not a thing that can happen — it fails deep inside apksigner
+    // with a message about the keystore rather than about the value that was left out.
+    if (material.values.any { it == null }) {
+        require(material.values.all { it == null }) {
+            "release signing needs all four of ttoKeystore, ttoKeystorePassword, ttoKeyAlias and " +
+                "ttoKeyPassword (or their TTO_* environment equivalents); got only " +
+                material.filterValues { it != null }.keys.sorted().joinToString()
+        }
+        null
+    } else {
+        material.mapValues { (_, value) -> value!! }
+    }
+}
+
 android {
     namespace = "com.tripletriad.android"
 
@@ -79,17 +151,36 @@ android {
         applicationId = "com.tripletriad.android"
         minSdk = libs.versions.androidMinSdk.get().toInt()
         targetSdk = libs.versions.androidTargetSdk.get().toInt()
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = versionMajor * 10_000 + versionMinor * 100 + versionPatch
+        versionName = clientVersion
     }
 
     buildFeatures {
         compose = true
     }
 
+    signingConfigs {
+        releaseSigning?.let { material ->
+            create("release") {
+                storeFile = file(material.getValue("storeFile"))
+                storePassword = material.getValue("storePassword")
+                keyAlias = material.getValue("keyAlias")
+                keyPassword = material.getValue("keyPassword")
+                // Both schemes on purpose. v2 is what every supported device verifies; v1 is what
+                // makes the APK installable on the API 24 floor this app still declares, where the
+                // v2 block is ignored and an APK carrying only it looks unsigned.
+                enableV1Signing = true
+                enableV2Signing = true
+            }
+        }
+    }
+
     buildTypes {
         getByName("release") {
             isMinifyEnabled = false
+            // Null when no material was supplied, which leaves the variant unsigned rather than
+            // failing — see [releaseSigning].
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 

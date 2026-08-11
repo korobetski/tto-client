@@ -11,3 +11,11 @@ xcuserdata/
 DerivedData/
 .DS_Store
 __pycache__/
+# The release signing key, in every shape it is handed around in. It is never read from the
+# repository — androidApp/build.gradle.kts takes it from a property or the environment — but a
+# keystore that reaches a commit is a key that has to be considered public, and the app's signature
+# can never be changed afterwards without breaking every installed update path. So the pattern is
+# here to make the accident impossible rather than to describe a file that belongs anywhere near.
+*.jks
+*.keystore
+*.p12

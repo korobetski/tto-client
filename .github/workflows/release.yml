@@ -1,0 +1,197 @@
+# Tag, and the APK is downloadable.
+#
+#   git tag -a v1.0.0 -m "..." && git push origin v1.0.0
+#
+# ### What this is for
+#
+# `TTO_CLIENT_DOWNLOAD_ANDROID` on the server has to point at a URL a phone can open. GitHub
+# Releases is that URL; the `android-apks` artifact `build.yml` already uploads is not, because
+# downloading an Actions artifact requires authentication and a player has none. That is the whole
+# reason this workflow exists separately from the build.
+#
+# ### The shape of it
+#
+#   verify  →  publish
+#
+# `verify` is the same gate as CI, re-run against the tagged commit — a tag can be placed anywhere,
+# including on a commit that was never on `main`. `publish` signs and uploads only after it passes.
+#
+# ### The version comes from the tag
+#
+# `-PclientVersion` is derived from `github.ref_name`, so the APK's `versionName`, its `versionCode`
+# and the release it hangs under are one number by construction. The alternative — a number in
+# `gradle.properties` that somebody remembers to bump before tagging — is the one that eventually
+# ships `v1.1.0` containing 1.0.0.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+# Never two releases at once. Unlike CI this does not cancel one in flight: a cancelled run between
+# creating the release and attaching the APK leaves a release with no download behind it, which is
+# worse than a slow queue.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  # For `com.tripletriad:core`, same as build.yml — an anonymous read of GitHub Packages is a 401
+  # even when the package is public, so this is the condition for the build resolving at all.
+  packages: read
+
+env:
+  GITHUB_ACTOR: ${{ github.actor }}
+  GITHUB_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
+
+jobs:
+  verify:
+    name: ktlint + detekt + tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v5
+      - uses: android-actions/setup-android@v4
+      - run: ./gradlew ktlintCheck detekt :shared:desktopTest --no-daemon
+      - name: Upload reports
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: release-reports
+          path: '**/build/reports/'
+          retention-days: 30
+
+  publish:
+    name: Signed APK
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # The keystore travels as base64 because a GitHub secret is a string and a `.jks` is not
+      # text. Decoded to a file below, inside the runner, and never written anywhere the build
+      # could pick it up by accident.
+      TTO_KEYSTORE_BASE64: ${{ secrets.TTO_KEYSTORE_BASE64 }}
+      TTO_KEYSTORE_PASSWORD: ${{ secrets.TTO_KEYSTORE_PASSWORD }}
+      TTO_KEY_ALIAS: ${{ secrets.TTO_KEY_ALIAS }}
+      TTO_KEY_PASSWORD: ${{ secrets.TTO_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v6
+
+      # Fails before anything is built, naming the secret that is missing. Without this the run
+      # goes green and publishes an *unsigned* APK — androidApp/build.gradle.kts leaves the variant
+      # unsigned rather than failing, deliberately, so that contributors who hold no key can still
+      # build. That trade is only safe if the one place that hands an APK to a player refuses.
+      #
+      # Values are never printed, only whether each is empty.
+      - name: Check the signing secrets
+        run: |
+          missing=""
+          for name in TTO_KEYSTORE_BASE64 TTO_KEYSTORE_PASSWORD TTO_KEY_ALIAS TTO_KEY_PASSWORD; do
+            eval "value=\${$name}"
+            [ -n "$value" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing or empty repository secrets:$missing" >&2
+            echo "Set them under Settings → Secrets and variables → Actions." >&2
+            exit 1
+          fi
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v5
+      - uses: android-actions/setup-android@v4
+
+      # `$RUNNER_TEMP`, not the workspace: the workspace is what `upload-artifact` and any later
+      # packaging step glob over, and a keystore sitting in it is a keystore one careless `path:`
+      # away from being published next to the APK it signed.
+      - name: Restore the keystore
+        run: |
+          umask 077
+          printf '%s' "$TTO_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          # A truncated or mis-pasted secret decodes to something that is not a keystore, and the
+          # failure surfaces much later as an apksigner error about the password. `keytool -list`
+          # says which of the two it is, here, in one line.
+          keytool -list -keystore "$RUNNER_TEMP/release.jks" \
+            -storepass "$TTO_KEYSTORE_PASSWORD" > /dev/null
+
+      # `v1.0.0` → `1.0.0`. The build validates the shape; this only strips the prefix, and a tag
+      # that is not a version fails there rather than producing an APK numbered from nonsense.
+      - name: Read the version from the tag
+        id: version
+        run: echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build the signed APK
+        env:
+          TTO_KEYSTORE: ${{ runner.temp }}/release.jks
+        run: |
+          ./gradlew :androidApp:assembleRelease --no-daemon \
+            -PclientVersion="${{ steps.version.outputs.value }}"
+
+      # Proves the APK is signed before it is offered to anyone, rather than trusting that the
+      # configuration above took effect. An unsigned APK is not a broken download — it installs on
+      # nothing, and the player is told only that the package is invalid.
+      #
+      # AGP names the two outcomes differently, which is the first half of the check: an unsigned
+      # build produces `androidApp-release-unsigned.apk` and no `androidApp-release.apk` at all. So
+      # the absence of that file *is* the diagnosis, and it is worth saying out loud rather than
+      # leaving apksigner to report a missing file.
+      - name: Verify the signature
+        run: |
+          apk=androidApp/build/outputs/apk/release/androidApp-release.apk
+          if [ ! -f "$apk" ]; then
+            echo "::error::$apk was not produced - the release variant built unsigned." >&2
+            ls -1 androidApp/build/outputs/apk/release/ >&2
+            exit 1
+          fi
+          apksigner="$(find "$ANDROID_HOME/build-tools" -name apksigner | sort | tail -1)"
+          "$apksigner" verify --print-certs "$apk"
+
+      # Named for the version, because the file outlives the page it was downloaded from: an
+      # `androidApp-release.apk` in a downloads folder says nothing about which release it is.
+      - name: Name the artifact
+        id: artifact
+        run: |
+          name="tto-${{ steps.version.outputs.value }}.apk"
+          mv androidApp/build/outputs/apk/release/androidApp-release.apk "$name"
+          echo "path=$name" >> "$GITHUB_OUTPUT"
+
+      # `gh` rather than a third-party action: it ships on the runner, and creating a release is
+      # one command. `--generate-notes` fills the body from the commits since the previous tag.
+      #
+      # The asset URL this produces is what the server hands to players, and it is stable:
+      #
+      #   https://github.com/${{ github.repository }}/releases/download/<tag>/<name>
+      #
+      # It is only reachable without credentials while this repository is public. If it is ever
+      # made private, this URL 404s for players and the download has to move.
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "${{ steps.artifact.outputs.path }}" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes
+
+      - name: Summarise
+        if: always()
+        run: |
+          {
+            echo "### $GITHUB_REF_NAME"
+            echo
+            echo "Point the server at it, in \`/srv/tto/.env\`:"
+            echo
+            echo '```'
+            echo "TTO_CLIENT_VERSION=${{ steps.version.outputs.value }}"
+            echo -n "TTO_CLIENT_DOWNLOAD_ANDROID=https://github.com/$GITHUB_REPOSITORY"
+            echo "/releases/download/$GITHUB_REF_NAME/${{ steps.artifact.outputs.path }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

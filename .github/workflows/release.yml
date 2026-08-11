@@ -127,11 +127,34 @@ jobs:
         run: |
           umask 077
           printf '%s' "$TTO_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
-          # A truncated or mis-pasted secret decodes to something that is not a keystore, and the
-          # failure surfaces much later as an apksigner error about the password. `keytool -list`
-          # says which of the two it is, here, in one line.
-          keytool -list -keystore "$RUNNER_TEMP/release.jks" \
-            -storepass "$TTO_KEYSTORE_PASSWORD" > /dev/null
+
+          # `base64 -d` is not the check it looks like: GNU coreutils decodes a truncated secret,
+          # and even one holding something that was never a keystore, and exits 0 either way. The
+          # size is the only thing it tells us, so it is reported rather than tested — a keystore is
+          # a couple of kilobytes, and a handful of bytes here means the secret is wrong.
+          echo "decoded $(stat -c%s "$RUNNER_TEMP/release.jks") bytes"
+
+          # keytool is the real check, and it writes its diagnosis to **stdout**, not stderr. An
+          # earlier version of this step sent that to /dev/null and so failed with a bare
+          # "Process completed with exit code 1" — the one outcome this step exists to prevent. The
+          # output is captured and echoed on failure instead, and it names which of the two
+          # problems it is: "keystore password was incorrect" against "EOFException" for a secret
+          # that did not arrive whole. Neither message contains the password.
+          if ! keytool -list -keystore "$RUNNER_TEMP/release.jks" \
+              -storepass "$TTO_KEYSTORE_PASSWORD" > "$RUNNER_TEMP/keytool.log" 2>&1; then
+            echo "::error::The keystore did not open - see keytool below." >&2
+            cat "$RUNNER_TEMP/keytool.log" >&2
+            exit 1
+          fi
+
+          # The alias is checked here rather than left to the build, where a wrong one surfaces as
+          # `KeytoolException: Failed to read key <alias> from store` in the middle of
+          # packageRelease — a message about the store, for a problem with a name.
+          if ! grep -qi "^${TTO_KEY_ALIAS}," "$RUNNER_TEMP/keytool.log"; then
+            echo "::error::No key called '$TTO_KEY_ALIAS' in the keystore. It holds:" >&2
+            grep -i "PrivateKeyEntry" "$RUNNER_TEMP/keytool.log" >&2 || true
+            exit 1
+          fi
 
       # `v1.0.0` → `1.0.0`. The build validates the shape; this only strips the prefix, and a tag
       # that is not a version fails there rather than producing an APK numbered from nonsense.

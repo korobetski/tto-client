@@ -6,10 +6,8 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.data.loadCardCatalog
-import com.tripletriad.model.CardCollection
 import com.tripletriad.data.loadNpcCatalog
 import com.tripletriad.i18n.AppLocale
-import com.tripletriad.model.GameSave
 import com.tripletriad.ui.theme.TripleTriadTheme
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test

@@ -10,11 +10,11 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.data.Inventory
-import com.tripletriad.model.Card
 import com.tripletriad.data.ShopCatalog
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.BoosterItem
 import com.tripletriad.model.BoosterType
+import com.tripletriad.model.Card
 import com.tripletriad.model.CardCollection
 import com.tripletriad.model.CardItem
 import com.tripletriad.model.GameSave

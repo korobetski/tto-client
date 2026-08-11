@@ -10,7 +10,6 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.Card
-import com.tripletriad.model.CardCollection
 import com.tripletriad.model.Deck
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.HAND_SIZE
@@ -155,7 +154,6 @@ class DecksUiTest {
         assertEquals(HAND_SIZE, deck.cards.size)
         assertFalse(SIXTH_CARD in deck.cards, "a full deck should not have taken a sixth card")
     }
-
 
     /**
      * A card whose every copy is already in the deck refuses the tap.

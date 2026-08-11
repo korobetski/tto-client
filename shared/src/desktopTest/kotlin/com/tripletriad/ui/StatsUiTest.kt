@@ -8,7 +8,6 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.i18n.AppLocale
-import com.tripletriad.model.CardCollection
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.AchievementCatalog
 import com.tripletriad.model.GameSave

@@ -110,7 +110,6 @@ class CollectionUiTest {
         assertTrue(found.isFailure, "card $FF14_ONLY_CARD is outside the ff8 table")
     }
 
-
     /**
      * A second copy is a badge on the one cell, not a second cell — see `CardListBody`.
      *

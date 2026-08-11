@@ -29,7 +29,6 @@ import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.Strings
 import com.tripletriad.net.ServerEntry
 import com.tripletriad.net.ServerStatus
-import com.tripletriad.net.downloadForThisPlatform
 import com.tripletriad.net.latency
 import com.tripletriad.platform.rememberUrlOpener
 import com.tripletriad.ui.theme.LocalTtoColors

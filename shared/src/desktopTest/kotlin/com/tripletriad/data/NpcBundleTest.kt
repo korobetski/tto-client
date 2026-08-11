@@ -84,7 +84,7 @@ class NpcBundleTest {
     fun everyOpponentCardExistsInItsOwnCollection() {
         val cards = runBlocking { loadCardCatalog() }
         for (collection in CardCollection.entries) {
-            val ids = cards.collection(collection.prefix).map { it.id }.toSet()
+            val ids = cards.collection(collection).map { it.id }.toSet()
             for (npc in catalog.collection(collection)) {
                 val missing = (npc.fetishCards + npc.cards).filterNot { it in ids }
                 assertTrue(
@@ -100,7 +100,7 @@ class NpcBundleTest {
     fun everyOpponentResolvesToAFullHandOfRealCards() {
         val cards = runBlocking { loadCardCatalog() }
         for (collection in CardCollection.entries) {
-            val ids = cards.collection(collection.prefix).map { it.id }.toSet()
+            val ids = cards.collection(collection).map { it.id }.toSet()
             for (npc in catalog.collection(collection)) {
                 val hand = npc.randomHand(Random(1)).filter { it in ids }
                 assertEquals(

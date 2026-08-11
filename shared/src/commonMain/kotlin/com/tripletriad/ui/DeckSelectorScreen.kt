@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tripletriad.data.CardCatalog
+import com.tripletriad.model.CardCollection
 import com.tripletriad.data.PveMatches
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
@@ -66,7 +67,7 @@ fun deckChoiceTestTag(index: Int): String = "deck-choice-$index"
  * when *no* deck is complete its handling is `if (deckCollection.length == 0) { }`, an empty block,
  * leaving an empty list with no explanation. The list here says so, and Random is always available:
  * it draws from the collection rather than from a deck, so it works for a profile that has never
- * built one. Every profile owns at least five cards ([GameSave.DEFAULT_CARDS]), so it is never a
+ * built one. Every profile owns at least five cards (`GameSave.defaultCards`), so it is never a
  * dead end.
  *
  * ### One change from the original: the first deck starts selected
@@ -92,7 +93,7 @@ internal fun DeckSelectorScreen(
 ) {
     val strings = LocalStrings.current
     val cards = remember(catalog, profile.mode) {
-        catalog.collection(profile.mode.prefix).associateBy { it.id }
+        catalog.collection(profile.mode).associateBy { it.id }
     }
     val decks = remember(profile.decks, catalog, profile.mode) {
         PveMatches.playableDecks(profile, catalog)

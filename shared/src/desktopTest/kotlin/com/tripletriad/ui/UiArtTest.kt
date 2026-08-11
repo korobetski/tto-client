@@ -52,7 +52,7 @@ class UiArtTest {
         val missing = AchievementCatalog.all
             .map { it.iconId }
             .distinct()
-            .filter { art.icon(it) == null && art.thumb(thumbTextureId(it)) == null }
+            .filter { art.icon(it) == null && thumbTextureId(it)?.let(art::thumb) == null }
 
         assertTrue(missing.isEmpty(), "no artwork for: ${missing.joinToString()}")
     }

@@ -11,6 +11,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.data.loadCardCatalog
+import com.tripletriad.model.Card
 import com.tripletriad.data.loadNpcCatalog
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.loadStrings
@@ -57,7 +58,7 @@ class DeckSelectorUiTest {
 
     /** The English name of an ff14 card, which is what a hand shows once a card is picked up. */
     private fun nameOf(cardId: Int): String {
-        val card = cards.collection(CardCollection.FF14.prefix).first { it.id == cardId }
+        val card = cards.collection(CardCollection.FF14).first { it.id == cardId }
         return english[card.nameKey]
     }
 
@@ -163,7 +164,7 @@ class DeckSelectorUiTest {
      *
      * `if (deckCollection.length == 0) { }` in the original — an empty block, so the panel showed
      * an empty list and no reason for it. Random always works: it draws from the collection, and
-     * every profile owns at least five cards ([GameSave.DEFAULT_CARDS]).
+     * every profile owns at least five cards ([STARTER_CARDS]).
      */
     @Test
     fun withNoCompleteDeckTheListSaysSoAndRandomStillPlays() = runComposeUiTest {
@@ -242,10 +243,10 @@ class DeckSelectorUiTest {
 
     private companion object {
         /** The five a fresh profile owns. */
-        val STARTER = GameSave.DEFAULT_CARDS
+        val STARTER = STARTER_CARDS
 
         /** Five ff14 cards outside the starter set, so the two decks share nothing. */
-        val EXTRA = listOf(44, 45, 51, 63, 74)
+        val EXTRA = listOf(44, 45, 51, 63, 74).map { Card.idFor(block = 1, number = it) }
 
         /** `ma-dincht` imposes All Open, Random and Elemental, and declares no roulette. */
         const val RANDOM_OPPONENT = "ma-dincht"

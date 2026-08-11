@@ -6,6 +6,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.data.loadCardCatalog
+import com.tripletriad.model.CardCollection
 import com.tripletriad.data.loadNpcCatalog
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.GameSave
@@ -40,8 +41,8 @@ class ArtworkUiTest {
     /** The grid is thumbnails now, keyed by the card's own texture id. */
     @Test
     fun theCollectionGridDrawsThumbnails() = runComposeUiTest {
-        val card = runBlocking { loadCardCatalog() }.ff14
-            .first { it.id == GameSave.DEFAULT_CARDS.first() }
+        val card = runBlocking { loadCardCatalog() }.all
+            .first { it.id == STARTER_CARDS.first() }
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
         openFromBar("cards", CARD_GRID_TEST_TAG)
@@ -74,8 +75,8 @@ class ArtworkUiTest {
      */
     @Test
     fun aDeckSlotFillsWithAThumbnailWhenACardIsPicked() = runComposeUiTest {
-        val first = GameSave.DEFAULT_CARDS.first()
-        val card = runBlocking { loadCardCatalog() }.ff14.first { it.id == first }
+        val first = STARTER_CARDS.first()
+        val card = runBlocking { loadCardCatalog() }.all.first { it.id == first }
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
         openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)

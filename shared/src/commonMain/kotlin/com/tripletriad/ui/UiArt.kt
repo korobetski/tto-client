@@ -70,7 +70,7 @@ class UiArt internal constructor(
      */
     fun thumb(card: Card): Painter? = thumbs[card.textureId]
 
-    /** The thumbnail behind an achievement that uses one — `ac-fob`'s `ff14_thumb_37`. */
+    /** The thumbnail behind an achievement that uses one — `ac-fob`'s. See `thumbTextureId`. */
     fun thumb(textureId: String): Painter? = thumbs[textureId]
 
     internal fun cachedAvatar(id: String): ImageBitmap? = avatars[id]

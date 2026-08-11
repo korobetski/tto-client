@@ -6,6 +6,7 @@ import com.tripletriad.data.CardCatalog
 import com.tripletriad.data.NpcCatalog
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.CardCollection
+import com.tripletriad.model.Card
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.MatchAiOptions
@@ -62,10 +63,10 @@ internal fun TutorialScreen(
     onHelp: () -> Unit,
     onExit: () -> Unit,
 ) {
-    val script = remember(tutor.nameKey) {
+    val script = remember(tutor.nameKey, profile.mode) {
         MatchScript(
             speakerKey = tutor.nameKey,
-            deck = TUTORIAL_DECK,
+            deck = tutorialDeck(profile.mode),
             firstPlayer = CardColor.RED,
             turnLimit = TUTORIAL_TURN_LIMIT,
             aiOptions = MatchAiOptions.TUTOR,
@@ -138,14 +139,21 @@ private const val PLAYER_REPLIES = 3
  *
  * Fixed rather than chosen, and it has to be: line 5 tells the player to pick a card with a bigger
  * number on the touching side, which is only sound advice if the hand is known to contain one.
- * These are ids in whichever collection the character plays, so an `ff8_` character is dealt the
- * first, third, sixth, seventh and tenth FF8 cards instead. That is the same indirection every
- * other screen uses ([GameSave.mode] decides which table an id reads from) and the lesson holds
- * either way, because it never names a card — the original could not have known, since it
- * hard-codes `MODE = 'ff14_'` and never changes it.
+ *
+ * These are card **numbers**, resolved against the set the character plays — so an `ff8_` character
+ * is dealt the first, third, sixth, seventh and tenth FF8 cards, exactly as before. That used to
+ * happen for free, because an id meant nothing without `MODE` to read it through; ids are global
+ * now, so the indirection the lesson depends on has to be spelled out. Left implicit, the tutorial
+ * would deal five FFXIV cards to an FFVIII character and then fail to resolve them.
+ *
+ * The lesson holds either way, because it never names a card.
  */
-@Suppress("MagicNumber") // Transcribed card ids: naming each one would say nothing it does not.
-private val TUTORIAL_DECK = listOf(1, 3, 6, 7, 10)
+@Suppress("MagicNumber") // Transcribed card numbers: naming each one would say nothing it does not.
+private val TUTORIAL_NUMBERS = listOf(1, 3, 6, 7, 10)
+
+/** [TUTORIAL_NUMBERS] as ids in [collection]'s own set. */
+private fun tutorialDeck(collection: CardCollection): List<Int> =
+    TUTORIAL_NUMBERS.map { Card.idFor(block = collection.block, number = it) }
 
 /** `bluePlayer.timer = 60` — see [MatchScript.turnLimit] for why it is double. */
 private val TUTORIAL_TURN_LIMIT = 60.seconds

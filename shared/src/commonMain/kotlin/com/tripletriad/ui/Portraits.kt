@@ -143,7 +143,7 @@ internal fun AchievementIcon(
 ) {
     val art = LocalUiArt.current
     val bitmap = art?.icon(iconId)
-    val painter = if (bitmap == null) art?.thumb(thumbTextureId(iconId)) else null
+    val painter = if (bitmap == null) thumbTextureId(iconId)?.let { art?.thumb(it) } else null
 
     Box(
         modifier = modifier.size(size).clip(RoundedCornerShape(4.dp)),
@@ -168,8 +168,24 @@ internal fun AchievementIcon(
     }
 }
 
-/** `ff14_thumb_37` is the frame the atlas calls `ff14_37`. */
-internal fun thumbTextureId(iconId: String): String = iconId.replace("_thumb_", "_")
+/**
+ * The atlas frame an achievement's `card_thumb_<id>` icon names.
+ *
+ * It was `ff14_thumb_37` -> `ff14_37`, a string edit between two names that shared a prefix. Both
+ * halves changed with global ids: the achievement names a card id rather than a table and an
+ * index, and the frame is that id in hex. So this parses rather than substitutes, and returns null
+ * for anything that is not a card thumbnail — every other achievement icon is an ordinary texture
+ * name and must pass through untouched.
+ */
+internal fun thumbTextureId(iconId: String): String? =
+    iconId.removePrefix(CARD_THUMB_PREFIX)
+        .takeIf { it != iconId }
+        ?.toIntOrNull()
+        ?.let { id -> id.toString(HEX_RADIX).padStart(HEX_WIDTH, '0') }
+
+private const val CARD_THUMB_PREFIX = "card_thumb_"
+private const val HEX_RADIX = 16
+private const val HEX_WIDTH = 4
 
 /**
  * A card's 40x40 thumbnail — the tile the original's collection grid is built from.

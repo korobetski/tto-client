@@ -231,3 +231,12 @@ internal fun ComposeUiTest.settleDeck() {
  * otherwise be asserting the level rule by accident. `OpponentUiTest` tests the gate itself.
  */
 internal const val ANY_LEVEL: Int = 99
+
+/**
+ * The five cards a fresh ff14 character owns.
+ *
+ * One declaration rather than `GameSave.defaultCards(CardCollection.FF14)` at a dozen call sites:
+ * the starter stopped being a constant when ids went global — it is now a function of the set the
+ * character plays — and spelling that out everywhere buys nothing a name does not.
+ */
+internal val STARTER_CARDS: List<Int> = GameSave.defaultCards(CardCollection.FF14)

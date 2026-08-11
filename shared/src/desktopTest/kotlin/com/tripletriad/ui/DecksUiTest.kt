@@ -9,6 +9,8 @@ import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.i18n.AppLocale
+import com.tripletriad.model.Card
+import com.tripletriad.model.CardCollection
 import com.tripletriad.model.Deck
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.HAND_SIZE
@@ -78,7 +80,7 @@ class DecksUiTest {
         }
 
         val deck = storedSave(documents).decks.first()
-        assertEquals(GameSave.DEFAULT_CARDS.drop(1), deck.cards, "the first position was removed")
+        assertEquals(STARTER_CARDS.drop(1), deck.cards, "the first position was removed")
         assertEquals(GameSave.DEFAULT_DECK_NAME, deck.name, "and the name is kept")
     }
 
@@ -118,7 +120,7 @@ class DecksUiTest {
 
         onNodeWithTag(deckSlotTestTag(1)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
-        for (cardId in GameSave.DEFAULT_CARDS) {
+        for (cardId in STARTER_CARDS) {
             onNodeWithTag(deckPickTestTag(cardId)).performClick()
         }
         onNodeWithTag(DECK_NAME_TEST_TAG).performTextClearance()
@@ -128,7 +130,7 @@ class DecksUiTest {
 
         val second = storedSave(documents).decks[1]
         assertEquals(SECOND_DECK, second.name)
-        assertEquals(GameSave.DEFAULT_CARDS, second.cards)
+        assertEquals(STARTER_CARDS, second.cards)
         assertTrue(second.isComplete, "five cards is a playable deck")
     }
 
@@ -136,7 +138,7 @@ class DecksUiTest {
     @Test
     fun aDeckCannotGrowPastFive() = runComposeUiTest {
         val extra = GameSave.new(createdAt = 0L)
-            .copy(cards = (GameSave.DEFAULT_CARDS + SIXTH_CARD).associateWith { 1 })
+            .copy(cards = (STARTER_CARDS + SIXTH_CARD).associateWith { 1 })
         val documents = seeded(extra)
         setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
@@ -164,9 +166,9 @@ class DecksUiTest {
      */
     @Test
     fun theEditorRefusesACardWhoseCopiesAreAllSpent() = runComposeUiTest {
-        val single = GameSave.DEFAULT_CARDS.first()
+        val single = STARTER_CARDS.first()
         val profile = GameSave.new(createdAt = 0L).copy(
-            cards = GameSave.DEFAULT_CARDS.associateWith { 1 },
+            cards = STARTER_CARDS.associateWith { 1 },
             decks = listOf(Deck(name = "Half", cards = listOf(single))),
         )
         val documents = seeded(profile)
@@ -187,9 +189,9 @@ class DecksUiTest {
     /** And accepts the second tap once a second copy is held, up to the copies owned. */
     @Test
     fun theEditorAcceptsASecondCopyWhenOneIsOwned() = runComposeUiTest {
-        val twin = GameSave.DEFAULT_CARDS.first()
+        val twin = STARTER_CARDS.first()
         val profile = GameSave.new(createdAt = 0L).copy(
-            cards = GameSave.DEFAULT_CARDS.associateWith { 1 } + (twin to 2),
+            cards = STARTER_CARDS.associateWith { 1 } + (twin to 2),
             decks = listOf(Deck(name = "Half", cards = listOf(twin))),
         )
         val documents = seeded(profile)
@@ -213,6 +215,6 @@ class DecksUiTest {
         const val SECOND_DECK = "Second"
 
         /** An ff14 card outside the starter five. */
-        const val SIXTH_CARD = 44
+        val SIXTH_CARD = Card.idFor(block = 1, number = 44)
     }
 }

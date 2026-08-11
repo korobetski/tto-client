@@ -227,15 +227,19 @@ internal fun ServerIndicator(connectivity: Connectivity, onClick: () -> Unit) {
  * thing well: saying which version, saying whether the server will still serve this one, and
  * putting the right artifact for *this* platform one tap away.
  *
- * The button is absent, rather than disabled, when the deployment publishes no download for this
+ * The button is absent, rather than disabled, when the source publishes no download for this
  * platform. A greyed-out button implies the player is doing something wrong; the truth is that
  * there is nothing on the other end of it.
+ *
+ * Which source the advice came from — the deployment or the releases page — is deliberately not
+ * shown. The player's question is "is there a newer build and where is it", and answering it with
+ * *where we found out* would be answering a question nobody asked. See [UpdateAdvice].
  */
 @Composable
 internal fun UpdateNotice(advice: UpdateAdvice) {
     val strings = LocalStrings.current
     val open = rememberUrlOpener()
-    val download = advice.info.downloadForThisPlatform()
+    val download = advice.download
     val game = LocalTtoColors.current
 
     Column(
@@ -265,7 +269,7 @@ internal fun UpdateNotice(advice: UpdateAdvice) {
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
             style = MaterialTheme.typography.labelMedium,
         )
-        advice.info.release?.notes?.let {
+        advice.notes?.let {
             Text(
                 text = it,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),

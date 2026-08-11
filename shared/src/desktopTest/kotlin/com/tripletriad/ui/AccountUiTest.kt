@@ -12,6 +12,8 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.v2.runComposeUiTest
+import com.tripletriad.CLIENT_VERSION
+import com.tripletriad.data.StarterPack
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.CardCollection
 import com.tripletriad.model.GameSave
@@ -73,11 +75,24 @@ class AccountUiTest {
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_NEW_TEST_TAG) }
     }
 
+    /**
+     * The form appears, and says which build it belongs to.
+     *
+     * The version is asserted here rather than in a test of its own because it is part of what this
+     * screen *is* — this is where a player is when they need the number, and a form that has it in
+     * one build and not the next is the regression worth catching.
+     *
+     * `CLIENT_VERSION` and not `CURRENT_VERSION`: the release number identifies the build, which is
+     * what an update changes and what a bug report has to name. The protocol version is a different
+     * number on purpose — see `gradle.properties`.
+     */
     @Test
-    fun withAServerPlayLeadsToTheSignInForm() = runComposeUiTest {
+    fun withAServerPlayLeadsToTheSignInFormAndItSaysWhichBuildThisIs() = runComposeUiTest {
         setContent { App(store = english(), server = connection()) }
 
         openForm()
+
+        onNodeWithTag(ACCOUNT_VERSION_TEST_TAG).assertTextEquals("v$CLIENT_VERSION")
     }
 
     /** Typing in the two fields and pressing the button ends on the account's own dashboard. */
@@ -296,6 +311,17 @@ class AccountUiTest {
 
         check(saved.any { it.contains("\"MODE\":\"ff8_\"") }) {
             "the chosen collection never reached the server: $saved"
+        }
+        // And the cards went with it. This used to be a bare `copy(mode = …)`, which was harmless
+        // while an id indexed whichever table `MODE` named and became a registered account that
+        // could not play once ids went global: five FFXIV cards, an FFVIII character, and no deck
+        // any screen would show it. See `StarterPack.startingIn`.
+        val body = saved.last { it.contains("\"MODE\":\"ff8_\"") }
+        for (id in StarterPack.cardsFor(CardCollection.FF8)) {
+            check(body.contains("\"$id\"")) { "the FF8 starter card $id is not in the save: $body" }
+        }
+        for (id in StarterPack.cardsFor(CardCollection.FF14)) {
+            check(!body.contains("\"$id\"")) { "an FFXIV card survived the move: $body" }
         }
     }
 

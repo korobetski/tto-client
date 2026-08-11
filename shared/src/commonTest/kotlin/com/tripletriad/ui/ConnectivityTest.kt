@@ -2,12 +2,14 @@ package com.tripletriad.ui
 
 import com.tripletriad.net.AccountClient
 import com.tripletriad.net.MatchReporter
+import com.tripletriad.net.ReleaseSource
 import com.tripletriad.net.ServerConnection
 import com.tripletriad.net.ServerDirectory
 import com.tripletriad.net.ServerEntry
 import com.tripletriad.net.ServerProbe
 import com.tripletriad.net.ServerStatus
 import com.tripletriad.net.SessionStore
+import com.tripletriad.net.clientPlatform
 import com.tripletriad.net.matchProtocolJson
 import com.tripletriad.net.serverEntries
 import com.tripletriad.protocol.AppVersion
@@ -192,12 +194,98 @@ class ConnectivityTest {
         assertNull(connectivity.update)
     }
 
+    /**
+     * The releases page answers when the deployment has nothing to say.
+     *
+     * Which is the usual state for the first hours of a release: the APK is published and the
+     * server's `TTO_CLIENT_VERSION` is still whatever it was, because that is a line somebody
+     * copies out of a workflow summary by hand.
+     */
+    @Test
+    fun theReleasesPageIsAskedWhenTheServerIsContent() = runTest {
+        val newer = AppVersion(99, 0, 0)
+        val connectivity = connectivityOver(
+            releases = releasing(ClientRelease(newer, mapOf(clientPlatform to PAGE))),
+        ) { respondInfo(healthy) }
+
+        connectivity.refreshSelected()
+        assertNull(connectivity.update, "the server alone advises nothing")
+
+        connectivity.checkForRelease()
+
+        val advice = assertNotNullAdvice(connectivity.update)
+        assertEquals(newer, advice.target)
+        assertEquals(PAGE, advice.download)
+        assertFalse(advice.isRequired, "a published artifact cannot refuse anybody")
+    }
+
+    /**
+     * A refusal is never replaced by a suggestion.
+     *
+     * Only a deployment can say "this build cannot be served", and letting the releases page take
+     * that slot would turn a wall the player has to act on into a note they can dismiss.
+     */
+    @Test
+    fun theServerWinsWhenItRefusesThisBuild() = runTest {
+        val next = AppVersion(CURRENT_VERSION.major + 1, 0, 0)
+        val connectivity = connectivityOver(
+            releases = releasing(ClientRelease(AppVersion(99, 0, 0))),
+        ) {
+            respondInfo(
+                healthy.copy(minimumClient = next, release = ClientRelease(version = next)),
+            )
+        }
+
+        connectivity.refreshSelected()
+        connectivity.checkForRelease()
+
+        val advice = assertNotNullAdvice(connectivity.update)
+        assertTrue(advice.isRequired)
+        assertEquals(next, advice.target, "the server's target, not the releases page's")
+    }
+
+    /** A release at or below this build is not an update, whatever the page says. */
+    @Test
+    fun aPublishedReleaseNoNewerThanThisBuildAdvisesNothing() = runTest {
+        val connectivity = connectivityOver(
+            releases = releasing(ClientRelease(AppVersion(0, 0, 0))),
+        ) { respondInfo(healthy) }
+
+        connectivity.refreshSelected()
+        connectivity.checkForRelease()
+
+        assertNull(connectivity.update)
+    }
+
+    /** Asked once a launch: it is somebody else's rate limit, and the answer changes yearly. */
+    @Test
+    fun theReleasesPageIsAskedOnlyOnce() = runTest {
+        var asked = 0
+        val connectivity = connectivityOver(
+            releases = object : ReleaseSource {
+                override suspend fun latest(): ClientRelease? {
+                    asked++
+                    return null
+                }
+            },
+        ) { respondInfo(healthy) }
+
+        repeat(3) { connectivity.checkForRelease() }
+
+        assertEquals(1, asked)
+    }
+
     // ---- Fixtures ----------------------------------------------------------
 
     private fun assertNotNullAdvice(advice: UpdateAdvice?): UpdateAdvice =
         requireNotNull(advice) { "expected advice about this build" }
 
+    private fun releasing(release: ClientRelease) = object : ReleaseSource {
+        override suspend fun latest(): ClientRelease = release
+    }
+
     private fun connectivityOver(
+        releases: ReleaseSource = ReleaseSource.None,
         handler: suspend MockRequestHandleScope.(HttpRequestData) -> HttpResponseData,
     ): Connectivity {
         val http = HttpClient(MockEngine(handler)) {
@@ -212,6 +300,7 @@ class ConnectivityTest {
                 session = SessionStore(InMemoryDocumentStore()),
                 probe = ServerProbe(http) { 0L },
                 reporter = MatchReporter.None,
+                releases = releases,
             ),
         )
     }
@@ -231,4 +320,9 @@ class ConnectivityTest {
 
     private val entries: List<ServerEntry> =
         serverEntries("A=https://a.example.org, B=https://b.example.org")
+
+    private companion object {
+        /** Stands in for whatever the releases page offers this platform. */
+        const val PAGE = "https://github.com/korobetski/tto-client/releases/tag/v99.0.0"
+    }
 }

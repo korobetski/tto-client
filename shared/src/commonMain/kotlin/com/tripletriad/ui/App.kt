@@ -516,6 +516,14 @@ private fun CharacterDestination(
             OpponentScreen(
                 profile = profile,
                 catalog = opponents,
+                // The card table too, since a row now draws the cards its opponent can drop. An
+                // empty map before the catalog has loaded, which costs the drop lines for the one
+                // frame that state can reach this screen — the startup gate makes it unreachable
+                // in practice, and an opponent list is worth more than a spinner in front of it.
+                cards = startup.catalog
+                    ?.collection(profile.mode)
+                    ?.associateBy { it.id }
+                    .orEmpty(),
                 hour = clock.localHour(),
                 onChallenge = {
                     choice.opponent = it

@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import com.tripletriad.data.CardCatalog
 import com.tripletriad.data.ShopCatalog
+import com.tripletriad.data.StarterPack
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.Card
@@ -121,6 +122,23 @@ internal fun StoreScreen(
                 cards = cards,
                 selectedTag = selectedTag,
                 onSelect = { selectedTag = it },
+                // Read from the profile rather than from a flag on it, so the panel disappears the
+                // moment the pack lands and comes back if a later build ever takes cards away.
+                onClaimStarter = if (!StarterPack.isOwedBy(profile)) {
+                    null
+                } else {
+                    {
+                        scope.launch {
+                            onPersist(StarterPack.grantedTo(profile))
+                            note.show(
+                                strings.format(
+                                    StringKeys.OBTAINED,
+                                    strings[StringKeys.STARTER_PACK],
+                                ),
+                            )
+                        }
+                    }
+                },
             )
 
             StoreTab.BAG -> InventoryBody(

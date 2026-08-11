@@ -13,6 +13,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,6 +23,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tripletriad.data.ShopCatalog
 import com.tripletriad.data.ShopOffer
+import com.tripletriad.data.StarterPack
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.Card
@@ -29,6 +31,10 @@ import com.tripletriad.model.GameSave
 
 const val SHOP_LIST_TEST_TAG: String = "shop-list"
 const val SHOP_BUY_TEST_TAG: String = "shop-buy"
+
+/** The free starter pack, present only while the character is owed one. */
+const val SHOP_STARTER_TEST_TAG: String = "shop-starter"
+const val SHOP_STARTER_CLAIM_TEST_TAG: String = "shop-starter-claim"
 
 /** The purchase confirmation, which the original never gave: `//Save.save(…)` was commented out. */
 const val SHOP_NOTE_TEST_TAG: String = "shop-note"
@@ -57,15 +63,32 @@ fun shopOfferTestTag(offer: ShopOffer): String = "shop-offer-${itemSlug(offer.it
  * The unaffordable rows are shown greyed rather than hidden, which is the original's behaviour and
  * the right one: a card costing a million MGP is a goal, and a shop that hid it would only ever
  * show what the player has already outgrown.
+ *
+ * ### The one thing on this shelf that is not for sale
+ *
+ * A character short of five fieldable cards cannot play, and therefore cannot earn the MGP that
+ * every other row on this screen wants. [StarterPackPanel] is the way out of that, and the shop is
+ * where it belongs: it is already the screen a player reaches for when they have nothing, and it
+ * needs no new navigation to find. See [StarterPack] for the rule and for the defect that made it
+ * necessary.
+ *
+ * @param onClaimStarter grants the pack. Null when nothing is owed, which is what hides the panel —
+ *   a "free cards" banner over a full collection would be an offer that does nothing.
  */
 @Composable
+@Suppress("LongParameterList")
 internal fun ColumnScope.ShopBody(
     profile: GameSave,
     offers: List<ShopOffer>,
     cards: Map<Int, Card>,
     selectedTag: String?,
     onSelect: (String?) -> Unit,
+    onClaimStarter: (() -> Unit)? = null,
 ) {
+    if (onClaimStarter != null) {
+        StarterPackPanel(profile = profile, cards = cards, onClaim = onClaimStarter)
+    }
+
     LazyColumn(
         modifier = Modifier.testTag(SHOP_LIST_TEST_TAG).fillMaxWidth().weight(1f),
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -79,6 +102,78 @@ internal fun ColumnScope.ShopBody(
                 onClick = { onSelect(shopOfferTestTag(offer).takeIf { it != selectedTag }) },
             )
         }
+    }
+}
+
+/**
+ * The free pack, with the five cards it holds drawn rather than described.
+ *
+ * Above the shelf and outside the `LazyColumn`, so it is on screen without scrolling: a player who
+ * cannot play is looking at a list of things they cannot buy, and the one row that would help them
+ * must not be the one they have to find.
+ *
+ * The thumbnails are the point. This is the same five cards for every character of a collection —
+ * [StarterPack.cardsFor] — so showing them is showing exactly what the button does, which is what a
+ * sentence about "starter cards" cannot do for a player who has never seen the table.
+ */
+@Composable
+private fun StarterPackPanel(profile: GameSave, cards: Map<Int, Card>, onClaim: () -> Unit) {
+    val strings = LocalStrings.current
+    val granted = remember(profile.mode, cards) {
+        StarterPack.cardsFor(profile.mode).mapNotNull(cards::get)
+    }
+
+    Column(
+        modifier = Modifier
+            .testTag(SHOP_STARTER_TEST_TAG)
+            .fillMaxWidth()
+            .padding(bottom = 8.dp)
+            .rowSurface(selected = true)
+            .padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = strings[StringKeys.STARTER_PACK],
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = strings[StringKeys.FREE],
+                color = MaterialTheme.colorScheme.tertiary,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                softWrap = false,
+            )
+        }
+
+        Text(
+            text = strings[StringKeys.STARTER_PACK_DESC],
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            for (card in granted) {
+                CardThumb(card = card)
+            }
+        }
+
+        WideButton(
+            label = strings[StringKeys.CLAIM],
+            tag = SHOP_STARTER_CLAIM_TEST_TAG,
+            onClick = onClaim,
+        )
     }
 }
 

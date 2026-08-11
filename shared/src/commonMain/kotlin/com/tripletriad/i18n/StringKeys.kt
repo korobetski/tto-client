@@ -216,6 +216,22 @@ object StringKeys {
      */
     const val UNKNOWN_ITEM: String = "APP_UNKNOWN_ITEM"
 
+    /**
+     * The free five, offered to a character that cannot field a hand.
+     *
+     * No AS3 equivalent: the original had no way to lose a starter deck, because a card id meant
+     * whatever the profile's own table said it meant. See
+     * [com.tripletriad.data.StarterPack].
+     */
+    const val STARTER_PACK: String = "APP_STARTER_PACK"
+    const val STARTER_PACK_DESC: String = "APP_STARTER_PACK_DESC"
+
+    /** The price of the one thing on the shelf that has none. */
+    const val FREE: String = "APP_FREE"
+
+    /** The button under it. `STR_BUY` would be a lie about a pack that costs nothing. */
+    const val CLAIM: String = "APP_CLAIM"
+
     // ---- Character statistics.
     const val ACHIEVEMENTS_LIST: String = "STR_ACHIEVEMENTS_LIST"
     const val FORFEITS: String = "STR_FORFEITS"
@@ -237,6 +253,14 @@ object StringKeys {
 
     /** No AS3 key: an achievement list with nothing in it rendered as an empty group. */
     const val NO_ACHIEVEMENT: String = "APP_NO_ACHIEVEMENT"
+
+    /**
+     * `{0}` is the next tier's name — the line under a family's earned one.
+     *
+     * No AS3 equivalent: the original listed the tiers as twenty-two separate entries and never
+     * said which one followed which.
+     */
+    const val NEXT_TIER: String = "APP_NEXT_TIER"
 
     // ---- The tutorial's nine lines.
     /**
@@ -334,6 +358,9 @@ object StringKeys {
     const val ERROR_BAD_CREDENTIALS: String = "APP_ERROR_BAD_CREDENTIALS"
     const val ERROR_EXPIRED: String = "APP_ERROR_EXPIRED"
 
+    /** The cards an opponent's drop table can pay out, listed on its row. */
+    const val REWARD_CARDS: String = "APP_REWARD_CARDS"
+
     /**
      * `{0} more open up as you level.` — under the opponent list.
      *
@@ -387,7 +414,8 @@ object StringKeys {
         CARD_INFOS, TOTAL, SIDES, RARITY, CARD_TYPE, PICK_CARD, OWNED,
         DECK, DECK_POWER, RESET_DECK, SAVE, CHOOSE_DECK, RANDOM_DECK, NO_FULL_DECK,
         USE, SELL, DISCARD, BUY, CARD_SHOP, EMPTY_BAG, OBTAINED, ALREADY_OWNED, UNKNOWN_ITEM,
-        ACHIEVEMENTS_LIST, FORFEITS, MATCHES, WIN_RATE, BOONS, NO_ACHIEVEMENT,
+        STARTER_PACK, STARTER_PACK_DESC, FREE, CLAIM,
+        ACHIEVEMENTS_LIST, FORFEITS, MATCHES, WIN_RATE, BOONS, NO_ACHIEVEMENT, NEXT_TIER,
         TUTORIAL, TUTORIAL_1, TUTORIAL_2, TUTORIAL_3, TUTORIAL_4, TUTORIAL_5,
         TUTORIAL_6, TUTORIAL_7, TUTORIAL_8, TUTORIAL_9,
         CAMPAIGNS, CAMPAIGN_STEP,
@@ -397,7 +425,7 @@ object StringKeys {
         ACCOUNT_TO_REGISTER, ACCOUNT_TO_SIGN_IN, UPDATE_NEEDED,
         ERROR_OFFLINE, ERROR_UPDATE, ERROR_STATUS,
         ERROR_NAME_TAKEN, ERROR_BAD_CREDENTIALS, ERROR_EXPIRED,
-        OPPONENTS_LOCKED,
+        OPPONENTS_LOCKED, REWARD_CARDS,
         SERVERS_BLURB, SERVERS_CHECK, SERVERS_CHECKING,
         SERVER_UNKNOWN, SERVER_CHECKING, SERVER_ONLINE, SERVER_DEGRADED,
         SERVER_OUTDATED, SERVER_UNREACHABLE, SERVER_UNUSABLE,

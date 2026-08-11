@@ -99,5 +99,11 @@
   "APP_UPDATE_REQUIRED_BODY": "This server needs version {0} or newer. Until you update, you can still play offline and your matches will be submitted when you return.",
   "APP_UPDATE_AVAILABLE": "An update is available",
   "APP_UPDATE_AVAILABLE_BODY": "Version {0} is out. Yours still works here.",
-  "APP_UPDATE_GET": "Get version {0}"
+  "APP_UPDATE_GET": "Get version {0}",
+  "APP_STARTER_PACK": "Starter pack",
+  "APP_STARTER_PACK_DESC": "Five cards, free, so you can build a deck and start playing.",
+  "APP_FREE": "Free",
+  "APP_CLAIM": "Claim",
+  "APP_REWARD_CARDS": "Cards to win",
+  "APP_NEXT_TIER": "Next: {0}"
 }

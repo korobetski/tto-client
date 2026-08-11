@@ -10,10 +10,14 @@ import com.tripletriad.log.Log
 import com.tripletriad.net.ServerConnection
 import com.tripletriad.net.ServerEntry
 import com.tripletriad.net.ServerStatus
+import com.tripletriad.net.clientPlatform
+import com.tripletriad.net.downloadForThisPlatform
+import com.tripletriad.net.isNewerThanRunning
 import com.tripletriad.net.isUsable
 import com.tripletriad.net.serverInfo
 import com.tripletriad.protocol.AppVersion
 import com.tripletriad.protocol.CURRENT_VERSION
+import com.tripletriad.protocol.ClientRelease
 import com.tripletriad.protocol.ServerInfo
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -64,12 +68,48 @@ class Connectivity internal constructor(
      * of the update story — either the server will not have this build, or it would rather this
      * build were newer — and it is what the screens render.
      */
-    val update: UpdateAdvice? get() = adviceFor(status)
+    /**
+     * What the releases page last said, or null if it has not been asked or had nothing to say.
+     *
+     * Held rather than re-fetched because [update] is read on every recomposition of three screens
+     * and this is a network call to somebody else's rate limit. See [checkForRelease].
+     */
+    var release: ClientRelease? by mutableStateOf(null)
+        private set
+
+    /**
+     * This build's standing, from whichever source has something to say.
+     *
+     * The **server wins** when it has an opinion, and the order is not arbitrary: only a deployment
+     * can say "this build cannot be served at all", and letting a suggestion from the releases page
+     * take that slot would replace a refusal the player has to act on with a note they can ignore.
+     * The releases page is what answers when the server is content — or has simply not been told
+     * about the release yet, which is the usual case for the first hours of one.
+     */
+    val update: UpdateAdvice? get() = adviceFor(status) ?: releaseAdvice()
 
     /** Probes the selected server only. What startup and a sign-in failure want. */
     suspend fun refreshSelected() {
         probe(listOf(selected))
     }
+
+    /**
+     * Asks the releases page what the newest published build is, at most once per launch.
+     *
+     * Once, and not on the probe timer the servers are on: this is an anonymous GitHub API call
+     * against a limit of sixty an hour **per address**, which a household behind one NAT can
+     * exhaust between them. The answer also changes a few times a year, so re-asking on every visit
+     * to the menu would be spending a shared budget to learn the same thing.
+     */
+    suspend fun checkForRelease() {
+        if (hasCheckedReleases) return
+        hasCheckedReleases = true
+        release = server.releases.latest()
+        release?.let { Log.i(TAG) { "the newest published build is ${it.version}" } }
+    }
+
+    /** Guards [checkForRelease]. Not the null-ness of [release]: a failed check is also a check. */
+    private var hasCheckedReleases = false
 
     /** Probes every configured server, for the screen that shows them side by side. */
     suspend fun refreshAll() {
@@ -110,18 +150,26 @@ class Connectivity internal constructor(
 
         return when {
             // Blocking: this build cannot be served, and the only remedy is a new one.
-            status is ServerStatus.Outdated -> UpdateAdvice(info, isRequired = true)
+            status is ServerStatus.Outdated -> UpdateAdvice.fromServer(info, isRequired = true)
 
             // A suggestion. The deployment publishes a newer build than this one and will still
             // talk to us, so this is worth saying once and never worth standing in the way.
-            published != null && published > CURRENT_VERSION -> UpdateAdvice(
-                info,
-                isRequired = false,
-            )
+            published != null && published > CURRENT_VERSION ->
+                UpdateAdvice.fromServer(info, isRequired = false)
 
             else -> null
         }
     }
+
+    /**
+     * The releases page's advice, or null.
+     *
+     * Filtered on [isNewerThanRunning] and not on the target alone: a build *ahead* of the newest
+     * release is the ordinary state between tagging and publishing, and telling its owner to
+     * downgrade would be the only genuinely wrong thing this feature could say.
+     */
+    private fun releaseAdvice(): UpdateAdvice? =
+        release?.takeIf { it.isNewerThanRunning() }?.let(UpdateAdvice::fromRelease)
 
     private companion object {
         const val TAG = "Connectivity"
@@ -138,16 +186,46 @@ class Connectivity internal constructor(
  * would be two renderings of the same three fields, and the day a third case appears — a server
  * that is *older* than this build, which is allowed — it would be a third.
  *
+ * ### Why it no longer carries a [ServerInfo]
+ *
+ * It used to, and derived the other three fields from it, which quietly made "there is a newer
+ * build" a thing only a server could say. There are two sources now — the selected deployment, and
+ * the releases page ([com.tripletriad.net.GithubReleaseClient]) — and they agree on what a notice
+ * *is* while having nothing else in common. So the advice is the three things a notice renders, and
+ * each source builds one; see [fromServer] and [fromRelease].
+ *
+ * @property target the version being asked for: what to update *to*, not what refused us.
+ * @property download where to get it **on this platform**, or null when the source publishes
+ *   nothing for it. Resolved by the source rather than by the notice, because only the source knows
+ *   whether its URL is an artifact or a page.
+ * @property notes one line the source may want shown. Displayed as given and never parsed.
  * @property isRequired true when the server will not serve this build at all. False means it will,
- *   and would rather it did not have to.
+ *   and would rather it did not have to. A release-page advice is never required: a published
+ *   artifact says nothing about what any deployment will accept.
  */
 data class UpdateAdvice(
-    val info: ServerInfo,
+    val target: AppVersion,
+    val download: String?,
+    val notes: String?,
     val isRequired: Boolean,
 ) {
-    /** The version being asked for: what to update *to*, not what refused us. */
-    val target: AppVersion
-        get() = info.release?.version ?: info.minimumClient
+    companion object {
+        /** The advice a probed deployment gives. */
+        fun fromServer(info: ServerInfo, isRequired: Boolean): UpdateAdvice = UpdateAdvice(
+            target = info.release?.version ?: info.minimumClient,
+            download = info.downloadForThisPlatform(),
+            notes = info.release?.notes,
+            isRequired = isRequired,
+        )
+
+        /** The advice the releases page gives. Never required — see [isRequired]. */
+        fun fromRelease(release: ClientRelease): UpdateAdvice = UpdateAdvice(
+            target = release.version,
+            download = release.downloads[clientPlatform],
+            notes = release.notes,
+            isRequired = false,
+        )
+    }
 }
 
 /** Whether the selected server can be signed in to right now. */

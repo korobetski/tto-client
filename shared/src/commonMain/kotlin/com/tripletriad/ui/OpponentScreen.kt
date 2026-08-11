@@ -23,10 +23,12 @@ import com.tripletriad.data.NpcCatalog
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.Strings
+import com.tripletriad.model.Card
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.MatchResult
 import com.tripletriad.model.Npc
 import com.tripletriad.ui.theme.LocalTtoColors
+import kotlin.math.roundToInt
 
 const val OPPONENT_LIST_TEST_TAG: String = "opponent-list"
 const val OPPONENT_EMPTY_TEST_TAG: String = "opponent-empty"
@@ -40,6 +42,9 @@ const val TUTORIAL_ROW_TEST_TAG: String = "tutorial-row"
 /** `opponent-row-<iconId>` — unique across both tables, which the NPC `id` is not. */
 fun opponentRowTestTag(iconId: String): String = "opponent-row-$iconId"
 
+/** `opponent-rewards-<iconId>` — the drop table's cards. Absent when the opponent drops none. */
+fun opponentRewardsTestTag(iconId: String): String = "opponent-rewards-$iconId"
+
 /**
  * Who the profile can challenge — the original's `PVEScreen`.
  *
@@ -52,14 +57,31 @@ fun opponentRowTestTag(iconId: String): String = "opponent-row-$iconId"
  *   [com.tripletriad.time.Clock] exists.
  *
  * A row shows what the player needs in order to choose: the level band that sets the XP, the
- * difficulty, the fee, the MGP on a win, and **the rules the opponent imposes** — that last one
- * matters most, since Reverse or Fallen Ace changes how the whole match is played and the original
- * only revealed it once the board was already up.
+ * difficulty, the fee, the MGP on a win, **the rules the opponent imposes** — that one matters
+ * most, since Reverse or Fallen Ace changes how the whole match is played and the original only
+ * revealed it once the board was already up — and **the cards that can drop**.
+ *
+ * ### Why the drop table is on the row
+ *
+ * Because it is the reason to play one opponent rather than another, and neither the original nor
+ * this port had anywhere to read it: `NPC._itemRewards` decided what a win paid and was visible
+ * only by winning. Sixty opponents paying MGP that differs by a few dozen are interchangeable; the
+ * two or three cards each of them can drop are not, and a collection is built by choosing between
+ * them.
+ *
+ * The rate is shown with the card. A 25% drop and a 2% drop are different offers, and a thumbnail
+ * without one invites the reading that beating them once is enough.
+ *
+ * @param cards the profile's own collection, by id — the drop tables name ids and this screen has
+ *   to draw them. Only card drops are listed: a potion has an icon and no picture, and the row is
+ *   already four lines tall.
  */
 @Composable
+@Suppress("LongParameterList")
 internal fun OpponentScreen(
     profile: GameSave,
     catalog: NpcCatalog,
+    cards: Map<Int, Card>,
     hour: Int,
     onChallenge: (Npc) -> Unit,
     onTutorial: () -> Unit,
@@ -98,7 +120,7 @@ internal fun OpponentScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(opponents, key = { it.iconId }) { npc ->
-                    OpponentRow(npc = npc, onClick = { onChallenge(npc) })
+                    OpponentRow(npc = npc, cards = cards, onClick = { onChallenge(npc) })
                 }
 
                 // Under the list rather than over it: it is a footnote about what is *not* here,
@@ -188,8 +210,16 @@ private fun CampaignRow(label: String, tag: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun OpponentRow(npc: Npc, onClick: () -> Unit) {
+private fun OpponentRow(npc: Npc, cards: Map<Int, Card>, onClick: () -> Unit) {
     val strings = LocalStrings.current
+    // Resolved against the profile's own table, so an id the collection does not hold is dropped
+    // rather than drawn as a hole: `NPCs.as` is per-collection data and this is a belt-and-braces
+    // read of it, not a claim that every listed id ships.
+    val rewards = remember(npc, cards) {
+        npc.itemRewards.mapNotNull { reward ->
+            reward.cardId?.let { id -> cards[id]?.let { it to reward.rate } }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -245,8 +275,53 @@ private fun OpponentRow(npc: Npc, onClick: () -> Unit) {
                 overflow = TextOverflow.Ellipsis,
             )
         }
+
+        // Omitted rather than shown empty, for the same reason as the rules line. One of the 85
+        // opponents drops no card at all — `STR_NPC_MARTINE` — and a caption over nothing would
+        // read as a missing image.
+        if (rewards.isNotEmpty()) {
+            RewardCards(iconId = npc.iconId, rewards = rewards)
+        }
     }
 }
+
+/**
+ * The cards an opponent can drop, each under its chance of dropping.
+ *
+ * A `Row` and not a wrapping layout: no opponent in either table declares more than three card
+ * drops, so this cannot overflow a phone at the thumbnail size the rest of the app uses.
+ */
+@Composable
+private fun RewardCards(iconId: String, rewards: List<Pair<Card, Double>>) {
+    val strings = LocalStrings.current
+
+    Text(
+        text = strings[StringKeys.REWARD_CARDS],
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+        style = MaterialTheme.typography.labelSmall,
+        modifier = Modifier.padding(top = 3.dp),
+    )
+    Row(
+        modifier = Modifier.testTag(opponentRewardsTestTag(iconId)),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        for ((card, rate) in rewards) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                CardThumb(card = card)
+                Text(
+                    text = "${(rate * PERCENT).roundToInt()}%",
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    softWrap = false,
+                )
+            }
+        }
+    }
+}
+
+/** A drop rate is authored as a fraction — `0.25` — and read as a percentage. */
+private const val PERCENT = 100
 
 /**
  * `Difficulty 5 · Match Fee 20 · 47 MGP · 35 XP`.

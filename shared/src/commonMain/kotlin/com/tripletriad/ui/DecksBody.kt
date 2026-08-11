@@ -284,38 +284,53 @@ private fun DeckEditor(
                 // rejection they cannot act on is worse than one they can see coming.
                 val remaining = profile.copiesOf(card.id) - draft.copiesUsed(card.id)
 
+                // Centred in its cell, and the frame sized to the card rather than to the cell.
+                // `GridCells.Adaptive` hands an item a **fixed** cross-axis width — whatever is
+                // left over once the columns divide the row — so a `rowSurface` taken straight off
+                // the cell was 51 px of border around a 44 px thumbnail, and the seven that did
+                // not fit stuck out to the right of every card on the screen. The grid was never
+                // wider than its column; the frame was wider than what it framed.
                 Box(
-                    modifier = Modifier
-                        .testTag(deckPickTestTag(card.id))
-                        .rowSurface(selected = card.id in draft.cards)
-                        .clickable(enabled = !draft.isComplete && remaining > 0) {
-                            draft = draft.plusCard(card.id)
-                        }
-                        .padding(1.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    CardThumb(
-                        card = card,
-                        size = DeckThumbSize,
-                        modifier = if (remaining > 0) Modifier else Modifier.alpha(SPENT_ALPHA),
-                    )
-
-                    if (profile.copiesOf(card.id) > 1) {
-                        Text(
-                            text = "$REMAINING_PREFIX$remaining",
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            modifier = Modifier
-                                .testTag(deckRemainingTestTag(card.id))
-                                .align(Alignment.BottomEnd)
-                                .padding(2.dp)
-                                .background(
-                                    MaterialTheme.colorScheme.primary,
-                                    RoundedCornerShape(3.dp),
-                                )
-                                .padding(horizontal = 3.dp),
+                    Box(
+                        modifier = Modifier
+                            .testTag(deckPickTestTag(card.id))
+                            .rowSurface(selected = card.id in draft.cards)
+                            .clickable(enabled = !draft.isComplete && remaining > 0) {
+                                draft = draft.plusCard(card.id)
+                            }
+                            .padding(1.dp),
+                    ) {
+                        CardThumb(
+                            card = card,
+                            size = DeckThumbSize,
+                            modifier = if (remaining > 0) {
+                                Modifier
+                            } else {
+                                Modifier.alpha(SPENT_ALPHA)
+                            },
                         )
+
+                        if (profile.copiesOf(card.id) > 1) {
+                            Text(
+                                text = "$REMAINING_PREFIX$remaining",
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                modifier = Modifier
+                                    .testTag(deckRemainingTestTag(card.id))
+                                    .align(Alignment.BottomEnd)
+                                    .padding(2.dp)
+                                    .background(
+                                        MaterialTheme.colorScheme.primary,
+                                        RoundedCornerShape(3.dp),
+                                    )
+                                    .padding(horizontal = 3.dp),
+                            )
+                        }
                     }
                 }
             }

@@ -99,5 +99,11 @@
   "APP_UPDATE_REQUIRED_BODY": "Ce serveur demande la version {0} ou plus récente. En attendant, vous pouvez jouer hors ligne et vos matchs seront envoyés à votre retour.",
   "APP_UPDATE_AVAILABLE": "Une mise à jour est disponible",
   "APP_UPDATE_AVAILABLE_BODY": "La version {0} est sortie. La vôtre fonctionne encore ici.",
-  "APP_UPDATE_GET": "Obtenir la version {0}"
+  "APP_UPDATE_GET": "Obtenir la version {0}",
+  "APP_STARTER_PACK": "Pack de départ",
+  "APP_STARTER_PACK_DESC": "Cinq cartes, gratuites, de quoi monter un deck et commencer à jouer.",
+  "APP_FREE": "Gratuit",
+  "APP_CLAIM": "Récupérer",
+  "APP_REWARD_CARDS": "Cartes à gagner",
+  "APP_NEXT_TIER": "Suivant : {0}"
 }

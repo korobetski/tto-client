@@ -31,7 +31,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.tripletriad.CLIENT_VERSION
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.protocol.Credentials
@@ -43,6 +45,9 @@ const val ACCOUNT_PASSWORD_TEST_TAG: String = "account-password"
 const val ACCOUNT_SUBMIT_TEST_TAG: String = "account-submit"
 const val ACCOUNT_TOGGLE_TEST_TAG: String = "account-toggle"
 const val ACCOUNT_ERROR_TEST_TAG: String = "account-error"
+
+/** The build number at the foot of the form. See [VersionLine]. */
+const val ACCOUNT_VERSION_TEST_TAG: String = "account-version"
 
 /** The bar under the title while a request is out — a restore on launch, or a submit. */
 const val ACCOUNT_BUSY_TEST_TAG: String = "account-busy"
@@ -236,8 +241,44 @@ internal fun AccountScreen(
                         .padding(8.dp),
                 )
             }
+
+            VersionLine()
         }
     }
+}
+
+/**
+ * `v1.0.2`, at the foot of the sign-in screen.
+ *
+ * ### Why this screen and why at all
+ *
+ * Because it is the screen a player is on when something is wrong, and "which version are you
+ * running" is the first question any answer depends on. Until now nothing in the app displayed it:
+ * the number was in `gradle.properties`, in the APK's manifest and in the `X-TTO-Version` header,
+ * which is three places a player cannot read. See `:shared:buildVersion` for how it gets here.
+ *
+ * ### It is the release number, not the protocol version
+ *
+ * [CLIENT_VERSION] and not `CURRENT_VERSION`. The two are deliberately different — a build numbered
+ * 1.0.2 speaks protocol 1.0.0 — and the one worth showing is the one that identifies the *build*,
+ * because that is what an update changes and what a bug report has to name. The protocol version is
+ * the server's business and is on every request already.
+ *
+ * Faint and last, because it is reference and not instruction: it should be findable when looked
+ * for and invisible when not.
+ */
+@Composable
+private fun VersionLine() {
+    Text(
+        text = "v$CLIENT_VERSION",
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+        style = MaterialTheme.typography.labelSmall,
+        modifier = Modifier
+            .testTag(ACCOUNT_VERSION_TEST_TAG)
+            .fillMaxWidth()
+            .padding(top = 4.dp),
+        textAlign = TextAlign.Center,
+    )
 }
 
 /**

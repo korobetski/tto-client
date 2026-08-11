@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tripletriad.data.SaveSlot
+import com.tripletriad.data.StarterPack
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.CardCollection
@@ -260,9 +261,18 @@ internal fun ProfileCreateScreen(
  *
  * `POST /accounts` takes a name and a password and nothing else, so an account's character always
  * starts on `ff14_`. Shown once, immediately after registering, while the profile is still the
- * starter five cards and no match has been played: that is the only window in which changing
- * [GameSave.mode] is harmless, because every card id, deck and opponent it could invalidate is
- * still the default one.
+ * starter five cards and no match has been played: that is the only window in which the card ids
+ * being replaced are certain to be the ones the server dealt a minute ago.
+ *
+ * ### Changing the collection is not a one-field edit
+ *
+ * It used to be, and the comment here used to say so: `copy(mode = …)` was harmless because "every
+ * card id, deck and opponent it could invalidate is still the default one". That held while an id
+ * was an index into whichever table `MODE` named. Ids are global now, so the same five numbers do
+ * **not** follow the profile to the other set — they keep naming block 1, and a character that
+ * chose FFVIII was left holding five FFXIV cards no screen would show it and no deck could field.
+ * That is a registered account that cannot play at all, which is why the choice goes through
+ * [StarterPack.startingIn] and not through `copy`.
  *
  * The choice is sent through [ProfileGate.persist] like any other profile change. Skipping it —
  * with Back — leaves `ff14_`, which is what the account already has, so there is nothing to
@@ -293,7 +303,7 @@ internal fun CollectionChoiceScreen(
         WideButton(
             label = strings[StringKeys.START],
             tag = COLLECTION_CONFIRM_TEST_TAG,
-            onClick = { scope.launch { onChosen(profile.copy(mode = collection)) } },
+            onClick = { scope.launch { onChosen(StarterPack.startingIn(profile, collection)) } },
         )
     }
 }

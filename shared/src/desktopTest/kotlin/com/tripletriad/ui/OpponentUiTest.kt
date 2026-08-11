@@ -231,7 +231,16 @@ class OpponentUiTest {
         newCharacter()
         openOpponents()
 
-        assertTrue(exists(OPPONENT_LOCKED_TEST_TAG), "a level-1 character should be told")
+        // Scrolled to rather than merely looked for: the footnote is the last item of a
+        // `LazyColumn`, so it is composed only once it is reached, and an opponent row is four
+        // lines tall since it started showing the cards that can drop. `exists` passed here while
+        // the rows were short enough for the bottom of the list to be on screen at once, which was
+        // luck and not the claim being made.
+        val told = runCatching {
+            onNodeWithTag(OPPONENT_LIST_TEST_TAG)
+                .performScrollToNode(hasTestTag(OPPONENT_LOCKED_TEST_TAG))
+        }
+        assertTrue(told.isSuccess, "a level-1 character should be told")
         val reached = runCatching {
             onNodeWithTag(OPPONENT_LIST_TEST_TAG)
                 .performScrollToNode(hasTestTag(opponentRowTestTag(EVENING_OPPONENT)))

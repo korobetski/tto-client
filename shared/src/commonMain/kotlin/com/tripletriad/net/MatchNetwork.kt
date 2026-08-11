@@ -46,6 +46,16 @@ class ServerConnection internal constructor(
     val session: SessionStore,
     val probe: ServerProbe,
     val reporter: MatchReporter,
+    /**
+     * Where published builds are listed. Not a server at all — see [GithubReleaseClient] — and
+     * here anyway, because this is the one bundle of "everything the app talks to over HTTP" that
+     * the host modules already assemble, and a second one would be a second thing for
+     * `:androidApp` and `:desktopApp` to wire identically.
+     *
+     * Defaults to [ReleaseSource.None] so that a connection assembled by hand — every test does —
+     * does not quietly acquire an outbound call to somebody else's API.
+     */
+    val releases: ReleaseSource = ReleaseSource.None,
 ) {
     /** The server in play. Shorthand for the thing almost every caller wants from [directory]. */
     val server: ServerEntry get() = directory.selected
@@ -113,5 +123,6 @@ fun serverConnection(
             submitter = KtorMatchSubmitter(client = http, baseUrl = address, token = token),
             onCredited = onCredited,
         ),
+        releases = GithubReleaseClient(http),
     )
 }

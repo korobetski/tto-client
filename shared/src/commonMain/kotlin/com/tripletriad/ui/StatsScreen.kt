@@ -29,6 +29,7 @@ import com.tripletriad.model.Achievement
 import com.tripletriad.model.AchievementCatalog
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.XpTable
+import com.tripletriad.time.isoDate
 import com.tripletriad.ui.theme.LocalTtoColors
 import kotlin.math.roundToInt
 
@@ -48,6 +49,9 @@ fun statsRowTestTag(labelKey: String): String = "stats-$labelKey"
 
 /** `stats-ac-<id>`, by the achievement's own id — `ac-tt1`, `ac-fob`. */
 fun achievementRowTestTag(id: String): String = "stats-$id"
+
+/** `stats-family-ac-tt` — the row a whole tier family collapses into. See [AchievementFamily]. */
+fun achievementFamilyTestTag(family: String): String = "stats-family-$family"
 
 /**
  * The character's record and its achievements — the original's `profileScreen`.
@@ -76,15 +80,20 @@ fun achievementRowTestTag(id: String): String = "stats-$id"
  * screen can ask how close the profile is, which a pre-computed Boolean could not answer; see
  * [com.tripletriad.model.Requirement].
  *
- * Earned first and in the order they were earned, newest first, which is the original's
- * `sortOn(['unlockDate', 'label'], DESCENDING)`. The **date itself is not shown**: `commonMain` has
- * no calendar — see `Clock`, and the reason `kotlinx-datetime` was dropped — so the timestamp
- * orders the list and nothing more.
+ * ### Listed by family, and by tier only inside one
+ *
+ * Twenty-two entries are five ladders and one standalone. See [AchievementFamily] for why they
+ * collapse, and [AchievementRow] for what a row says once they have.
+ *
+ * Families with something unlocked come first, most recently unlocked first — the original's
+ * `sortOn(['unlockDate', 'label'], DESCENDING)`. The date is now **shown** and not merely sorted
+ * by: `commonMain` still has no calendar, but rendering one turned out to need arithmetic rather
+ * than a dependency. See [isoDate].
  */
 @Composable
 internal fun StatsScreen(profile: GameSave, onAvatar: () -> Unit, onBack: () -> Unit) {
     val strings = LocalStrings.current
-    val achievements = remember(profile) { rankedAchievements(profile) }
+    val families = remember(profile) { rankedFamilies(profile) }
 
     CharacterScaffold(profile = profile, title = strings[StringKeys.PROFILE], onBack = onBack) {
         LevelBar(profile, onAvatar = onAvatar)
@@ -119,7 +128,7 @@ internal fun StatsScreen(profile: GameSave, onAvatar: () -> Unit, onBack: () -> 
             modifier = Modifier.padding(top = 14.dp, bottom = 6.dp),
         )
 
-        if (achievements.isEmpty()) {
+        if (families.isEmpty()) {
             // Unreachable while [AchievementCatalog] has 22 members, and asserted anyway: an empty
             // catalogue should say so rather than render as a screen that lost its second half.
             EmptyNote(strings[StringKeys.NO_ACHIEVEMENT], STATS_NO_ACHIEVEMENT_TEST_TAG)
@@ -131,12 +140,8 @@ internal fun StatsScreen(profile: GameSave, onAvatar: () -> Unit, onBack: () -> 
                     .weight(1f),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                items(achievements, key = { it.id }) { achievement ->
-                    AchievementRow(
-                        achievement = achievement,
-                        profile = profile,
-                        isEarned = profile.hasAchievement(achievement.id),
-                    )
+                items(families, key = { it.key }) { family ->
+                    AchievementRow(family = family, profile = profile)
                 }
             }
         }
@@ -225,16 +230,29 @@ private fun StatRow(labelKey: String, value: String) {
     }
 }
 
+/**
+ * One family: what has been unlocked and when, then what is left and how far off it is.
+ *
+ * ### The date replaces the counter, it does not join it
+ *
+ * An unlocked achievement has no progress left to state — `1 / 1`, `30 / 30` — and the row used to
+ * print that anyway, above a bar pinned at full. What an unlocked tier has to say is *when*, which
+ * is the one thing the save records and the screen never showed. See [isoDate] for why a date can
+ * be rendered here at all.
+ *
+ * The tier still to earn keeps the counter and the bar, on its own line, so the two readings never
+ * compete for the same slot.
+ */
 @Composable
-private fun AchievementRow(achievement: Achievement, profile: GameSave, isEarned: Boolean) {
+private fun AchievementRow(family: AchievementFamily, profile: GameSave) {
     val strings = LocalStrings.current
-    val progress = achievement.progressFor(profile)
+    val earned = family.earned
 
     Column(
         modifier = Modifier
-            .testTag(achievementRowTestTag(achievement.id))
+            .testTag(achievementFamilyTestTag(family.key))
             .fillMaxWidth()
-            .rowSurface(selected = isEarned)
+            .rowSurface(selected = earned != null)
             .padding(10.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
@@ -244,47 +262,80 @@ private fun AchievementRow(achievement: Achievement, profile: GameSave, isEarned
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             AchievementIcon(
-                iconId = achievement.iconId,
-                description = strings[achievement.labelKey],
+                iconId = family.face.iconId,
+                description = strings[family.face.labelKey],
                 size = 28.dp,
             )
-            Text(
-                text = strings[achievement.labelKey],
-                color = MaterialTheme.colorScheme.onSurface
-                    .copy(alpha = if (isEarned) 1f else 0.65f),
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            Text(
-                // The counter rather than a tick, because "300 of 3000" is the thing the original
-                // could not show at all and a tick is what the highlighted row already says.
-                text = "${progress.current} / ${progress.target}",
-                color = if (isEarned) {
-                    LocalTtoColors.current.transient
-                } else {
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT)
-                },
-                style = MaterialTheme.typography.labelSmall,
-                maxLines = 1,
-                softWrap = false,
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = strings[family.face.labelKey],
+                    color = MaterialTheme.colorScheme.onSurface
+                        .copy(alpha = if (earned != null) 1f else 0.65f),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                // Only where there is something to count. `ac-fob` is one achievement, and
+                // "1 / 1" beside its name would be a tier ladder it does not have.
+                if (family.tiers.size > 1) {
+                    Text(
+                        text = "${family.earnedCount} / ${family.tiers.size}",
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1,
+                        softWrap = false,
+                    )
+                }
+            }
+            if (earned != null) {
+                Text(
+                    text = isoDate(profile.achievements.getValue(earned.id)),
+                    color = LocalTtoColors.current.transient,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier.testTag(achievementRowTestTag(earned.id)),
+                )
+            }
         }
+
         Text(
-            text = strings["${achievement.labelKey}_DESC"],
+            text = strings["${family.face.labelKey}_DESC"],
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
             style = MaterialTheme.typography.labelSmall,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
-        val fill = if (isEarned) {
-            LocalTtoColors.current.transient
-        } else {
-            MaterialTheme.colorScheme.tertiary
+
+        // Absent once every tier is earned: there is nothing left to aim at, and a bar at 100%
+        // under a completed family says less than the dates above it already do.
+        val next = family.next
+        if (next != null) {
+            val progress = next.progressFor(profile)
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = strings.format(StringKeys.NEXT_TIER, strings[next.labelKey]),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = "${progress.current} / ${progress.target}",
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier.testTag(achievementRowTestTag(next.id)),
+                )
+            }
+            Meter(fraction = progress.fraction, colour = MaterialTheme.colorScheme.tertiary)
         }
-        Meter(fraction = progress.fraction, colour = fill)
     }
 }
 
@@ -309,16 +360,58 @@ private fun Meter(fraction: Float, colour: Color) {
 }
 
 /**
- * Earned first, newest earned first within that; then the rest, closest first.
+ * One achievement family — the five Triple Team tiers, the six Wheel of Fortune ones — as one row.
  *
- * The earned half is the original's `sortOn(['unlockDate'], DESCENDING)`. The unearned half is new,
- * and ordering it by how close the profile is puts the next thing to aim at at the top of it rather
- * than whichever tier the catalogue happens to declare first.
+ * ### Why the tiers are not twenty-two entries any more
+ *
+ * Because they are five things, not twenty-two. `Triple Team I` through `V` are the same
+ * achievement at five thresholds, and listing them separately spent most of the screen restating a
+ * requirement the player had already read, with four dead progress bars pinned at 100% above the
+ * one that was moving. What a player wants from this list is *where am I, and what is next*, and
+ * that is one line per family.
+ *
+ * `ac-fob` is a family of one, and needs no special case: the grouping is by the id with its tier
+ * number removed, and an id that carries no number is its own family.
+ *
+ * @property earned the highest tier already unlocked, or null. Highest by catalogue order, which is
+ *   threshold order — tiers cannot be earned out of sequence, but a save is a file and this makes
+ *   no assumption about which build wrote it.
+ * @property next the first tier not yet unlocked, or null once the family is complete. This is what
+ *   the progress bar measures; [earned] is what carries a date.
  */
-private fun rankedAchievements(profile: GameSave): List<Achievement> {
-    val (earned, pending) = AchievementCatalog.all.partition { profile.hasAchievement(it.id) }
-    return earned.sortedByDescending { profile.achievements[it.id] ?: 0L } +
-        pending.sortedByDescending { it.progressFor(profile).fraction }
+private data class AchievementFamily(
+    val key: String,
+    val tiers: List<Achievement>,
+    val earned: Achievement?,
+    val next: Achievement?,
+) {
+    /** The tier whose name and icon the row wears: what was last done, or what is left to do. */
+    val face: Achievement get() = earned ?: next ?: tiers.first()
+
+    val earnedCount: Int get() = tiers.indexOf(earned) + 1
+}
+
+/**
+ * The catalogue as families, earned first and newest earned first within that.
+ *
+ * The earned half is the original's `sortOn(['unlockDate'], DESCENDING)`, now keyed on the family's
+ * most recent unlock. The unearned half is ordered by how close the profile is, which puts the next
+ * thing to aim at at the top of it rather than whichever family the catalogue declares first.
+ */
+private fun rankedFamilies(profile: GameSave): List<AchievementFamily> {
+    val families = AchievementCatalog.all
+        .groupBy { it.id.trimEnd { character -> character.isDigit() } }
+        .map { (key, tiers) ->
+            AchievementFamily(
+                key = key,
+                tiers = tiers,
+                earned = tiers.lastOrNull { profile.hasAchievement(it.id) },
+                next = tiers.firstOrNull { !profile.hasAchievement(it.id) },
+            )
+        }
+    val (started, untouched) = families.partition { it.earned != null }
+    return started.sortedByDescending { profile.achievements[it.earned?.id] ?: 0L } +
+        untouched.sortedByDescending { it.face.progressFor(profile).fraction }
 }
 
 private val MeterHeight = 4.dp

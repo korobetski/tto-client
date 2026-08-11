@@ -11,6 +11,7 @@ import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.data.Inventory
 import com.tripletriad.data.ShopCatalog
+import com.tripletriad.data.StarterPack
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.BoosterItem
 import com.tripletriad.model.BoosterType
@@ -181,6 +182,46 @@ class ShopUiTest {
         val save = storedSave(documents)
         assertFalse(save.ownsCard(CHEAP_CARD), "buying is not owning")
         assertEquals(1, Inventory.count(save, CardItem(CHEAP_CARD)))
+    }
+
+    /**
+     * The free pack is on the shelf only for a character that cannot field a hand.
+     *
+     * A registered account that chose FFVIII used to end up exactly here — five cards of the set it
+     * left, none it can play — so this is the recovery path for the ones already stored on a
+     * server, where [com.tripletriad.data.StarterPack.startingIn] can only fix the ones still to
+     * come. See [com.tripletriad.data.StarterPack].
+     */
+    @Test
+    fun theFreePackIsOfferedToACharacterThatCannotPlayAndThenGoesAway() = runComposeUiTest {
+        val stranded = profile(mgp = 0).copy(mode = CardCollection.FF8)
+        val documents = seeded(stranded)
+        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openShop(documents)
+
+        assertTrue(exists(SHOP_STARTER_TEST_TAG), "a stranded character should be offered the pack")
+        onNodeWithTag(SHOP_STARTER_CLAIM_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
+            !StarterPack.isOwedBy(storedSave(documents))
+        }
+
+        val save = storedSave(documents)
+        for (id in StarterPack.cardsFor(CardCollection.FF8)) {
+            assertTrue(save.ownsCard(id), "starter card $id was not granted")
+        }
+        assertTrue(save.decks.first().isComplete, "and a deck was left ready to play")
+        // The offer is gone the moment it is taken: it is read off the profile, not off a flag.
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { !exists(SHOP_STARTER_TEST_TAG) }
+    }
+
+    /** And it is absent for everybody else, so it is a repair and not a giveaway. */
+    @Test
+    fun theFreePackIsAbsentForACharacterWithAStarterDeck() = runComposeUiTest {
+        val documents = seeded(profile(mgp = GameSave.STARTING_MGP))
+        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openShop(documents)
+
+        assertFalse(exists(SHOP_STARTER_TEST_TAG), "a playable character is owed nothing")
     }
 
     private companion object {

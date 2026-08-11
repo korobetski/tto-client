@@ -171,9 +171,13 @@ internal fun MainMenuScreen(
             modifier = Modifier.testTag(MENU_PROFILE_TEST_TAG).padding(top = 12.dp),
         )
 
-        // Probed once on arrival, and again whenever the menu is returned to.
+        // Probed once on arrival, and again whenever the menu is returned to. The releases page is
+        // asked in the same breath and answers only once a launch — see `checkForRelease`.
         connectivity?.let {
-            LaunchedEffect(it) { it.refreshSelected() }
+            LaunchedEffect(it) {
+                it.checkForRelease()
+                it.refreshSelected()
+            }
             ServerIndicator(it, onClick = onServers)
         }
 

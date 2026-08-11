@@ -100,7 +100,7 @@ internal fun ColumnScope.DecksBody(
     onPersist: suspend (GameSave) -> Unit,
 ) {
     val cards = remember(catalog, profile.mode) {
-        catalog.collection(profile.mode.prefix).associateBy { it.id }
+        catalog.collection(profile.mode).associateBy { it.id }
     }
 
     if (editing == null) {

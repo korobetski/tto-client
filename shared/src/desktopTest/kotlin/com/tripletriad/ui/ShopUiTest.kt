@@ -10,6 +10,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.data.Inventory
+import com.tripletriad.model.Card
 import com.tripletriad.data.ShopCatalog
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.BoosterItem
@@ -184,10 +185,10 @@ class ShopUiTest {
 
     private companion object {
         /** `STR_FF14_CARD_74`, at 1,000,000 MGP the most expensive thing in the game. */
-        const val MILLION_MGP_CARD = 74
+        val MILLION_MGP_CARD = Card.idFor(block = 1, number = 74)
 
         /** `STR_FF14_CARD_2`, at 120 MGP the cheapest card on the shelf. */
-        const val CHEAP_CARD = 2
+        val CHEAP_CARD = Card.idFor(block = 1, number = 2)
 
         /** More than the 8,000 MGP mithril pack: absence is the shelf's, not the purse's. */
         const val ENOUGH_FOR_ANY_PACK = 20_000

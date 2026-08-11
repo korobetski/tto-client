@@ -553,8 +553,8 @@ class MatchBannerTest {
 
     /** Any card. Nothing here reads a power — the caption is decided by the capture kind. */
     private val card = Card(
-        id = 1,
-        collection = "ff14_",
+        // Ids are global; fixtures number their cards from 1.
+        id = Card.idFor(block = 1, number = 1),
         nameKey = "STR_FF14_CARD_1",
         name = "Test",
         top = 1,

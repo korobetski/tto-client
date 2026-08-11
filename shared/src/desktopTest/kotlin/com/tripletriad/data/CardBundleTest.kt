@@ -24,9 +24,43 @@ class CardBundleTest {
 
     @Test
     fun theBundledCatalogHoldsBothCollectionsInFull() {
-        assertEquals(FF14_CARDS, catalog.ff14.size, "the FF14 collection")
-        assertEquals(FF8_CARDS, catalog.ff8.size, "the FF8 collection")
-        assertEquals(FF14_CARDS + FF8_CARDS, catalog.all.size, "both collections together")
+        assertEquals(FF14_CARDS, catalog.block(1).size, "the FF14 set")
+        assertEquals(FF8_CARDS, catalog.block(2).size, "the FF8 set")
+        assertEquals(FF14_CARDS + FF8_CARDS, catalog.all.size, "both sets together")
+        assertEquals(listOf("ff14", "ff8"), catalog.releasedSets.map { it.slug })
+    }
+
+    /**
+     * Every shipped id decodes, and none is legacy — which is what makes the reset detectable.
+     *
+     * The claims document 19 § What to test asks for, over the real bundle rather than a fixture:
+     * two cards never share an id, every id names a declared set, and no block holds more than the
+     * 255 its low byte can address.
+     */
+    @Test
+    fun everyBundledIdNamesADeclaredSetAndANumberInRange() {
+        val blocks = catalog.sets.map { it.block }.toSet()
+
+        assertEquals(catalog.all.size, catalog.all.map { it.id }.toSet().size, "ids are unique")
+        for (card in catalog.all) {
+            assertTrue(card.id >= Card.FIRST_ID, "card ${card.id} is a legacy id")
+            assertTrue(card.block in blocks, "card ${card.id} names no declared set")
+            assertTrue(
+                card.number in Card.NUMBER_RANGE,
+                "card ${card.id} has number ${card.number}",
+            )
+            assertEquals(
+                card.id,
+                Card.idFor(card.block, card.number),
+                "id disagrees with its parts",
+            )
+        }
+        for (block in blocks) {
+            assertTrue(
+                catalog.block(block).size <= Card.NUMBER_MASK,
+                "block $block holds more than ${Card.NUMBER_MASK} cards",
+            )
+        }
     }
 
     @Test

@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.i18n.AppLocale
+import com.tripletriad.model.CardCollection
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.AchievementCatalog
 import com.tripletriad.model.GameSave
@@ -78,7 +79,7 @@ class StatsUiTest {
         // measurably close — the pair a Boolean condition could not express.
         onNodeWithTag(STATS_ACHIEVEMENTS_TEST_TAG)
             .performScrollToNode(hasTestTag(achievementRowTestTag(COLLECTOR_I)))
-        assertTrue(isVisible("${GameSave.DEFAULT_CARDS.size} / 10"), "five of the ten it wants")
+        assertTrue(isVisible("${STARTER_CARDS.size} / 10"), "five of the ten it wants")
     }
 
     /** An earned achievement heads the list, which is the original's `unlockDate` ordering. */

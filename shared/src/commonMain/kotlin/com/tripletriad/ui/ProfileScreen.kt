@@ -48,8 +48,9 @@ fun profileRowTestTag(key: String): String = "profile-row-$key"
 /** `profile-delete-<key>`. */
 fun profileDeleteTestTag(key: String): String = "profile-delete-$key"
 
-/** `collection-ff14_` / `collection-ff8_`, by the AS3 prefix that is also the stored value. */
-fun collectionChoiceTestTag(collection: CardCollection): String = "collection-${collection.prefix}"
+/** `collection-ff14_` / `collection-ff8_`, by the string the choice is stored as. */
+fun collectionChoiceTestTag(collection: CardCollection): String =
+    "collection-${collection.storageKey}"
 
 /**
  * The profile list — the original's `LoadScreen`, which listed characters rather than files.

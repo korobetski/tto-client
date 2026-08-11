@@ -64,7 +64,7 @@ internal fun StoreScreen(
 
     val offers = remember(profile.mode) { ShopCatalog.offers(profile.mode) }
     val cards = remember(catalog, profile.mode) {
-        catalog.collection(profile.mode.prefix).associateBy { it.id }
+        catalog.collection(profile.mode).associateBy { it.id }
     }
     var selectedTag by remember(profile.mode) { mutableStateOf<String?>(null) }
     val selected = offers.firstOrNull { shopOfferTestTag(it) == selectedTag }

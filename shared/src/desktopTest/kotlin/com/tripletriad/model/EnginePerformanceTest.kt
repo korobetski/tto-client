@@ -33,8 +33,8 @@ import kotlin.test.assertTrue
  */
 class EnginePerformanceTest {
     private fun card(id: Int, top: Int, right: Int, bottom: Int, left: Int) = Card(
-        id = id,
-        collection = "test_",
+        // Fixtures number their cards from 1; ids are global.
+        id = Card.idFor(block = 1, number = id),
         nameKey = "STR_TEST_$id",
         name = "Test $id",
         top = top,

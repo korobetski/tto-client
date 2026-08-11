@@ -9,6 +9,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.i18n.AppLocale
+import com.tripletriad.model.Card
 import com.tripletriad.model.CardCollection
 import com.tripletriad.model.GameSave
 import kotlin.test.Test
@@ -36,7 +37,7 @@ class CollectionUiTest {
         openCards()
 
         onNodeWithTag(CARD_TOTAL_TEST_TAG).assertTextEquals(
-            "Owned$DOT_SEPARATOR${GameSave.DEFAULT_CARDS.size} / $FF14_CARDS",
+            "Owned$DOT_SEPARATOR${STARTER_CARDS.size} / $FF14_CARDS",
         )
     }
 
@@ -49,7 +50,7 @@ class CollectionUiTest {
         onNodeWithTag(CARD_DETAIL_EMPTY_TEST_TAG).assertExists()
         assertFalse(exists(CARD_DETAIL_TEST_TAG))
 
-        onNodeWithTag(cardCellTestTag(GameSave.DEFAULT_CARDS.first())).performClick()
+        onNodeWithTag(cardCellTestTag(STARTER_CARDS.first())).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(CARD_DETAIL_TEST_TAG) }
 
         assertTrue(isVisible("Sides"), "the detail should state the four sides")
@@ -61,7 +62,7 @@ class CollectionUiTest {
     fun tappingTheSameCardTwiceClosesTheDetail() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
         openCards()
-        val card = GameSave.DEFAULT_CARDS.first()
+        val card = STARTER_CARDS.first()
 
         onNodeWithTag(cardCellTestTag(card)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(CARD_DETAIL_TEST_TAG) }
@@ -80,7 +81,7 @@ class CollectionUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
         openCards()
 
-        assertFalse(UNOWNED_CARD in GameSave.DEFAULT_CARDS, "the fixture assumes this is unowned")
+        assertFalse(UNOWNED_CARD in STARTER_CARDS, "the fixture assumes this is unowned")
         onNodeWithTag(CARD_GRID_TEST_TAG)
             .performScrollToNode(hasTestTag(cardCellTestTag(UNOWNED_CARD)))
         onNodeWithTag(cardCellTestTag(UNOWNED_CARD)).performClick()
@@ -99,7 +100,7 @@ class CollectionUiTest {
         openCards(CardCollection.FF8)
 
         onNodeWithTag(CARD_TOTAL_TEST_TAG).assertTextEquals(
-            "Owned$DOT_SEPARATOR${GameSave.DEFAULT_CARDS.size} / $FF8_CARDS",
+            "Owned$DOT_SEPARATOR${STARTER_CARDS.size} / $FF8_CARDS",
         )
         // Past the end of the ff8 table, so an ff8 profile must not be shown it.
         val found = runCatching {
@@ -118,11 +119,11 @@ class CollectionUiTest {
      */
     @Test
     fun aSecondCopyShowsAsABadgeAndDoesNotInflateTheTotal() = runComposeUiTest {
-        val twin = GameSave.DEFAULT_CARDS.first()
-        val single = GameSave.DEFAULT_CARDS.last()
+        val twin = STARTER_CARDS.first()
+        val single = STARTER_CARDS.last()
         val documents = seeded(
             GameSave.new(createdAt = 0L)
-                .copy(cards = GameSave.DEFAULT_CARDS.associateWith { 1 } + (twin to 3)),
+                .copy(cards = STARTER_CARDS.associateWith { 1 } + (twin to 3)),
         )
         setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
@@ -133,7 +134,7 @@ class CollectionUiTest {
         onNodeWithTag(cardCopiesTestTag(twin), useUnmergedTree = true).assertTextEquals("\u00d73")
         assertFalse(existsUnmerged(cardCopiesTestTag(single)), "one copy carries no badge")
         onNodeWithTag(CARD_TOTAL_TEST_TAG).assertTextEquals(
-            "Owned$DOT_SEPARATOR${GameSave.DEFAULT_CARDS.size} / $FF14_CARDS",
+            "Owned$DOT_SEPARATOR${STARTER_CARDS.size} / $FF14_CARDS",
         )
     }
 
@@ -142,10 +143,10 @@ class CollectionUiTest {
         const val FF14_CARDS = 153
         const val FF8_CARDS = 110
 
-        /** An ff14 card outside [GameSave.DEFAULT_CARDS]. */
-        const val UNOWNED_CARD = 44
+        /** An ff14 card the starter does not include. */
+        val UNOWNED_CARD = Card.idFor(block = 1, number = 44)
 
-        /** An id the ff14 table has and the 110-card ff8 table does not. */
-        const val FF14_ONLY_CARD = 138
+        /** A card in the ff14 set only — number 138, which the 110-card ff8 set has not. */
+        val FF14_ONLY_CARD = Card.idFor(block = 1, number = 138)
     }
 }

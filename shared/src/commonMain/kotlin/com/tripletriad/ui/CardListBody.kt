@@ -77,7 +77,7 @@ fun cardCopiesTestTag(cardId: Int): String = "card-copies-$cardId"
 @Composable
 internal fun ColumnScope.CardListBody(profile: GameSave, catalog: CardCatalog) {
     val strings = LocalStrings.current
-    val cards = remember(catalog, profile.mode) { catalog.collection(profile.mode.prefix) }
+    val cards = remember(catalog, profile.mode) { catalog.collection(profile.mode) }
     val owned = profile.cards
     var selected by remember(profile.mode) { mutableStateOf<Card?>(null) }
 

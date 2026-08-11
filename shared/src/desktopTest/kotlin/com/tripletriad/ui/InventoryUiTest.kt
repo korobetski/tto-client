@@ -8,6 +8,8 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.data.Inventory
+import com.tripletriad.model.Card
+import com.tripletriad.model.CardCollection
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.BoosterItem
 import com.tripletriad.model.BoosterType
@@ -38,7 +40,7 @@ class InventoryUiTest {
             // Not one of the starter five, so Use is offered.
             CardItem(SELLABLE_CARD, stack = 2),
             // One of them, so Use is refused — `InventoryScreen.as:111`.
-            CardItem(GameSave.DEFAULT_CARDS.first()),
+            CardItem(STARTER_CARDS.first()),
             BoosterItem(BoosterType.BRONZE),
             PotionItem(PotionType.MGP),
         ),
@@ -195,7 +197,7 @@ class InventoryUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openBag(documents)
 
-        select(CardItem(GameSave.DEFAULT_CARDS.first()))
+        select(CardItem(STARTER_CARDS.first()))
 
         onNodeWithTag(INVENTORY_USE_TEST_TAG).assertIsEnabled()
         assertTrue(isVisible("already owned \u00d71"), "the row still says it is not the first")
@@ -278,8 +280,8 @@ class InventoryUiTest {
     }
 
     private companion object {
-        /** An ff14 card outside [GameSave.DEFAULT_CARDS], so it is neither owned nor a starter. */
-        const val SELLABLE_CARD = 44
+        /** An ff14 card outside [STARTER_CARDS], so it is neither owned nor a starter. */
+        val SELLABLE_CARD = Card.idFor(block = 1, number = 44)
 
         /** `CardItem.as:25` — `value = _cardId * 4`. */
         const val MGP_PER_ID = 4

@@ -65,7 +65,7 @@ class CampaignBundleTest {
     @Test
     fun everyRungCanFieldAHand() {
         for (campaign in catalog.all) {
-            val ids = cards.collection(campaign.collection.prefix).mapTo(mutableSetOf()) { it.id }
+            val ids = cards.collection(campaign.collection).mapTo(mutableSetOf()) { it.id }
             for ((step, entry) in campaign.steps.withIndex()) {
                 val hand = entry.npc.randomHand(Random(step))
                 assertEquals(HAND_SIZE, hand.size, "${campaign.key}/${entry.npc.iconId}")

@@ -93,7 +93,7 @@ internal fun ColumnScope.InventoryBody(
     val strings = LocalStrings.current
     val scope = rememberCoroutineScope()
     val cards = remember(catalog, profile.mode) {
-        catalog.collection(profile.mode.prefix).associateBy { it.id }
+        catalog.collection(profile.mode).associateBy { it.id }
     }
     val owned = profile.cards
 

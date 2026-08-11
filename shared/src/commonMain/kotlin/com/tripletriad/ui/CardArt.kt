@@ -63,15 +63,29 @@ class CardArt internal constructor(
     /** Decodes [card]'s artwork, or returns the cached copy. */
     suspend fun face(card: Card): ImageBitmap {
         val id = card.textureId
-        return faces.getOrPut(id) { loadImage("$id.png") }
+        // Card faces live in their own directory now that they are named by id alone: 263 files
+        // called `013e.png` beside `back.png` and `digits.png` would be a directory nobody can
+        // read. See `tools/renumber_to_blocks.py`, which is what moved them.
+        return faces.getOrPut(id) { loadImage("$CARDS_DIR/$id.png") }
     }
 }
 
 /**
- * `_collection + newID` — `Card.as:166`. The AS3 texture name, and therefore the file name
- * the importer writes.
+ * The card's artwork name: its id as four lowercase hex digits, `013e`.
+ *
+ * Was `_collection + newID` — `Card.as:166` — which named `ff14_62.png`. Ids are global now, so the
+ * prefix that disambiguated them is gone and the id alone is enough. Hex because it makes the two
+ * halves readable at a glance (`01` is the set, `3e` is the number) and because it sorts a
+ * directory by set and then by number for free. `docs/migration/19-CARD-SETS-AND-FORMATS.md`
+ * § Card identifiers.
+ *
+ * Four digits covers blocks up to 255, which is every set this will ever ship; a wider id would
+ * simply print wider, and the importer derives the same name from the same expression.
  */
-internal val Card.textureId: String get() = "$collection$id"
+internal val Card.textureId: String get() = id.toString(HEX_RADIX).padStart(HEX_WIDTH, '0')
+
+private const val HEX_RADIX = 16
+private const val HEX_WIDTH = 4
 
 /**
  * `type-{type}` — `Card.as:181`. The AS3 type string is the lowercase enum name, which is
@@ -200,6 +214,9 @@ suspend fun loadLogo(): ImageBitmap = loadImage("logo.png")
 /** Where [`import_card_art.py`](../../../../../../../tools/import_card_art.py) writes. */
 /** Where both importers write: `files/art`, and the subdirectories [UiArt] reads. */
 internal const val ART_PATH = "files/art"
+
+/** The subdirectory the card faces moved into, relative to [ART_PATH]. */
+internal const val CARDS_DIR = "cards"
 private const val PLATE_TEXTURE = "cdbg"
 
 /** Every `cd*` glyph in `digits.xml` is 18x18; `cdbg` is 28x28 at y = 62. */

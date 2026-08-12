@@ -32,6 +32,12 @@ play a PvP match.
 
 **Shipped in one `:core` release** with formats and the `MODE` removal, rather than three.
 
+> ⚠️ **That last one did not survive contact.** Quests shipped alone in `0.3.0`; the formats landed
+> as client data with a test holding them to `Roulette.pools`, and the `MODE` removal has not been
+> written at all. The intent was right — one release rather than three — and the release happened
+> when the quests were ready rather than when all three were. Recorded because the plan says
+> otherwise and a reader would waste time looking for the bundle.
+
 ## Why the state is on `GameSave`
 
 `MatchRewards.credit` is a pure `GameSave -> GameSave` and is **the one authoritative credit path**
@@ -152,22 +158,35 @@ this one.
 The client stays a *predictor*: it credits locally, then `AccountSession.adopt` replaces the whole
 `PlayerState` with the server's — the same arrangement MGP and XP already have.
 
-## The PvP objective, sealed and undrawable
+## The PvP objective — sealed early, drawn since PvP shipped
 
-`Objective.PlayPvpMatch` is in the sealed hierarchy and **excluded from `DailyQuestCatalog.assignable`**
-until PvP exists. An unfinishable quest in a draw of three is a third of every day wasted, for every
-player — worse than the dashboard's greyed Multiplayer card, which costs a row and nothing else.
+`Objective.PlayPvpMatch` was in the sealed hierarchy from the first release and **excluded from
+`DailyQuestCatalog.assignable`** until there was player-versus-player to satisfy it. An unfinishable
+quest in a draw of three is a third of every day wasted, for every player.
 
-Sealing it now is the cheap moment: every `when` over `Objective` and every stored id is decided
-once, instead of in a later release that also has to reason about a catalogue changing mid-day. And
-`credits(event) = if (event.isPvp) 1 else 0` is correct forever — `MatchRewards.credit` takes an
-`Npc` and is PvE by construction, so it always passes `isPvp = false`.
+Sealing it early was the cheap moment: every `when` over `Objective` and every stored id was decided
+once, instead of in a later release that would also have had to reason about a catalogue changing
+mid-day. `credits(event) = if (event.isPvp) 1 else 0` is correct forever — `MatchRewards.credit`
+takes an `Npc` and is PvE by construction, so it always passes `isPvp = false`, and `creditPvp`
+always passes `true`.
 
-`DailyQuestCatalogTest.everyAssignableQuestIsCompletable` is the guard: no PvP objective in
-`assignable`, and every `BeatOpponent.iconId` resolves in `NpcCatalog`.
+**The filter is gone as of 2026-08-12**, the day PvP shipped, and `assignable` is now `all`. The
+property stays rather than collapsing into `all`: they answer different questions — what exists, and
+what may be offered today — and will part again the moment a quest is retired, seasonal or gated.
 
-Delete the filter the day PvP ships. See
-[09-PHASE-5-NETWORK.md](./09-PHASE-5-NETWORK.md) § PvP through the server.
+⚠️ **One consequence is accepted rather than solved.** An offline profile can draw the PvP quest and
+be unable to finish it: playing another person needs a server, and nothing else in the game does.
+The alternative is a draw that depends on connectivity, which would change under a player the moment
+their train entered a tunnel — a fixed draw they cannot finish today is better than a shifting one.
+
+Removing the filter also broke a test, and the break was the useful part.
+`MatchRewardsTest.everyResultPaysSomethingAndTheFeeIsNeverCharged` compared the purse against
+`MatchReward.mgp` alone, and passed only because that day's draw happened to hold nothing the
+fixture's match could finish. Eight assignable quests instead of seven changed the draw and it
+failed. The assertion was **accidentally true**; it now adds the quests back explicitly, which is
+what the reward's own KDoc always said it should.
+
+See [09-PHASE-5-NETWORK.md](./09-PHASE-5-NETWORK.md) § PvP through the server.
 
 ## `CivilDate` moved into `:core`
 
@@ -229,6 +248,7 @@ the client level can catch is a screen and a repository that are each correct an
 - **No notification, no reminder.** Nothing tells a player their quests reset.
 - **No streak, no weekly.** One day at a time, and no memory of yesterday beyond what the save
   happens to still hold.
+- **No connectivity in the draw.** See the PvP objective above.
 - **The reward is MGP only.** `QuestReward` carries an `Item?` and no shipped quest uses it.
 - **No countdown.** The screen shows the UTC day and says the boundary out loud; nothing on it ticks,
   and a stale "4 h left" would be worse than a date that cannot go stale.

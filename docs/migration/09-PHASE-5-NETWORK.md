@@ -9,7 +9,8 @@
   Accounts, server-held progression, several servers and update notices all shipped and verified
   against the local container 2026-08-08. The peer handshake's first two pieces — the joint seed
   and the hand commitment — landed 2026-08-08, and are **retired** by the decision below. **PvP is
-  server-mediated as of 2026-08-12**: what remains is the match channel and `MatchView`. See
+  server-mediated as of 2026-08-12**, and **built the same day**: `MatchView`, the match channel and
+  both screens. See
   § What is left in this phase.
 - **Version**: 1.7
 - **Last Updated**: 2026-08-12
@@ -317,7 +318,8 @@ tested and not merely the backup.
   imports only `kotlin` and `kotlinx` — nothing to do. `data/` is clean too **except two one-line
   functions**, `loadCardCatalog()` and `loadNpcCatalog()`, which call `Res.readBytes`; the parsers
   (`CardCatalogParser.parse(text)`) are already separate. The whole cost is moving those two calls.
-- **Introduce a `MatchView`.** Today the client holds the truth and hides part of it:
+- ✅ **Introduce a `MatchView`.** *Done 2026-08-12 — see § What is left in this phase.* Today the
+  client holds the truth and hides part of it:
   `HandVisibility.isVisible()` filters at render time while `MatchState` carries both hands in
   memory. An authority must **redact before sending**, so the complete `MatchState` needs a
   per-player projection. In solo the projection is the identity, so nothing there gets harder — and
@@ -386,7 +388,7 @@ What is known about the candidates:
    - ✅ **The solo transcript** — `core/.../protocol/MatchTranscript.kt` and `TranscriptVerifier.kt`.
      The server replays a submitted match with the real engine and reaches its own score; a
      truncated, padded or forged transcript is rejected with a machine-readable reason.
-   - ❌ **`MatchView`** — not started. Only needed once a match has two live sides, so it follows
+   - ✅ **`MatchView`** — done 2026-08-12. Only needed once a match has two live sides, so it followed
      PvP rather than blocking it.
    - ⛔ **The local-PvP protocol over an in-memory loopback** — **void since 2026-08-12.** It was
      to be built on the joint seed, the hand commitment and signed moves; a server-mediated match
@@ -502,8 +504,8 @@ generator could have produced and know the seed before revealing its own. Kotlin
 
 ### What is left in this phase
 
-*Rewritten 2026-08-12, when PvP became server-mediated. The three items this section used to list
-were all consequences of peer-to-peer; two of them are now retired rather than done.*
+*Rewritten twice. First on 2026-08-12 when PvP became server-mediated, which retired two of the
+four items rather than completing them. Then again the same day, when the other two shipped.*
 
 - ~~**A transport.**~~ **Answered.** It is the server, over HTTP, like everything else here.
 - ~~**Signed moves.**~~ **Retired.** They existed because "two honest strangers get a fair seed,
@@ -511,13 +513,48 @@ were all consequences of peer-to-peer; two of them are now retired rather than d
   arises when nobody trustworthy is in the middle. With the server there, identity is what a
   bearer token already establishes, and the key story that spanned both repositories is not
   needed. Worth reopening only if direct play ever returns.
-- **`MatchView`** — still to build, and still for the reason given above: today the client holds
-  the whole truth and hides part of it from itself, which is fine for an opponent it is also
-  simulating and wrong for one it is not.
-- **The match channel.** New, and the one real piece of work. Nothing here uses a websocket —
-  `RELEASING.md` § 7 notes the gate is re-evaluated on every request precisely because there are
-  none — so a turn-based match can be polled. Two players alternating placements with a few seconds
-  of latency is a game of Triple Triad, not a shooter.
+- ✅ **`MatchView`** — built, in `:core`. What one side may see: its own hand in full, the other
+  positionally with a `null` where a card is hidden, and **the playable slots decided rather than
+  re-derived** — because `OrderRule.CHAOS` is a roll, and two devices rolling separately would
+  disagree about which card a player may put down. `PvpMatchView` is its wire form, in ids.
+- ✅ **The match channel.** Built, and it is polling: `GET /pvp/match` once a second while a match
+  screen is on top of it. No websocket, as predicted. A turn arriving a second late is
+  imperceptible where a turn lasts thirty.
+
+**The phase's own work is done.** What is genuinely outstanding is smaller and named honestly:
+
+- **The PvP board has no test.** `PvpSession` has ten covering the logic — a refused move re-reads
+  rather than complaining, a match survives the app being killed — and `PvpMatchScreen` has none.
+  Every other screen in this app has interface tests.
+- **The PvP board is tap-only.** `MatchScreen`'s drag-and-drop is not wired: `BoardDragState` is
+  constructed and handed to `BoardGrid` to satisfy its signature, and no card can be picked up.
+  Select-then-tap is the gesture the AS3 had; the drag was this port's own addition and has to be
+  carried over.
+- **Nothing has exercised the three repositories together.** All three suites pass separately. No
+  real client has played a real PvP match against a real server.
+
+### What was built (2026-08-12)
+
+| Piece | Where |
+|---|---|
+| `MatchView`, `MatchPreparation.prepareVersus`, `PvpSetup` | `:core` `model/` |
+| `PvpMatchView`, `PvpStake`, `PvpMove`, `PvpOutcome`, `PvpChallenge` | `:core` `protocol/PvpMatch.kt` |
+| `MatchRewards.creditPvp`, `GameSave.withoutCard` | `:core` |
+| `pvp_queue`, `pvp_challenges`, `pvp_matches` | `tto-server` `V2__pvp.sql` |
+| `PvpMatchRow`, `PvpStore`, `PvpReferee`, the routes | `tto-server` |
+| `PvpClient`, `PvpSession`, `PvpScreen`, `PvpMatchScreen` | `tto-client` |
+
+Two decisions inside that are worth finding again:
+
+**A match row stores its inputs and its moves, not its state.** Two hands, a seed, who started, the
+rules, and the placements so far — replayed with the same engine the client runs. A row holding a
+serialised board can only be believed; this one can be *checked*, by anyone with `:core`. It also
+means the final transcript falls out of the table rather than being assembled separately, and that
+`MatchState` never becomes a storage format that cannot change without a migration.
+
+**A forfeit does not consult the board.** A match abandoned at 3-1 is a loss for whoever left, not
+a win for whoever was ahead. Reading the score would make walking away at the right moment a
+strategy.
 
 ## PvP through the server (2026-08-12)
 
@@ -563,4 +600,5 @@ later; nothing decided here forecloses it, and `PeerHandshake` is the part that 
 ---
 
 *Status: solo-vs-server built and running. PvP is server-mediated as of 2026-08-12; what is
-left is the match channel and `MatchView`.*
+left of the phase itself is nothing; see § What is left in this phase for the three smaller gaps
+that remain.*

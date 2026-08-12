@@ -5,13 +5,13 @@
 
 - **Phase**: 4 - UI Layer
 - **Duration**: 8 weeks (Weeks 13-20)
-- **Status**: IN PROGRESS — 2026-08-09. The playable loop, all of Tier 3, the deck selector, the
-  theme system, drag-and-drop, the turn timer, the tutorial and both tournament ladders are done:
-  **28 of the 32 screens**. Of the four left, **two are blocked on Phase 5** (`PVPScreen`,
-  `PVPMatchScreen` — the only two that touch a socket) and two will not be ported. See § What was
-  built.
-- **Version**: 1.8
-- **Last Updated**: 2026-08-09
+- **Status**: IN PROGRESS — 2026-08-12. The playable loop, all of Tier 3, the deck selector, the
+  theme system, drag-and-drop, the turn timer, the tutorial, both tournament ladders and **player
+  versus player** are done: **30 of the 32 screens**. The two left, `EmptyScreen` and
+  `BackstageScreen`, **will never be ported** and say why below — so the port of the AS3's screens
+  is, in the sense that matters, finished. See § What was built.
+- **Version**: 1.9
+- **Last Updated**: 2026-08-12
 - **Prerequisites**: Phases 1-3
 
 ---
@@ -34,10 +34,10 @@ waiting on Phase 6's speech bubble. They are not a second match screen: everythi
 by subclassing `PVEMatchScreen` is one data object the ordinary match screen takes as a parameter.
 See § The tutorial.
 
-**28 of the 32 screens exist and 4 are left**, of which two — `PVPScreen` and `PVPMatchScreen` —
-are blocked on Phase 5 and two will not be ported at all. The six filed under multiplayer are
-nothing of the kind and shipped with the tournament ladders. See § Screens, against the plan's
-tiers.
+**30 of the 32 screens exist and 2 are left**, and neither of those two will be ported: they are
+`EmptyScreen` and `BackstageScreen`, and both are unreachable in the original. The six filed under
+multiplayer are nothing of the kind and shipped with the tournament ladders. See § Screens, against
+the plan's tiers.
 
 ---
 
@@ -363,12 +363,12 @@ opponent that plays itself, Open visibility, the rules strip, the result panel),
 | `DecksScreen`, `InventoryScreen`, `cardListScreen`, `profileScreen`, `shopScreen` | ✅ Tier 3, all five |
 | `DeckSelector` | ✅ Tier 2 — a step inside the match, as in the original |
 | `playerPanel` | ✅ Tier 2 — its **turn timer** is what it held; the hand and the name were already drawn |
-| `PVPScreen`, `PVPMatchScreen` | ⏳ Tier 4 / Tier 2 — the only two that touch the socket, so the only two Phase 5 blocks |
+| `PVPScreen`, `PVPMatchScreen` | ✅ Tier 4 / Tier 2 — the only two that touched the socket. Neither ports its transport: the socket is gone and the server is the referee, so the lobby is a queue plus invitations and the board renders a `MatchView` instead of running a match. See [09-PHASE-5-NETWORK.md](./09-PHASE-5-NETWORK.md) § PvP through the server |
 | `CCGroupScreen`, `GSGroupScreen`, `CCGroupMatchScreen`, `GSGroupMatchScreen`, `CCGroupRematchPanel`, `GSGroupRematchPanel` | ✅ Tier 4 on paper, **single-player in fact** — one entry screen and one campaign match over `campaigns.json`, see § The tournament ladders |
 | `TutorialScreen`, `TutorialRematchPanel` | ✅ Tier 5 / Tier 4 — scripted PvE, on `TalkBubble` (Phase 6) |
 | `BackstageScreen`, `EmptyScreen` | ⏳ Tier 5, and **neither is reachable** — see below |
 
-**28 of the 32 are done and 4 are left.** Per tier: 4 of 4, 9 of 10, 5 of 5, 9 of 10, 1 of 3.
+**30 of the 32 are done and 2 are left.** Per tier: 4 of 4, 10 of 10, 5 of 5, 10 of 10, 1 of 3.
 
 **One screen exists that is not on this list and never will be.** `QuestsScreen` has no AS3 original
 — the game had no daily anything — so it cannot be a 29th of 32. It is counted nowhere here on

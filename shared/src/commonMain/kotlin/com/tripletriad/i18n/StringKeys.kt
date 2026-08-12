@@ -290,6 +290,28 @@ object StringKeys {
     const val QUEST_RULE: String = "APP_QUEST_RULE"
     const val QUEST_PVP_1: String = "APP_QUEST_PVP_1"
 
+    // ---- Playing another person. All `APP_`: the AS3's PvP screen never worked, and its bundles
+    // have no key for any of this.
+    /** The quick queue, and what it says while nobody has been found. */
+    const val PVP_FIND: String = "APP_PVP_FIND"
+    const val PVP_WAITING: String = "APP_PVP_WAITING"
+
+    /** Inviting somebody by name. `{0}` is the other player. */
+    const val PVP_CHALLENGE: String = "APP_PVP_CHALLENGE"
+    const val PVP_INVITE: String = "APP_PVP_INVITE"
+    const val PVP_FROM: String = "APP_PVP_FROM"
+    const val PVP_SENT_TO: String = "APP_PVP_SENT_TO"
+    const val PVP_ACCEPT: String = "APP_PVP_ACCEPT"
+    const val PVP_DECLINE: String = "APP_PVP_DECLINE"
+    const val PVP_NO_CHALLENGE: String = "APP_PVP_NO_CHALLENGE"
+
+    /** The board: conceding, how a forfeit is explained, and the two states with no match. */
+    const val PVP_FORFEIT: String = "APP_PVP_FORFEIT"
+    const val PVP_YOU_LEFT: String = "APP_PVP_YOU_LEFT"
+    const val PVP_THEY_LEFT: String = "APP_PVP_THEY_LEFT"
+    const val PVP_OVER: String = "APP_PVP_OVER"
+    const val PVP_NO_MATCH: String = "APP_PVP_NO_MATCH"
+
     // ---- The tutorial's nine lines.
     /**
      * `TutorialScreen.helpTexts` — and `APP_` keys although the text is nine years old, because
@@ -458,6 +480,9 @@ object StringKeys {
         ACHIEVEMENTS_LIST, FORFEITS, MATCHES, WIN_RATE, BOONS, NO_ACHIEVEMENT, NEXT_TIER,
         QUESTS, QUESTS_RESET, QUEST_DONE, NO_QUEST,
         QUEST_PLAY_3, QUEST_WIN_1, QUEST_WIN_3, QUEST_BEAT, QUEST_RULE, QUEST_PVP_1,
+        PVP_FIND, PVP_WAITING, PVP_CHALLENGE, PVP_INVITE, PVP_FROM, PVP_SENT_TO,
+        PVP_ACCEPT, PVP_DECLINE, PVP_NO_CHALLENGE,
+        PVP_FORFEIT, PVP_YOU_LEFT, PVP_THEY_LEFT, PVP_OVER, PVP_NO_MATCH,
         TUTORIAL, TUTORIAL_1, TUTORIAL_2, TUTORIAL_3, TUTORIAL_4, TUTORIAL_5,
         TUTORIAL_6, TUTORIAL_7, TUTORIAL_8, TUTORIAL_9,
         CAMPAIGNS, CAMPAIGN_STEP,

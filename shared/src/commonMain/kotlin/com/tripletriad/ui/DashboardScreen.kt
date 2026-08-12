@@ -71,11 +71,14 @@ const val DASHBOARD_LOGOUT_TEST_TAG: String = "dashboard-logout"
  * this screen that changes on its own and expires — the collection and the bag are where the player
  * left them.
  *
- * ### The two entries that lead nowhere
+ * ### Multiplayer needs a server, and says so by being dim without one
  *
- * - **Multiplayer** is drawn disabled. `dashboardScreen.as:50` pushes it with `enabled:true`, and
- *   the `PVPScreen` behind it needs the socket layer that is Phase 5. Listed rather than omitted
- *   because a menu that grows an entry later is worse than one that says what is coming.
+ * It is the only destination here that cannot work offline: the server is the referee of a PvP
+ * match, not a relay — see `PvpClient`. So the card is enabled exactly when there is a connection
+ * behind it, and a local profile gets the row greyed rather than a tap that leads nowhere.
+ *
+ * ### The entry that leads nowhere
+ *
  * - **Backstage** is not here. The original appends it when `PROFILE_DATAS.ADMIN` is set
  *   (`:56-57`); nothing in the game ever sets `ADMIN`, and the screen behind it is a data-dump
  *   debug pane — see `BackstageScreen.as`. It is Tier 5 in the plan and unreachable in the
@@ -94,6 +97,7 @@ internal fun DashboardScreen(
     onPlay: () -> Unit,
     onStats: () -> Unit,
     onQuests: () -> Unit,
+    onPvp: (() -> Unit)?,
     onDecks: () -> Unit,
     onInventory: () -> Unit,
     onHelp: () -> Unit,
@@ -180,8 +184,11 @@ internal fun DashboardScreen(
                     label = strings[StringKeys.MULTIPLAYER],
                     icon = TtoIcons.Person,
                     tag = DASHBOARD_PVP_TEST_TAG,
-                    enabled = false,
-                    onClick = {},
+                    // Enabled only with a server behind it. Playing another person is the one
+                    // thing in this game that cannot happen offline — see `PvpClient` — so a
+                    // local profile gets the row and an explanation rather than a dead tap.
+                    enabled = onPvp != null,
+                    onClick = { onPvp?.invoke() },
                 )
             }
             item(span = { GridItemSpan(maxLineSpan) }) {

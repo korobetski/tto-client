@@ -57,7 +57,23 @@ data class Format(
     fun admitsCard(cardId: Int): Boolean = admits(cardId shr Card.BLOCK_SHIFT)
 }
 
-/** Every authored format. */
+/**
+ * Every authored format.
+ *
+ * Three of them as of 2026-08-12: one per released set, and `free-play`, which admits every
+ * released block and draws from the **union** of the two rule pools.
+ *
+ * ### ⚠️ Elemental is in the free-play pool, and it is lopsided there
+ *
+ * `Board.elements()` draws from the eight **FFVIII** elements, and an FFXIV card's `type` is a
+ * *group* — `beast`, `scions`, `garlean`, `primals` — not an element. So under Elemental in a mixed
+ * format an FFXIV card can only ever take the −1: it cannot match, in principle, on any tile.
+ *
+ * Known and accepted rather than overlooked — the alternative, an intersection of the pools,
+ * shrinks every time a set ships, and a hand-kept exception list is the thing nobody updates.
+ * It stops being lopsided when document 20 splits `Card.type` into a shared `element` and a per-set
+ * `group`, which is the proper fix and is a different piece of work.
+ */
 @Serializable
 data class FormatCatalog(val formats: List<Format>) {
 

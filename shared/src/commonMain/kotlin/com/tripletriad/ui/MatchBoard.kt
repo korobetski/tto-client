@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tripletriad.model.Board
 import com.tripletriad.model.Card
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.CardType
@@ -97,7 +98,7 @@ internal fun PlayArea(
     }
     val board: @Composable () -> Unit = {
         BoardGrid(
-            state = state,
+            board = state.board,
             scale = layout.boardScale,
             drag = drag,
             // The card looking for a cell, by either gesture — a tapped one and a lifted one both
@@ -161,7 +162,7 @@ private fun PlayAreaContents(
  * [BoardDragState.hovered] is testing.
  */
 @Composable
-private fun DragGhost(drag: BoardDragState, scale: Float) {
+internal fun DragGhost(drag: BoardDragState, scale: Float) {
     val card = drag.card ?: return
     if (!drag.pointer.isSpecified) return
     val width = CardSpriteWidth * scale
@@ -196,8 +197,8 @@ private fun DragGhost(drag: BoardDragState, scale: Float) {
  *   the better question too: every free elemental cell shows what it would do to *this* card.
  */
 @Composable
-private fun BoardGrid(
-    state: MatchState,
+internal fun BoardGrid(
+    board: Board,
     scale: Float,
     drag: BoardDragState,
     held: Card?,
@@ -213,7 +214,7 @@ private fun BoardGrid(
             Row(horizontalArrangement = Arrangement.spacedBy(TileGap * scale)) {
                 for (column in 0 until BOARD_WIDTH) {
                     val position = row * BOARD_WIDTH + column
-                    val free = state.board.isEmpty(position)
+                    val free = board.isEmpty(position)
 
                     DisposableEffect(position) {
                         onDispose { drag.unregisterCell(position) }
@@ -221,8 +222,8 @@ private fun BoardGrid(
 
                     TileCell(
                         position = position,
-                        placed = state.board[position],
-                        element = state.board.elements[position],
+                        placed = board[position],
+                        element = board.elements[position],
                         scale = scale,
                         isTarget = hovered == position && free,
                         isOpen = held != null && free,
@@ -696,13 +697,15 @@ private const val ELEMENT_LABEL_CHARS = 3
 
 /** The element belongs to the cell, not to the play. Present, and never louder than a card. */
 private const val ELEMENT_ALPHA = 0.55f
-private const val INACTIVE_HAND_ALPHA = 0.45f
+
+/** Dimming for a hand that is not to move. Shared with the PvP board, which dims the same way. */
+internal const val INACTIVE_HAND_ALPHA = 0.45f
 
 /** The card following the finger. Slightly transparent, so the cell under it stays readable. */
 private const val DRAG_GHOST_ALPHA = 0.85f
 
 /** What is left in the hand while its card is in the air. */
-private const val DRAG_SOURCE_ALPHA = 0.3f
+internal const val DRAG_SOURCE_ALPHA = 0.3f
 
 /**
  * A free cell while a card is held: present, but not louder than the cell being aimed at.
@@ -769,8 +772,8 @@ private const val FLIP_STRETCH = 1.2f
 private val EaseIn = FastOutLinearInEasing
 private val EaseOut = LinearOutSlowInEasing
 private val TileGap = 4.dp
-private val TileShape = RoundedCornerShape(6.dp)
-private val SelectionRingWidth = 2.dp
+internal val TileShape = RoundedCornerShape(6.dp)
+internal val SelectionRingWidth = 2.dp
 private val ElementFontSize = 9.sp
 
 /** The type glyphs are authored at 16 px; a board tile is 104 wide, so this is a quarter of it. */
@@ -779,7 +782,9 @@ private val ModifierFontSize = 10.sp
 private val ModifierShape = RoundedCornerShape(3.dp)
 private val ModifierInset = 2.dp
 private val ModifierPadding = 3.dp
-private val HandGap = 3.dp
+
+/** The gap between cards in a hand. Shared with the PvP board so the two lay out alike. */
+internal val HandGap = 3.dp
 
 internal fun matchLayout(width: Dp, height: Dp): MatchLayout {
     val landscape = width >= height

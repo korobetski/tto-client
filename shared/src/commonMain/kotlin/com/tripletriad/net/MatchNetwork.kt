@@ -40,9 +40,18 @@ internal expect fun defaultHttpEngineFactory(): HttpClientEngineFactory<*>
  * @property probe what asks a server whether it is there, and whether this build may use it.
  * @property reporter the durable queue in front of match submission.
  */
+// Seven collaborators, and they are not seven decisions: this is *everything the app talks to over
+// HTTP*, assembled once by the host. Splitting it to satisfy a counter would give the two host
+// modules two bundles to wire identically, which is the mistake the type exists to prevent.
+@Suppress("LongParameterList")
 class ServerConnection internal constructor(
     val directory: ServerDirectory,
     val accounts: AccountClient,
+    /**
+     * Playing another person, which is the one thing here the server *arbitrates* rather than
+     * verifies. See [PvpClient] for why that difference exists.
+     */
+    val pvp: PvpClient,
     val session: SessionStore,
     val probe: ServerProbe,
     val reporter: MatchReporter,
@@ -116,6 +125,7 @@ fun serverConnection(
     return ServerConnection(
         directory = directory,
         accounts = AccountClient(http, address),
+        pvp = PvpClient(http, address),
         session = sessions,
         probe = ServerProbe(http, elapsed = clock::nowMillis),
         reporter = QueuedMatchReporter(

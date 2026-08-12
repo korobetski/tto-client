@@ -30,6 +30,8 @@ internal enum class Screen {
     CAMPAIGN_MATCH,
     STATS,
     QUESTS,
+    PVP,
+    PVP_MATCH,
     AVATAR,
     CARDS,
     DECKS,
@@ -65,9 +67,10 @@ internal enum class Screen {
             // Back out of the collection step keeps `ff14_`, which is what the account already
             // has — so skipping it is a decision the player is allowed to make silently.
             COLLECTION_CHOICE -> DASHBOARD
-            OPPONENTS, STATS, QUESTS, CARDS, DECKS, INVENTORY, SHOP, HELP -> DASHBOARD
+            OPPONENTS, STATS, QUESTS, PVP, CARDS, DECKS, INVENTORY, SHOP, HELP -> DASHBOARD
             AVATAR -> STATS
             MATCH, TUTORIAL, CAMPAIGN -> OPPONENTS
+            PVP_MATCH -> PVP
             CAMPAIGN_MATCH -> CAMPAIGN
         }
 }

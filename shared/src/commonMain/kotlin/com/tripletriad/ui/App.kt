@@ -110,6 +110,13 @@ fun App(
 
             val session = rememberProfileSession(documents, clock)
             val account = server?.let { rememberAccountSession(it, clock) }
+            // Null without a server, which is what makes the Multiplayer card dim: playing another
+            // person is the one thing here that cannot happen offline. See [PvpClient].
+            val pvp = server?.let { connection ->
+                rememberPvpSession(connection.pvp) {
+                    connection.session.load(connection.server.id, clock.nowMillis())?.token
+                }
+            }
             val connectivity = server?.let { rememberConnectivity(it) }
             var screen by remember { mutableStateOf(Screen.SPLASH) }
             val choice = remember { Choice() }
@@ -183,6 +190,7 @@ fun App(
                         CompositionLocalProvider(LocalWideLayout provides isWide) {
                             Destination(
                                 destination = destination,
+                                pvp = pvp,
                                 startup = startup,
                                 settings = settings,
                                 session = session,
@@ -325,6 +333,7 @@ private fun Destination(
     settings: SettingsHolder?,
     session: ProfileSession,
     account: AccountSession?,
+    pvp: PvpSession?,
     connectivity: Connectivity?,
     gate: ProfileGate,
     choice: Choice,
@@ -397,7 +406,7 @@ private fun Destination(
         // Grouped rather than delegated behind an `else`, so that adding a fourteenth screen is a
         // compile error here instead of a destination that silently renders blank.
         Screen.DASHBOARD, Screen.OPPONENTS, Screen.MATCH, Screen.TUTORIAL, Screen.STATS,
-        Screen.QUESTS,
+        Screen.QUESTS, Screen.PVP, Screen.PVP_MATCH,
         Screen.CAMPAIGN, Screen.CAMPAIGN_MATCH, Screen.AVATAR, Screen.COLLECTION_CHOICE,
         Screen.CARDS, Screen.DECKS, Screen.INVENTORY, Screen.SHOP, Screen.HELP,
         -> gate.profile?.let { profile ->
@@ -414,6 +423,7 @@ private fun Destination(
                 CharacterDestination(
                     destination = destination,
                     profile = profile,
+                    pvp = pvp,
                     startup = startup,
                     gate = gate,
                     account = account,
@@ -485,6 +495,7 @@ private fun AccountDestination(
 private fun CharacterDestination(
     destination: Screen,
     profile: GameSave,
+    pvp: PvpSession?,
     startup: StartupState,
     gate: ProfileGate,
     account: AccountSession?,
@@ -511,6 +522,7 @@ private fun CharacterDestination(
             onPlay = { onNavigate(Screen.OPPONENTS) },
             onStats = { onNavigate(Screen.STATS) },
             onQuests = { onNavigate(Screen.QUESTS) },
+            onPvp = pvp?.let { { onNavigate(Screen.PVP) } },
             // The collection and the shelf are the navigation bar's own two entries and are not
             // repeated here; these two open the *other* tab of each — see [DashboardScreen].
             onDecks = { onNavigate(Screen.DECKS) },
@@ -554,36 +566,23 @@ private fun CharacterDestination(
             )
         }
 
-        Screen.CAMPAIGN, Screen.CAMPAIGN_MATCH -> CampaignDestination(
+        // Everything that *is* a match: the ordinary one, the tutorial, and a ladder step. Grouped
+        // because they are one subject — a board with a scripted or chosen opponent behind it — and
+        // because the three arms together were what pushed this function past the complexity
+        // detekt allows.
+        Screen.MATCH, Screen.TUTORIAL, Screen.CAMPAIGN, Screen.CAMPAIGN_MATCH,
+        Screen.PVP_MATCH,
+        -> MatchDestinations(
             destination = destination,
-            campaign = choice.campaign,
             profile = profile,
             startup = startup,
+            choice = choice,
+            gate = gate,
+            account = account,
+            pvp = pvp,
             clock = clock,
-            onPersist = gate.persist,
+            reporter = reporter,
             onNavigate = onNavigate,
-        )
-
-        Screen.TUTORIAL -> TutorialDestination(
-            profile = profile,
-            startup = startup,
-            clock = clock,
-            onPersist = gate.persist,
-            onNavigate = onNavigate,
-        )
-
-        Screen.MATCH -> MatchDestination(
-            profile = profile,
-            startup = startup,
-            opponent = choice.opponent,
-            clock = clock,
-            onPersist = gate.persist,
-            // The key is derived from the profile the *match* was played with, not from the gate,
-            // whose profile the credit has already replaced by the time this runs. Both name the
-            // same queue — neither key is built from anything a match changes — and using the one
-            // in hand says so rather than relying on it.
-            onTranscript = { reporter.report(queueKeyFor(profile, account), it) },
-            onExit = { onNavigate(Screen.OPPONENTS) },
         )
 
         Screen.STATS, Screen.QUESTS, Screen.AVATAR, Screen.COLLECTION_CHOICE -> RecordDestination(
@@ -596,7 +595,15 @@ private fun CharacterDestination(
             onNavigate = onNavigate,
         )
 
-        Screen.HELP -> HelpScreen(profile = profile, onBack = toDashboard)
+        // The two that need nothing but the profile: the rules, and finding somebody to play. Both
+        // are one call each, and pairing them keeps this `when` inside the complexity gate.
+        Screen.HELP, Screen.PVP -> SocialDestination(
+            destination = destination,
+            profile = profile,
+            pvp = pvp,
+            onMatch = { onNavigate(Screen.PVP_MATCH) },
+            onBack = toDashboard,
+        )
 
         // The four that browse the card table. Grouped for the same reason the character-bearing
         // screens are grouped one level up: they share a prerequisite, and checking it four times
@@ -620,6 +627,107 @@ private fun CharacterDestination(
         Screen.SPLASH, Screen.MENU, Screen.PROFILES, Screen.PROFILE_NEW,
         Screen.ACCOUNT, Screen.SERVERS, Screen.OPTIONS,
         -> Unit
+    }
+}
+
+/**
+ * The rules, and the lobby.
+ *
+ * An odd couple on the face of it, and a real one underneath: both need nothing but the character,
+ * both return to the dashboard, and neither reads the card table. Together they are one arm of
+ * [CharacterDestination] instead of two, which is what keeps it under the complexity gate.
+ */
+@Composable
+private fun SocialDestination(
+    destination: Screen,
+    profile: GameSave,
+    pvp: PvpSession?,
+    onMatch: () -> Unit,
+    onBack: () -> Unit,
+) {
+    when (destination) {
+        // Null without a server, and unreachable then: the dashboard card is dim, so this is the
+        // belt to that braces rather than a state the flow can produce.
+        Screen.PVP -> pvp?.let { session ->
+            PvpScreen(
+                profile = profile,
+                session = session,
+                onMatch = onMatch,
+                onBack = onBack,
+            )
+        }
+
+        else -> HelpScreen(profile = profile, onBack = onBack)
+    }
+}
+
+/**
+ * The four screens that are a board.
+ *
+ * A pass-through, and worth its existence for two reasons: it names the group — an ordinary match,
+ * the tutorial, a ladder step and a match against a person are one board with different opponents
+ * behind it — and it keeps
+ * [CharacterDestination] under the complexity gate, which is the same trade [RecordDestination]
+ * makes one function below.
+ */
+@Composable
+@Suppress("LongParameterList")
+private fun MatchDestinations(
+    destination: Screen,
+    profile: GameSave,
+    startup: StartupState,
+    choice: Choice,
+    gate: ProfileGate,
+    account: AccountSession?,
+    pvp: PvpSession?,
+    clock: Clock,
+    reporter: MatchReporter,
+    onNavigate: (Screen) -> Unit,
+) {
+    when (destination) {
+        // The fourth kind of board, and the only one this client does not run itself.
+        Screen.PVP_MATCH -> pvp?.let { session ->
+            PvpMatchScreen(
+                session = session,
+                // The whole table rather than the mode's: a PvP opponent plays their own
+                // collection, and while `MODE` still exists the two could differ.
+                cards = startup.catalog?.all?.associateBy { it.id }.orEmpty(),
+                now = clock.nowMillis(),
+                onExit = { onNavigate(Screen.PVP) },
+            )
+        }
+
+        Screen.CAMPAIGN, Screen.CAMPAIGN_MATCH -> CampaignDestination(
+            destination = destination,
+            campaign = choice.campaign,
+            profile = profile,
+            startup = startup,
+            clock = clock,
+            onPersist = gate.persist,
+            onNavigate = onNavigate,
+        )
+
+        Screen.TUTORIAL -> TutorialDestination(
+            profile = profile,
+            startup = startup,
+            clock = clock,
+            onPersist = gate.persist,
+            onNavigate = onNavigate,
+        )
+
+        else -> MatchDestination(
+            profile = profile,
+            startup = startup,
+            opponent = choice.opponent,
+            clock = clock,
+            onPersist = gate.persist,
+            // The key is derived from the profile the *match* was played with, not from the gate,
+            // whose profile the credit has already replaced by the time this runs. Both name the
+            // same queue — neither key is built from anything a match changes — and using the one
+            // in hand says so rather than relying on it.
+            onTranscript = { reporter.report(queueKeyFor(profile, account), it) },
+            onExit = { onNavigate(Screen.OPPONENTS) },
+        )
     }
 }
 

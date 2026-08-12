@@ -95,7 +95,8 @@ would be a second place for the same fact to be written differently. "Who plays 
 scan over 85 rows.
 
 A **free-play format admitting every released block** is one row like any other, and is the default
-a new player lands in — see the open questions.
+a new player lands in. Decided and authored — see § Decided, 2026-08-12, which also records what its
+rule pool costs.
 
 The three existing loaders — `loadCardCatalog`, `loadNpcCatalog`, `loadCampaigns` — gain a fourth
 beside them, and `Roulette.pools`, which is a `Map<CardCollection, List<String>>` compiled into
@@ -401,6 +402,8 @@ written until this document is agreed, or it will be written twice.
   deck — chosen at character creation from the released blocks. See § The starter pack.
 - **Formats live in data**, in `formats.json` beside `campaigns.json`, and opponents declare which
   they play. See § Formats live in data.
+- **Ownership is not gated by set, a deck may mix sets, and free play draws the union of the
+  pools.** See § Decided, 2026-08-12.
 
 ## Where this stands
 
@@ -411,7 +414,7 @@ it is what everything below is waiting on.
 |---|---|
 | Card ids as `(block << 8) \| number` | ✅ `:core` 0.2.0. `Card.BLOCK_SHIFT`, both tables renumbered, `CardBundleTest` holds the invariants |
 | The starter pack | ✅ client. `starters.json`, `StarterCatalog`, `StarterPack`, granted at both creation paths and repairable from the shop |
-| Formats live in data | 🔶 **transcribed, not switched** — see below |
+| Formats live in data | 🔶 **transcribed, not switched** — see below. All three authored, `free-play` included |
 | `MODE` goes away | ❌ not started |
 
 **What "transcribed, not switched" means.** `formats.json` and `FormatCatalog` exist and ship, but
@@ -430,28 +433,35 @@ and no flag turns it on — so a format naming it would promise a rule it cannot
 validator refuses it, by asking `GameRules.withRuleKey` whether the key changes anything, because
 `RuleKeys` is `internal` to `:core`.
 
-## Open
+## Decided, 2026-08-12 — the three that were open
 
-Still unanswered, and **question 3 now blocks authored content** rather than only design: the
-free-play format proposed there is the one format whose rule pool nobody has decided, so it could
-not be written into `formats.json` with the other two.
+1. **A set does not gate ownership.** A booster from set X yields cards of set X, and nothing stops
+   a player owning cards from every set. Restriction is the *match's* job — which is this document's
+   whole premise, and keeping ownership per-set would reintroduce exactly the per-character state
+   the format model exists to remove.
+2. **A deck may mix sets**, and is simply illegal in a single-set format. Refusing to *save* one
+   would punish building ahead of a set's release, and the machinery to refuse it at play time
+   already exists: `PveMatch.playableDecks` filters on completeness, resolvability and
+   `Deck.isAffordable` live, and a format check joins that list.
+3. **Free play takes the union of the pools.** `free-play` admits every released block and may draw
+   any rule either single-set format can. Authored, and shipping.
 
-The union of the two pools is not the answer. `Board.elements()` draws from the **eight FFVIII
-elements**, and an FFXIV card's `type` is a *group* — `beast`, `scions`, `garlean`, `primals` — not
-an element. So an FFXIV card on an elemental tile can only ever take the −1: it cannot match, in
-principle, on any tile. Elemental in a mixed format would be a rule that penalises half the cards in
-the pool and rewards none of them. That is document 20's `element`/`group` split, arriving as a
-concrete bug rather than a modelling preference — which is the argument for settling 20 alongside
-this one.
+### The consequence of 3, written down rather than left to be discovered
 
-1. **Does a set gate ownership at all?** Proposal: no. A booster from set X yields cards of set X,
-   but nothing stops a player owning cards from every set. Restriction is the match's job.
-2. **Can a deck mix sets?** Proposal: yes, and it is simply illegal in single-set formats. The
-   alternative — refusing to save a mixed deck — punishes building ahead of a format's release.
-3. **What is the default format?** Proposal: one admitting every released block, so a new player has
-   somewhere to play before any tournament exists. Its blocks are then a function of `released_at`
-   rather than a literal list, which is the one place a format is not purely authored data — worth
-   naming, because "every released set" changes meaning on the day a set ships.
+`RULE_ELEMENTAL` is in that union. `Board.elements()` draws from the eight **FFVIII** elements, and
+an FFXIV card's `type` is a *group* — `beast`, `scions`, `garlean`, `primals` — not an element. So
+under Elemental in a mixed format **an FFXIV card can only ever take the −1**: it cannot match, in
+principle, on any tile.
+
+The alternatives are worse in ways that compound. An *intersection* of the pools is correct forever
+but shrinks every time a set ships, so free play would get duller as the game got bigger. A
+hand-maintained exception list — "the union, minus the type rules" — is precisely the thing nobody
+remembers to update when the next type rule arrives.
+
+It stops being lopsided when document 20 splits `Card.type` into a shared `element` and a per-set
+`group`. That is the proper fix, it is a different piece of work, and until it lands this is a known
+rough edge rather than a bug to hunt. Stated in `FormatCatalog`'s KDoc and in `formats.json` itself,
+so whoever meets it finds the reason beside it.
 
 ## What to test
 

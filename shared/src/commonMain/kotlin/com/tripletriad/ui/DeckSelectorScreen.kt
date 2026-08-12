@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tripletriad.data.CardCatalog
+import com.tripletriad.data.Format
 import com.tripletriad.data.PveMatches
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
@@ -84,6 +85,7 @@ fun deckChoiceTestTag(index: Int): String = "deck-choice-$index"
 internal fun DeckSelectorScreen(
     profile: GameSave,
     catalog: CardCatalog,
+    format: Format,
     npc: Npc,
     rules: GameRules,
     onChoose: (List<Int>) -> Unit,
@@ -91,11 +93,11 @@ internal fun DeckSelectorScreen(
     random: Random = Random.Default,
 ) {
     val strings = LocalStrings.current
-    val cards = remember(catalog, profile.mode) {
-        catalog.collection(profile.mode).associateBy { it.id }
+    val cards = remember(catalog, format) {
+        catalog.admittedBy(format).associateBy { it.id }
     }
-    val decks = remember(profile.decks, catalog, profile.mode) {
-        PveMatches.playableDecks(profile, catalog)
+    val decks = remember(profile.decks, catalog, format) {
+        PveMatches.playableDecks(profile, catalog, format)
     }
     var selected by remember(decks) { mutableStateOf(if (decks.isEmpty()) null else 0) }
 

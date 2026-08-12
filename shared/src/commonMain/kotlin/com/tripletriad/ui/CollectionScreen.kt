@@ -8,6 +8,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import com.tripletriad.data.CardCatalog
+import com.tripletriad.data.Format
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.GameSave
@@ -58,6 +59,7 @@ internal enum class CollectionTab {
 internal fun CollectionScreen(
     profile: GameSave,
     catalog: CardCatalog,
+    format: Format,
     initial: CollectionTab,
     onPersist: suspend (GameSave) -> Unit,
     onBack: () -> Unit,
@@ -85,11 +87,16 @@ internal fun CollectionScreen(
         )
 
         when (tab) {
-            CollectionTab.CARDS -> CardListBody(profile = profile, catalog = catalog)
+            CollectionTab.CARDS -> CardListBody(
+                profile = profile,
+                catalog = catalog,
+                format = format,
+            )
 
             CollectionTab.DECKS -> DecksBody(
                 profile = profile,
                 catalog = catalog,
+                format = format,
                 editing = editing,
                 onEdit = { editing = it },
                 onPersist = onPersist,

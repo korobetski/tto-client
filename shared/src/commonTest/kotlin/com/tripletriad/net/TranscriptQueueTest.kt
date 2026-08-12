@@ -1,6 +1,5 @@
 package com.tripletriad.net
 
-import com.tripletriad.model.CardCollection
 import com.tripletriad.protocol.AppVersion
 import com.tripletriad.protocol.MatchReceipt
 import com.tripletriad.protocol.MatchSubmitter
@@ -278,7 +277,7 @@ class TranscriptQueueTest {
 
     private fun transcript(seed: Int) = MatchTranscript(
         seed = seed,
-        collection = CardCollection.FF14,
+        formatId = "ff14",
         opponentIconId = "tt-master",
         deck = listOf(1, 2, 3, 4, 5),
         ownedCards = (1..5).associateWith { 1 },

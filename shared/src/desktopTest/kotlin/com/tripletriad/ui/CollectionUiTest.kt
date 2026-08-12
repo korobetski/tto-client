@@ -8,9 +8,10 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.v2.runComposeUiTest
+import com.tripletriad.FF14_BLOCK
+import com.tripletriad.FF8_BLOCK
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.Card
-import com.tripletriad.model.CardCollection
 import com.tripletriad.model.GameSave
 import kotlin.test.Test
 import kotlin.test.assertFalse
@@ -25,8 +26,8 @@ import kotlin.test.assertTrue
  */
 @OptIn(ExperimentalTestApi::class)
 class CollectionUiTest {
-    private fun ComposeUiTest.openCards(collection: CardCollection = CardCollection.FF14) {
-        newCharacter(collection)
+    private fun ComposeUiTest.openCards(block: Int = FF14_BLOCK) {
+        newCharacter(block)
         openFromBar("cards", CARD_GRID_TEST_TAG)
     }
 
@@ -37,7 +38,7 @@ class CollectionUiTest {
         openCards()
 
         onNodeWithTag(CARD_TOTAL_TEST_TAG).assertTextEquals(
-            "Owned$DOT_SEPARATOR${STARTER_CARDS.size} / $FF14_CARDS",
+            "Owned$DOT_SEPARATOR${STARTER_CARDS.size} / $ALL_CARDS",
         )
     }
 
@@ -89,31 +90,31 @@ class CollectionUiTest {
     }
 
     /**
-     * An ff8 profile browses the ff8 table.
+     * Whichever box a character opened, it browses the whole table.
      *
-     * Card ids index whichever table `MODE` names, so showing the other collection's card for an id
-     * would be showing a different card entirely.
+     * The count is the starter's ten out of both tables: a card an FFVIII character does not own is
+     * still a card that exists, and the browser's job is to show what there is to want.
      */
     @Test
-    fun anFf8CharacterBrowsesTheFf8Table() = runComposeUiTest {
+    fun everyCharacterBrowsesOneTable() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
-        openCards(CardCollection.FF8)
+        openCards(FF8_BLOCK)
 
         onNodeWithTag(CARD_TOTAL_TEST_TAG).assertTextEquals(
-            "Owned$DOT_SEPARATOR${STARTER_CARDS.size} / $FF8_CARDS",
+            "Owned$DOT_SEPARATOR${STARTER_CARDS.size} / $ALL_CARDS",
         )
-        // Past the end of the ff8 table, so an ff8 profile must not be shown it.
-        val found = runCatching {
-            onNodeWithTag(CARD_GRID_TEST_TAG)
-                .performScrollToNode(hasTestTag(cardCellTestTag(FF14_ONLY_CARD)))
-        }
-        assertTrue(found.isFailure, "card $FF14_ONLY_CARD is outside the ff8 table")
+        // This replaces an assertion that an FFVIII character could *not* reach an FFXIV card.
+        // That was `MODE`, and it is the thing document 19 removed: the card is in the table, not
+        // owned, and buying it is now a legal ambition rather than an impossibility.
+        onNodeWithTag(CARD_GRID_TEST_TAG)
+            .performScrollToNode(hasTestTag(cardCellTestTag(FF14_ONLY_CARD)))
+        onNodeWithTag(cardCellTestTag(FF14_ONLY_CARD)).assertExists()
     }
 
     /**
      * A second copy is a badge on the one cell, not a second cell — see `CardListBody`.
      *
-     * Both halves matter: absent at one copy, because "x1" on 153 cells is noise, and the total
+     * Both halves matter: absent at one copy, because "x1" on every cell is noise, and the total
      * still counts distinct cards, because owning two of something is not owning two more cards.
      */
     @Test
@@ -133,14 +134,19 @@ class CollectionUiTest {
         onNodeWithTag(cardCopiesTestTag(twin), useUnmergedTree = true).assertTextEquals("\u00d73")
         assertFalse(existsUnmerged(cardCopiesTestTag(single)), "one copy carries no badge")
         onNodeWithTag(CARD_TOTAL_TEST_TAG).assertTextEquals(
-            "Owned$DOT_SEPARATOR${STARTER_CARDS.size} / $FF14_CARDS",
+            "Owned$DOT_SEPARATOR${STARTER_CARDS.size} / $ALL_CARDS",
         )
     }
 
     private companion object {
-        /** `CardBundleTest`'s counts, which is where the two tables' sizes are pinned. */
-        const val FF14_CARDS = 153
-        const val FF8_CARDS = 110
+        /**
+         * Both tables, because the screen shows one.
+         *
+         * `CardBundleTest` pins the two halves — 153 and 110 — and this is their sum. It is the
+         * whole table now: the browser lists what the *format* admits, and the format the app plays
+         * is the widest one. It used to list what `MODE` named.
+         */
+        const val ALL_CARDS = 263
 
         /** An ff14 card the starter does not include. */
         val UNOWNED_CARD = Card.idFor(block = 1, number = 44)

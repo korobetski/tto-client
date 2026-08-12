@@ -58,8 +58,9 @@ class StringsBundleTest {
 
     @Test
     fun theImportedBundlesStillHoldTheirFullKeySets() {
-        // Counts measured from `sources/bin/datas/locales/` after duplicate resolution. A change
-        // here means a re-import changed the data, which is fine — but it should be deliberate.
+        // Counts measured from `sources/bin/datas/locales/` after duplicate resolution, plus what
+        // this port has added on top. A change here means a re-import changed the data, or content
+        // was authored — either is fine, but it should be deliberate.
         for ((locale, expected) in TRANSLATED_KEYS) {
             assertEquals(expected, loaded.getValue(locale).translatedKeys.size, locale.tag)
         }
@@ -138,7 +139,7 @@ class StringsBundleTest {
          * Keys defined by any of the four bundles: `import_locales.py`'s union of 691 imported
          * strings plus the 140 `APP_*` strings this port authored.
          */
-        const val UNION_KEYS = 831
+        const val UNION_KEYS = 844
 
         /**
          * Imported key count plus however many `APP_*` strings that locale translates: 687 + 140,
@@ -151,11 +152,21 @@ class StringsBundleTest {
          * server list and its update notice, and the tutorial's nine lines, which the AS3 held as
          * English string literals inside `TutorialScreen` with no key anywhere.
          */
+        /**
+         * ### What the three FFVIII packs added
+         *
+         * `STR_GALBADIAN_BOOSTER`, `STR_GUARDIAN_FORCE_BOOSTER` and `STR_CHARACTER_BOOSTER` are in
+         * **all four** bundles, unlike every other string this port has written. They are pack
+         * names — proper nouns of a kind the imported bundles already carry nine of — so leaving
+         * German and Japanese to fall back to English would have put two naming conventions in one
+         * shop. The seven `APP_PACK_*` strings and the three descriptions follow the ordinary rule
+         * and are English and French only.
+         */
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 827,
-            AppLocale.FR_FR to 828,
-            AppLocale.DE_DE to 647,
-            AppLocale.JA_JA to 680,
+            AppLocale.EN_US to 840,
+            AppLocale.FR_FR to 841,
+            AppLocale.DE_DE to 650,
+            AppLocale.JA_JA to 683,
         )
 
         /**
@@ -170,9 +181,9 @@ class StringsBundleTest {
         val EXPECTED_GAPS = mapOf(
             AppLocale.EN_US to 4,
             AppLocale.FR_FR to 3,
-            // 44 imported keys short, plus all 140 app-owned; and 11 short, plus the 140.
-            AppLocale.DE_DE to 184,
-            AppLocale.JA_JA to 151,
+            // 44 imported keys short, plus all 150 app-owned; and 11 short, plus the 150.
+            AppLocale.DE_DE to 194,
+            AppLocale.JA_JA to 161,
         )
     }
 }

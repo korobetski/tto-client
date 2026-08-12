@@ -2,6 +2,7 @@ package com.tripletriad.ui
 
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.v2.runComposeUiTest
@@ -197,6 +198,46 @@ class QuestsUiTest {
             PLAY_THREE in storedSave(documents).quests.completed,
             "the quest was announced and not recorded",
         )
+    }
+
+    /**
+     * The header says which UTC day these are, and that they reset at midnight.
+     *
+     * A reset a player cannot see coming looks like lost progress. The day is shown rather than a
+     * countdown because nothing on this screen ticks — see `StringKeys.QUESTS_RESET`.
+     */
+    @Test
+    fun theHeaderNamesTheDayAndTheReset() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        newCharacter()
+        openQuests()
+
+        onNodeWithTag(QUESTS_RESET_TEST_TAG)
+            .assertTextContains(questDayOf(FixedClock.DEFAULT_MILLIS), substring = true)
+    }
+
+    /**
+     * A record pinned to ids the catalogue no longer knows reads as empty, not as a blank list.
+     *
+     * Reachable from a save written by a later build whose catalogue was then cut back — the one
+     * state `statuses` answers with nothing, since it drops what it cannot resolve rather than
+     * rendering a row with no quest behind it.
+     */
+    @Test
+    fun aRecordOfUnknownQuestsReadsAsEmpty() = runComposeUiTest {
+        val save = GameSave.new(createdAt = CREATED_AT).copy(
+            quests = DailyQuests(
+                day = questDayOf(FixedClock.DEFAULT_MILLIS),
+                questIds = listOf("q-from-a-later-build"),
+            ),
+        )
+        val documents = seeded(save)
+        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openFromDashboard(DASHBOARD_QUESTS_TEST_TAG, QUESTS_NONE_TEST_TAG)
+
+        onNodeWithTag(QUESTS_NONE_TEST_TAG).assertExists()
+        onNodeWithTag(QUESTS_LIST_TEST_TAG).assertDoesNotExist()
     }
 
     private companion object {

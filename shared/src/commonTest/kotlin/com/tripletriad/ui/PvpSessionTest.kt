@@ -1,6 +1,5 @@
 package com.tripletriad.ui
 
-import com.tripletriad.model.CardCollection
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.GameRules
 import com.tripletriad.net.PvpClient
@@ -218,7 +217,7 @@ class PvpSessionTest {
         side = CardColor.BLUE,
         opponentName = "Kuplu",
         rules = GameRules(),
-        collection = CardCollection.FF14,
+        formatId = "ff14",
         cells = List(BOARD) { null },
         elements = List(BOARD) { null },
         hand = listOf(257, 258, 259, 260, 261),

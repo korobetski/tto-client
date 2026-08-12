@@ -57,6 +57,7 @@ class ArtworkUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
         openOpponents()
+        scrollToOpponent(TEST_OPPONENT)
 
         assertTrue(
             existsUnmerged(portraitTestTag(TEST_OPPONENT)),

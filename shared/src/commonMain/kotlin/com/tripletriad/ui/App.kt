@@ -539,25 +539,31 @@ private fun CharacterDestination(
         )
 
         Screen.OPPONENTS -> startup.opponents?.let { opponents ->
+            // The format ordinary matches are played in: the widest one, which with `MODE` gone
+            // is every released block. When a player picks a format this becomes their choice.
+            val formatId = startup.formats?.default?.id ?: return@let
+
             OpponentScreen(
                 profile = profile,
                 catalog = opponents,
+                formatId = formatId,
                 // The card table too, since a row now draws the cards its opponent can drop. An
                 // empty map before the catalog has loaded, which costs the drop lines for the one
                 // frame that state can reach this screen — the startup gate makes it unreachable
                 // in practice, and an opponent list is worth more than a spinner in front of it.
-                cards = startup.catalog
-                    ?.collection(profile.mode)
-                    ?.associateBy { it.id }
-                    .orEmpty(),
+                cards = startup.catalog?.all?.associateBy { it.id }.orEmpty(),
                 hour = clock.localHour(),
                 onChallenge = {
                     choice.opponent = it
                     onNavigate(Screen.MATCH)
                 },
                 onTutorial = { onNavigate(Screen.TUTORIAL) },
-                // One entry, in practice: each collection has exactly one — see `CampaignPanel`.
-                campaigns = startup.campaigns?.forCollection(profile.mode).orEmpty(),
+                // **Every** ladder, not the ones playing this format. A ladder *is* a format plus
+                // a list of opponents — the FFXIV Cup is played with FFXIV cards under the FFXIV
+                // pool — so filtering them by the format the free matches use would hide all of
+                // them, which is exactly what happened when that format became the union. Entering
+                // a ladder switches to the ladder's own format; see [CampaignDestination].
+                campaigns = startup.campaigns?.all.orEmpty(),
                 onCampaign = {
                     choice.campaign = it
                     onNavigate(Screen.CAMPAIGN)
@@ -591,6 +597,7 @@ private fun CharacterDestination(
             starters = starters,
             at = clock.nowMillis(),
             opponents = startup.opponents,
+            formatId = startup.formats?.default?.id,
             gate = gate,
             onNavigate = onNavigate,
         )
@@ -616,6 +623,7 @@ private fun CharacterDestination(
                     profile = profile,
                     catalog = catalog,
                     starters = starters,
+                    startup = startup,
                     onPersist = gate.persist,
                     onBack = toDashboard,
                 )
@@ -755,6 +763,7 @@ private fun RecordDestination(
     starters: StarterCatalog,
     at: Long,
     opponents: NpcCatalog?,
+    formatId: String?,
     gate: ProfileGate,
     onNavigate: (Screen) -> Unit,
 ) {
@@ -769,10 +778,13 @@ private fun RecordDestination(
             profile = profile,
             at = at,
             opponents = opponents,
+            // Only to name the opponent a `BeatOpponent` quest asks for, so an unresolvable format
+            // costs the name and not the screen — the label falls back to the icon id.
+            formatId = formatId.orEmpty(),
             onBack = { onNavigate(Screen.DASHBOARD) },
         )
 
-        Screen.COLLECTION_CHOICE -> CollectionChoiceScreen(
+        Screen.COLLECTION_CHOICE -> StarterChoiceScreen(
             profile = profile,
             starters = starters,
             onChosen = { chosen ->
@@ -811,12 +823,16 @@ private fun MatchDestination(
 ) {
     val chosen = opponent ?: return
     val catalog = startup.catalog ?: return
+    // The format this match is played under: the widest one, the same the roster was listed in.
+    // Behind the splash, so a missing catalogue is unreachable rather than a degraded mode.
+    val format = startup.formats?.default ?: return
 
     MatchArt(startup) {
         MatchScreen(
             catalog = catalog,
             profile = profile,
             npc = chosen,
+            format = format,
             clock = clock,
             onPersist = onPersist,
             onExit = onExit,
@@ -865,12 +881,18 @@ private fun CampaignDestination(
             onBack = toOpponents,
         )
     } else {
-        startup.catalog?.let { catalog ->
+        val catalog = startup.catalog
+        // **The ladder's own** format, and not the one free matches use. A ladder names the format
+        // its rungs are played under — that is what `Campaign.format` is for — so the FFXIV Cup is
+        // FFXIV cards under the FFXIV pool however wide the free-play format happens to be.
+        val format = startup.formats?.get(ladder.format)
+        if (catalog != null && format != null) {
             MatchArt(startup) {
                 CampaignMatchScreen(
                     campaign = ladder,
                     catalog = catalog,
                     profile = profile,
+                    format = format,
                     clock = clock,
                     onPersist = onPersist,
                     onFinished = toOpponents,
@@ -935,13 +957,15 @@ private fun TutorialDestination(
     onNavigate: (Screen) -> Unit,
 ) {
     val catalog = startup.catalog ?: return
-    val tutor = startup.opponents?.let { tutorFor(it, profile.mode) } ?: return
+    val format = startup.formats?.default ?: return
+    val tutor = startup.opponents?.let { tutorFor(it, format.id) } ?: return
 
     MatchArt(startup) {
         TutorialScreen(
             catalog = catalog,
             profile = profile,
             tutor = tutor,
+            format = format,
             clock = clock,
             onPersist = onPersist,
             onHelp = { onNavigate(Screen.HELP) },
@@ -984,13 +1008,19 @@ private fun CollectionDestination(
     profile: GameSave,
     catalog: CardCatalog,
     starters: StarterCatalog,
+    startup: StartupState,
     onPersist: suspend (GameSave) -> Unit,
     onBack: () -> Unit,
 ) {
+    // The shelf is a property of the format, not of the character — see `ShopCatalog.offers`.
+    // Resolved here rather than one level up so the browse arm stays a single `?.let`.
+    val format = startup.formats?.default ?: return
+
     when (destination) {
         Screen.CARDS, Screen.DECKS -> CollectionScreen(
             profile = profile,
             catalog = catalog,
+            format = format,
             initial = if (destination == Screen.DECKS) {
                 CollectionTab.DECKS
             } else {
@@ -1004,6 +1034,7 @@ private fun CollectionDestination(
             profile = profile,
             catalog = catalog,
             starters = starters,
+            format = format,
             initial = if (destination == Screen.INVENTORY) StoreTab.BAG else StoreTab.SHOP,
             onPersist = onPersist,
             onBack = onBack,

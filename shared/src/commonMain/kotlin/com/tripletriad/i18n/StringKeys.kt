@@ -226,6 +226,24 @@ object StringKeys {
     const val STARTER_PACK: String = "APP_STARTER_PACK"
     const val STARTER_PACK_DESC: String = "APP_STARTER_PACK_DESC"
 
+    /**
+     * The four lines of the pack reveal — see [com.tripletriad.ui.PackRevealScreen].
+     *
+     * No AS3 equivalent: a pack there was one card and one `APP_OBTAINED` line. The wording is
+     * instruction rather than progress — "3 of 5" would tell a player what the grid already shows.
+     */
+    const val PACK_SEALED: String = "APP_PACK_SEALED"
+    const val PACK_BREAK_SEAL: String = "APP_PACK_BREAK_SEAL"
+    const val PACK_SPENT: String = "APP_PACK_SPENT"
+    const val PACK_REVEAL: String = "APP_PACK_REVEAL"
+    const val PACK_TO_COLLECTION: String = "APP_PACK_TO_COLLECTION"
+
+    /** `{0}` is the star count a pack's guaranteed slot can never fall below. */
+    const val PACK_GUARANTEE: String = "APP_PACK_GUARANTEE"
+
+    /** `{0}` is the percentage chance a pack holds at least one five-star. */
+    const val PACK_ODDS: String = "APP_PACK_ODDS"
+
     /** The price of the one thing on the shelf that has none. */
     const val FREE: String = "APP_FREE"
 
@@ -477,6 +495,8 @@ object StringKeys {
         DECK, DECK_POWER, RESET_DECK, SAVE, CHOOSE_DECK, RANDOM_DECK, NO_FULL_DECK,
         USE, SELL, DISCARD, BUY, CARD_SHOP, EMPTY_BAG, OBTAINED, ALREADY_OWNED, UNKNOWN_ITEM,
         STARTER_PACK, STARTER_PACK_DESC, FREE, CLAIM,
+        PACK_SEALED, PACK_BREAK_SEAL, PACK_SPENT, PACK_REVEAL, PACK_TO_COLLECTION,
+        PACK_GUARANTEE, PACK_ODDS,
         ACHIEVEMENTS_LIST, FORFEITS, MATCHES, WIN_RATE, BOONS, NO_ACHIEVEMENT, NEXT_TIER,
         QUESTS, QUESTS_RESET, QUEST_DONE, NO_QUEST,
         QUEST_PLAY_3, QUEST_WIN_1, QUEST_WIN_3, QUEST_BEAT, QUEST_RULE, QUEST_PVP_1,

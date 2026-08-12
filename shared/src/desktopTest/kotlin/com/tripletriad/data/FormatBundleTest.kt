@@ -1,60 +1,62 @@
 package com.tripletriad.data
 
+import com.tripletriad.FF14_BLOCK
+import com.tripletriad.FF14_FORMAT
+import com.tripletriad.FF8_BLOCK
+import com.tripletriad.FF8_FORMAT
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.loadStrings
-import com.tripletriad.model.CardCollection
-import com.tripletriad.model.Roulette
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
-import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * The shipped `formats.json`, and **the one assertion this whole file exists for**.
+ * The shipped `formats.json`.
  *
- * Document 19 moves the rule pools out of `:core` and into data. Today they are in both places:
- * `Roulette.pools` is what the engine actually draws from, and [FormatCatalog] is the transcription
- * that will replace it. Two copies of the same fact is a defect waiting to happen — so while both
- * exist, this test holds them to being identical.
+ * ### The assertion this file existed for is gone, and that is the good outcome
  *
- * That is what makes the eventual switch a deletion rather than a rewrite. It is also what catches
- * the failure mode in between: somebody tunes a pool in one place, ships, and the roulette draws
- * something the format says it cannot.
+ * Document 19 moves the rule pools out of `:core` and into data. For one release they were in both
+ * places — `Roulette.pools` compiled into the engine, and this catalogue as the transcription — and
+ * the central test here held them to being **identical, in order**. That is what made the switch a
+ * deletion rather than a rewrite nobody could check, and what would have caught somebody tuning a
+ * pool in one of the two places.
+ *
+ * `Roulette.pools` no longer exists. There is nothing left to compare against, so the assertion is
+ * deleted rather than weakened: a test that outlives the duplication it was guarding is a test that
+ * asserts a shipped file equals itself.
+ *
+ * What is kept is everything that is still a claim about the *content*: the pools differ from each
+ * other in the ways the sets do, the authoring rules hold, every released set is playable, and a
+ * card belongs to its own set's format.
  */
 class FormatBundleTest {
     private val formats = runBlocking { loadFormatCatalog() }
     private val cards = runBlocking { loadCardCatalog() }
 
     /**
-     * Every format's rules are exactly the pool `:core` compiles for the same set — in order.
+     * Each shipped set still has a format that admits exactly its block, and it draws something.
      *
-     * In order, not as a set: `Roulette.pools`' own KDoc says source order is preserved though no
-     * longer load-bearing, and a transcription that quietly reordered would make the two hard to
-     * diff by eye the day somebody has to.
+     * The ladders are what still need these: a campaign names the format its rungs are played
+     * under, and one that resolved to nothing would be an entry fee taken for a match that cannot
+     * be dealt. Ordinary matches use [FormatCatalog.default] and would survive their absence.
      */
     @Test
-    fun everyFormatsRulesAreThePoolTheEngineCompiles() {
-        for (collection in CardCollection.entries) {
-            val format = assertNotNull(
-                formats.forCollection(collection),
-                "no format admits exactly ${collection.slug}'s block",
-            )
+    fun eachSetHasASingleSetFormatThatDrawsSomething() {
+        for ((id, block) in listOf(FF14_FORMAT to FF14_BLOCK, FF8_FORMAT to FF8_BLOCK)) {
+            val format = assertNotNull(formats[id], "$id is not authored")
 
-            assertContentEquals(
-                Roulette.pool(collection),
-                format.rules,
-                "${format.id} has drifted from Roulette.pools[${collection.name}]",
-            )
+            assertEquals(listOf(block), format.blocks, "$id should admit block $block alone")
+            assertTrue(format.rules.isNotEmpty(), "$id has nothing to draw")
         }
     }
 
     /** And the transcription is not vacuous: the two pools really do differ from each other. */
     @Test
     fun theTwoPoolsAreNotTheSame() {
-        val ff14 = assertNotNull(formats.forCollection(CardCollection.FF14)).rules
-        val ff8 = assertNotNull(formats.forCollection(CardCollection.FF8)).rules
+        val ff14 = assertNotNull(formats[FF14_FORMAT]).rules
+        val ff8 = assertNotNull(formats[FF8_FORMAT]).rules
 
         assertTrue("RULE_ELEMENTAL" in ff8 && "RULE_ELEMENTAL" !in ff14, "Elemental is FF8-only")
         assertTrue("RULE_SAME_WALL" in ff8 && "RULE_SAME_WALL" !in ff14, "Same Wall is FF8-only")
@@ -83,10 +85,10 @@ class FormatBundleTest {
     /** A card belongs to the format that admits its block, and to no other. */
     @Test
     fun aCardIsAdmittedByItsOwnSetsFormat() {
-        val ff14 = assertNotNull(formats.forCollection(CardCollection.FF14))
-        val ff8 = assertNotNull(formats.forCollection(CardCollection.FF8))
-        val dodo = cards.block(CardCollection.FF14.block).first().id
-        val geezard = cards.block(CardCollection.FF8.block).first().id
+        val ff14 = assertNotNull(formats[FF14_FORMAT])
+        val ff8 = assertNotNull(formats[FF8_FORMAT])
+        val dodo = cards.block(FF14_BLOCK).first().id
+        val geezard = cards.block(FF8_BLOCK).first().id
 
         assertTrue(ff14.admitsCard(dodo))
         assertTrue(!ff14.admitsCard(geezard))

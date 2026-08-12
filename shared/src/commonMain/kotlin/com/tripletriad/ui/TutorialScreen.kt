@@ -3,10 +3,10 @@ package com.tripletriad.ui
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import com.tripletriad.data.CardCatalog
+import com.tripletriad.data.Format
 import com.tripletriad.data.NpcCatalog
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.Card
-import com.tripletriad.model.CardCollection
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.MatchAiOptions
@@ -58,15 +58,16 @@ internal fun TutorialScreen(
     catalog: CardCatalog,
     profile: GameSave,
     tutor: Npc,
+    format: Format,
     clock: Clock,
     onPersist: suspend (GameSave) -> Unit,
     onHelp: () -> Unit,
     onExit: () -> Unit,
 ) {
-    val script = remember(tutor.nameKey, profile.mode) {
+    val script = remember(tutor.nameKey, format) {
         MatchScript(
             speakerKey = tutor.nameKey,
-            deck = tutorialDeck(profile.mode),
+            deck = tutorialDeck(),
             firstPlayer = CardColor.RED,
             turnLimit = TUTORIAL_TURN_LIMIT,
             aiOptions = MatchAiOptions.TUTOR,
@@ -77,6 +78,7 @@ internal fun TutorialScreen(
         catalog = catalog,
         profile = profile,
         npc = tutor,
+        format = format,
         clock = clock,
         onPersist = onPersist,
         onExit = onExit,
@@ -95,8 +97,8 @@ internal fun TutorialScreen(
  * Null only for an empty table, which `NpcBundleTest` rules out; the caller shows nothing rather
  * than crashing, on the same footing as the rest of [App]'s `?.let` chain.
  */
-internal fun tutorFor(catalog: NpcCatalog, collection: CardCollection): Npc? =
-    catalog.collection(collection).minByOrNull { it.id }
+internal fun tutorFor(catalog: NpcCatalog, formatId: String): Npc? =
+    catalog.playing(formatId).minByOrNull { it.id }
 
 /**
  * The nine lines, placed on the turns they were written for.
@@ -152,8 +154,18 @@ private const val PLAYER_REPLIES = 3
 private val TUTORIAL_NUMBERS = listOf(1, 3, 6, 7, 10)
 
 /** [TUTORIAL_NUMBERS] as ids in [collection]'s own set. */
-private fun tutorialDeck(collection: CardCollection): List<Int> =
-    TUTORIAL_NUMBERS.map { Card.idFor(block = collection.block, number = it) }
+/**
+ * The five cards the lesson deals the player.
+ *
+ * Fixed to the first block rather than to the character's collection, which no longer exists. The
+ * tutorial deals its own hand — the script fixes the deal — so these are not cards the player owns
+ * and never were; what matters is that the nine written lines describe them.
+ */
+private fun tutorialDeck(): List<Int> =
+    TUTORIAL_NUMBERS.map { Card.idFor(block = TUTORIAL_BLOCK, number = it) }
+
+/** The block the lesson's five cards come from. See [tutorialDeck]. */
+private const val TUTORIAL_BLOCK = 1
 
 /** `bluePlayer.timer = 60` — see [MatchScript.turnLimit] for why it is double. */
 private val TUTORIAL_TURN_LIMIT = 60.seconds

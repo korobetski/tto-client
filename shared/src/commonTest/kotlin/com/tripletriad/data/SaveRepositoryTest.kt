@@ -1,6 +1,6 @@
 package com.tripletriad.data
 
-import com.tripletriad.model.CardCollection
+import com.tripletriad.model.Card
 import com.tripletriad.model.CardItem
 import com.tripletriad.model.GameSave
 import com.tripletriad.storage.InMemoryDocumentStore
@@ -247,16 +247,24 @@ class SaveRepositoryTest {
         assertEquals(0, loaded.mgp)
     }
 
+    /**
+     * A profile owning cards from two blocks comes back owning both.
+     *
+     * This replaces a test that round-tripped `MODE`, which no longer exists. The fact worth
+     * keeping is the one underneath it: what a character *is* survives the codec. And it is worth
+     * keeping in the mixed form specifically, because a mixed collection was impossible to hold
+     * while `MODE` existed and is the ordinary case now.
+     */
     @Test
-    fun theModeSurvivesARoundTrip() = runTest {
+    fun aMixedCollectionSurvivesARoundTrip() = runTest {
         val (repository, _) = repository()
-        val ff8 = GameSave.new(mode = CardCollection.FF8, createdAt = 1)
+        val mixed = GameSave.new(createdAt = 1)
+            .withCard(Card.idFor(block = 1, number = 7))
+            .withCard(Card.idFor(block = 2, number = 7))
 
-        val written = repository.save(ff8, at = 1)
+        val written = repository.save(mixed, at = 1)
 
-        assertEquals(
-            CardCollection.FF8,
-            repository.load(SaveRepository.keyFor(written)).getOrThrow().mode,
-        )
+        val loaded = repository.load(SaveRepository.keyFor(written)).getOrThrow()
+        assertEquals(mixed.cards, loaded.cards)
     }
 }

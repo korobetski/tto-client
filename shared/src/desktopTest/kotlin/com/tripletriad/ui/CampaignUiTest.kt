@@ -7,10 +7,11 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
+import com.tripletriad.FF14_BLOCK
+import com.tripletriad.FF8_BLOCK
 import com.tripletriad.data.loadCampaignCatalog
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.loadStrings
-import com.tripletriad.model.CardCollection
 import com.tripletriad.model.GameSave
 import com.tripletriad.storage.InMemoryDocumentStore
 import kotlinx.coroutines.runBlocking
@@ -40,32 +41,38 @@ class CampaignUiTest {
         seeded(GameSave.new(createdAt = 0L).copy(mgp = goldSaucer.fee + POCKET_CHANGE))
 
     /**
-     * A character sees its own collection's ladder and not the other's.
+     * **Both ladders are offered, whichever box the character opened.**
      *
-     * `PVEScreen.as:83-96` builds each button behind its own `if (MODE == …)`; here the catalogue
-     * has already filtered, so what this pins is that the filter runs at all. Getting it wrong
-     * would offer an FF14 player a ladder of FF8 opponents they cannot meet.
+     * `PVEScreen.as:83-96` builds each button behind its own `if (MODE == …)`, and the two tests
+     * this replaces pinned that filter in both directions: an FFXIV character saw the Gold Saucer
+     * and not the Card Club, and the reverse.
+     *
+     * `MODE` is gone and the filter with it. A ladder still *names* its format — the Card Club is
+     * played with FFVIII cards under the FFVIII pool, and entering it switches to that format (see
+     * `CampaignDestination`) — but which ladders you may *enter* is no longer decided by a field on
+     * your save. Filtering them by the format free matches use would have hidden every one of them,
+     * since that format is now the union of both.
      */
     @Test
-    fun eachCollectionSeesOnlyItsOwnLadder() = runComposeUiTest {
+    fun bothLaddersAreOffered() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
-        newCharacter(CardCollection.FF14)
+        newCharacter(FF14_BLOCK)
         openOpponents()
 
         assertTrue(exists(TUTORIAL_ROW_TEST_TAG), "the lesson is in both collections")
         assertTrue(exists(campaignRowTestTag(GOLD_SAUCER)), "the Gold Saucer is the ff14 ladder")
-        assertFalse(exists(campaignRowTestTag(CARD_CLUB)), "the Card Club is the ff8 one")
+        assertTrue(exists(campaignRowTestTag(CARD_CLUB)), "the Card Club is the ff8 one")
     }
 
-    /** And the other way round, so neither assertion above can be passing by accident. */
+    /** And the box a character opened changes none of that. */
     @Test
-    fun anFf8CharacterSeesTheCardClub() = runComposeUiTest {
+    fun anFf8CharacterSeesBothToo() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
-        newCharacter(CardCollection.FF8)
+        newCharacter(FF8_BLOCK)
         openOpponents()
 
-        assertTrue(exists(campaignRowTestTag(CARD_CLUB)), "the Card Club is the ff8 ladder")
-        assertFalse(exists(campaignRowTestTag(GOLD_SAUCER)), "the Gold Saucer is the ff14 one")
+        assertTrue(exists(campaignRowTestTag(CARD_CLUB)))
+        assertTrue(exists(campaignRowTestTag(GOLD_SAUCER)))
     }
 
     /**

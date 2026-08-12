@@ -1,6 +1,5 @@
 package com.tripletriad.net
 
-import com.tripletriad.model.CardCollection
 import com.tripletriad.protocol.AppVersion
 import com.tripletriad.protocol.CURRENT_VERSION
 import com.tripletriad.protocol.MatchTranscript
@@ -267,7 +266,7 @@ class KtorMatchSubmitterTest {
 
     private val transcript = MatchTranscript(
         seed = 20260807,
-        collection = CardCollection.FF14,
+        formatId = "ff14",
         opponentIconId = "tt-master",
         deck = listOf(1, 2, 3, 4, 5),
         ownedCards = (1..5).associateWith { 1 },

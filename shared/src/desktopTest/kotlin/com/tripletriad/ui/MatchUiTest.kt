@@ -261,6 +261,7 @@ class MatchUiTest {
         onNodeWithTag(MATCH_DONE_TEST_TAG).performClick()
         awaitOpponents()
 
+        scrollToOpponent(TEST_OPPONENT)
         onNodeWithTag(opponentRowTestTag(TEST_OPPONENT)).assertExists()
     }
 

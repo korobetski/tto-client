@@ -3,7 +3,7 @@
     {
       "key": "cc",
       "nameKey": "STR_CCGROUP",
-      "collection": "ff8_",
+      "format": "ff8-standard",
       "fee": 500,
       "steps": [
         {
@@ -407,7 +407,7 @@
     {
       "key": "gs",
       "nameKey": "STR_GSGROUP",
-      "collection": "ff14_",
+      "format": "ff14-standard",
       "fee": 500,
       "steps": [
         {

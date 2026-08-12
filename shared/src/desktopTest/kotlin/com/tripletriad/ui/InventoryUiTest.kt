@@ -203,15 +203,18 @@ class InventoryUiTest {
     }
 
     /**
-     * Opening a pack yields a **bag entry**, not a collection card.
+     * Opening a pack turns its cards over, and they land in the **bag** rather than the collection.
      *
-     * That is the original's behaviour and the whole point of a pack: what comes out can be used or
-     * sold. See `ItemUse.PackOpened`. The drawn id is not pinned — `App` uses the default random —
-     * so what is asserted is the shape: the pack is gone, a card item took its place, and the
-     * screen says which.
+     * That second half is the original's behaviour and the whole point of a pack: what comes out
+     * can be used or sold. See `ItemUse.PackOpened`.
+     *
+     * The first half is new. A pack deals [BoosterType.size] cards now, and they are revealed one
+     * tap at a time on [PackRevealScreen] — so the note this test used to look for is gone, and
+     * what it looks for instead is the reveal, the right number of face-down slots, and the way
+     * out. The drawn ids are not pinned: `App` uses the default random.
      */
     @Test
-    fun openingAPackPutsACardInTheBagAndSaysWhich() = runComposeUiTest {
+    fun openingAPackRevealsItsCardsAndPutsThemInTheBag() = runComposeUiTest {
         val documents = seeded(withBag())
         setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openBag(documents)
@@ -219,16 +222,35 @@ class InventoryUiTest {
 
         select(BoosterItem(BoosterType.BRONZE))
         onNodeWithTag(INVENTORY_USE_TEST_TAG).performClick()
-        waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
-            Inventory.count(storedSave(documents), BoosterItem(BoosterType.BRONZE)) == 0
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PACK_REVEAL_TEST_TAG) }
+
+        // Every card is on screen from the start, face down. Turning them over is the player's.
+        //
+        // Unmerged: the whole screen is one `clickable` — a tap anywhere reveals the next card —
+        // and Compose folds the slots' semantics into it. See `existsUnmerged`.
+        for (slot in 0 until BoosterType.BRONZE.size) {
+            onNodeWithTag(packSlotTestTag(slot), useUnmergedTree = true).assertExists()
         }
+        assertFalse(
+            existsUnmerged(packSlotTestTag(BoosterType.BRONZE.size)),
+            "no slot past the pack's size",
+        )
+
+        repeat(BoosterType.BRONZE.size + 1) {
+            onNodeWithTag(PACK_REVEAL_ACTION_TEST_TAG).performClick()
+        }
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { !exists(PACK_REVEAL_TEST_TAG) }
 
         val save = storedSave(documents)
         assertEquals(cardsBefore, save.cards, "a pack must not add to the collection directly")
+        assertEquals(0, Inventory.count(save, BoosterItem(BoosterType.BRONZE)), "the pack is spent")
         val drawn = save.bag.filterIsInstance<CardItem>()
             .filter { it.cardId in BoosterType.BRONZE.pool }
-        assertTrue(drawn.isNotEmpty(), "the pack should have yielded one of its pool: ${save.bag}")
-        onNodeWithTag(INVENTORY_NOTE_TEST_TAG).assertExists()
+        assertEquals(
+            BoosterType.BRONZE.size,
+            drawn.sumOf { it.stack },
+            "every card the pack dealt should be in the bag: ${save.bag}",
+        )
     }
 
     /** A potion raises its boon rather than doing anything to the collection. */

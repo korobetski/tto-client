@@ -35,6 +35,7 @@ import com.tripletriad.audio.AudioPlayer
 import com.tripletriad.audio.LocalAudio
 import com.tripletriad.audio.Sound
 import com.tripletriad.data.CardCatalog
+import com.tripletriad.data.Format
 import com.tripletriad.data.MatchPlan
 import com.tripletriad.data.MatchReward
 import com.tripletriad.data.MatchRewards
@@ -183,6 +184,7 @@ internal fun MatchScreen(
     catalog: CardCatalog,
     profile: GameSave,
     npc: Npc,
+    format: Format,
     clock: Clock,
     onPersist: suspend (GameSave) -> Unit,
     onExit: () -> Unit,
@@ -229,7 +231,7 @@ internal fun MatchScreen(
     // (`BaseMatchScreen.as:120-135`). Drawn once and passed into `assemble`, which would otherwise
     // roll the roulette a second time and play under rules the player was never shown.
     val rules = remember(matchIndex, npc.iconId) {
-        PveMatches.rulesFor(npc, profile.mode, random)
+        PveMatches.rulesFor(npc, format, random)
     }
 
     /*
@@ -266,6 +268,7 @@ internal fun MatchScreen(
             catalog = catalog,
             npc = npc,
             rules = rules,
+            format = format,
             onChoose = { deck = it },
             onBack = onExit,
             // `sideRandom`, not the match generator: the Random button draws before the deal, so
@@ -280,6 +283,7 @@ internal fun MatchScreen(
             profile = profile,
             npc = npc,
             catalog = catalog,
+            format = format,
             random = random,
             plan = MatchPlan(rules, chosen),
             forcedFlip = script.flip(),
@@ -422,6 +426,7 @@ internal fun MatchScreen(
             // which is indistinguishable from being caught cheating.
             unrepeatable = unrepeatable,
             seed = seed,
+            formatId = format.id,
             profile = profile,
             npc = npc,
             deck = chosen,
@@ -556,6 +561,7 @@ private suspend fun reportTranscript(
     onTranscript: suspend (MatchTranscript) -> Unit,
     unrepeatable: Boolean,
     seed: Int,
+    formatId: String,
     profile: GameSave,
     npc: Npc,
     deck: List<Int>,
@@ -565,7 +571,7 @@ private suspend fun reportTranscript(
     onTranscript(
         MatchTranscript(
             seed = seed,
-            collection = profile.mode,
+            formatId = formatId,
             opponentIconId = npc.iconId,
             deck = deck,
             // Stated by the client, which is backwards and known to be — the server will hold the

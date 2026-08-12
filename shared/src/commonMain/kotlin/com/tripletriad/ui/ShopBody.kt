@@ -21,14 +21,19 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.tripletriad.data.BoosterPricing
 import com.tripletriad.data.ShopCatalog
 import com.tripletriad.data.ShopOffer
 import com.tripletriad.data.StarterCatalog
 import com.tripletriad.data.StarterPack
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
+import com.tripletriad.i18n.Strings
+import com.tripletriad.model.BoosterItem
 import com.tripletriad.model.Card
 import com.tripletriad.model.GameSave
+import com.tripletriad.model.Item
+import kotlin.math.roundToInt
 
 const val SHOP_LIST_TEST_TAG: String = "shop-list"
 const val SHOP_BUY_TEST_TAG: String = "shop-buy"
@@ -42,6 +47,33 @@ const val SHOP_NOTE_TEST_TAG: String = "shop-note"
 
 /** `shop-offer-<slug>` — the offer's item, since no item is on either shelf twice. */
 fun shopOfferTestTag(offer: ShopOffer): String = "shop-offer-${itemSlug(offer.item)}"
+
+/** `shop-odds-<slug>` — the guarantee-and-odds line, present only on a pack. */
+fun shopOddsTestTag(offer: ShopOffer): String = "shop-odds-${itemSlug(offer.item)}"
+
+/**
+ * `One card 4★ or better, guaranteed · ★5 chance 63%`, or null for anything that is not a pack.
+ *
+ * Derived from the pool on every composition rather than authored per pack: a description that
+ * said "one guaranteed three-star" would be a sentence somebody has to remember to change, and two
+ * of the shipped pools cannot honour that claim anyway — Bronze's whole pool tops out at three
+ * stars. See [com.tripletriad.data.BoosterPricing.guaranteedFloor].
+ */
+@Composable
+private fun packTerms(strings: Strings, item: Item, cards: Map<Int, Card>): String? {
+    val pack = (item as? BoosterItem)?.boosterType ?: return null
+    val odds = (BoosterPricing.fiveStarChance(pack, cards) * PERCENT).roundToInt()
+    val floor = strings.format(
+        StringKeys.PACK_GUARANTEE,
+        BoosterPricing.guaranteedFloor(pack, cards).toString(),
+    )
+    return if (odds == 0) {
+        floor
+    } else {
+        "$floor$DOT_SEPARATOR" +
+            strings.format(StringKeys.PACK_ODDS, odds.toString())
+    }
+}
 
 /**
  * What the shop sells — the original's `shopScreen`.
@@ -89,7 +121,6 @@ internal fun ColumnScope.ShopBody(
 ) {
     if (onClaimStarter != null) {
         StarterPackPanel(
-            profile = profile,
             starters = starters,
             cards = cards,
             onClaim = onClaimStarter,
@@ -128,14 +159,13 @@ internal fun ColumnScope.ShopBody(
  */
 @Composable
 private fun StarterPackPanel(
-    profile: GameSave,
     starters: StarterCatalog,
     cards: Map<Int, Card>,
     onClaim: () -> Unit,
 ) {
     val strings = LocalStrings.current
-    val granted = remember(profile.mode, starters, cards) {
-        StarterPack.forCollection(starters, profile.mode)?.deck.orEmpty().mapNotNull(cards::get)
+    val granted = remember(starters, cards) {
+        starters.starters.firstOrNull()?.deck.orEmpty().mapNotNull(cards::get)
     }
 
     Column(
@@ -240,6 +270,19 @@ private fun OfferRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            // What a pack actually promises. A row that says "five cards" and nothing else asks
+            // the player to guess its odds, and they guess wrong in whichever direction
+            // disappoints them. Both numbers come from the pool — see `BoosterPricing`.
+            packTerms(strings, offer.item, cards)?.let { terms ->
+                Text(
+                    text = terms,
+                    modifier = Modifier.testTag(shopOddsTestTag(offer)),
+                    color = MaterialTheme.colorScheme.tertiary.copy(alpha = alpha),
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
 
         Text(
@@ -259,3 +302,6 @@ private fun OfferRow(
 /** `isEnabled = false` in the original, which greyed the whole renderer. */
 private const val UNAFFORDABLE_ALPHA = 0.4f
 private const val DESCRIPTION_ALPHA = 0.6f
+
+/** A chance is shown as a whole percentage; nobody reads a pack's odds to two decimals. */
+private const val PERCENT = 100

@@ -2,6 +2,7 @@ package com.tripletriad.ui
 
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -11,7 +12,6 @@ import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.loadStrings
 import com.tripletriad.model.Card
-import com.tripletriad.model.CardCollection
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.GameRules
 import com.tripletriad.model.MatchResult
@@ -180,6 +180,45 @@ class PvpBoardUiTest {
         onNodeWithTag(PVP_RESULT_TEST_TAG).assertDoesNotExist()
     }
 
+    /**
+     * The turn line says whose turn it is, and names the opponent when it is theirs.
+     *
+     * A board with no statement of whose move it is looks, to a player waiting, exactly like a
+     * board that has stopped working.
+     */
+    @Test
+    fun theTurnLineNamesWhoseMoveItIs() = board {
+        onNodeWithTag(PVP_TURN_TEST_TAG).assertExists()
+        onNodeWithTag(PVP_BOARD_TEST_TAG).assertExists()
+    }
+
+    /** And on the other side's turn it names them, so waiting has a reason attached. */
+    @Test
+    fun theWaitingSideIsToldWhoTheyAreWaitingFor() = board(
+        view = playing().copy(playable = emptyList(), first = CardColor.RED),
+    ) {
+        onNodeWithTag(PVP_TURN_TEST_TAG).assertTextContains("Kuplu", substring = true)
+    }
+
+    /** A finished match offers a way out, and taking it clears the match. */
+    @Test
+    fun aFinishedMatchOffersAWayOut() {
+        var exited = false
+
+        board(
+            view = playing().copy(
+                status = PvpMatchStatus.FINISHED,
+                outcome = PvpOutcome(result = MatchResult.WIN, blue = 6, red = 4),
+            ),
+            onExit = { exited = true },
+        ) {
+            onNodeWithTag(PVP_DONE_TEST_TAG).performClick()
+            waitForIdle()
+        }
+
+        assertTrue(exited, "the result panel led nowhere")
+    }
+
     // ---- Harness ----------------------------------------------------------
 
     /**
@@ -188,9 +227,11 @@ class PvpBoardUiTest {
      * @param record every move the screen posts, so a test can assert on what was sent rather than
      *   on what the (mocked) server answered.
      */
+    @Suppress("LongParameterList")
     private fun board(
         view: PvpMatchView = playing(),
         record: (PvpMove) -> Unit = {},
+        onExit: () -> Unit = {},
         block: androidx.compose.ui.test.ComposeUiTest.() -> Unit,
     ) = runComposeUiTest {
         val engine = MockEngine { request ->
@@ -208,7 +249,7 @@ class PvpBoardUiTest {
         setContent {
             CompositionLocalProvider(LocalStrings provides strings) {
                 TripleTriadTheme {
-                    PvpMatchScreen(session = session, cards = catalogue, now = NOW, onExit = {})
+                    PvpMatchScreen(session = session, cards = catalogue, now = NOW, onExit = onExit)
                 }
             }
         }
@@ -225,7 +266,7 @@ class PvpBoardUiTest {
         side = CardColor.BLUE,
         opponentName = "Kuplu",
         rules = GameRules(),
-        collection = CardCollection.FF14,
+        formatId = "ff14",
         cells = List(BOARD) { null },
         elements = List(BOARD) { null },
         hand = BLUE_CARDS,

@@ -1,6 +1,8 @@
 package com.tripletriad.data
 
-import com.tripletriad.model.CardCollection
+import com.tripletriad.FF14_FORMAT
+import com.tripletriad.FF8_FORMAT
+import com.tripletriad.SINGLE_SET_FORMATS
 import com.tripletriad.model.HAND_SIZE
 import com.tripletriad.model.NpcLevel
 import kotlinx.coroutines.runBlocking
@@ -20,10 +22,29 @@ class NpcBundleTest {
     private val catalog = runBlocking { loadNpcCatalog() }
 
     @Test
-    fun theBundledCatalogHoldsBothTablesInFull() {
-        assertEquals(FF14_NPCS, catalog.ff14.size, "the FF14 opponents")
-        assertEquals(FF8_NPCS, catalog.ff8.size, "the FF8 opponents")
-        assertEquals(FF14_NPCS + FF8_NPCS, catalog.all.size)
+    fun theBundledCatalogHoldsEveryOpponent() {
+        assertEquals(FF14_NPCS + FF8_NPCS, catalog.all.size, "the whole roster")
+        // Counted by the format each declares, which is what replaced the two arrays the file used
+        // to have. The totals are the same because the same opponents are there.
+        assertEquals(FF14_NPCS, catalog.playing(FF14_FORMAT).size, "the FFXIV opponents")
+        assertEquals(FF8_NPCS, catalog.playing(FF8_FORMAT).size, "the FFVIII opponents")
+    }
+
+    /**
+     * Every opponent names at least one format, and every format it names is one that ships.
+     *
+     * An opponent naming nothing is unreachable — no list would ever include them — and one naming
+     * a format that does not exist is the same thing with a typo instead of an omission.
+     */
+    @Test
+    fun everyOpponentPlaysAFormatThatExists() {
+        val known = runBlocking { loadFormatCatalog() }.formats.mapTo(mutableSetOf()) { it.id }
+
+        for (npc in catalog.all) {
+            assertTrue(npc.formats.isNotEmpty(), "${npc.iconId} plays nothing")
+            val unknown = npc.formats.filterNot { it in known }
+            assertTrue(unknown.isEmpty(), "${npc.iconId} names formats nothing ships: $unknown")
+        }
     }
 
     /**
@@ -31,9 +52,9 @@ class NpcBundleTest {
      */
     @Test
     fun iconIdsAreUniqueWithinEachTable() {
-        for (collection in CardCollection.entries) {
-            val icons = catalog.collection(collection).map { it.iconId }
-            assertEquals(icons.size, icons.distinct().size, "$collection has a duplicate iconID")
+        for (formatId in SINGLE_SET_FORMATS) {
+            val icons = catalog.playing(formatId).map { it.iconId }
+            assertEquals(icons.size, icons.distinct().size, "$formatId has a duplicate iconID")
         }
     }
 
@@ -83,13 +104,14 @@ class NpcBundleTest {
     @Test
     fun everyOpponentCardExistsInItsOwnCollection() {
         val cards = runBlocking { loadCardCatalog() }
-        for (collection in CardCollection.entries) {
-            val ids = cards.collection(collection).map { it.id }.toSet()
-            for (npc in catalog.collection(collection)) {
+        val formats = runBlocking { loadFormatCatalog() }
+        for (formatId in SINGLE_SET_FORMATS) {
+            val ids = cards.admittedBy(requireNotNull(formats[formatId])).map { it.id }.toSet()
+            for (npc in catalog.playing(formatId)) {
                 val missing = (npc.fetishCards + npc.cards).filterNot { it in ids }
                 assertTrue(
                     missing.isEmpty(),
-                    "${npc.iconId} names $missing, absent from $collection",
+                    "${npc.iconId} names $missing, absent from $formatId",
                 )
             }
         }
@@ -99,14 +121,15 @@ class NpcBundleTest {
     @Test
     fun everyOpponentResolvesToAFullHandOfRealCards() {
         val cards = runBlocking { loadCardCatalog() }
-        for (collection in CardCollection.entries) {
-            val ids = cards.collection(collection).map { it.id }.toSet()
-            for (npc in catalog.collection(collection)) {
+        val formats = runBlocking { loadFormatCatalog() }
+        for (formatId in SINGLE_SET_FORMATS) {
+            val ids = cards.admittedBy(requireNotNull(formats[formatId])).map { it.id }.toSet()
+            for (npc in catalog.playing(formatId)) {
                 val hand = npc.randomHand(Random(1)).filter { it in ids }
                 assertEquals(
                     HAND_SIZE,
                     hand.size,
-                    "${npc.iconId} cannot field a hand from $collection",
+                    "${npc.iconId} cannot field a hand in $formatId",
                 )
             }
         }
@@ -172,34 +195,36 @@ class NpcBundleTest {
     @Test
     fun someOpponentIsAvailableAtEveryHour() {
         for (hour in 0 until HOURS) {
-            for (collection in CardCollection.entries) {
+            for (formatId in SINGLE_SET_FORMATS) {
                 assertTrue(
-                    catalog.available(collection, hour, level = ANY_LEVEL).isNotEmpty(),
-                    "$collection has no opponent at $hour:00",
+                    catalog.available(formatId, hour, level = ANY_LEVEL).isNotEmpty(),
+                    "$formatId has no opponent at $hour:00",
                 )
             }
         }
     }
 
     /**
-     * The two entries whose pool is `cards.getCardsByRarities(...)` must have been resolved to ids.
+     * The entry whose pool is `cards.getCardsByRarities(...)` must have been resolved to ids.
+     *
+     * There were two. The FFVIII table declared a second Queen of Cards, the only `iconID` shared
+     * by both tables — see document 19, which flagged it as the one collision the icon-keyed win
+     * record could not tell apart. She is **deleted**: with `MODE` gone the roster is one roster,
+     * `NpcCatalog.byIcon` resolves an icon by taking the first match, and two opponents answering
+     * to one name is an ambiguity no lookup can settle. The FFXIV Queen stays.
      */
     @Test
     fun theQueenOfCardsPoolWasResolvedAtExtractionTime() {
-        val ff14Queen = catalog.byIcon("queen-of-cards", CardCollection.FF14)!!
-        val ff8Queen = catalog.byIcon("queen-of-cards", CardCollection.FF8)!!
+        val queens = catalog.npcs.filter { it.iconId == "queen-of-cards" }
+        val queen = queens.single()
 
-        assertEquals(FF14_CARDS, ff14Queen.cards.size, "every ff14 card, rarities 1-5")
-        assertTrue(
-            ff8Queen.cards.isNotEmpty() && ff8Queen.cards.size < FF8_CARDS,
-            "ff8 rarities 1-4",
-        )
-        assertTrue(ff14Queen.cards.all { it > 0 }, "index 0 is the Back sentinel and is not a card")
+        assertEquals(FF14_CARDS, queen.cards.size, "every ff14 card, rarities 1-5")
+        assertTrue(queen.cards.all { it > 0 }, "index 0 is the Back sentinel and is not a card")
     }
 
     private companion object {
         const val FF14_NPCS = 60
-        const val FF8_NPCS = 25
+        const val FF8_NPCS = 24
         const val FF14_CARDS = 153
         const val FF8_CARDS = 110
         const val HOURS = 24

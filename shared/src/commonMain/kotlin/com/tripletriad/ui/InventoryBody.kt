@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tripletriad.data.CardCatalog
+import com.tripletriad.data.Format
 import com.tripletriad.data.Inventory
 import com.tripletriad.data.ItemUse
 import com.tripletriad.i18n.LocalStrings
@@ -86,25 +87,37 @@ fun inventoryRowTestTag(item: Item): String = "inventory-row-${itemSlug(item)}"
 internal fun ColumnScope.InventoryBody(
     profile: GameSave,
     catalog: CardCatalog,
+    format: Format,
     onPersist: suspend (GameSave) -> Unit,
     onUnlocked: (Card) -> Unit,
     random: Random = Random.Default,
 ) {
     val strings = LocalStrings.current
     val scope = rememberCoroutineScope()
-    val cards = remember(catalog, profile.mode) {
-        catalog.collection(profile.mode).associateBy { it.id }
+    val cards = remember(catalog, format) {
+        catalog.admittedBy(format).associateBy { it.id }
     }
     val owned = profile.cards
 
     // The selection is held as an [itemKey] and looked up in the *current* bag on every
     // composition, so selling one of three leaves the same row selected and emptying the stack
     // deselects it. Holding the `Item` itself would keep a row whose stack no longer exists.
-    var selectedKey by remember(profile.mode) { mutableStateOf<Item?>(null) }
-    var note by remember(profile.mode) { mutableStateOf<String?>(null) }
+    var selectedKey by remember(format) { mutableStateOf<Item?>(null) }
+    var note by remember(format) { mutableStateOf<String?>(null) }
     var armed by remember { mutableStateOf(false) }
 
+    // The cards a pack just dealt, while the player is turning them over. Held here rather than
+    // navigated to because the reveal is a *moment inside using an item*, not a destination: the
+    // profile has already been written by the time it appears, so backing out of it cannot lose
+    // anything and there is nothing for a back stack to restore.
+    var opened by remember(format) { mutableStateOf<List<Int>?>(null) }
+
     val selected = profile.bag.firstOrNull { itemKey(it) == selectedKey }
+
+    opened?.let { drawn ->
+        PackRevealScreen(cardIds = drawn, cards = cards, onDone = { opened = null })
+        return
+    }
 
     note?.let { EmptyNote(it, INVENTORY_NOTE_TEST_TAG) }
 
@@ -147,6 +160,8 @@ internal fun ColumnScope.InventoryBody(
                 // another bag item rather than a card, and showing it here would announce a
                 // card the player does not own yet.
                 (outcome as? ItemUse.CardDrawn)?.let { cards[it.cardId] }?.let(onUnlocked)
+                // A pack is turned over rather than announced — see [PackRevealScreen].
+                opened = (outcome as? ItemUse.PackOpened)?.cardIds
                 scope.launch { onPersist(outcome.save) }
             },
             onSell = {
@@ -290,16 +305,14 @@ private fun BagActions(
 /**
  * What a use did, in one line.
  *
- * [ItemUse.PackOpened] is the only one that needs saying — the others are visible in the bag and in
- * the character bar the moment the profile is written. A pack yields a *bag entry*, so without this
- * line the pack simply vanishes and a card appears further up a scrolled list.
+ * [ItemUse.PackOpened] no longer appears here: a pack is several cards and it gets
+ * [PackRevealScreen] instead, which is a better answer to the same problem this note was solving —
+ * a pack yields *bag entries*, so without something saying so the pack simply vanishes and cards
+ * appear further up a scrolled list.
  */
 private fun useNote(strings: Strings, outcome: ItemUse, cards: Map<Int, Card>): String? =
     when (outcome) {
-        is ItemUse.PackOpened -> strings.format(
-            StringKeys.OBTAINED,
-            cards[outcome.cardId]?.let { strings[it.nameKey] } ?: "#${outcome.cardId}",
-        )
+        is ItemUse.PackOpened -> null
 
         is ItemUse.CardDrawn -> strings.format(
             StringKeys.OBTAINED,

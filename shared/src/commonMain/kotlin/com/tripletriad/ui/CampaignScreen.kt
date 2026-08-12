@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import com.tripletriad.data.Campaign
 import com.tripletriad.data.CampaignStep
 import com.tripletriad.data.CardCatalog
+import com.tripletriad.data.Format
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.Strings
@@ -183,6 +184,7 @@ internal fun CampaignMatchScreen(
     campaign: Campaign,
     catalog: CardCatalog,
     profile: GameSave,
+    format: Format,
     clock: Clock,
     onPersist: suspend (GameSave) -> Unit,
     onFinished: () -> Unit,
@@ -233,6 +235,7 @@ internal fun CampaignMatchScreen(
             MatchScreen(
                 catalog = catalog,
                 profile = profile,
+                format = format,
                 npc = entry.npc,
                 clock = clock,
                 onPersist = onPersist,

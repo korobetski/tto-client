@@ -1,6 +1,6 @@
 package com.tripletriad.data
 
-import com.tripletriad.model.CardCollection
+import com.tripletriad.SINGLE_SET_FORMATS
 import com.tripletriad.model.HAND_SIZE
 import com.tripletriad.model.MatchResult
 import kotlinx.coroutines.runBlocking
@@ -37,13 +37,12 @@ class CampaignBundleTest {
      * because the screen reading it is what the port replaced.
      */
     @Test
-    fun eachCollectionHasExactlyOneLadder() {
-        for (collection in CardCollection.entries) {
-            assertEquals(
-                1,
-                catalog.forCollection(collection).size,
-                "$collection should have one ladder",
-            )
+    fun eachSingleSetFormatHasExactlyOneLadder() {
+        val formats = runBlocking { loadFormatCatalog() }
+
+        for (id in SINGLE_SET_FORMATS) {
+            requireNotNull(formats[id]) { "$id is not authored" }
+            assertEquals(1, catalog.playing(id).size, "$id should have one ladder")
         }
     }
 
@@ -64,8 +63,9 @@ class CampaignBundleTest {
      */
     @Test
     fun everyRungCanFieldAHand() {
+        val formats = runBlocking { loadFormatCatalog() }
         for (campaign in catalog.all) {
-            val ids = cards.collection(campaign.collection).mapTo(mutableSetOf()) { it.id }
+            val ids = cards.block(blockOf(campaign.format, formats)).mapTo(mutableSetOf()) { it.id }
             for ((step, entry) in campaign.steps.withIndex()) {
                 val hand = entry.npc.randomHand(Random(step))
                 assertEquals(HAND_SIZE, hand.size, "${campaign.key}/${entry.npc.iconId}")
@@ -131,6 +131,16 @@ class CampaignBundleTest {
             "winning the last rung should end the ladder",
         )
     }
+
+    /**
+     * The single block a ladder's format admits.
+     *
+     * A ladder is played in one format, and every shipped format so far admits one block or all of
+     * them — so this takes the first, and says so rather than pretending to handle a mixed ladder
+     * that does not exist.
+     */
+    private fun blockOf(formatId: String, formats: FormatCatalog): Int =
+        requireNotNull(formats[formatId]) { "no such format: $formatId" }.blocks.first()
 
     private companion object {
         const val CARD_CLUB_RUNGS = 7

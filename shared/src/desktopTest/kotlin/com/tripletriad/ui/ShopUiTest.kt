@@ -9,14 +9,15 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.v2.runComposeUiTest
+import com.tripletriad.FF14_BLOCK
 import com.tripletriad.data.Inventory
 import com.tripletriad.data.ShopCatalog
+import com.tripletriad.data.ShopOffer
 import com.tripletriad.data.StarterPack
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.BoosterItem
 import com.tripletriad.model.BoosterType
 import com.tripletriad.model.Card
-import com.tripletriad.model.CardCollection
 import com.tripletriad.model.CardItem
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.PotionItem
@@ -36,8 +37,7 @@ import kotlin.test.assertTrue
  */
 @OptIn(ExperimentalTestApi::class)
 class ShopUiTest {
-    private fun profile(mgp: Int, mode: CardCollection = CardCollection.FF14) =
-        GameSave.new(createdAt = 0L, mode = mode).copy(mgp = mgp)
+    private fun profile(mgp: Int) = GameSave.new(createdAt = 0L).copy(mgp = mgp)
 
     private fun ComposeUiTest.openShop(documents: com.tripletriad.storage.InMemoryDocumentStore) {
         loadCharacter(documents)
@@ -147,22 +147,28 @@ class ShopUiTest {
     }
 
     /**
-     * The ff8 shelf sells no packs, which is data rather than an omission — every
-     * `*_BOOSTER_CARDS` pool names ff14 ids. See [ShopCatalog].
+     * Both shelves are on one screen, which is what taking `MODE` out of the shop looks like.
+     *
+     * This replaces a test asserting that an FFVIII profile was offered no booster pack. That was
+     * true because the shelf was chosen by the character's collection, and it is not a fact about
+     * the shop any more: the app plays the widest format, so every offer that format admits is on
+     * sale to everybody. That no booster *pool* names an FFVIII id is still true and still data —
+     * it belongs to `ShopCatalog`, not to a screen.
      */
     @Test
-    fun theFf8ShelfHasNoPacksOnIt() = runComposeUiTest {
-        val documents = seeded(profile(mgp = ENOUGH_FOR_ANY_PACK, mode = CardCollection.FF8))
+    fun bothShelvesAreOnOneScreen() = runComposeUiTest {
+        val documents = seeded(profile(mgp = ENOUGH_FOR_ANY_PACK))
         setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openShop(documents)
 
-        val bronze = ShopCatalog.ff14.first { it.item == BoosterItem(BoosterType.BRONZE) }
-        val found = runCatching {
-            onNodeWithTag(SHOP_LIST_TEST_TAG)
-                .performScrollToNode(hasTestTag(shopOfferTestTag(bronze)))
-        }
-        assertTrue(found.isFailure, "an ff8 profile should be offered no booster pack")
-        // And the ff8-only cards are there, so this is the right shelf rather than an empty one.
+        // Only the item decides the tag; the price is derived and not what this test is about.
+        val bronze = ShopOffer(BoosterItem(BoosterType.BRONZE), price = 1)
+        onNodeWithTag(SHOP_LIST_TEST_TAG)
+            .performScrollToNode(hasTestTag(shopOfferTestTag(bronze)))
+        onNodeWithTag(shopOfferTestTag(bronze)).assertExists()
+
+        onNodeWithTag(SHOP_LIST_TEST_TAG)
+            .performScrollToNode(hasTestTag(shopOfferTestTag(ShopCatalog.ff8.last())))
         onNodeWithTag(shopOfferTestTag(ShopCatalog.ff8.last())).assertExists()
     }
 
@@ -187,14 +193,12 @@ class ShopUiTest {
     /**
      * The free pack is on the shelf only for a character that cannot field a hand.
      *
-     * A registered account that chose FFVIII used to end up exactly here — five cards of the set it
-     * left, none it can play — so this is the recovery path for the ones already stored on a
-     * server, where [com.tripletriad.data.StarterPack.startingIn] can only fix the ones still to
-     * come. See [com.tripletriad.data.StarterPack].
+     * The recovery path for accounts already stored on a server, which [StarterPack.opened] can
+     * only help before they exist. See [com.tripletriad.data.StarterPack].
      */
     @Test
     fun theFreePackIsOfferedToACharacterThatCannotPlayAndThenGoesAway() = runComposeUiTest {
-        val stranded = profile(mgp = 0).copy(mode = CardCollection.FF8)
+        val stranded = profile(mgp = 0).copy(cards = emptyMap(), decks = emptyList())
         val documents = seeded(stranded)
         setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openShop(documents)
@@ -206,7 +210,7 @@ class ShopUiTest {
         }
 
         val save = storedSave(documents)
-        for (id in starterFor(CardCollection.FF8).cards) {
+        for (id in starterFor(FF14_BLOCK).cards) {
             assertTrue(save.ownsCard(id), "starter card $id was not granted")
         }
         assertTrue(save.decks.first().isComplete, "and a deck was left ready to play")
@@ -231,7 +235,7 @@ class ShopUiTest {
         /** `STR_FF14_CARD_2`, at 120 MGP the cheapest card on the shelf. */
         val CHEAP_CARD = Card.idFor(block = 1, number = 2)
 
-        /** More than the 8,000 MGP mithril pack: absence is the shelf's, not the purse's. */
-        const val ENOUGH_FOR_ANY_PACK = 20_000
+        /** More than the dearest pack: absence is the shelf's doing, not the purse's. */
+        const val ENOUGH_FOR_ANY_PACK = 200_000
     }
 }

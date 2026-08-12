@@ -4,12 +4,13 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.v2.runComposeUiTest
+import com.tripletriad.FF14_FORMAT
 import com.tripletriad.data.loadCardCatalog
+import com.tripletriad.data.loadFormatCatalog
 import com.tripletriad.data.loadNpcCatalog
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.loadStrings
-import com.tripletriad.model.CardCollection
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.HAND_SIZE
 import com.tripletriad.model.TOTAL_CARDS
@@ -50,12 +51,17 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalTestApi::class)
 class MatchTranscriptTest {
     private val cards = runBlocking { loadCardCatalog() }
+
+    /** The shipped formats, as the app loads them, narrowed to the FFXIV rule pool. */
+    private val formats = runBlocking { loadFormatCatalog() }
+    private val format = formats[FF14_FORMAT]!!
+
     private val npcs = runBlocking { loadNpcCatalog() }
     private val english = runBlocking { loadStrings(AppLocale.EN_US) }
 
     /** `tt-master`: All Open and nothing else, so no rule narrows what may be played. */
     private val opponent = npcs
-        .available(CardCollection.FF14, FixedClock.DEFAULT_HOUR, ANY_LEVEL)
+        .available(FF14_FORMAT, FixedClock.DEFAULT_HOUR, ANY_LEVEL)
         .first { it.iconId == "tt-master" }
 
     /**
@@ -69,7 +75,7 @@ class MatchTranscriptTest {
     fun aMatchPlayedInTheUiReplaysInTheEngine() = runComposeUiTest {
         val transcript = playAMatch()
 
-        val verdict = TranscriptVerifier.verify(transcript, cards, npcs)
+        val verdict = TranscriptVerifier.verify(transcript, cards, npcs, formats)
 
         assertIs<MatchVerdict.Accepted>(
             verdict,
@@ -83,7 +89,7 @@ class MatchTranscriptTest {
         val transcript = playAMatch()
 
         val accepted = assertIs<MatchVerdict.Accepted>(
-            TranscriptVerifier.verify(transcript, cards, npcs),
+            TranscriptVerifier.verify(transcript, cards, npcs, formats),
         )
 
         assertEquals(TOTAL_CARDS, accepted.blue + accepted.red)
@@ -123,6 +129,7 @@ class MatchTranscriptTest {
                         catalog = cards,
                         profile = GameSave.new(createdAt = 0L),
                         npc = opponent,
+                        format = format,
                         clock = FixedClock(),
                         onPersist = {},
                         onExit = {},

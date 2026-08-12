@@ -1,9 +1,9 @@
 package com.tripletriad.ui
 
+import com.tripletriad.FF14_BLOCK
 import com.tripletriad.data.Starter
 import com.tripletriad.data.StarterPack
 import com.tripletriad.data.loadStarterCatalog
-import com.tripletriad.model.CardCollection
 import com.tripletriad.model.GameSave
 import kotlinx.coroutines.runBlocking
 
@@ -15,16 +15,16 @@ import kotlinx.coroutines.runBlocking
  */
 
 /**
- * The **shipped** starter that opens [collection]'s set.
+ * The **shipped** starter that opens [block]'s set.
  *
  * Read through the real loader rather than hand-built, because a test asserting that the app
  * granted the starter has to compare against the same file the app read. `StarterPackTest` uses a
  * fixture instead: it is testing the rule, not the content, and pinning it to `starters.json` would
  * make every one of its assertions fail the day a card is swapped for flavour.
  */
-internal fun starterFor(collection: CardCollection): Starter =
-    runBlocking { loadStarterCatalog() }.forBlock(collection.block)
-        ?: error("no starter is authored for ${collection.slug}")
+internal fun starterFor(block: Int): Starter =
+    runBlocking { loadStarterCatalog() }.forBlock(block)
+        ?: error("no starter is authored for block $block")
 
 /**
  * The five cards of the ff14 starter's **opening deck**.
@@ -33,7 +33,7 @@ internal fun starterFor(collection: CardCollection): Starter =
  * `Deck` built from the wrong one looks like: ten cards in a five-card slot, refused silently by
  * `Deck.plusCard`.
  */
-internal val STARTER_DECK: List<Int> = starterFor(CardCollection.FF14).deck
+internal val STARTER_DECK: List<Int> = starterFor(FF14_BLOCK).deck
 
 /**
  * A character as the app really creates one — `GameSave.new` with the authored starter opened onto
@@ -46,8 +46,8 @@ internal val STARTER_DECK: List<Int> = starterFor(CardCollection.FF14).deck
  */
 internal fun freshSave(
     createdAt: Long = 0L,
-    collection: CardCollection = CardCollection.FF14,
+    block: Int = FF14_BLOCK,
 ): GameSave = StarterPack.opened(
-    GameSave.new(mode = collection, createdAt = createdAt),
-    starterFor(collection),
+    GameSave.new(createdAt = createdAt),
+    starterFor(block),
 )

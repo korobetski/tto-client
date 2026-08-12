@@ -7,9 +7,10 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.v2.runComposeUiTest
+import com.tripletriad.FF14_BLOCK
+import com.tripletriad.FF8_BLOCK
 import com.tripletriad.data.SaveRepository
 import com.tripletriad.i18n.AppLocale
-import com.tripletriad.model.CardCollection
 import com.tripletriad.model.GameSave
 import com.tripletriad.storage.InMemoryDocumentStore
 import com.tripletriad.time.FixedClock
@@ -47,10 +48,10 @@ class ProfileUiTest {
     fun creatingACharacterGrantsTheAuthoredStarter() = runComposeUiTest {
         val documents = store()
         setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
-        newCharacter(CardCollection.FF8)
+        newCharacter(FF8_BLOCK)
 
         val save = stored(documents).single()
-        val starter = starterFor(CardCollection.FF8)
+        val starter = starterFor(FF8_BLOCK)
 
         assertEquals(starter.cards.associateWith { 1 }, save.cards)
         assertEquals(listOf(starter.deck), save.decks.map { it.cards })
@@ -66,15 +67,15 @@ class ProfileUiTest {
         onNodeWithTag(PROFILE_NEW_TEST_TAG).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_CREATE_TEST_TAG) }
 
-        val ff14 = starterFor(CardCollection.FF14)
+        val ff14 = starterFor(FF14_BLOCK)
         assertTrue(
             exists(starterPreviewTestTag(ff14.id)),
             "the default collection's starter should be previewed on arrival",
         )
 
         // And it follows the choice, which is the half that makes the preview worth having.
-        val ff8 = starterFor(CardCollection.FF8)
-        onNodeWithTag(collectionChoiceTestTag(CardCollection.FF8)).performClick()
+        val ff8 = starterFor(FF8_BLOCK)
+        onNodeWithTag(starterChoiceTestTag(ff8.id)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(starterPreviewTestTag(ff8.id)) }
         assertFalse(exists(starterPreviewTestTag(ff14.id)), "one starter at a time")
     }
@@ -100,7 +101,7 @@ class ProfileUiTest {
         assertEquals(1, documents.writes, "creating should have written exactly one profile")
         val saved = stored(documents).single()
         assertEquals(GameSave.DEFAULT_USERNAME, saved.username)
-        assertEquals(CardCollection.FF14, saved.mode)
+        assertEquals(starterFor(FF14_BLOCK).cards.associateWith { 1 }, saved.cards)
     }
 
     /** The typed name reaches the file, and the file name is derived from it. */
@@ -127,36 +128,32 @@ class ProfileUiTest {
     }
 
     /**
-     * **The collection is chosen at creation and it decides everything downstream.**
+     * **The box decides what you start with and nothing else.**
      *
      * The AS3 hard-codes `DATAS.MODE = 'ff14_'` in `setToDefaultValues()` and offers no way to
      * change it, so an `ff8_` profile was unreachable despite the whole second card table and 25
-     * opponents shipping with the game. This is the test that says they are reachable now.
+     * opponents shipping with the game. The first version of this test proved they were reachable
+     * by asserting that an FFVIII character saw `chocoboy` and *not* `tt-master`.
+     *
+     * That second half is now wrong on purpose. `MODE` is gone, the app plays the widest format,
+     * and the roster is one roster: choosing the FFVIII box gives you FFVIII cards and the whole
+     * cast. Asserting both opponents is asserting exactly what document 19 set out to change.
      */
     @Test
-    fun choosingFf8GivesAnFf8CharacterAndFf8Opponents() = runComposeUiTest {
+    fun theChosenBoxDealsItsCardsAndLeavesTheRosterWhole() = runComposeUiTest {
         val documents = store()
         setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
 
-        newCharacter(CardCollection.FF8)
+        newCharacter(FF8_BLOCK)
         openOpponents()
 
-        assertEquals(CardCollection.FF8, stored(documents).single().mode)
-        // `chocoboy` is ff8-only; `tt-master` is ff14-only. Both directions, so a list that ignored
-        // the collection entirely could not pass.
+        val saved = stored(documents).single()
+        assertEquals(starterFor(FF8_BLOCK).cards.associateWith { 1 }, saved.cards)
+        // `chocoboy` shipped as ff8-only and `tt-master` as ff14-only. Both are on the list.
+        scrollToOpponent("chocoboy")
         onNodeWithTag(opponentRowTestTag("chocoboy")).assertExists()
-        onNodeWithTag(opponentRowTestTag(TEST_OPPONENT)).assertDoesNotExist()
-    }
-
-    @Test
-    fun choosingFf14GivesFf14Opponents() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
-
-        newCharacter(CardCollection.FF14)
-        openOpponents()
-
+        scrollToOpponent(TEST_OPPONENT)
         onNodeWithTag(opponentRowTestTag(TEST_OPPONENT)).assertExists()
-        onNodeWithTag(opponentRowTestTag("chocoboy")).assertDoesNotExist()
     }
 
     @Test
@@ -168,7 +165,6 @@ class ProfileUiTest {
         onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_LIST_TEST_TAG) }
         assertTrue(isVisible(GameSave.DEFAULT_USERNAME), "the character should be in the list")
-        assertTrue(isVisible("FFXIV"), "the row should say which collection it plays")
 
         onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
         awaitMenu()
@@ -229,7 +225,7 @@ class ProfileUiTest {
     fun twoCharactersCanCoexist() = runComposeUiTest {
         val documents = store()
         setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
-        newCharacter(CardCollection.FF14)
+        newCharacter(FF14_BLOCK)
         onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_LIST_TEST_TAG) }
 
@@ -237,16 +233,16 @@ class ProfileUiTest {
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_NAME_TEST_TAG) }
         onNodeWithTag(PROFILE_NAME_TEST_TAG).performTextClearance()
         onNodeWithTag(PROFILE_NAME_TEST_TAG).performTextInput(NAME)
-        onNodeWithTag(collectionChoiceTestTag(CardCollection.FF8)).performClick()
+        onNodeWithTag(starterChoiceTestTag(starterFor(FF8_BLOCK).id)).performClick()
         onNodeWithTag(PROFILE_CREATE_TEST_TAG).performClick()
         awaitDashboard()
 
         val saved = stored(documents)
         assertEquals(2, saved.size, "both characters should be on disk")
         assertEquals(
-            setOf(CardCollection.FF14, CardCollection.FF8),
-            saved.map { it.mode }.toSet(),
-            "the two should keep their own collections",
+            setOf(starterFor(FF14_BLOCK).cards.toSet(), starterFor(FF8_BLOCK).cards.toSet()),
+            saved.map { it.cards.keys.toSet() }.toSet(),
+            "the two should keep the boxes they were opened with",
         )
     }
 
@@ -255,7 +251,7 @@ class ProfileUiTest {
     fun choosingAListedCharacterLoadsIt() = runComposeUiTest {
         val documents = store()
         setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
-        newCharacter(CardCollection.FF8)
+        newCharacter(FF8_BLOCK)
         onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_LIST_TEST_TAG) }
 
@@ -263,6 +259,7 @@ class ProfileUiTest {
         awaitDashboard()
         openOpponents()
 
+        scrollToOpponent("chocoboy")
         onNodeWithTag(opponentRowTestTag("chocoboy")).assertExists()
     }
 

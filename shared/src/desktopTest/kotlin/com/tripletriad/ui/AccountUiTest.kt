@@ -13,8 +13,9 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.CLIENT_VERSION
+import com.tripletriad.FF14_BLOCK
+import com.tripletriad.FF8_BLOCK
 import com.tripletriad.i18n.AppLocale
-import com.tripletriad.model.CardCollection
 import com.tripletriad.model.GameSave
 import com.tripletriad.net.AccountClient
 import com.tripletriad.net.MatchReporter
@@ -107,7 +108,7 @@ class AccountUiTest {
         assertVisible("kuplu", "the dashboard did not show the account's character")
         // And straight there: an account that already exists has a collection, so the step that
         // follows a registration must not appear again on every sign-in.
-        check(!exists(COLLECTION_CONFIRM_TEST_TAG)) {
+        check(!exists(STARTER_CONFIRM_TEST_TAG)) {
             "an existing account was asked to choose its collection again"
         }
     }
@@ -287,14 +288,18 @@ class AccountUiTest {
 
     /**
      * Registering is the same form with the toggle flipped, and it reaches the same dashboard — by
-     * way of the collection step, which is the one thing `POST /accounts` cannot carry.
+     * way of the starter step, which is the one thing `POST /accounts` cannot carry.
      *
-     * The choice has to reach the *server*: the account arrives on `ff14_` whatever the player
-     * picks, so a step that only changed the local copy would look right for one session and be
-     * gone on the next sign-in.
+     * The choice has to reach the *server*: the account is created with the default box whatever
+     * the player picks, so a step that only changed the local copy would look right for one session
+     * and be gone on the next sign-in.
+     *
+     * Asserted on the **cards** and not on `MODE`, which no longer exists. That is not a weaker
+     * assertion: the cards were always the part that mattered, and the field was only ever a label
+     * naming which table the ids belonged to.
      */
     @Test
-    fun registeringAsksForACollectionAndSendsIt() = runComposeUiTest {
+    fun registeringAsksForAStarterAndSendsIt() = runComposeUiTest {
         val saved = mutableListOf<String>()
         val engine = MockEngine { request ->
             if (request.url.encodedPath == "/me/save") {
@@ -305,23 +310,16 @@ class AccountUiTest {
         setContent { App(store = english(), server = connection(engine = engine)) }
 
         register()
-        onNodeWithTag(collectionChoiceTestTag(CardCollection.FF8)).performClick()
-        onNodeWithTag(COLLECTION_CONFIRM_TEST_TAG).performClick()
+        onNodeWithTag(starterChoiceTestTag(starterFor(FF8_BLOCK).id)).performClick()
+        onNodeWithTag(STARTER_CONFIRM_TEST_TAG).performClick()
         awaitDashboard()
 
-        check(saved.any { it.contains("\"MODE\":\"ff8_\"") }) {
-            "the chosen collection never reached the server: $saved"
-        }
-        // And the cards went with it. This used to be a bare `copy(mode = …)`, which was harmless
-        // while an id indexed whichever table `MODE` named and became a registered account that
-        // could not play once ids went global: five FFXIV cards, an FFVIII character, and no deck
-        // any screen would show it. See `StarterPack.startingIn`.
-        val body = saved.last { it.contains("\"MODE\":\"ff8_\"") }
-        for (id in starterFor(CardCollection.FF8).cards) {
-            check(body.contains("\"$id\"")) { "the FF8 starter card $id is not in the save: $body" }
-        }
-        for (id in starterFor(CardCollection.FF14).cards) {
-            check(!body.contains("\"$id\"")) { "an FFXIV card survived the move: $body" }
+        val ff8 = starterFor(FF8_BLOCK).cards
+        val body = saved.lastOrNull { body -> ff8.all { body.contains("\"$it\"") } }
+        check(body != null) { "the chosen box never reached the server: $saved" }
+        // And only that box: opening one is a replacement, not a top-up. See `StarterPack.opened`.
+        for (id in starterFor(FF14_BLOCK).cards) {
+            check(!body.contains("\"$id\"")) { "an FFXIV card survived the choice: $body" }
         }
     }
 
@@ -449,5 +447,5 @@ private fun ComposeUiTest.register() {
     onNodeWithTag(ACCOUNT_NAME_TEST_TAG).performTextInput("kuplu")
     onNodeWithTag(ACCOUNT_PASSWORD_TEST_TAG).performTextInput("not-a-real-password")
     onNodeWithTag(ACCOUNT_SUBMIT_TEST_TAG).performClick()
-    waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(COLLECTION_CONFIRM_TEST_TAG) }
+    waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(STARTER_CONFIRM_TEST_TAG) }
 }

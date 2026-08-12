@@ -34,6 +34,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tripletriad.data.CardCatalog
+import com.tripletriad.data.Format
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.Strings
@@ -95,12 +96,13 @@ fun deckRemainingTestTag(cardId: Int): String = "deck-remaining-$cardId"
 internal fun ColumnScope.DecksBody(
     profile: GameSave,
     catalog: CardCatalog,
+    format: Format,
     editing: Int?,
     onEdit: (Int?) -> Unit,
     onPersist: suspend (GameSave) -> Unit,
 ) {
-    val cards = remember(catalog, profile.mode) {
-        catalog.collection(profile.mode).associateBy { it.id }
+    val cards = remember(catalog, format) {
+        catalog.admittedBy(format).associateBy { it.id }
     }
 
     if (editing == null) {

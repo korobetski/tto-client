@@ -1,6 +1,5 @@
 package com.tripletriad.data
 
-import com.tripletriad.model.CardCollection
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.GameRules
 import com.tripletriad.model.MatchRecord
@@ -29,7 +28,7 @@ class MatchHistoryRepositoryTest {
         result: MatchResult = MatchResult.WIN,
     ) = MatchRecord(
         id = id,
-        mode = CardCollection.FF14,
+        formatId = "ff14",
         opponentKind = OpponentKind.NPC,
         opponentName = "jonas",
         timestamp = timestamp,

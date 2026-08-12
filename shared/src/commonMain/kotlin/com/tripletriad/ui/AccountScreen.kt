@@ -99,7 +99,7 @@ const val ACCOUNT_BUSY_TEST_TAG: String = "account-busy"
  *   [UpdateAdvice].
  * @param onSignedIn where to go once the server has said yes. Not called for a failure — the screen
  *   stays and shows why. Its argument says whether the account was just *created*, which is the one
- *   moment [CollectionChoiceScreen] can be offered: `POST /accounts` takes no collection, and this
+ *   moment [StarterChoiceScreen] can be offered: `POST /accounts` takes no collection, and this
  *   is the only place that knows the character behind it has never been played.
  */
 @Composable

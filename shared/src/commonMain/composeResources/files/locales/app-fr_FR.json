@@ -138,5 +138,15 @@
   "APP_STARTER_FF8_MONSTERS": "Monstres de Balamb",
   "APP_FORMAT_FF14_STANDARD": "FFXIV standard",
   "APP_FORMAT_FREE": "Jeu libre",
-  "APP_FORMAT_FF8_STANDARD": "FFVIII standard"
+  "APP_FORMAT_FF8_STANDARD": "FFVIII standard",
+  "APP_GALBADIAN_BOOSTER_DESC": "Les soldats et les machines de guerre de Galbadia.",
+  "APP_GUARDIAN_FORCE_BOOSTER_DESC": "Trois cartes parmi les seize G-Forces.",
+  "APP_CHARACTER_BOOSTER_DESC": "Trois des onze cartes cinq étoiles. Rien ne coûte plus cher.",
+  "APP_PACK_SEALED": "POCHETTE SCELLÉE",
+  "APP_PACK_BREAK_SEAL": "BRISER LE SCEAU",
+  "APP_PACK_SPENT": "LE SCEAU EST BRISÉ",
+  "APP_PACK_REVEAL": "Révéler",
+  "APP_PACK_TO_COLLECTION": "Vers le sac",
+  "APP_PACK_GUARANTEE": "Une carte {0}★ ou mieux, garantie",
+  "APP_PACK_ODDS": "Chance de ★5 : {0} %"
 }

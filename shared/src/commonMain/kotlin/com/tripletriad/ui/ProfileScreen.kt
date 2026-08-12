@@ -34,7 +34,6 @@ import com.tripletriad.data.StarterCatalog
 import com.tripletriad.data.StarterPack
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
-import com.tripletriad.model.CardCollection
 import com.tripletriad.model.GameSave
 import kotlinx.coroutines.launch
 
@@ -43,7 +42,7 @@ const val PROFILE_NEW_TEST_TAG: String = "profile-new"
 const val PROFILE_NAME_TEST_TAG: String = "profile-name"
 const val PROFILE_CREATE_TEST_TAG: String = "profile-create"
 const val PROFILE_EMPTY_TEST_TAG: String = "profile-empty"
-const val COLLECTION_CONFIRM_TEST_TAG: String = "collection-confirm"
+const val STARTER_CONFIRM_TEST_TAG: String = "starter-confirm"
 
 /** `profile-row-<key>`, so a test can find a specific profile without knowing its position. */
 fun profileRowTestTag(key: String): String = "profile-row-$key"
@@ -54,9 +53,13 @@ fun profileDeleteTestTag(key: String): String = "profile-delete-$key"
 /** `starter-preview-<id>` — the box the chosen set opens with. */
 fun starterPreviewTestTag(starterId: String): String = "starter-preview-$starterId"
 
-/** `collection-ff14_` / `collection-ff8_`, by the string the choice is stored as. */
-fun collectionChoiceTestTag(collection: CardCollection): String =
-    "collection-${collection.storageKey}"
+/**
+ * `starter-choice-ff14-beasts` — one tile per box on offer.
+ *
+ * Was `collection-ff14_`, keyed on the set a character was assigned to. `MODE` is gone: what a
+ * player picks is the box they open, and it restricts nothing afterwards.
+ */
+fun starterChoiceTestTag(starterId: String): String = "starter-choice-$starterId"
 
 /**
  * The profile list — the original's `LoadScreen`, which listed characters rather than files.
@@ -166,7 +169,6 @@ private fun ProfileRow(
             )
             Text(
                 text = listOf(
-                    collectionLabel(save.mode),
                     "${strings[StringKeys.LEVEL]} ${save.level}",
                     "${save.mgp} ${strings[StringKeys.MGP]}",
                 ).joinToString(DOT_SEPARATOR),
@@ -206,13 +208,17 @@ private fun ProfileRow(
 }
 
 /**
- * Creating a profile: a name, and the collection.
+ * Creating a profile: a name, and the box it opens with.
  *
- * The collection is the one irreversible choice in the game and it is made here because it has to
- * be: `Save.DATAS.MODE` decides which of the two card tables the profile's card ids index, which
- * opponents it can meet and which rules those opponents may impose. The original never offered the
- * choice at all — `setToDefaultValues()` hard-codes `'ff14_'` and nothing changes it — so an `ff8_`
- * profile was unreachable despite the whole second table shipping with the game.
+ * This used to choose a **collection**, and that was the one irreversible decision in the game:
+ * `Save.DATAS.MODE` decided which card table the profile's ids indexed, which opponents it could
+ * meet and which rules they could impose. The original never offered the choice at all —
+ * `setToDefaultValues()` hard-codes `'ff14_'` — so its second table shipped unreachable.
+ *
+ * `MODE` is gone. What is chosen here is a starter pack, and it restricts nothing: a player who
+ * opens the FFXIV box buys FFVIII boosters the same afternoon and owns both. Which cards may be
+ * *played* is the match's format to decide. Document 19 predicted exactly this — "it becomes a real
+ * choice when `MODE` goes" — and this is that.
  */
 @Composable
 internal fun ProfileCreateScreen(
@@ -224,7 +230,8 @@ internal fun ProfileCreateScreen(
     val strings = LocalStrings.current
     val scope = rememberCoroutineScope()
     var name by remember { mutableStateOf(GameSave.DEFAULT_USERNAME) }
-    var collection by remember { mutableStateOf(CardCollection.FF14) }
+    val offered = remember(starters) { starters.starters }
+    var chosen by remember(offered) { mutableStateOf(offered.firstOrNull()) }
 
     ScreenScaffold(title = strings[StringKeys.NEW_PROFILE], onBack = onBack) {
         OutlinedTextField(
@@ -244,10 +251,10 @@ internal fun ProfileCreateScreen(
             modifier = Modifier.testTag(PROFILE_NAME_TEST_TAG).fillMaxWidth(),
         )
 
-        CollectionChoiceRow(
-            selected = collection,
-            starters = starters,
-            onSelect = { collection = it },
+        StarterChoiceRow(
+            selected = chosen,
+            offered = offered,
+            onSelect = { chosen = it },
         )
 
         Box(modifier = Modifier.weight(1f))
@@ -260,8 +267,7 @@ internal fun ProfileCreateScreen(
                 scope.launch {
                     // The authored box, not `GameSave.new`'s five. Both creation paths go through
                     // the catalogue now; see [StarterPack.opened] for why that had to be one place.
-                    val starter = StarterPack.forCollection(starters, collection)
-                    session.create(name, collection, starter)
+                    session.create(name, chosen)
                     session.active?.let(onCreated)
                 }
             },
@@ -292,7 +298,7 @@ internal fun ProfileCreateScreen(
  * confirm and no way to end up without a collection.
  */
 @Composable
-internal fun CollectionChoiceScreen(
+internal fun StarterChoiceScreen(
     profile: GameSave,
     starters: StarterCatalog,
     onChosen: suspend (GameSave) -> Unit,
@@ -300,7 +306,12 @@ internal fun CollectionChoiceScreen(
 ) {
     val strings = LocalStrings.current
     val scope = rememberCoroutineScope()
-    var collection by remember(profile.mode) { mutableStateOf(profile.mode) }
+    // The starter is the choice now, not a collection. `MODE` used to make picking a set the
+    // decision — it gated the shop, the opponents and the campaign — so the starter followed from
+    // it. With `MODE` gone the box a player opens is the whole of what they are choosing, which is
+    // what document 19 said it should have been.
+    val offered = remember(starters) { starters.starters }
+    var chosen by remember(offered) { mutableStateOf(offered.firstOrNull()) }
 
     ScreenScaffold(title = strings[StringKeys.COLLECTION], onBack = onBack) {
         Text(
@@ -310,32 +321,31 @@ internal fun CollectionChoiceScreen(
             fontWeight = FontWeight.Bold,
         )
 
-        CollectionChoiceRow(
-            selected = collection,
-            starters = starters,
-            onSelect = { collection = it },
+        StarterChoiceRow(
+            selected = chosen,
+            offered = offered,
+            onSelect = { chosen = it },
         )
 
         Box(modifier = Modifier.weight(1f))
 
         WideButton(
             label = strings[StringKeys.START],
-            tag = COLLECTION_CONFIRM_TEST_TAG,
+            tag = STARTER_CONFIRM_TEST_TAG,
             onClick = {
-                scope.launch {
-                    onChosen(StarterPack.startingIn(profile, collection, starters))
-                }
+                val starter = chosen ?: return@WideButton
+                scope.launch { onChosen(StarterPack.opened(profile, starter)) }
             },
         )
     }
 }
 
-/** The labelled FFXIV / FFVIII pair, shared by profile creation and the post-registration step. */
+/** The starters on offer, shared by profile creation and the post-registration step. */
 @Composable
-private fun CollectionChoiceRow(
-    selected: CardCollection,
-    starters: StarterCatalog,
-    onSelect: (CardCollection) -> Unit,
+private fun StarterChoiceRow(
+    selected: Starter?,
+    offered: List<Starter>,
+    onSelect: (Starter) -> Unit,
 ) {
     val strings = LocalStrings.current
 
@@ -349,17 +359,17 @@ private fun CollectionChoiceRow(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        for (choice in CardCollection.entries) {
-            CollectionChoice(
-                collection = choice,
-                isSelected = selected == choice,
+        for (choice in offered) {
+            StarterChoice(
+                starter = choice,
+                isSelected = selected?.id == choice.id,
                 modifier = Modifier.weight(1f),
                 onClick = { onSelect(choice) },
             )
         }
     }
 
-    StarterPreview(starter = StarterPack.forCollection(starters, selected))
+    StarterPreview(starter = selected)
 }
 
 /**
@@ -413,40 +423,29 @@ private fun StarterPreview(starter: Starter?) {
 }
 
 @Composable
-private fun CollectionChoice(
-    collection: CardCollection,
+private fun StarterChoice(
+    starter: Starter,
     isSelected: Boolean,
     modifier: Modifier,
     onClick: () -> Unit,
 ) {
+    val strings = LocalStrings.current
+
     Box(
         modifier = modifier
-            .testTag(collectionChoiceTestTag(collection))
+            .testTag(starterChoiceTestTag(starter.id))
             .rowSurface(selected = isSelected)
             .clickable(onClick = onClick)
             .padding(vertical = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = collectionLabel(collection),
+            text = strings[starter.nameKey],
             color = MaterialTheme.colorScheme.onSurface,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
         )
     }
-}
-
-/**
- * `FFXIV` / `FFVIII` — deliberately not translated and deliberately not localised.
- *
- * These are the two source games' titles, and the AS3 bundles have no key for either: the
- * collection appears in the data only as the prefix `ff14_` / `ff8_`. A proper noun is the same in
- * all four languages, so inventing four identical translations would be four files to keep in step
- * for no gain. The Roman numerals are how Square Enix writes them.
- */
-internal fun collectionLabel(collection: CardCollection): String = when (collection) {
-    CardCollection.FF14 -> "FFXIV"
-    CardCollection.FF8 -> "FFVIII"
 }
 
 /** The longest a character name may be. Long enough for any real name, short enough to lay out. */

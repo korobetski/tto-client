@@ -1,7 +1,6 @@
 package com.tripletriad.data
 
 import com.tripletriad.log.Log
-import com.tripletriad.model.CardCollection
 import com.tripletriad.model.GameSave
 import com.tripletriad.storage.DocumentStore
 import com.tripletriad.storage.SaveCodec
@@ -170,11 +169,10 @@ class SaveRepository(
      */
     suspend fun create(
         username: String = GameSave.DEFAULT_USERNAME,
-        mode: CardCollection = CardCollection.FF14,
         createdAt: Long,
         starter: Starter? = null,
     ): GameSave {
-        val fresh = GameSave.new(username = username, mode = mode, createdAt = createdAt)
+        val fresh = GameSave.new(username = username, createdAt = createdAt)
         return save(starter?.let { StarterPack.opened(fresh, it) } ?: fresh, createdAt)
     }
 

@@ -138,5 +138,15 @@
   "APP_STARTER_FF8_MONSTERS": "Monsters of Balamb",
   "APP_FORMAT_FF14_STANDARD": "FFXIV Standard",
   "APP_FORMAT_FREE": "Free play",
-  "APP_FORMAT_FF8_STANDARD": "FFVIII Standard"
+  "APP_FORMAT_FF8_STANDARD": "FFVIII Standard",
+  "APP_GALBADIAN_BOOSTER_DESC": "Galbadia's soldiers and war machines.",
+  "APP_GUARDIAN_FORCE_BOOSTER_DESC": "Three cards from the sixteen Guardian Forces.",
+  "APP_CHARACTER_BOOSTER_DESC": "Three of the eleven five-star cards. Nothing costs more.",
+  "APP_PACK_SEALED": "A SEALED PACK",
+  "APP_PACK_BREAK_SEAL": "BREAK THE SEAL",
+  "APP_PACK_SPENT": "THE SEAL IS SPENT",
+  "APP_PACK_REVEAL": "Reveal",
+  "APP_PACK_TO_COLLECTION": "To the bag",
+  "APP_PACK_GUARANTEE": "One card {0}★ or better, guaranteed",
+  "APP_PACK_ODDS": "★5 chance {0}%"
 }

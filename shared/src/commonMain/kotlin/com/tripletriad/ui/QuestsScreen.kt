@@ -27,7 +27,6 @@ import com.tripletriad.data.NpcCatalog
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.Strings
-import com.tripletriad.model.CardCollection
 import com.tripletriad.model.DailyQuest
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.Objective
@@ -77,6 +76,7 @@ internal fun QuestsScreen(
     profile: GameSave,
     at: Long,
     opponents: NpcCatalog?,
+    formatId: String,
     onBack: () -> Unit,
 ) {
     val strings = LocalStrings.current
@@ -103,7 +103,7 @@ internal fun QuestsScreen(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 items(quests, key = { it.quest.id }) { status ->
-                    QuestRow(status = status, opponents = opponents, mode = profile.mode)
+                    QuestRow(status = status, opponents = opponents, formatId = formatId)
                 }
             }
         }
@@ -120,7 +120,7 @@ internal fun QuestsScreen(
 private fun QuestRow(
     status: DailyQuestStatus,
     opponents: NpcCatalog?,
-    mode: CardCollection,
+    formatId: String,
 ) {
     val strings = LocalStrings.current
     val quest = status.quest
@@ -140,7 +140,7 @@ private fun QuestRow(
         ) {
             AchievementIcon(iconId = quest.iconId, description = "", size = 28.dp)
             Text(
-                text = quest.label(strings, opponents, mode),
+                text = quest.label(strings, opponents, formatId),
                 color = MaterialTheme.colorScheme.onSurface
                     .copy(alpha = if (status.isCompleted) 1f else 0.65f),
                 style = MaterialTheme.typography.bodySmall,
@@ -206,9 +206,9 @@ internal fun DailyQuest.label(strings: Strings, nameFor: (String) -> String): St
 private fun DailyQuest.label(
     strings: Strings,
     opponents: NpcCatalog?,
-    mode: CardCollection,
+    formatId: String,
 ): String = label(strings) { iconId ->
-    opponents?.byIcon(iconId, mode)?.let { strings[it.nameKey] } ?: iconId
+    opponents?.byIcon(iconId, formatId)?.let { strings[it.nameKey] } ?: iconId
 }
 
 /** The bar `StatsScreen` draws, in the same colour. Four lines, not worth a shared file. */

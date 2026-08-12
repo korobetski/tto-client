@@ -83,6 +83,7 @@ internal fun OpponentScreen(
     catalog: NpcCatalog,
     cards: Map<Int, Card>,
     hour: Int,
+    formatId: String,
     onChallenge: (Npc) -> Unit,
     onTutorial: () -> Unit,
     campaigns: List<Campaign>,
@@ -90,15 +91,18 @@ internal fun OpponentScreen(
     onBack: () -> Unit,
 ) {
     val strings = LocalStrings.current
-    val opponents = remember(catalog, profile.mode, hour, profile.level) {
-        catalog.available(profile.mode, hour, profile.level)
+    // Keyed on the format, not on the character: who a player may challenge is a property of the
+    // match they are looking for. `MODE` used to answer this and the answer was the same only
+    // because a character could play one set.
+    val opponents = remember(catalog, formatId, hour, profile.level) {
+        catalog.available(formatId, hour, profile.level)
     }
-    val locked = remember(catalog, profile.mode, hour, profile.level) {
-        catalog.lockedByLevel(profile.mode, hour, profile.level)
+    val locked = remember(catalog, formatId, hour, profile.level) {
+        catalog.lockedByLevel(formatId, hour, profile.level)
     }
 
     ScreenScaffold(
-        title = "${strings[StringKeys.OPPONENTS]} ${DOT_SEPARATOR}${collectionLabel(profile.mode)}",
+        title = strings[StringKeys.OPPONENTS],
         onBack = onBack,
     ) {
         CampaignPanel(

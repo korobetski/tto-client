@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import com.tripletriad.data.CardCatalog
+import com.tripletriad.data.Format
 import com.tripletriad.data.ShopCatalog
 import com.tripletriad.data.StarterCatalog
 import com.tripletriad.data.StarterPack
@@ -56,6 +57,7 @@ internal fun StoreScreen(
     profile: GameSave,
     catalog: CardCatalog,
     starters: StarterCatalog,
+    format: Format,
     initial: StoreTab,
     onPersist: suspend (GameSave) -> Unit,
     onBack: () -> Unit,
@@ -65,18 +67,25 @@ internal fun StoreScreen(
     val scope = rememberCoroutineScope()
     var tab by remember { mutableStateOf(initial) }
 
-    val offers = remember(profile.mode) { ShopCatalog.offers(profile.mode) }
-    val cards = remember(catalog, profile.mode) {
-        catalog.collection(profile.mode).associateBy { it.id }
+    // Keyed on the format, not the character: what is for sale is decided by which sets are in
+    // play, which is what a format names. A potion is on every shelf — see `ShopCatalog.offers`.
+    val cards = remember(catalog, format) {
+        catalog.admittedBy(format).associateBy { it.id }
     }
-    var selectedTag by remember(profile.mode) { mutableStateOf<String?>(null) }
+    // Priced from the card table, not from a list of literals: a booster costs what it holds. See
+    // `BoosterPricing`. The whole catalogue rather than `cards`, because a pack's pool may name a
+    // card the format does not admit and it still has to be valued.
+    val offers = remember(format, catalog) {
+        ShopCatalog.offers(format, catalog.all.associateBy { it.id })
+    }
+    var selectedTag by remember(format) { mutableStateOf<String?>(null) }
     val selected = offers.firstOrNull { shopOfferTestTag(it) == selectedTag }
     val note = rememberNoteHost(SHOP_NOTE_TEST_TAG)
 
     // The card just drawn from a pack, while it is being shown off. `UnlockCardAnim` is the one
     // thing the original does in the bag that a line of text cannot: the player has often never
     // seen this card, and the note names it without showing it.
-    var unlocked by remember(profile.mode) { mutableStateOf<Card?>(null) }
+    var unlocked by remember(format) { mutableStateOf<Card?>(null) }
 
     CharacterScaffold(
         profile = profile,
@@ -147,6 +156,7 @@ internal fun StoreScreen(
             StoreTab.BAG -> InventoryBody(
                 profile = profile,
                 catalog = catalog,
+                format = format,
                 onPersist = onPersist,
                 onUnlocked = { unlocked = it },
                 random = random,

@@ -6,9 +6,9 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import com.tripletriad.FF14_BLOCK
 import com.tripletriad.data.SaveRepository
 import com.tripletriad.i18n.AppLocale
-import com.tripletriad.model.CardCollection
 import com.tripletriad.model.GameSave
 import com.tripletriad.settings.InMemorySettingsStore
 import com.tripletriad.settings.SettingsStore
@@ -90,13 +90,13 @@ internal fun ComposeUiTest.awaitMenu() {
  * to play.
  */
 @OptIn(ExperimentalTestApi::class)
-internal fun ComposeUiTest.newCharacter(collection: CardCollection = CardCollection.FF14) {
+internal fun ComposeUiTest.newCharacter(block: Int = FF14_BLOCK) {
     awaitMenu()
     onNodeWithTag(MENU_PLAY_TEST_TAG).performClick()
     waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_NEW_TEST_TAG) }
     onNodeWithTag(PROFILE_NEW_TEST_TAG).performClick()
     waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_CREATE_TEST_TAG) }
-    onNodeWithTag(collectionChoiceTestTag(collection)).performClick()
+    onNodeWithTag(starterChoiceTestTag(starterFor(block).id)).performClick()
     onNodeWithTag(PROFILE_CREATE_TEST_TAG).performClick()
     awaitDashboard()
 }
@@ -189,15 +189,16 @@ internal fun ComposeUiTest.backToDashboard() {
 @OptIn(ExperimentalTestApi::class)
 internal fun ComposeUiTest.startMatch(
     iconId: String = TEST_OPPONENT,
-    collection: CardCollection = CardCollection.FF14,
+    block: Int = FF14_BLOCK,
 ) {
-    newCharacter(collection)
+    newCharacter(block)
     openOpponents()
     challenge(iconId)
 }
 
 @OptIn(ExperimentalTestApi::class)
 internal fun ComposeUiTest.challenge(iconId: String = TEST_OPPONENT) {
+    scrollToOpponent(iconId)
     onNodeWithTag(opponentRowTestTag(iconId)).performClick()
     settleDeck()
     awaitPlayer()
@@ -242,4 +243,4 @@ internal const val ANY_LEVEL: Int = 99
  * Read off the shipped file rather than hard-coded, so a card swapped for flavour is a content
  * change and not a test failure. See [starterFor].
  */
-internal val STARTER_CARDS: List<Int> = starterFor(CardCollection.FF14).cards
+internal val STARTER_CARDS: List<Int> = starterFor(FF14_BLOCK).cards

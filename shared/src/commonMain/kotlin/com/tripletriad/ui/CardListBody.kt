@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tripletriad.data.CardCatalog
+import com.tripletriad.data.Format
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.Strings
@@ -75,11 +76,15 @@ fun cardCopiesTestTag(cardId: Int): String = "card-copies-$cardId"
  *   card.
  */
 @Composable
-internal fun ColumnScope.CardListBody(profile: GameSave, catalog: CardCatalog) {
+internal fun ColumnScope.CardListBody(
+    profile: GameSave,
+    catalog: CardCatalog,
+    format: Format,
+) {
     val strings = LocalStrings.current
-    val cards = remember(catalog, profile.mode) { catalog.collection(profile.mode) }
+    val cards = remember(catalog, format) { catalog.admittedBy(format) }
     val owned = profile.cards
-    var selected by remember(profile.mode) { mutableStateOf<Card?>(null) }
+    var selected by remember(format) { mutableStateOf<Card?>(null) }
 
     Text(
         // Counted over the *table* and not over `CARDS`, so an id the profile holds that names

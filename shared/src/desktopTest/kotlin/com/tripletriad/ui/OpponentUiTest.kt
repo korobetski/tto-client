@@ -6,11 +6,13 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.v2.runComposeUiTest
+import com.tripletriad.FF14_FORMAT
+import com.tripletriad.data.NpcRating
 import com.tripletriad.data.SaveRepository
 import com.tripletriad.data.loadNpcCatalog
 import com.tripletriad.i18n.AppLocale
-import com.tripletriad.model.CardCollection
 import com.tripletriad.model.GameSave
+import com.tripletriad.model.Npc
 import com.tripletriad.model.XpTable
 import com.tripletriad.storage.InMemoryDocumentStore
 import com.tripletriad.time.FixedClock
@@ -34,21 +36,91 @@ class OpponentUiTest {
     private fun stored(documents: InMemoryDocumentStore): GameSave =
         runBlocking { SaveRepository(documents).list().single().save }
 
-    /** Opponents are listed easiest first — `NPCs.as:1141` sorts difficulty, fee, then name. */
+    /**
+     * Opponents are listed easiest first — `NPCs.as:1141` sorts difficulty, fee, then name.
+     *
+     * Asserted as the **ordering**, not as a named opponent at the top. It used to name
+     * `tt-master`, which held while the FFXIV table's hand-authored difficulties ran 1..19 and
+     * almost every value was unique. `NpcRating` measures difficulty onto a ten-point scale, so a
+     * band now holds several opponents and which of them sorts first is decided by name — a fact
+     * about the alphabet, not about the list being sorted.
+     *
+     * The property that matters survives the change and is what is checked: no opponent is ever
+     * listed before an easier one.
+     */
     @Test
-    fun theEasiestOpponentIsListedFirst() = runComposeUiTest {
+    fun opponentsAreListedEasiestFirst() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
         openOpponents()
 
-        // `tt-master` is difficulty 1 with a 5 MGP fee, the lowest pair in the ff14 table.
+        scrollToOpponent(TEST_OPPONENT)
         onNodeWithTag(opponentRowTestTag(TEST_OPPONENT)).assertExists()
+
+        val listed = catalog.available(FF14_FORMAT, FixedClock.DEFAULT_HOUR, ANY_LEVEL)
         assertEquals(
-            TEST_OPPONENT,
-            catalog.available(CardCollection.FF14, FixedClock.DEFAULT_HOUR, ANY_LEVEL)
-                .first().iconId,
-            "the fixture assumes this opponent heads the list",
+            listed.map { it.difficulty }.sorted(),
+            listed.map { it.difficulty },
+            "the list must never put a harder opponent above an easier one",
         )
+        assertEquals(
+            NpcRating.RANGE.first,
+            listed.first().difficulty,
+            "the head of the list should be as easy as the scale goes",
+        )
+    }
+
+    /**
+     * A row shows the cards the opponent can be won from, before the match is entered.
+     *
+     * The AS3 lists an opponent's fee and difficulty and says nothing about what beating them
+     * yields, so a player picks an opponent without the one fact that would make the choice
+     * interesting. `Npc.cards` is the drop table and was always in the data.
+     *
+     * Asserted against the catalogue rather than a fixed id: which opponent heads the list is a
+     * property of the shipped table, and a test naming a card would break when the table is
+     * reauthored for something unrelated.
+     */
+    @Test
+    fun aRowShowsTheCardsAnOpponentCanGiveUp() = runComposeUiTest {
+        // `itemRewards`, not `cards`: the first is the drop table, the second is the pool the
+        // opponent's own hand is dealt from. They are different lists and only one is a reward.
+        val drops = catalog
+            .available(FF14_FORMAT, FixedClock.DEFAULT_HOUR, ANY_LEVEL)
+            .first { npc -> npc.itemRewards.any { it.cardId != null } }
+
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        newCharacter()
+        openOpponents()
+
+        onNodeWithTag(OPPONENT_LIST_TEST_TAG)
+            .performScrollToNode(hasTestTag(opponentRowTestTag(drops.iconId)))
+        // Unmerged: the row is a clickable card, so it merges its descendants' semantics and the
+        // inner tag is invisible to the default finder. The same reason the quest badge is read
+        // this way in `QuestsUiTest`.
+        onNodeWithTag(opponentRewardsTestTag(drops.iconId), useUnmergedTree = true).assertExists()
+    }
+
+    /** And an opponent with an empty drop table shows no row of cards at all. */
+    @Test
+    fun anOpponentWithNoDropsShowsNoCards() = runComposeUiTest {
+        val barren = catalog
+            .available(FF14_FORMAT, FixedClock.DEFAULT_HOUR, ANY_LEVEL)
+            .firstOrNull { npc -> npc.itemRewards.none { it.cardId != null } }
+
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        newCharacter()
+        openOpponents()
+
+        if (barren == null) {
+            // Every shipped opponent drops something, so there is nothing to assert — said out
+            // loud rather than passing silently, which would hide the day one stops dropping.
+            return@runComposeUiTest
+        }
+        onNodeWithTag(OPPONENT_LIST_TEST_TAG)
+            .performScrollToNode(hasTestTag(opponentRowTestTag(barren.iconId)))
+        onNodeWithTag(opponentRewardsTestTag(barren.iconId), useUnmergedTree = true)
+            .assertDoesNotExist()
     }
 
     /** A row states the rules the opponent imposes, before the player commits to the match. */
@@ -113,6 +185,7 @@ class OpponentUiTest {
 
         onNodeWithTag(OPPONENT_LIST_TEST_TAG)
             .performScrollToNode(hasTestTag(opponentRowTestTag(EVENING_OPPONENT)))
+        scrollToOpponent(EVENING_OPPONENT)
         onNodeWithTag(opponentRowTestTag(EVENING_OPPONENT)).assertExists()
     }
 
@@ -125,8 +198,8 @@ class OpponentUiTest {
      */
     @Test
     fun theEveningListIsLongerThanTheNoonOne() {
-        val atNoon = catalog.available(CardCollection.FF14, NOON, ANY_LEVEL).map { it.iconId }
-        val atEvening = catalog.available(CardCollection.FF14, EVENING, ANY_LEVEL).map { it.iconId }
+        val atNoon = catalog.available(FF14_FORMAT, NOON, ANY_LEVEL).map { it.iconId }
+        val atEvening = catalog.available(FF14_FORMAT, EVENING, ANY_LEVEL).map { it.iconId }
 
         assertTrue(EVENING_OPPONENT !in atNoon, "the fixture should be shut at noon")
         assertTrue(EVENING_OPPONENT in atEvening, "the fixture should be open in the evening")
@@ -247,7 +320,7 @@ class OpponentUiTest {
         }
         assertTrue(
             reached.isFailure,
-            "a difficulty-4 opponent is out of a level-1 character's reach",
+            "a difficulty-${eveningOpponent.difficulty} opponent is out of a level-1 reach",
         )
     }
 
@@ -266,30 +339,37 @@ class OpponentUiTest {
 
         onNodeWithTag(OPPONENT_LIST_TEST_TAG)
             .performScrollToNode(hasTestTag(opponentRowTestTag(EVENING_OPPONENT)))
+        scrollToOpponent(EVENING_OPPONENT)
         onNodeWithTag(opponentRowTestTag(EVENING_OPPONENT)).assertExists()
     }
 
     /**
      * A character past the level gate, so a test about the *hour* is not also about the level.
      *
-     * See `NpcCatalog.available`: [EVENING_OPPONENT] is difficulty 4 and a character made through
-     * the UI starts at level 1, which reaches difficulty 2.
+     * The level is **derived** from the opponent it has to reach, not written down. `NpcRating`
+     * measures difficulty from the shipped cards and rules, so an opponent's number moves when its
+     * hand or its rules are edited — and a hard-coded level would then be testing whether somebody
+     * remembered to update this file. `NpcCatalog.available` opens difficulties up to
+     * `level + LEVEL_REACH`, so the level that just reaches it is its difficulty less one.
      *
      * Seeded as **XP**, not as a level: `GameSave.sane()` recomputes the level from the experience
      * on every load and every write, so a `copy(level = 3)` would be normalised straight back to 1
      * before the screen ever saw it.
      */
     private fun veteran(): GameSave =
-        GameSave.new(createdAt = 0L).copy(xp = XpTable.thresholdFor(VETERAN_LEVEL))
+        GameSave.new(createdAt = 0L).copy(xp = XpTable.thresholdFor(eveningOpponent.difficulty - 1))
+
+    /** The opponent with an evening window, read from the catalogue for its difficulty. */
+    private val eveningOpponent: Npc
+        get() = requireNotNull(catalog.byIcon(EVENING_OPPONENT, FF14_FORMAT)) {
+            "$EVENING_OPPONENT is not in the roster"
+        }
 
     private companion object {
         const val NOON = 12
         const val EVENING = 18
 
-        /** `{begins: 17, ends: 23}` in `NPCs.as`, and difficulty 4. */
+        /** `{begins: 17, ends: 23}` in `NPCs.as`. Its difficulty is measured, not assumed here. */
         const val EVENING_OPPONENT = "linu-vali"
-
-        /** Enough to reach [EVENING_OPPONENT], and not so much that it proves nothing. */
-        const val VETERAN_LEVEL = 3
     }
 }

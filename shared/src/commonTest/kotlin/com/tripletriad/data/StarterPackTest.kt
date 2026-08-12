@@ -1,13 +1,11 @@
 package com.tripletriad.data
 
 import com.tripletriad.model.Card
-import com.tripletriad.model.CardCollection
 import com.tripletriad.model.Deck
 import com.tripletriad.model.GameSave
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -16,88 +14,80 @@ import kotlin.test.assertTrue
  * The catalogue here is a fixture, not the shipped one: these are rules about *a* starter, and
  * pinning them to `starters.json` would make every one of them fail the day a card is swapped for
  * flavour. That the shipped file obeys the composition rule is `StarterBundleTest`'s job.
+ *
+ * ### What used to be tested here and is now untestable
+ *
+ * Four of these tests were about `copy(mode = FF8)` stranding every card a profile owned — the
+ * defect this object was written for. `MODE` is gone, so there is no field left that can strand
+ * anything: a profile owns what it owns, and whether a card may be *played* is the format's
+ * question, asked at the match. Those tests were not repaired, they were removed, because a test
+ * that can no longer fail is not a test. What survives is the repair path, which is still reachable
+ * — an account can still arrive short of five cards — and the shape of the grant.
  */
 class StarterPackTest {
-    private fun character(collection: CardCollection = CardCollection.FF14) =
-        GameSave.new(username = "Tester", mode = collection, createdAt = 1L)
+    private fun character() = GameSave.new(username = "Tester", createdAt = 1L)
 
     @Test
     fun aFreshCharacterIsOwedNothing() {
-        for (collection in CardCollection.entries) {
-            val save = character(collection)
-            assertFalse(StarterPack.isOwedBy(save), collection.name)
-            assertEquals(save, StarterPack.grantedTo(save, catalog), "nothing to grant")
-        }
+        val save = character()
+
+        assertFalse(StarterPack.isOwedBy(save))
+        assertEquals(save, StarterPack.grantedTo(save, catalog), "nothing to grant")
+    }
+
+    /** Opening a box replaces what the profile was seeded with, rather than adding to it. */
+    @Test
+    fun openingABoxDealsExactlyThatBox() {
+        val opened = StarterPack.opened(character(), ff8)
+
+        assertEquals(ff8.cards.associateWith { 1 }, opened.cards)
+        assertEquals(listOf(ff8.deck), opened.decks.map { it.cards })
+        assertFalse(StarterPack.isOwedBy(opened), "the character can play")
     }
 
     /**
-     * The defect this whole object exists for.
+     * Nothing about a box confines the character to its set.
      *
-     * `copy(mode = …)` is what the post-registration collection step used to do, and with global
-     * card ids it leaves a character holding five cards of the set it *left*. Stated as a test so
-     * the reasoning cannot quietly go stale again: if a future card id scheme makes this harmless
-     * once more, this is the assertion that says so.
+     * The point of document 19, stated as an assertion: a profile opened with the FFXIV box can be
+     * handed an FFVIII card and simply owns it. While `MODE` existed this was the defect the whole
+     * object was written to work around.
      */
     @Test
-    fun changingOnlyTheModeStrandsEveryCard() {
-        val stranded = character(CardCollection.FF14).copy(mode = CardCollection.FF8)
+    fun aBoxDoesNotConfineTheCharacterToItsSet() {
+        val opened = StarterPack.opened(character(), ff14)
+        val other = ff8.cards.first()
 
-        assertEquals(0, StarterPack.playableCards(stranded), "no FF8 card is owned")
-        assertTrue(StarterPack.isOwedBy(stranded))
-    }
+        val mixed = opened.withCard(other)
 
-    @Test
-    fun startingInTheOtherCollectionGrantsThatSetsAuthoredStarter() {
-        val moved = StarterPack.startingIn(
-            character(CardCollection.FF14),
-            CardCollection.FF8,
-            catalog,
-        )
-
-        assertEquals(CardCollection.FF8, moved.mode)
-        assertEquals(ff8.cards.associateWith { 1 }, moved.cards)
-        assertEquals(listOf(ff8.deck), moved.decks.map { it.cards })
-        assertFalse(StarterPack.isOwedBy(moved), "the moved character can play")
-        // Not both sets' starters: the FFXIV cards are replaced, not kept alongside. Adding
-        // would hand a player twenty cards towards `ac-td2`'s thirty for changing their mind.
-        assertEquals(ff8.cards.size, moved.cards.size)
-    }
-
-    @Test
-    fun confirmingTheCollectionAlreadyInPlayChangesNothing() {
-        val save = character(CardCollection.FF14)
-
-        assertEquals(save, StarterPack.startingIn(save, CardCollection.FF14, catalog))
+        assertTrue(mixed.ownsCard(other))
+        assertEquals(ff14.cards.size + 1, StarterPack.playableCards(mixed))
     }
 
     /**
-     * A set with no authored starter grants nothing rather than inventing ids.
+     * An empty catalogue grants nothing rather than inventing ids.
      *
      * `StarterCatalog.violations` refuses this at authoring time, so it is unreachable through the
      * shipped bundle — and handled anyway, because the alternative to "nothing happened" is a
      * character holding cards nobody chose.
      */
     @Test
-    fun aSetWithNoStarterIsLeftAlone() {
+    fun anEmptyCatalogueIsLeftAlone() {
         val empty = StarterCatalog(emptyList())
-        val stranded = character(CardCollection.FF14).copy(mode = CardCollection.FF8)
+        val destitute = character().copy(cards = emptyMap())
 
-        assertNull(StarterPack.forCollection(empty, CardCollection.FF8))
-        assertEquals(stranded, StarterPack.grantedTo(stranded, empty))
-        assertEquals(stranded, StarterPack.startingIn(stranded, CardCollection.FF14, empty))
+        assertEquals(destitute, StarterPack.grantedTo(destitute, empty))
     }
 
     @Test
-    fun grantingRepairsAStrandedCharacterWithoutTouchingWhatItKept() {
-        val kept = Card.idFor(block = CardCollection.FF8.block, number = 99)
-        val stranded = character(CardCollection.FF14)
-            .copy(mode = CardCollection.FF8, cards = mapOf(kept to 3))
+    fun grantingRepairsADestituteCharacterWithoutTouchingWhatItKept() {
+        val kept = Card.idFor(block = 2, number = 99)
+        val destitute = character().copy(cards = mapOf(kept to 3))
 
-        val repaired = StarterPack.grantedTo(stranded, catalog)
+        val repaired = StarterPack.grantedTo(destitute, catalog)
 
         assertFalse(StarterPack.isOwedBy(repaired))
         assertEquals(3, repaired.copiesOf(kept), "copies already held are not disturbed")
-        for (id in ff8.cards) {
+        for (id in ff14.cards) {
             assertTrue(repaired.ownsCard(id), "starter card $id was not granted")
         }
     }
@@ -105,7 +95,7 @@ class StarterPackTest {
     /** A card already in the starter is topped up to one copy, never to two. */
     @Test
     fun grantingDoesNotDoubleWhatIsAlreadyOwned() {
-        val partial = character(CardCollection.FF14).copy(cards = mapOf(ff14.cards.first() to 1))
+        val partial = character().copy(cards = mapOf(ff14.cards.first() to 1))
 
         val repaired = StarterPack.grantedTo(partial, catalog)
 
@@ -114,24 +104,24 @@ class StarterPackTest {
 
     @Test
     fun grantingLeavesAPlayableDeckAtTheTop() {
-        val stranded = character(CardCollection.FF14).copy(
-            mode = CardCollection.FF8,
-            decks = listOf(Deck("Stranded", ff14.deck)),
+        val destitute = character().copy(
+            cards = emptyMap(),
+            decks = listOf(Deck("Stranded", ff8.deck)),
         )
 
-        val repaired = StarterPack.grantedTo(stranded, catalog)
+        val repaired = StarterPack.grantedTo(destitute, catalog)
         val deck = repaired.decks.first()
 
         assertTrue(deck.isComplete, "the granted deck is a full hand")
         assertTrue(deck.isAffordable(repaired.cards), "and every card in it is owned")
-        assertEquals(ff8.deck, deck.cards)
+        assertEquals(ff14.deck, deck.cards)
         assertTrue(repaired.decks.size <= GameSave.MAX_DECKS)
     }
 
     /** Copies are not cards: five of one is not a hand, and must not read as one. */
     @Test
     fun fiveCopiesOfOneCardIsStillOwedThePack() {
-        val hoarder = character(CardCollection.FF14).copy(cards = mapOf(ff14.cards.first() to 5))
+        val hoarder = character().copy(cards = mapOf(ff14.cards.first() to 5))
 
         assertEquals(1, StarterPack.playableCards(hoarder))
         assertTrue(StarterPack.isOwedBy(hoarder))

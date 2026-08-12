@@ -10,12 +10,14 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.v2.runComposeUiTest
+import com.tripletriad.FF14_BLOCK
+import com.tripletriad.FF8_BLOCK
+import com.tripletriad.FF8_FORMAT
 import com.tripletriad.data.loadCardCatalog
 import com.tripletriad.data.loadNpcCatalog
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.loadStrings
 import com.tripletriad.model.Card
-import com.tripletriad.model.CardCollection
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.Deck
 import com.tripletriad.model.GameSave
@@ -52,13 +54,14 @@ class DeckSelectorUiTest {
     private fun ComposeUiTest.reachSelector(documents: InMemoryDocumentStore) {
         loadCharacter(documents)
         openOpponents()
+        scrollToOpponent(TEST_OPPONENT)
         onNodeWithTag(opponentRowTestTag(TEST_OPPONENT)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_SELECT_CHOOSE_TEST_TAG) }
     }
 
     /** The English name of an ff14 card, which is what a hand shows once a card is picked up. */
     private fun nameOf(cardId: Int): String {
-        val card = cards.collection(CardCollection.FF14).first { it.id == cardId }
+        val card = cards.block(FF14_BLOCK).first { it.id == cardId }
         return english[card.nameKey]
     }
 
@@ -194,13 +197,14 @@ class DeckSelectorUiTest {
      */
     @Test
     fun theRandomRuleSkipsTheSelectorEntirely() = runComposeUiTest {
-        val documents = seeded(GameSave.new(createdAt = 0L, mode = CardCollection.FF8))
+        val documents = seeded(freshSave(createdAt = 0L, block = FF8_BLOCK))
         setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
         openOpponents()
 
         onNodeWithTag(OPPONENT_LIST_TEST_TAG)
             .performScrollToNode(hasTestTag(opponentRowTestTag(RANDOM_OPPONENT)))
+        scrollToOpponent(RANDOM_OPPONENT)
         onNodeWithTag(opponentRowTestTag(RANDOM_OPPONENT)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(BOARD_TEST_TAG) }
 
@@ -211,7 +215,7 @@ class DeckSelectorUiTest {
     @Test
     fun theRandomOpponentIsTheOneTheFixtureAssumes() {
         val npcs = runBlocking { loadNpcCatalog() }
-        val npc = npcs.available(CardCollection.FF8, NOON, ANY_LEVEL)
+        val npc = npcs.available(FF8_FORMAT, NOON, ANY_LEVEL)
             .first { it.iconId == RANDOM_OPPONENT }
 
         assertTrue(npc.gameRules().random, "$RANDOM_OPPONENT should impose RULE_RANDOM")
@@ -244,7 +248,7 @@ class DeckSelectorUiTest {
     private companion object {
         /** The five a fresh profile owns. */
 /** The starter's **opening deck** — five cards, so a `Deck` built from it is complete. */
-        val STARTER = starterFor(CardCollection.FF14).deck
+        val STARTER = starterFor(FF14_BLOCK).deck
 
         /** Five ff14 cards outside the starter set, so the two decks share nothing. */
         val EXTRA = listOf(44, 45, 51, 63, 74).map { Card.idFor(block = 1, number = it) }

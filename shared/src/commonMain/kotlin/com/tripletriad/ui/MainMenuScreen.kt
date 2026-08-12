@@ -159,7 +159,6 @@ internal fun MainMenuScreen(
             text = active?.let {
                 listOf(
                     it.username,
-                    collectionLabel(it.mode),
                     "${strings[StringKeys.LEVEL]} ${it.level}",
                 ).joinToString(DOT_SEPARATOR)
             } ?: strings[StringKeys.NO_PROFILE],

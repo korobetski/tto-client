@@ -7,6 +7,7 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import com.tripletriad.model.Board
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.HAND_SIZE
@@ -137,3 +138,18 @@ internal fun ComposeUiTest.totalIsTen(): Boolean =
         onAllNodes(hasTestTag(SCORE_TEST_TAG) and hasText("$blue — ${TOTAL_CARDS - blue}"))
             .fetchSemanticsNodes().isNotEmpty()
     }
+
+/**
+ * Brings [iconId]'s row into the composition, because the roster is lazy and now long.
+ *
+ * Was unnecessary while `MODE` split the cast in two and every test's opponent sat near the top of
+ * its own half. One format means one list of eighty-five, sorted by difficulty — and the FFVIII
+ * table declares `difficulty` **0** for all twenty-five of its entries (see `NpcCatalog.available`,
+ * which records that gap), so all twenty-five sort ahead of `tt-master`. The row is there; it is
+ * simply not composed until something scrolls to it.
+ */
+@OptIn(ExperimentalTestApi::class)
+internal fun ComposeUiTest.scrollToOpponent(iconId: String) {
+    onNodeWithTag(OPPONENT_LIST_TEST_TAG)
+        .performScrollToNode(hasTestTag(opponentRowTestTag(iconId)))
+}

@@ -106,10 +106,22 @@
   "APP_CLAIM": "Claim",
   "APP_REWARD_CARDS": "Cards to win",
   "APP_NEXT_TIER": "Next: {0}",
+  "APP_QUESTS": "Daily quests",
+  "APP_QUESTS_RESET": "{0} — resets at midnight UTC",
+  "APP_QUEST_DONE": "Completed",
+  "APP_NO_QUEST": "No quest today.",
+  "APP_QUEST_PLAY_3": "Play 3 matches",
+  "APP_QUEST_WIN_1": "Win a match",
+  "APP_QUEST_WIN_3": "Win 3 matches",
+  "APP_QUEST_BEAT": "Beat {0}",
+  "APP_QUEST_RULE": "Win a match with {0}",
+  "APP_QUEST_PVP_1": "Play a match against another player",
   "APP_HELP_FAMILY_SIGHT": "What you can see",
   "APP_HELP_FAMILY_PLAY": "How the match is played",
   "APP_HELP_FAMILY_CAPTURE": "How cards are captured",
   "APP_HELP_FAMILY_ELEMENTS": "Elements",
   "APP_STARTER_FF14_BEASTS": "Beasts of Eorzea",
-  "APP_STARTER_FF8_MONSTERS": "Monsters of Balamb"
+  "APP_STARTER_FF8_MONSTERS": "Monsters of Balamb",
+  "APP_FORMAT_FF14_STANDARD": "FFXIV Standard",
+  "APP_FORMAT_FF8_STANDARD": "FFVIII Standard"
 }

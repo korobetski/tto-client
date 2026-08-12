@@ -16,15 +16,31 @@ import java.io.File
  * **this one is already the right place**. `filesDir` is its direct equivalent: no permission,
  * survives updates, removed on uninstall.
  *
+ * ### Why the root is a parameter and not a `Context`
+ *
+ * The only thing this class ever wanted from Android is `filesDir`, which is a `File`. Taking the
+ * directory instead of the `Context` makes it a plain JVM class, so `AndroidDocumentStoreTest` runs
+ * on the host with no Robolectric and no instrumented run — see there for why that mattered. The
+ * `Context` overload below is what the app actually calls, so no call site changed.
+ *
+ * @param root where this app may write. `context.filesDir` in the app, a temporary directory in a
+ *   test.
  * @param subdirectory the collection this store holds, e.g. `saves`.
  * @param extension appended to every key on disk. `sav` keeps the original's file naming.
  */
 class AndroidDocumentStore(
-    context: Context,
+    root: File,
     subdirectory: String,
     private val extension: String = "sav",
 ) : DocumentStore {
-    private val directory = File(context.filesDir, subdirectory)
+    /** What the app uses. `filesDir` is private per-application storage — see above. */
+    constructor(
+        context: Context,
+        subdirectory: String,
+        extension: String = "sav",
+    ) : this(context.filesDir, subdirectory, extension)
+
+    private val directory = File(root, subdirectory)
 
     override suspend fun read(key: String): String? = withContext(Dispatchers.IO) {
         fileFor(key).let { if (it.isFile) it.readText() else null }

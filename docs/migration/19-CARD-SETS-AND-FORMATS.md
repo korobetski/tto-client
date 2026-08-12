@@ -1,6 +1,7 @@
 # Card sets and formats
 
-**Decision, taken. Not yet implemented.** It supersedes the collection model in
+**Decision, taken. Partly implemented — see § Where this stands.** It supersedes the collection
+model in
 [06-PHASE-2-DATA-LAYER.md](./06-PHASE-2-DATA-LAYER.md) and changes part of the schema proposed in
 [18-MULTI-CHARACTER-ACCOUNTS.md](./18-MULTI-CHARACTER-ACCOUNTS.md), which must not be implemented
 before this one is settled.
@@ -401,7 +402,47 @@ written until this document is agreed, or it will be written twice.
 - **Formats live in data**, in `formats.json` beside `campaigns.json`, and opponents declare which
   they play. See § Formats live in data.
 
+## Where this stands
+
+Three of the four decided items are in. The fourth — `MODE` — is the one that costs a release, and
+it is what everything below is waiting on.
+
+| Decided | State |
+|---|---|
+| Card ids as `(block << 8) \| number` | ✅ `:core` 0.2.0. `Card.BLOCK_SHIFT`, both tables renumbered, `CardBundleTest` holds the invariants |
+| The starter pack | ✅ client. `starters.json`, `StarterCatalog`, `StarterPack`, granted at both creation paths and repairable from the shop |
+| Formats live in data | 🔶 **transcribed, not switched** — see below |
+| `MODE` goes away | ❌ not started |
+
+**What "transcribed, not switched" means.** `formats.json` and `FormatCatalog` exist and ship, but
+nothing reads them: the engine still draws from `Roulette.pools`, which is compiled into `:core`.
+The two are held identical — in order — by `FormatBundleTest`, whose whole purpose is to make the
+eventual switch a **deletion** rather than a rewrite nobody can check, and to catch the failure mode
+in between, which is a pool tuned in one of the two places while both exist.
+
+`FormatCatalog` sits in `:shared` rather than `:core`, for the reason `StarterCatalog` does: it is
+pure Kotlin that moves verbatim, and `:core` is a published artifact whose every change costs a
+release and two pins.
+
+**One thing the transcription found.** `RULE_COMBO` cannot be in a format's pool. It is in the help
+screen's list and is a dead constant everywhere else — combo fires whenever Same or Plus captures
+and no flag turns it on — so a format naming it would promise a rule it cannot deliver. The
+validator refuses it, by asking `GameRules.withRuleKey` whether the key changes anything, because
+`RuleKeys` is `internal` to `:core`.
+
 ## Open
+
+Still unanswered, and **question 3 now blocks authored content** rather than only design: the
+free-play format proposed there is the one format whose rule pool nobody has decided, so it could
+not be written into `formats.json` with the other two.
+
+The union of the two pools is not the answer. `Board.elements()` draws from the **eight FFVIII
+elements**, and an FFXIV card's `type` is a *group* — `beast`, `scions`, `garlean`, `primals` — not
+an element. So an FFXIV card on an elemental tile can only ever take the −1: it cannot match, in
+principle, on any tile. Elemental in a mixed format would be a rule that penalises half the cards in
+the pool and rewards none of them. That is document 20's `element`/`group` split, arriving as a
+concrete bug rather than a modelling preference — which is the argument for settling 20 alongside
+this one.
 
 1. **Does a set gate ownership at all?** Proposal: no. A booster from set X yields cards of set X,
    but nothing stops a player owning cards from every set. Restriction is the match's job.

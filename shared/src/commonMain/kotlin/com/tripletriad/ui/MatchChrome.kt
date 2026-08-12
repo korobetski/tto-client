@@ -447,6 +447,23 @@ private fun OutcomeCard(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+            // Announced here or nowhere: a quest that finished mid-match and said nothing would be
+            // a reward the player only discovers by going looking for it. The MGP is already in
+            // the payout line above — `MatchRewards` credits quests into the same total — so this
+            // says what was finished, not what it paid.
+            for (quest in reward.quests) {
+                Text(
+                    // `BeatOpponent` is the only quest that names anybody, and by construction the
+                    // opponent it names is the one just played. So no catalogue lookup here.
+                    text = strings[StringKeys.QUEST_DONE] + " — " +
+                        quest.label(strings) { opponentName },
+                    color = LocalTtoColors.current.selectionRing,
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.testTag(questRowTestTag(quest.id)),
+                )
+            }
 
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),

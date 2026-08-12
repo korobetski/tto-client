@@ -7,10 +7,12 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.setValue
 import com.tripletriad.data.CampaignCatalog
 import com.tripletriad.data.CardCatalog
+import com.tripletriad.data.FormatCatalog
 import com.tripletriad.data.NpcCatalog
 import com.tripletriad.data.StarterCatalog
 import com.tripletriad.data.loadCampaignCatalog
 import com.tripletriad.data.loadCardCatalog
+import com.tripletriad.data.loadFormatCatalog
 import com.tripletriad.data.loadNpcCatalog
 import com.tripletriad.data.loadStarterCatalog
 import com.tripletriad.i18n.StringKeys
@@ -68,12 +70,17 @@ enum class StartupPhase(val labelKey: String) {
  * @property starters the boxes a character can open with — `starters.json`, and document 19's
  *   replacement for `GameSave.DEFAULT_CARDS`. Loaded with the cards rather than with the opponents,
  *   because a character can be created before an opponent is ever listed.
+ * @property formats what a match may be played with — `formats.json`. Loaded beside the cards for
+ *   the same reason: a format is a property of the card pool, not of who is offering the match.
+ *   Nothing reads it yet — the engine still draws from `Roulette.pools`, and `FormatBundleTest`
+ *   holds the two to being identical until that moves. See [com.tripletriad.data.FormatCatalog].
  */
 data class StartupState(
     val phase: StartupPhase = StartupPhase.SETTINGS,
     val settings: UserSettings? = null,
     val catalog: CardCatalog? = null,
     val starters: StarterCatalog? = null,
+    val formats: FormatCatalog? = null,
     val art: CardArt? = null,
     val ui: UiArt? = null,
     val opponents: NpcCatalog? = null,
@@ -107,11 +114,14 @@ fun rememberStartup(store: SettingsStore): StartupState {
 
         val catalog = loadCardCatalog()
         val starters = loadStarterCatalog()
-        value = StartupState(StartupPhase.ART, settings, catalog, starters)
+        val formats = loadFormatCatalog()
+        value = StartupState(StartupPhase.ART, settings, catalog, starters, formats)
 
         val art = loadCardArt()
         val ui = loadUiArt()
-        value = StartupState(StartupPhase.OPPONENTS, settings, catalog, starters, art, ui)
+        value = StartupState(
+            StartupPhase.OPPONENTS, settings, catalog, starters, formats, art, ui,
+        )
 
         val opponents = loadNpcCatalog()
         val campaigns = loadCampaignCatalog()
@@ -120,6 +130,7 @@ fun rememberStartup(store: SettingsStore): StartupState {
             settings = settings,
             catalog = catalog,
             starters = starters,
+            formats = formats,
             art = art,
             ui = ui,
             opponents = opponents,

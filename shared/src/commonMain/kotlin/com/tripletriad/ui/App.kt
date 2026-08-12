@@ -24,6 +24,7 @@ import com.tripletriad.audio.SilentAudioPlayer
 import com.tripletriad.audio.Sound
 import com.tripletriad.data.Campaign
 import com.tripletriad.data.CardCatalog
+import com.tripletriad.data.NpcCatalog
 import com.tripletriad.data.SaveRepository
 import com.tripletriad.data.StarterCatalog
 import com.tripletriad.i18n.AppLocale
@@ -396,6 +397,7 @@ private fun Destination(
         // Grouped rather than delegated behind an `else`, so that adding a fourteenth screen is a
         // compile error here instead of a destination that silently renders blank.
         Screen.DASHBOARD, Screen.OPPONENTS, Screen.MATCH, Screen.TUTORIAL, Screen.STATS,
+        Screen.QUESTS,
         Screen.CAMPAIGN, Screen.CAMPAIGN_MATCH, Screen.AVATAR, Screen.COLLECTION_CHOICE,
         Screen.CARDS, Screen.DECKS, Screen.INVENTORY, Screen.SHOP, Screen.HELP,
         -> gate.profile?.let { profile ->
@@ -503,8 +505,12 @@ private fun CharacterDestination(
     when (destination) {
         Screen.DASHBOARD -> DashboardScreen(
             profile = profile,
+            // For the quest badge, and read here rather than inside the screen so the dashboard
+            // and [QuestsScreen] cannot disagree about what day it is.
+            at = clock.nowMillis(),
             onPlay = { onNavigate(Screen.OPPONENTS) },
             onStats = { onNavigate(Screen.STATS) },
+            onQuests = { onNavigate(Screen.QUESTS) },
             // The collection and the shelf are the navigation bar's own two entries and are not
             // repeated here; these two open the *other* tab of each — see [DashboardScreen].
             onDecks = { onNavigate(Screen.DECKS) },
@@ -580,10 +586,12 @@ private fun CharacterDestination(
             onExit = { onNavigate(Screen.OPPONENTS) },
         )
 
-        Screen.STATS, Screen.AVATAR, Screen.COLLECTION_CHOICE -> RecordDestination(
+        Screen.STATS, Screen.QUESTS, Screen.AVATAR, Screen.COLLECTION_CHOICE -> RecordDestination(
             destination = destination,
             profile = profile,
             starters = starters,
+            at = clock.nowMillis(),
+            opponents = startup.opponents,
             gate = gate,
             onNavigate = onNavigate,
         )
@@ -616,20 +624,29 @@ private fun CharacterDestination(
 }
 
 /**
- * The record and the two screens that edit the character it describes.
+ * The record, the day's quests, and the two screens that edit the character they describe.
  *
- * Grouped because they are one subject — who this character *is*, as opposed to what they own or
- * who they play — and because the three arms together were what pushed [CharacterDestination] past
- * the complexity detekt allows.
+ * Grouped because they are one subject — who this character *is* and how they are doing, as opposed
+ * to what they own or who they play — and because the arms together were what pushed
+ * [CharacterDestination] past the complexity detekt allows.
  *
  * Both edits go through [ProfileGate.persist], so neither knows whether it is writing a local
- * `.sav` or an account the server holds.
+ * `.sav` or an account the server holds. The quests screen writes nothing at all: a match credits
+ * them, and this only reads.
+ *
+ * @param at the instant the quest day is read from, passed down rather than read here so the
+ *   dashboard's badge and the screen cannot disagree about what day it is.
+ * @param opponents only to name the opponent a `BeatOpponent` quest asks for. Behind the splash, so
+ *   null is unreachable rather than a degraded mode; the label falls back to the icon id.
  */
 @Composable
+@Suppress("LongParameterList")
 private fun RecordDestination(
     destination: Screen,
     profile: GameSave,
     starters: StarterCatalog,
+    at: Long,
+    opponents: NpcCatalog?,
     gate: ProfileGate,
     onNavigate: (Screen) -> Unit,
 ) {
@@ -638,6 +655,13 @@ private fun RecordDestination(
             profile = profile,
             onChoose = gate.persist,
             onBack = { onNavigate(Screen.STATS) },
+        )
+
+        Screen.QUESTS -> QuestsScreen(
+            profile = profile,
+            at = at,
+            opponents = opponents,
+            onBack = { onNavigate(Screen.DASHBOARD) },
         )
 
         Screen.COLLECTION_CHOICE -> CollectionChoiceScreen(

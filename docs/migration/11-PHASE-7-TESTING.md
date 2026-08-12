@@ -4,10 +4,46 @@
 
 - **Phase**: 7 - Testing
 - **Duration**: 4 weeks (Weeks 27-30)
-- **Status**: NOT STARTED
-- **Version**: 1.0
-- **Last Updated**: 2026-07-21
+- **Status**: PART DONE — see § Where this actually stands
+- **Version**: 1.1
+- **Last Updated**: 2026-08-12
 - **Prerequisites**: Phases 1-6
+
+---
+
+## Where this actually stands
+
+**"NOT STARTED" was never true, and reading it that way would waste a month.** Unit and UI testing
+ran far ahead of this phase's schedule, because the standards were gated in the build from Phase 1
+rather than deferred to a testing phase:
+
+| | Tests | Gate |
+|---|---|---|
+| `tto-client` `:shared` | 590, plus 10 desktop-host and 10 Android-host | ktlint, detekt, CI |
+| `tto-core` | 472 | ktlint, detekt, CI |
+| `tto-server` | 44, against real Postgres | ktlint, detekt, CI |
+
+So objectives 1, 2 and 3 are substantially met, and the phase's real content is what is *missing*.
+
+### Closed 2026-08-12: the host `DocumentStore` implementations
+
+Neither had ever been touched by a test. `androidApp/src` held only `debug/` and `main/`,
+`desktopApp/src` only `main/` — **no test source set existed in either host module**. The *contract*
+was covered by `InMemoryDocumentStore`; the two implementations that actually touch the player's
+files were covered by hand.
+
+Fixing it turned up a second defect: `.github/workflows/build.yml` never ran
+`:androidApp:testDebugUnitTest`, so an Android host test would not have run in CI even once one
+existed. Both are fixed.
+
+### Genuinely left
+
+1. **No performance bench.** `EnginePerformanceTest` describes itself as a fire alarm against
+   accidental quadratic behaviour, not a bench. ⚠️ Blocking issue 4 in
+   [00-INDEX.md](./00-INDEX.md) records that **no AS3 baseline is obtainable** — AIR is dead — so a
+   bench can measure absolute targets and never parity. Worth deciding before investing in one.
+2. **No instrumented Android tests**, and **no iOS tests** — the latter out of scope while iOS is.
+3. **No user acceptance testing** (objective 6), which is not an engineering task.
 
 ---
 

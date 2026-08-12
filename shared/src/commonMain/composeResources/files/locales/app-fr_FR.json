@@ -106,10 +106,22 @@
   "APP_CLAIM": "Récupérer",
   "APP_REWARD_CARDS": "Cartes à gagner",
   "APP_NEXT_TIER": "Suivant : {0}",
+  "APP_QUESTS": "Quêtes journalières",
+  "APP_QUESTS_RESET": "{0} — remise à zéro à minuit UTC",
+  "APP_QUEST_DONE": "Terminée",
+  "APP_NO_QUEST": "Aucune quête aujourd’hui.",
+  "APP_QUEST_PLAY_3": "Jouer 3 matchs",
+  "APP_QUEST_WIN_1": "Gagner un match",
+  "APP_QUEST_WIN_3": "Gagner 3 matchs",
+  "APP_QUEST_BEAT": "Battre {0}",
+  "APP_QUEST_RULE": "Gagner un match avec {0}",
+  "APP_QUEST_PVP_1": "Jouer un match contre un autre joueur",
   "APP_HELP_FAMILY_SIGHT": "Ce que vous voyez",
   "APP_HELP_FAMILY_PLAY": "Le déroulement de la partie",
   "APP_HELP_FAMILY_CAPTURE": "La capture des cartes",
   "APP_HELP_FAMILY_ELEMENTS": "Les éléments",
   "APP_STARTER_FF14_BEASTS": "Bêtes d'Éorzéa",
-  "APP_STARTER_FF8_MONSTERS": "Monstres de Balamb"
+  "APP_STARTER_FF8_MONSTERS": "Monstres de Balamb",
+  "APP_FORMAT_FF14_STANDARD": "FFXIV standard",
+  "APP_FORMAT_FF8_STANDARD": "FFVIII standard"
 }

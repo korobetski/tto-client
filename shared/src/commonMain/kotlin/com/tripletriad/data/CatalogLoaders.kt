@@ -30,6 +30,9 @@ const val CAMPAIGN_CATALOG_PATH: String = "files/campaigns.json"
 /** Path of the starter packs inside `commonMain/composeResources`. */
 const val STARTER_CATALOG_PATH: String = "files/starters.json"
 
+/** Path of the match formats inside `commonMain/composeResources`. */
+const val FORMAT_CATALOG_PATH: String = "files/formats.json"
+
 /**
  * Reads and parses `cards.json` out of the Compose Multiplatform resource bundle.
  *
@@ -54,3 +57,8 @@ suspend fun loadCampaignCatalog(): CampaignCatalog =
 @OptIn(ExperimentalResourceApi::class)
 suspend fun loadStarterCatalog(): StarterCatalog =
     StarterCatalogParser.parse(Res.readBytes(STARTER_CATALOG_PATH).decodeToString())
+
+/** Reads and parses `formats.json` out of the Compose Multiplatform resource bundle. */
+@OptIn(ExperimentalResourceApi::class)
+suspend fun loadFormatCatalog(): FormatCatalog =
+    FormatCatalogParser.parse(Res.readBytes(FORMAT_CATALOG_PATH).decodeToString())

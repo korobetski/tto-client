@@ -18,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -26,6 +27,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tripletriad.audio.LocalAudio
 import com.tripletriad.audio.Sound
+import com.tripletriad.data.DailyQuestRepository
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.GameSave
@@ -33,6 +35,10 @@ import com.tripletriad.model.GameSave
 const val DASHBOARD_PLAY_TEST_TAG: String = "dashboard-play"
 const val DASHBOARD_PVP_TEST_TAG: String = "dashboard-pvp"
 const val DASHBOARD_STATS_TEST_TAG: String = "dashboard-stats"
+const val DASHBOARD_QUESTS_TEST_TAG: String = "dashboard-quests"
+
+/** `<card>-badge`, the trailing count. See [HomeCard]. */
+const val DASHBOARD_QUESTS_BADGE_TEST_TAG: String = "dashboard-quests-badge"
 const val DASHBOARD_DECKS_TEST_TAG: String = "dashboard-decks"
 const val DASHBOARD_INVENTORY_TEST_TAG: String = "dashboard-inventory"
 const val DASHBOARD_HELP_TEST_TAG: String = "dashboard-help"
@@ -57,6 +63,14 @@ const val DASHBOARD_LOGOUT_TEST_TAG: String = "dashboard-logout"
  * the level, the bar across it — had nowhere to be but a second screen. Both are fixed by the same
  * change: Play spans the grid, the rest are cards with an icon, and the header is the profile.
  *
+ * ### The one card that carries a number
+ *
+ * Daily quests. A destination that says `1 / 3` is a destination a player returns to; one that says
+ * only its name is one they visit once and forget, which is the whole difference between a feature
+ * that works and a feature that shipped. It is the only badge here because it is the only thing on
+ * this screen that changes on its own and expires — the collection and the bag are where the player
+ * left them.
+ *
  * ### The two entries that lead nowhere
  *
  * - **Multiplayer** is drawn disabled. `dashboardScreen.as:50` pushes it with `enabled:true`, and
@@ -76,14 +90,19 @@ const val DASHBOARD_LOGOUT_TEST_TAG: String = "dashboard-logout"
 @Suppress("LongParameterList")
 internal fun DashboardScreen(
     profile: GameSave,
+    at: Long,
     onPlay: () -> Unit,
     onStats: () -> Unit,
+    onQuests: () -> Unit,
     onDecks: () -> Unit,
     onInventory: () -> Unit,
     onHelp: () -> Unit,
     onLogout: () -> Unit,
 ) {
     val strings = LocalStrings.current
+    // Read, never written: `statuses` derives the day's draw when the save has not been credited
+    // today, so the badge is right on a character who has not played yet. See [QuestsScreen].
+    val quests = remember(profile, at) { DailyQuestRepository().statuses(profile, at) }
 
     // The title is the character's name rather than a screen name: the original had no title here
     // either — the `UserBar` in the corner was the only thing identifying whose dashboard it was.
@@ -141,6 +160,15 @@ internal fun DashboardScreen(
             }
             item {
                 HomeCard(
+                    label = strings[StringKeys.QUESTS],
+                    icon = TtoIcons.Quest,
+                    tag = DASHBOARD_QUESTS_TEST_TAG,
+                    badge = "${quests.count { it.isCompleted }} / ${quests.size}",
+                    onClick = onQuests,
+                )
+            }
+            item {
+                HomeCard(
                     label = strings[StringKeys.HELP],
                     icon = TtoIcons.Help,
                     tag = DASHBOARD_HELP_TEST_TAG,
@@ -172,6 +200,9 @@ internal fun DashboardScreen(
  * @param accented the one card that is the point of the screen. Filled in the card blue rather than
  *   the row surface, which is the only weight difference between it and the other seven — a second
  *   size, a second shape and a second type scale would be three ways of saying the same thing.
+ * @param badge a count the destination wants to report — `1 / 3`. Trailing and in the label style,
+ *   not a Material `Badge`: that is a red dot for *unread*, and a quest tally is a progress
+ *   reading, not an alert. Null on every card that has nothing to count, which is all but one.
  */
 @Composable
 internal fun HomeCard(
@@ -180,6 +211,7 @@ internal fun HomeCard(
     tag: String,
     accented: Boolean = false,
     enabled: Boolean = true,
+    badge: String? = null,
     onClick: () -> Unit,
 ) {
     val audio = LocalAudio.current
@@ -223,7 +255,19 @@ internal fun HomeCard(
                 style = MaterialTheme.typography.titleMedium,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
             )
+            if (badge != null) {
+                Text(
+                    text = badge,
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    softWrap = false,
+                    // Derived from the card's own tag rather than passed: a badge belongs to a
+                    // card, and one tag is one thing to keep in step instead of two.
+                    modifier = Modifier.testTag("$tag-badge"),
+                )
+            }
         }
     }
 }

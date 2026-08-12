@@ -13,6 +13,16 @@ kotlin {
 dependencies {
     implementation(project(":shared"))
     implementation(compose.desktop.currentOs)
+
+    // The host module's first tests. `DesktopDocumentStore` writes a player's saves and had never
+    // been executed by anything but a hand run — see `DesktopDocumentStoreTest`, and Phase 4's
+    // § What is not done, which recorded the gap.
+    testImplementation(libs.kotlin.test)
+    testImplementation(libs.kotlinx.coroutines.test)
+}
+
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
 }
 
 compose.desktop {

@@ -227,4 +227,11 @@ dependencies {
     implementation(project(":shared"))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.core)
+
+    // The host module's first tests, and **host-side, not instrumented**: `AndroidDocumentStore`
+    // takes a `File` root rather than a `Context`, so the only thing that ever needed Android is
+    // gone from its constructor. See `AndroidDocumentStoreTest` for why that is worth more than
+    // adding Robolectric, and Phase 4's § What is not done for the gap it closes.
+    testImplementation(libs.kotlin.test.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

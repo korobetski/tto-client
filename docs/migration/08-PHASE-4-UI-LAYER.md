@@ -34,9 +34,10 @@ waiting on Phase 6's speech bubble. They are not a second match screen: everythi
 by subclassing `PVEMatchScreen` is one data object the ordinary match screen takes as a parameter.
 See § The tutorial.
 
-**22 of the 32 screens exist and 10 are left**, of which only two — `PVPScreen` and
-`PVPMatchScreen` — are blocked on Phase 5. Six more are filed under multiplayer and are nothing of
-the kind; two will not be ported at all. See § Screens, against the plan's tiers.
+**28 of the 32 screens exist and 4 are left**, of which two — `PVPScreen` and `PVPMatchScreen` —
+are blocked on Phase 5 and two will not be ported at all. The six filed under multiplayer are
+nothing of the kind and shipped with the tournament ladders. See § Screens, against the plan's
+tiers.
 
 ---
 
@@ -363,13 +364,25 @@ opponent that plays itself, Open visibility, the rules strip, the result panel),
 | `DeckSelector` | ✅ Tier 2 — a step inside the match, as in the original |
 | `playerPanel` | ✅ Tier 2 — its **turn timer** is what it held; the hand and the name were already drawn |
 | `PVPScreen`, `PVPMatchScreen` | ⏳ Tier 4 / Tier 2 — the only two that touch the socket, so the only two Phase 5 blocks |
-| `CCGroupScreen`, `GSGroupScreen`, `CCGroupMatchScreen`, `GSGroupMatchScreen`, `CCGroupRematchPanel`, `GSGroupRematchPanel` | ⏳ Tier 4 on paper, **single-player in fact** — see below |
+| `CCGroupScreen`, `GSGroupScreen`, `CCGroupMatchScreen`, `GSGroupMatchScreen`, `CCGroupRematchPanel`, `GSGroupRematchPanel` | ✅ Tier 4 on paper, **single-player in fact** — one entry screen and one campaign match over `campaigns.json`, see § The tournament ladders |
 | `TutorialScreen`, `TutorialRematchPanel` | ✅ Tier 5 / Tier 4 — scripted PvE, on `TalkBubble` (Phase 6) |
 | `BackstageScreen`, `EmptyScreen` | ⏳ Tier 5, and **neither is reachable** — see below |
 
-**22 of the 32 are done and 10 are left.** That tally was wrong in earlier revisions of this
-document — it read fifteen and seventeen — because each pass incremented the previous number instead
-of recounting against the plan's own tier lists. Per tier: 4 of 4, 9 of 10, 5 of 5, 3 of 10, 1 of 3.
+**28 of the 32 are done and 4 are left.** Per tier: 4 of 4, 9 of 10, 5 of 5, 9 of 10, 1 of 3.
+
+**One screen exists that is not on this list and never will be.** `QuestsScreen` has no AS3 original
+— the game had no daily anything — so it cannot be a 29th of 32. It is counted nowhere here on
+purpose: this tally measures the *port*, and mixing new work into it is how the number started
+drifting in the first place. See [21-DAILY-QUESTS.md](./21-DAILY-QUESTS.md). It borrows
+`StatsScreen`'s progress row rather than inventing a second one, and it is the only card on the
+dashboard that carries a count.
+
+This tally has been wrong in every earlier revision of this document — fifteen, then seventeen, then
+twenty-two — because each pass incremented the previous number instead of recounting against the
+plan's own tier lists. Worse, the three counts in this file disagreed with each other *and* with
+`00-INDEX.md` at the same time. **Recount, do not increment**, and check the recount against the
+`ui/` directory: the six ladder rows above stayed ⏳ for three days after `CampaignScreen.kt` was
+merged, contradicted by the very next section of this document.
 
 ## The tutorial (2026-08-08)
 
@@ -1181,4 +1194,4 @@ lie.
 
 ---
 
-*Status: IN PROGRESS — 2026-08-06. The playable loop, Tier 3, the deck selector, the theme, drag-and-drop and the turn timer are done: 20 of 32 screens. Of the 12 left, only 2 are blocked on Phase 5. See § What was built.*
+*Status: IN PROGRESS — 2026-08-12. The playable loop, Tier 3, the deck selector, the theme, drag-and-drop, the turn timer, the tutorial and both tournament ladders are done: **28 of 32 screens**. Of the 4 left, 2 are blocked on Phase 5 and 2 will not be ported. See § What was built.*

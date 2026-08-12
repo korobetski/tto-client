@@ -133,7 +133,12 @@ jobs:
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v5
       - uses: android-actions/setup-android@v4
-      - run: ./gradlew :androidApp:assembleDebug :androidApp:assembleRelease --no-daemon
+      # `testDebugUnitTest` explicitly: assembling an APK does not run unit tests, so
+      # `AndroidDocumentStoreTest` would never have executed here. `:desktopApp:build` picks its
+      # sibling up on its own, because `build` depends on `check`.
+      - run: >
+          ./gradlew :androidApp:testDebugUnitTest :androidApp:assembleDebug
+          :androidApp:assembleRelease --no-daemon
       - name: Upload APKs
         uses: actions/upload-artifact@v6
         with:

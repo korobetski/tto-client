@@ -10,7 +10,7 @@ import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 
 /**
- * The nine glyphs the shell needs, drawn here rather than depended on.
+ * The dozen glyphs the shell needs, drawn here rather than depended on.
  *
  * ### Why not Material's icon set
  *
@@ -23,7 +23,8 @@ import androidx.compose.ui.unit.dp
  * ### Why they look like this
  *
  * They are drawn as **cards** wherever a card will do — [Play] is a fanned hand, [Collection] is a
- * grid of them — because that is the one shape this game has and Material's own set does not. The
+ * grid of them, [Quest] is one with a tick — because that is the one shape this game has and
+ * Material's own set does not. The
  * rest ([Home], [Shop], [Person], [Help], [Options], [Logout], [Back]) follow Material's
  * conventions, since a bag that is not bag-shaped costs recognition and buys nothing.
  *
@@ -182,6 +183,26 @@ internal object TtoIcons {
             moveTo(4.5f, 9f)
             lineTo(12f, 16.5f)
             lineTo(19.5f, 9f)
+        }
+    }
+
+    /**
+     * The daily quests: a card with a tick in it.
+     *
+     * A card again rather than Material's checklist, for the reason the header gives — the upright
+     * rectangle is [Play]'s and [Collection]'s shape, and what a quest is *about* is matches. The
+     * tick is the only mark on it, because "done" is the one thing this destination reports.
+     */
+    val Quest: ImageVector by lazy {
+        icon("Quest") {
+            moveTo(5f, 3f)
+            lineTo(19f, 3f)
+            lineTo(19f, 21f)
+            lineTo(5f, 21f)
+            close()
+            moveTo(8.5f, 12.2f)
+            lineTo(11f, 14.8f)
+            lineTo(15.5f, 9.4f)
         }
     }
 

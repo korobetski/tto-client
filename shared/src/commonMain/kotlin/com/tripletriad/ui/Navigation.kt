@@ -75,7 +75,7 @@ internal enum class Tab(val root: Screen, val labelKey: String, val icon: ImageV
  */
 internal val Screen.tab: Tab?
     get() = when (this) {
-        Screen.DASHBOARD, Screen.STATS, Screen.HELP, Screen.AVATAR -> Tab.HOME
+        Screen.DASHBOARD, Screen.STATS, Screen.QUESTS, Screen.HELP, Screen.AVATAR -> Tab.HOME
         Screen.OPPONENTS -> Tab.PLAY
         Screen.CARDS, Screen.DECKS -> Tab.CARDS
         Screen.SHOP, Screen.INVENTORY -> Tab.STORE

@@ -262,6 +262,34 @@ object StringKeys {
      */
     const val NEXT_TIER: String = "APP_NEXT_TIER"
 
+    // ---- The daily quests, which the original had no equivalent of at all.
+    /**
+     * The screen, its header and the two states a row can be in.
+     *
+     * All `APP_`: daily quests are not a port of anything. [QUESTS_RESET] takes the UTC day as
+     * `{0}` and says the boundary out loud, because a reset the player cannot see coming is a
+     * reset that looks like lost progress. The day is shown rather than a countdown — nothing on
+     * this screen ticks, and a stale "4 h left" would be worse than a date that cannot go stale.
+     */
+    const val QUESTS: String = "APP_QUESTS"
+    const val QUESTS_RESET: String = "APP_QUESTS_RESET"
+    const val QUEST_DONE: String = "APP_QUEST_DONE"
+    const val NO_QUEST: String = "APP_NO_QUEST"
+
+    /**
+     * The six quest lines, keyed as `DailyQuestCatalog` names them.
+     *
+     * Two take a parameter, and neither needs a string of its own for it: `{0}` of [QUEST_BEAT] is
+     * the opponent's `nameKey`, and `{0}` of [QUEST_RULE] is the rule constant — which *is* a
+     * bundle key, in all four locales. So three quests naming three different rules are one line.
+     */
+    const val QUEST_PLAY_3: String = "APP_QUEST_PLAY_3"
+    const val QUEST_WIN_1: String = "APP_QUEST_WIN_1"
+    const val QUEST_WIN_3: String = "APP_QUEST_WIN_3"
+    const val QUEST_BEAT: String = "APP_QUEST_BEAT"
+    const val QUEST_RULE: String = "APP_QUEST_RULE"
+    const val QUEST_PVP_1: String = "APP_QUEST_PVP_1"
+
     // ---- The tutorial's nine lines.
     /**
      * `TutorialScreen.helpTexts` — and `APP_` keys although the text is nine years old, because
@@ -428,6 +456,8 @@ object StringKeys {
         USE, SELL, DISCARD, BUY, CARD_SHOP, EMPTY_BAG, OBTAINED, ALREADY_OWNED, UNKNOWN_ITEM,
         STARTER_PACK, STARTER_PACK_DESC, FREE, CLAIM,
         ACHIEVEMENTS_LIST, FORFEITS, MATCHES, WIN_RATE, BOONS, NO_ACHIEVEMENT, NEXT_TIER,
+        QUESTS, QUESTS_RESET, QUEST_DONE, NO_QUEST,
+        QUEST_PLAY_3, QUEST_WIN_1, QUEST_WIN_3, QUEST_BEAT, QUEST_RULE, QUEST_PVP_1,
         TUTORIAL, TUTORIAL_1, TUTORIAL_2, TUTORIAL_3, TUTORIAL_4, TUTORIAL_5,
         TUTORIAL_6, TUTORIAL_7, TUTORIAL_8, TUTORIAL_9,
         CAMPAIGNS, CAMPAIGN_STEP,

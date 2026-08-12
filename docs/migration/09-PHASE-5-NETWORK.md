@@ -8,10 +8,11 @@
 - **Status**: re-scoped 2026-07-25. **Sequencing steps 1, 2, 4, 5 and 6 done; step 3 half done.**
   Accounts, server-held progression, several servers and update notices all shipped and verified
   against the local container 2026-08-08. The peer handshake's first two pieces — the joint seed
-  and the hand commitment — landed 2026-08-08. What remains is signed moves, a transport, and
-  `MatchView`. See § What is left in this phase.
-- **Version**: 1.6
-- **Last Updated**: 2026-08-08
+  and the hand commitment — landed 2026-08-08, and are **retired** by the decision below. **PvP is
+  server-mediated as of 2026-08-12**: what remains is the match channel and `MatchView`. See
+  § What is left in this phase.
+- **Version**: 1.7
+- **Last Updated**: 2026-08-12
 - **Prerequisites**: Phases 1-4
 
 ---
@@ -29,12 +30,17 @@ parity target: **multiplayer never worked in the AS3 source** — no card synchr
 start, no swap, no elements, no trade — and `net/Socket.as` declared 29 handlers of which its only
 inbound entry point dispatched to two. There was nothing to port.
 
-**Transport for PvP is undecided.** Bluetooth is under consideration. The constraint to weigh before
-committing: Kotlin Multiplatform has **no common Bluetooth API**, and peer-to-peer needs one
-device to act as peripheral/advertiser, which the cross-platform BLE libraries do not
-support. That makes Bluetooth the *most* platform-specific option available — roughly two
-independent native implementations — rather than the simplest. This is a design discussion
-still to be had, not a decision.
+> **Decided 2026-08-12: PvP goes through the server. There is no local peer-to-peer for now.**
+> This paragraph used to say the transport was undecided, and most of what follows was written
+> under the assumption that two devices would talk to each other directly. See § PvP through the
+> server for what that retires.
+
+The constraint that decided it: Kotlin Multiplatform has **no common Bluetooth API**, and
+peer-to-peer needs one device to act as peripheral/advertiser, which the cross-platform BLE
+libraries do not support. That made Bluetooth — the option under consideration — the *most*
+platform-specific answer available, roughly two independent native implementations, rather than the
+simplest. A server-mediated match needs none of it: the transport is HTTP, which every target
+already speaks and this repository already uses.
 
 ---
 
@@ -381,9 +387,10 @@ What is known about the candidates:
      The server replays a submitted match with the real engine and reaches its own score; a
      truncated, padded or forged transcript is rejected with a machine-readable reason.
    - ❌ **`MatchView`** — not started. Only needed once a match has two live sides, so it follows
-     local PvP rather than blocking it.
-   - ❌ **The local-PvP protocol over an in-memory loopback** — not started. Needs the joint seed,
-     the hand commitment and signed moves from § What local play needs on top.
+     PvP rather than blocking it.
+   - ⛔ **The local-PvP protocol over an in-memory loopback** — **void since 2026-08-12.** It was
+     to be built on the joint seed, the hand commitment and signed moves; a server-mediated match
+     needs none of the three. Replaced by the match channel — see § PvP through the server.
 4. **The client's half.** Half done, 2026-08-07:
    - ✅ **Submission** — `MatchSubmitter` in `:core` (the contract, no transport in sight) and
      `KtorMatchSubmitter` in `shared/.../net/`. `SubmissionResult` is the part worth reading: an
@@ -495,13 +502,53 @@ generator could have produced and know the seed before revealing its own. Kotlin
 
 ### What is left in this phase
 
-- **Signed moves.** Without them the handshake is fair but anonymous: two honest strangers get a
-  fair seed, and so does an impostor playing under someone else's name. This needs a key story —
-  generation, storage on the device, registration with the server — and it spans both repositories,
-  so it is its own step rather than a third of this one.
-- **A transport.** Still undecided; see the Bluetooth constraint above. Nothing written so far
-  depends on the answer.
-- **`MatchView`**, the screen itself.
+*Rewritten 2026-08-12, when PvP became server-mediated. The three items this section used to list
+were all consequences of peer-to-peer; two of them are now retired rather than done.*
+
+- ~~**A transport.**~~ **Answered.** It is the server, over HTTP, like everything else here.
+- ~~**Signed moves.**~~ **Retired.** They existed because "two honest strangers get a fair seed,
+  and so does an impostor playing under someone else's name" — an identity problem that only
+  arises when nobody trustworthy is in the middle. With the server there, identity is what a
+  bearer token already establishes, and the key story that spanned both repositories is not
+  needed. Worth reopening only if direct play ever returns.
+- **`MatchView`** — still to build, and still for the reason given above: today the client holds
+  the whole truth and hides part of it from itself, which is fine for an opponent it is also
+  simulating and wrong for one it is not.
+- **The match channel.** New, and the one real piece of work. Nothing here uses a websocket —
+  `RELEASING.md` § 7 notes the gate is re-evaluated on every request precisely because there are
+  none — so a turn-based match can be polled. Two players alternating placements with a few seconds
+  of latency is a game of Triple Triad, not a shooter.
+
+## PvP through the server (2026-08-12)
+
+### What it changes about what is already built
+
+`PeerHandshake` — the joint seed and the hand commitment, delivered 2026-08-08 — **loses its
+reason to exist**. Its commitment scheme protects two peers who cannot trust each other: each
+commits to a hand before either reveals, so neither can choose theirs after seeing the other's. A
+trusted server simply deals both hands, which is what it already does for every PvE match through
+`MatchSetup`.
+
+What survives is the arithmetic. The seed derivation is the same function, and the server is a
+better place to run it than either device.
+
+### What it does not change
+
+**The transcript stays.** A server-mediated match is still replayed and verified by
+`TranscriptVerifier` — that is what makes a result creditable, and it is orthogonal to who was
+sitting on the other side. The two differences are that the seed comes from the server rather than
+from a handshake, and that there are two profiles to credit rather than one.
+
+**The two blocked screens stay blocked until this lands.** `PVPScreen` and `PVPMatchScreen` are the
+only two of the AS3's 32 that touch a socket; they are portable the day there is a match channel to
+point them at. See [08-PHASE-4-UI-LAYER.md](./08-PHASE-4-UI-LAYER.md) § Screens.
+
+### The one thing it makes worse
+
+A local match needed no server. This one does — so two people in the same room cannot play without
+a connection, which the peer-to-peer design would have allowed. That is a real loss and it is the
+price of not writing two native Bluetooth implementations. Direct play remains possible to add
+later; nothing decided here forecloses it, and `PeerHandshake` is the part that would come back.
 
 ---
 
@@ -515,4 +562,5 @@ generator could have produced and know the seed before revealing its own. Kotlin
 
 ---
 
-*Status: solo-vs-server built and running; local PvP still to design.*
+*Status: solo-vs-server built and running. PvP is server-mediated as of 2026-08-12; what is
+left is the match channel and `MatchView`.*

@@ -11,8 +11,11 @@
 Document 19 is part-built on `feature/global-card-ids`, which branches off the above. The
 `(block << 8) | number` id scheme is in across all three repositories and green — 442 / 43 / 530
 tests — with the shipped data and artwork migrated and card faces named `art/cards/013e.png`.
-`CardCollection` survives as a placeholder keyed by block; **formats, starters and the `MODE`
-removal are not in it**, and are what remains of 19.
+`CardCollection` survives as a placeholder keyed by block. **Starters and formats have since landed
+on `main`** — the starter pack fully, formats as data plus a test holding them identical to
+`Roulette.pools`, with the engine still reading the compiled pools. **The `MODE` removal is what
+remains of 19**, and it is the part this document's § 2 and § 3 are waiting on. See 19 § Where this
+stands.
 
 `AppVersion` is already at **1.0.0** and `TRANSCRIPT_VERSION` at **2** on that branch. Per § Order
 of work that is the one major bump for all of 18, 19 and 20 — the strands still to land ride this

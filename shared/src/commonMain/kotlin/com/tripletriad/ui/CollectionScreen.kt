@@ -91,6 +91,10 @@ internal fun CollectionScreen(
                 profile = profile,
                 catalog = catalog,
                 format = format,
+                // The browser writes now: a spare copy can be sold from it. Through the same
+                // `onPersist` the deck editor uses, so a sale and a saved deck are one kind of
+                // change to one profile.
+                onPersist = onPersist,
             )
 
             CollectionTab.DECKS -> DecksBody(

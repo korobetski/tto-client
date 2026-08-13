@@ -7,6 +7,7 @@ import com.tripletriad.protocol.AppVersion
 import com.tripletriad.protocol.CURRENT_VERSION
 import com.tripletriad.protocol.Credentials
 import com.tripletriad.protocol.PlayerState
+import com.tripletriad.protocol.PvpRefusal
 import com.tripletriad.protocol.Session
 import com.tripletriad.protocol.VERSION_HEADER
 import io.ktor.client.HttpClient
@@ -232,6 +233,16 @@ sealed interface AccountResult<out T> {
 
     /** Reached, and something went wrong anyway. A bug or a bad deploy, not a player's mistake. */
     data class Failed(val status: Int, val detail: String) : AccountResult<Nothing>
+
+    /**
+     * A player-versus-player request the server understood and refused.
+     *
+     * [Refused] is the same idea for the account API and is a separate case rather than a shared
+     * one, because the two carry different vocabularies: `AccountError` is about who you are, and
+     * [PvpRefusal] is about what you asked to do with a match. One type spanning both would be an
+     * enum where half the members are unreachable from either half of the API.
+     */
+    data class RefusedPvp(val code: PvpRefusal, val detail: String) : AccountResult<Nothing>
 }
 
 /** The value if this worked, or null. For call sites that only care about the happy path. */

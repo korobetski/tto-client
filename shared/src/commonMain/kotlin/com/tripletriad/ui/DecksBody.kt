@@ -292,9 +292,9 @@ private fun DeckEditor(
                 // the cell was 51 px of border around a 44 px thumbnail, and the seven that did
                 // not fit stuck out to the right of every card on the screen. The grid was never
                 // wider than its column; the frame was wider than what it framed.
-                Box(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Box(
                         modifier = Modifier
@@ -334,6 +334,14 @@ private fun DeckEditor(
                             )
                         }
                     }
+
+                    // Under the thumbnail rather than on it. A 44dp thumbnail already renders the
+                    // powers, at a size nobody reads — which is why building a deck meant tapping
+                    // each card to find out what it was. See [CardStatsLine].
+                    CardStatsLine(
+                        card = card,
+                        modifier = Modifier.alpha(if (remaining > 0) 1f else SPENT_ALPHA),
+                    )
                 }
             }
         }

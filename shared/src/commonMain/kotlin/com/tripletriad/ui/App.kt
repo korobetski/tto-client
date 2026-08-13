@@ -24,6 +24,7 @@ import com.tripletriad.audio.SilentAudioPlayer
 import com.tripletriad.audio.Sound
 import com.tripletriad.data.Campaign
 import com.tripletriad.data.CardCatalog
+import com.tripletriad.data.FormatCatalog
 import com.tripletriad.data.NpcCatalog
 import com.tripletriad.data.SaveRepository
 import com.tripletriad.data.StarterCatalog
@@ -113,7 +114,15 @@ fun App(
             // Null without a server, which is what makes the Multiplayer card dim: playing another
             // person is the one thing here that cannot happen offline. See [PvpClient].
             val pvp = server?.let { connection ->
-                rememberPvpSession(connection.pvp) {
+                rememberPvpSession(
+                    client = connection.pvp,
+                    // So the lobby can tell this player's own table from everybody else's.
+                    hostName = account?.player?.save?.username.orEmpty(),
+                    // The server owns the profile in a refereed match, so a settlement lands
+                    // somewhere this client cannot see. Nothing re-read it before: `PvpOutcome`
+                    // carried the payout and every field of it was ignored.
+                    onSettled = { account?.refresh() },
+                ) {
                     connection.session.load(connection.server.id, clock.nowMillis())?.token
                 }
             }
@@ -124,7 +133,7 @@ fun App(
             val gate = rememberGate(session, account)
             val reporter = server?.reporter ?: MatchReporter.None
 
-            StartupEffects(startup, server, account, session) {
+            StartupEffects(startup, server, account, session, pvp) {
                 if (screen == Screen.SPLASH) screen = Screen.MENU
             }
 
@@ -224,11 +233,13 @@ fun App(
  *   then on the *user* decides where they are and startup must stop having an opinion.
  */
 @Composable
+@Suppress("LongParameterList")
 private fun StartupEffects(
     startup: StartupState,
     server: ServerConnection?,
     account: AccountSession?,
     session: ProfileSession,
+    pvp: PvpSession?,
     onReady: () -> Unit,
 ) {
     // The chosen server first, then the session on it — in that order and in one effect, because a
@@ -248,9 +259,26 @@ private fun StartupEffects(
         if (startup.isReady && account == null) session.refresh()
     }
 
+    // "Am I in a match, and am I owed anything?" — the first two questions this client asks the
+    // server, and until now it asked neither at launch. `PvpSession.resume` has always been written
+    // and has never had a caller outside its own tests, so a match survived the app being killed
+    // only in the sense that the *server* remembered it: the player found out by wandering into the
+    // multiplayer screen.
+    //
+    // It matters more now than it did. A won match can owe its winner a card, and that choice has a
+    // deadline the server settles for them — so a prize nobody knows about is a prize somebody
+    // else's algorithm picks. See `PvpMatchRow.CLAIM_MILLIS`.
+    //
+    // **After the session is restored, not before.** `resume` sets `isResumed` whatever it finds,
+    // so running it against a token that has not been read yet would record "nothing to resume"
+    // permanently and never look again.
+    val isRestored = account?.isRestored ?: true
+    LaunchedEffect(isRestored, pvp) {
+        if (isRestored) pvp?.resume()
+    }
+
     // The stored session is waited for as well, so a returning player is never shown the menu's
     // "Play" leading to a sign-in form they did not need.
-    val isRestored = account?.isRestored ?: true
     LaunchedEffect(startup.isReady, isRestored) {
         if (startup.isReady && isRestored) onReady()
     }
@@ -406,7 +434,7 @@ private fun Destination(
         // Grouped rather than delegated behind an `else`, so that adding a fourteenth screen is a
         // compile error here instead of a destination that silently renders blank.
         Screen.DASHBOARD, Screen.OPPONENTS, Screen.MATCH, Screen.TUTORIAL, Screen.STATS,
-        Screen.QUESTS, Screen.PVP, Screen.PVP_MATCH,
+        Screen.QUESTS, Screen.PVP, Screen.PVP_MATCH, Screen.PVP_TABLE, Screen.PVP_CLAIM,
         Screen.CAMPAIGN, Screen.CAMPAIGN_MATCH, Screen.AVATAR, Screen.COLLECTION_CHOICE,
         Screen.CARDS, Screen.DECKS, Screen.INVENTORY, Screen.SHOP, Screen.HELP,
         -> gate.profile?.let { profile ->
@@ -523,6 +551,7 @@ private fun CharacterDestination(
             onStats = { onNavigate(Screen.STATS) },
             onQuests = { onNavigate(Screen.QUESTS) },
             onPvp = pvp?.let { { onNavigate(Screen.PVP) } },
+            pvpBadge = pvpBadge(pvp),
             // The collection and the shelf are the navigation bar's own two entries and are not
             // repeated here; these two open the *other* tab of each — see [DashboardScreen].
             onDecks = { onNavigate(Screen.DECKS) },
@@ -577,7 +606,7 @@ private fun CharacterDestination(
         // because the three arms together were what pushed this function past the complexity
         // detekt allows.
         Screen.MATCH, Screen.TUTORIAL, Screen.CAMPAIGN, Screen.CAMPAIGN_MATCH,
-        Screen.PVP_MATCH,
+        Screen.PVP_MATCH, Screen.PVP_CLAIM,
         -> MatchDestinations(
             destination = destination,
             profile = profile,
@@ -604,11 +633,23 @@ private fun CharacterDestination(
 
         // The two that need nothing but the profile: the rules, and finding somebody to play. Both
         // are one call each, and pairing them keeps this `when` inside the complexity gate.
-        Screen.HELP, Screen.PVP -> SocialDestination(
+        Screen.HELP, Screen.PVP, Screen.PVP_TABLE -> SocialDestination(
             destination = destination,
             profile = profile,
             pvp = pvp,
+            formats = startup.formats,
+            clock = clock,
+            invitee = choice.invitee,
             onMatch = { onNavigate(Screen.PVP_MATCH) },
+            onHost = {
+                choice.invitee = null
+                onNavigate(Screen.PVP_TABLE)
+            },
+            onInvite = { name ->
+                choice.invitee = name
+                onNavigate(Screen.PVP_TABLE)
+            },
+            onClaim = { onNavigate(Screen.PVP_CLAIM) },
             onBack = toDashboard,
         )
 
@@ -646,11 +687,18 @@ private fun CharacterDestination(
  * [CharacterDestination] instead of two, which is what keeps it under the complexity gate.
  */
 @Composable
+@Suppress("LongParameterList")
 private fun SocialDestination(
     destination: Screen,
     profile: GameSave,
     pvp: PvpSession?,
+    formats: FormatCatalog?,
+    clock: Clock,
+    invitee: String?,
     onMatch: () -> Unit,
+    onHost: () -> Unit,
+    onInvite: (String) -> Unit,
+    onClaim: () -> Unit,
     onBack: () -> Unit,
 ) {
     when (destination) {
@@ -660,9 +708,29 @@ private fun SocialDestination(
             PvpScreen(
                 profile = profile,
                 session = session,
+                now = clock.nowMillis(),
                 onMatch = onMatch,
+                onHost = onHost,
+                onInvite = onInvite,
+                onClaim = onClaim,
                 onBack = onBack,
             )
+        }
+
+        Screen.PVP_TABLE -> pvp?.let { session ->
+            // The whole catalogue, not one format: `PvpReferee.open` used to assume everybody
+            // played `FormatCatalog.default` because nobody could say otherwise, which left two
+            // authored formats unreachable. The host chooses now.
+            formats?.let { catalogue ->
+                PvpTableScreen(
+                    profile = profile,
+                    formats = catalogue,
+                    session = session,
+                    invitee = invitee,
+                    onOpened = onBack,
+                    onBack = onBack,
+                )
+            }
         }
 
         else -> HelpScreen(profile = profile, onBack = onBack)
@@ -693,16 +761,38 @@ private fun MatchDestinations(
     onNavigate: (Screen) -> Unit,
 ) {
     when (destination) {
-        // The fourth kind of board, and the only one this client does not run itself.
+        // The fourth kind of board, and the only one this client does not run itself. `MatchArt`
+        // wraps it for the same reason it wraps the other three: without `LocalCardArt` every
+        // `CardFace` is a bare colour quad — no picture, no digits, no stars — because a null
+        // bitmap leaves its layer empty by design. See `CardView.Layer`.
         Screen.PVP_MATCH -> pvp?.let { session ->
-            PvpMatchScreen(
-                session = session,
-                // The whole table rather than the mode's: a PvP opponent plays their own
-                // collection, and while `MODE` still exists the two could differ.
-                cards = startup.catalog?.all?.associateBy { it.id }.orEmpty(),
-                now = clock.nowMillis(),
-                onExit = { onNavigate(Screen.PVP) },
-            )
+            MatchArt(startup) {
+                PvpMatchScreen(
+                    session = session,
+                    // The whole table rather than the mode's: a PvP opponent plays their own
+                    // collection, and while `MODE` still exists the two could differ.
+                    cards = startup.catalog?.all?.associateBy { it.id }.orEmpty(),
+                    now = clock.nowMillis(),
+                    onExit = {
+                        // Straight to the prize when one is owed. The alternative is a lobby with
+                        // a banner on it, which is one more tap between winning a card and being
+                        // given one by a deadline.
+                        val owed = (session.match?.outcome?.picksOwed ?: 0) > 0
+                        onNavigate(if (owed) Screen.PVP_CLAIM else Screen.PVP)
+                    },
+                )
+            }
+        }
+
+        Screen.PVP_CLAIM -> pvp?.let { session ->
+            MatchArt(startup) {
+                PvpClaimScreen(
+                    session = session,
+                    cards = startup.catalog?.all?.associateBy { it.id }.orEmpty(),
+                    now = clock.nowMillis(),
+                    onDone = { onNavigate(Screen.PVP) },
+                )
+            }
         }
 
         Screen.CAMPAIGN, Screen.CAMPAIGN_MATCH -> CampaignDestination(
@@ -933,10 +1023,35 @@ private fun MatchArt(startup: StartupState, content: @Composable () -> Unit) {
 internal class Choice {
     var opponent: Npc? by mutableStateOf(null)
     var campaign: Campaign? by mutableStateOf(null)
+
+    /**
+     * Who an invitation is being written for, or null when the terms screen is opening a table.
+     *
+     * Here rather than as a `Screen` parameter for the reason this class exists at all: the
+     * navigation is an enum and a `when`, so a screen that needs an argument needs somewhere to
+     * leave it. Not cleared on the way out — the next choice overwrites it, and the screen that
+     * reads it is only reachable by having just made one.
+     */
+    var invitee: String? by mutableStateOf(null)
+}
+
+/**
+ * What is waiting behind the Multiplayer card, or null when nothing is.
+ *
+ * Read from the session rather than fetched: `StartupEffects` has already asked at launch, and this
+ * is the one place a player who is not thinking about multiplayer will still be told it wants them.
+ * That matters because an uncollected prize has a deadline the server settles for them.
+ */
+private fun pvpBadge(pvp: PvpSession?): String? = when {
+    pvp == null -> null
+    pvp.claims.isNotEmpty() -> "${pvp.claims.size}"
+    pvp.match != null -> DOT_SEPARATOR
+    else -> null
 }
 
 /** Where the match music plays — `BaseMatchScreen`, and every screen that is one. */
-private val PLAYING_SCREENS = setOf(Screen.MATCH, Screen.TUTORIAL, Screen.CAMPAIGN_MATCH)
+private val PLAYING_SCREENS =
+    setOf(Screen.MATCH, Screen.TUTORIAL, Screen.CAMPAIGN_MATCH, Screen.PVP_MATCH)
 
 /**
  * The lesson, which needs three things at once: the card table, the opponent table, and an opponent

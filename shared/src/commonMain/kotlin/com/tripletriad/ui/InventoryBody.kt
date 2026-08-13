@@ -149,6 +149,7 @@ internal fun ColumnScope.InventoryBody(
     selected?.let { item ->
         BagActions(
             item = item,
+            cards = cards,
             isArmed = armed,
             canUse = item.useable,
             onUse = {
@@ -166,7 +167,7 @@ internal fun ColumnScope.InventoryBody(
             },
             onSell = {
                 armed = false
-                scope.launch { onPersist(Inventory.sell(profile, item)) }
+                scope.launch { onPersist(Inventory.sell(profile, item, cards)) }
             },
             onDiscard = {
                 if (armed) {
@@ -229,7 +230,7 @@ private fun ItemRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = itemFacts(strings, item, note),
+                text = itemFacts(strings, item, cards, note),
                 color = if (note == null) {
                     MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT)
                 } else {
@@ -255,8 +256,10 @@ private fun ItemRow(
 
 /** Use, Sell and Discard, each enabled by the selected item's own flags. */
 @Composable
+@Suppress("LongParameterList")
 private fun BagActions(
     item: Item,
+    cards: Map<Int, Card>,
     isArmed: Boolean,
     canUse: Boolean,
     onUse: () -> Unit,
@@ -264,6 +267,7 @@ private fun BagActions(
     onDiscard: () -> Unit,
 ) {
     val strings = LocalStrings.current
+    val price = Inventory.priceOf(item, cards)
 
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
@@ -279,10 +283,12 @@ private fun BagActions(
         }
         Box(modifier = Modifier.weight(1f)) {
             WideButton(
-                // Only a card item is sellable, and its price is `id × 4` — see [CardItem.value].
-                label = "${strings[StringKeys.SELL]} ${item.value}",
+                // Only a card item is sellable, and what it fetches is its **rarity** — see
+                // `CardValue`, and `CardItem.value`, which used to answer `id × 4` and no longer
+                // answers at all. Zero means the shop will not buy it.
+                label = "${strings[StringKeys.SELL]} $price",
                 tag = INVENTORY_SELL_TEST_TAG,
-                enabled = item.sellable && item.value > 0,
+                enabled = price > 0,
                 onClick = onSell,
             )
         }
@@ -322,8 +328,20 @@ private fun useNote(strings: Strings, outcome: ItemUse, cards: Map<Int, Card>): 
         is ItemUse.BoonRaised, is ItemUse.NotUseable -> null
     }
 
-/** `Sells for 52  ·  already owned x2`, with whichever halves apply. */
-private fun itemFacts(strings: Strings, item: Item, note: String?): String = buildList {
-    if (item.sellable && item.value > 0) add("${strings[StringKeys.SELL]} ${item.value}")
+/**
+ * `Sells for 52  ·  already owned x2`, with whichever halves apply.
+ *
+ * The price comes from [Inventory.priceOf] and therefore from the card table, because a card's
+ * worth is its rarity — `Item.value` used to answer `cardId * 4` and cannot any more. See
+ * `CardValue`.
+ */
+private fun itemFacts(
+    strings: Strings,
+    item: Item,
+    cards: Map<Int, Card>,
+    note: String?,
+): String = buildList {
+    val price = Inventory.priceOf(item, cards)
+    if (price > 0) add("${strings[StringKeys.SELL]} $price")
     note?.let(::add)
 }.joinToString(DOT_SEPARATOR)

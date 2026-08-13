@@ -40,8 +40,10 @@ import com.tripletriad.model.MatchResult
 import com.tripletriad.model.MatchView
 import com.tripletriad.protocol.PvpMatchStatus
 import com.tripletriad.protocol.PvpMove
+import com.tripletriad.protocol.PvpOutcome
 import com.tripletriad.ui.theme.LocalTtoColors
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 const val PVP_BOARD_TEST_TAG: String = "pvp-board"
 const val PVP_SCORE_TEST_TAG: String = "pvp-score"
@@ -49,6 +51,9 @@ const val PVP_TURN_TEST_TAG: String = "pvp-turn"
 const val PVP_RESULT_TEST_TAG: String = "pvp-result"
 const val PVP_FORFEIT_TEST_TAG: String = "pvp-forfeit"
 const val PVP_DONE_TEST_TAG: String = "pvp-done"
+const val PVP_STAKE_TEST_TAG: String = "pvp-stake"
+const val PVP_WON_TEST_TAG: String = "pvp-won"
+const val PVP_LOST_TEST_TAG: String = "pvp-lost"
 
 /** `pvp-card-<slot>` — one of this player's own cards. */
 fun pvpHandTestTag(slot: Int): String = "pvp-card-$slot"
@@ -160,10 +165,12 @@ internal fun PvpMatchScreen(
 
         if (session.isOver) {
             PvpResult(
-                view = view,
+                // `wire.side`, not `view.side`: the view is mirrored so that this player is always
+                // blue, and `forfeitedBy` is in the server's colours. See `PvpSession.view`.
+                side = wire.side,
                 status = wire.status,
-                result = wire.outcome?.result,
-                forfeitedBy = wire.outcome?.forfeitedBy,
+                outcome = wire.outcome,
+                cards = cards,
                 onDone = {
                     session.clear()
                     onExit()
@@ -393,13 +400,17 @@ private fun OwnRow(
  * A forfeit says so rather than being reported as a plain win or loss: "you won" and "you won
  * because they left" are not the same sentence to put in front of a player, and the second one is
  * the only honest description of a board that was never finished.
+ *
+ * @param side the colour the **server** dealt this player, which is not the one on the board: the
+ *   board is mirrored so that a player is always blue. [forfeitedBy] arrives in server colours, so
+ *   this is the only side it can honestly be compared against.
  */
 @Composable
 private fun PvpResult(
-    view: MatchView,
+    side: CardColor,
     status: PvpMatchStatus,
-    result: MatchResult?,
-    forfeitedBy: CardColor?,
+    outcome: PvpOutcome?,
+    cards: Map<Int, Card>,
     onDone: () -> Unit,
 ) {
     val strings = LocalStrings.current
@@ -411,7 +422,7 @@ private fun PvpResult(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                text = when (result) {
+                text = when (outcome?.result) {
                     MatchResult.WIN -> strings[StringKeys.YOU_WIN]
                     MatchResult.LOSE -> strings[StringKeys.YOU_LOSE]
                     MatchResult.DRAW, null -> strings[StringKeys.DRAW]
@@ -423,7 +434,7 @@ private fun PvpResult(
             if (status == PvpMatchStatus.FORFEITED) {
                 Text(
                     text = strings[
-                        if (forfeitedBy == view.side) {
+                        if (outcome?.forfeitedBy == side) {
                             StringKeys.PVP_YOU_LEFT
                         } else {
                             StringKeys.PVP_THEY_LEFT
@@ -433,14 +444,89 @@ private fun PvpResult(
                     style = MaterialTheme.typography.labelMedium,
                 )
             }
+
+            // Everything below was on the wire from the first release and drawn by nothing: a
+            // player was told "you win" and left to guess what it had been worth.
+            if (outcome != null) {
+                Payout(outcome = outcome, cards = cards)
+            }
+
             WideButton(
-                label = strings[StringKeys.BACK],
+                label = strings[
+                    if ((outcome?.picksOwed ?: 0) > 0) {
+                        StringKeys.PVP_CLAIM
+                    } else {
+                        StringKeys.BACK
+                    },
+                ],
                 tag = PVP_DONE_TEST_TAG,
                 onClick = onDone,
             )
         }
     }
 }
+
+/**
+ * What the match paid, and what the wager moved.
+ *
+ * The three are kept apart on screen because they are three different facts: the payout is what
+ * every match earns, the stake is what was risked, and the cards are what changed hands. A single
+ * "+50 MGP" that quietly netted a 100 payout against a 50 loss would be the least informative true
+ * number available.
+ */
+@Composable
+private fun Payout(outcome: PvpOutcome, cards: Map<Int, Card>) {
+    val strings = LocalStrings.current
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        if (outcome.stakeMgp != 0) {
+            Text(
+                text = strings.format(
+                    if (outcome.stakeMgp > 0) {
+                        StringKeys.PVP_STAKE_WON
+                    } else {
+                        StringKeys.PVP_STAKE_LOST
+                    },
+                    "${abs(outcome.stakeMgp)}",
+                ),
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.testTag(PVP_STAKE_TEST_TAG),
+            )
+        }
+        CardRow(StringKeys.PVP_WON_CARDS, outcome.cardsWon, cards, PVP_WON_TEST_TAG)
+        CardRow(StringKeys.PVP_LOST_CARDS, outcome.cardsLost, cards, PVP_LOST_TEST_TAG)
+    }
+}
+
+/** One side of the trade, as thumbnails. Absent entirely when nothing moved that way. */
+@Composable
+private fun CardRow(labelKey: String, ids: List<Int>, cards: Map<Int, Card>, tag: String) {
+    if (ids.isEmpty()) return
+    val strings = LocalStrings.current
+
+    Column(
+        modifier = Modifier.testTag(tag),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = strings[labelKey],
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.labelSmall,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            for (id in ids) {
+                cards[id]?.let { CardThumb(card = it, size = PrizeThumbSize) }
+            }
+        }
+    }
+}
+
+/** Big enough to recognise a card by its art, small enough that five fit across a phone. */
+private val PrizeThumbSize = 44.dp
 
 /**
  * The move that puts [card] on [position].

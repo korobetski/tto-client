@@ -10,7 +10,7 @@ kotlin = "2.4.10"
 # Raising it is two edits and one release, in this order: tag `tto-core`, then this line, then
 # `tto-server`'s. A local `publishToMavenLocal` is how a change is tried before any of that — see
 # `settings.gradle.kts` for why the local copy wins over the published one.
-core = "0.5.1"
+core = "0.6.0"
 
 compose = "1.11.1"
 # Material 3 is versioned apart from the rest of Compose Multiplatform and has been since 1.11:

@@ -1,5 +1,6 @@
 package com.tripletriad.i18n
 
+import com.tripletriad.data.loadFormatCatalog
 import com.tripletriad.model.BoosterType
 import com.tripletriad.model.CardItem
 import com.tripletriad.model.NpcLevel
@@ -46,6 +47,24 @@ class DerivedKeysTest {
             assertTrue(strings.has(potion.descriptionKey), "no text for ${potion.descriptionKey}")
         }
         assertTrue(strings.has(CardItem(1).descriptionKey), "no text for a card item")
+    }
+
+    /**
+     * Every authored format names itself.
+     *
+     * `Format.nameKey` is read from `formats.json`, so no constant in [StringKeys] mentions it and
+     * `StringsBundleTest` cannot see it — the same blind spot the NPC levels fell into. It was
+     * live: none of the three resolved, and the table editor's format picker drew
+     * `APP_FORMAT_FREE` as a chip label.
+     */
+    @Test
+    fun everyFormatNamesItself() {
+        val formats = runBlocking { loadFormatCatalog() }
+
+        assertTrue(formats.formats.isNotEmpty(), "no formats are authored, so this proves nothing")
+        for (format in formats.formats) {
+            assertTrue(strings.has(format.nameKey), "no name for ${format.nameKey}")
+        }
     }
 
     /** And their names, which the bundles do carry — asserted so a rename cannot lose one. */

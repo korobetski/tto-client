@@ -244,6 +244,9 @@ object StringKeys {
     /** `{0}` is the percentage chance a pack holds at least one five-star. */
     const val PACK_ODDS: String = "APP_PACK_ODDS"
 
+    /** The unset position of a filter — see [com.tripletriad.ui.CardListBody]'s chips. */
+    const val ALL: String = "APP_ALL"
+
     /** The price of the one thing on the shelf that has none. */
     const val FREE: String = "APP_FREE"
 
@@ -310,13 +313,87 @@ object StringKeys {
 
     // ---- Playing another person. All `APP_`: the AS3's PvP screen never worked, and its bundles
     // have no key for any of this.
-    /** The quick queue, and what it says while nobody has been found. */
-    const val PVP_FIND: String = "APP_PVP_FIND"
-    const val PVP_WAITING: String = "APP_PVP_WAITING"
+    /**
+     * The lobby: the open tables, and hosting one.
+     *
+     * `PVP_FIND` and `PVP_WAITING` were here and are gone with the quick queue they described.
+     * Nothing is "waiting" any more — a host is *offering*, on terms everybody can read.
+     */
+    const val PVP_TABLES: String = "APP_PVP_TABLES"
+    const val PVP_NO_TABLE: String = "APP_PVP_NO_TABLE"
+    const val PVP_HOST: String = "APP_PVP_HOST"
+    const val PVP_HOST_OPEN: String = "APP_PVP_HOST_OPEN"
+    const val PVP_HOST_CANCEL: String = "APP_PVP_HOST_CANCEL"
+    const val PVP_JOIN: String = "APP_PVP_JOIN"
+
+    /** One table's own line. `{0}` is the host. */
+    const val PVP_TABLE_BY: String = "APP_PVP_TABLE_BY"
+    const val PVP_TABLE_MINE: String = "APP_PVP_TABLE_MINE"
+    const val PVP_TABLE_FREE: String = "APP_PVP_TABLE_FREE"
+
+    /** How long a table has left. `{0}` is whole minutes. See `PvpMatchRow.TABLE_MILLIS`. */
+    const val PVP_TABLE_EXPIRES: String = "APP_PVP_TABLE_EXPIRES"
+
+    /** What a match is played for: an amount of MGP, and a trade rule. `{0}` is the amount. */
+    const val PVP_STAKE: String = "APP_PVP_STAKE"
+    const val PVP_STAKE_MGP: String = "APP_PVP_STAKE_MGP"
+    const val PVP_TRADE: String = "APP_PVP_TRADE"
+    const val PVP_TRADE_NONE: String = "APP_PVP_TRADE_NONE"
+    const val PVP_TRADE_ONE: String = "APP_PVP_TRADE_ONE"
+    const val PVP_TRADE_DIFF: String = "APP_PVP_TRADE_DIFF"
+    const val PVP_TRADE_DIRECT: String = "APP_PVP_TRADE_DIRECT"
+    const val PVP_TRADE_ALL: String = "APP_PVP_TRADE_ALL"
+
+    /**
+     * Which format a table is played in.
+     *
+     * The formats **name** themselves — see `Format.nameKey`, and `DerivedKeysTest` for why that
+     * is a category of key `StringKeys.all` cannot see.
+     */
+    const val PVP_FORMAT: String = "APP_PVP_FORMAT"
+
+    /** Choosing the rules, and asking the server to draw some more. */
+    const val PVP_RULES_PICK: String = "APP_PVP_RULES_PICK"
+    const val PVP_ROULETTE: String = "APP_PVP_ROULETTE"
+    const val PVP_ROULETTE_HINT: String = "APP_PVP_ROULETTE_HINT"
+
+    /** The end of a match: what the wager moved. `{0}` is an amount of MGP. */
+    const val PVP_STAKE_WON: String = "APP_PVP_STAKE_WON"
+    const val PVP_STAKE_LOST: String = "APP_PVP_STAKE_LOST"
+    const val PVP_WON_CARDS: String = "APP_PVP_WON_CARDS"
+    const val PVP_LOST_CARDS: String = "APP_PVP_LOST_CARDS"
+
+    /**
+     * Why the server refused something.
+     *
+     * One per [com.tripletriad.protocol.PvpRefusal] a player can actually cause. The codes that
+     * mean "this client has a bug" — an unknown format, a move the rules forbid — deliberately have
+     * no key: they are reported through the generic failure line, because a sentence explaining
+     * them to a player would be explaining somebody else's mistake.
+     */
+    const val PVP_ERROR_AFFORD: String = "APP_PVP_ERROR_AFFORD"
+    const val PVP_ERROR_TABLE_GONE: String = "APP_PVP_ERROR_TABLE_GONE"
+    const val PVP_ERROR_RULES: String = "APP_PVP_ERROR_RULES"
+    const val PVP_ERROR_OWN_TABLE: String = "APP_PVP_ERROR_OWN_TABLE"
+    const val PVP_ERROR_IN_MATCH: String = "APP_PVP_ERROR_IN_MATCH"
+    const val PVP_ERROR_NO_PLAYER: String = "APP_PVP_ERROR_NO_PLAYER"
+    const val PVP_ERROR_YOURSELF: String = "APP_PVP_ERROR_YOURSELF"
+    const val PVP_ERROR_NOTHING_OWED: String = "APP_PVP_ERROR_NOTHING_OWED"
+
+    /** Collecting a prize. `{0}` is how many are left to choose, or how many are waiting. */
+    const val PVP_CLAIM: String = "APP_PVP_CLAIM"
+    const val PVP_CLAIM_TITLE: String = "APP_PVP_CLAIM_TITLE"
+    const val PVP_CLAIM_PROMPT: String = "APP_PVP_CLAIM_PROMPT"
+    const val PVP_CLAIM_CONFIRM: String = "APP_PVP_CLAIM_CONFIRM"
+    const val PVP_CLAIM_PENDING: String = "APP_PVP_CLAIM_PENDING"
+    const val PVP_CLAIM_NONE: String = "APP_PVP_CLAIM_NONE"
 
     /** Inviting somebody by name. `{0}` is the other player. */
     const val PVP_CHALLENGE: String = "APP_PVP_CHALLENGE"
     const val PVP_INVITE: String = "APP_PVP_INVITE"
+
+    /** The terms screen, aimed at one person. `{0}` is who. */
+    const val PVP_INVITE_TO: String = "APP_PVP_INVITE_TO"
     const val PVP_FROM: String = "APP_PVP_FROM"
     const val PVP_SENT_TO: String = "APP_PVP_SENT_TO"
     const val PVP_ACCEPT: String = "APP_PVP_ACCEPT"
@@ -494,14 +571,24 @@ object StringKeys {
         CARD_INFOS, TOTAL, SIDES, RARITY, CARD_TYPE, PICK_CARD, OWNED,
         DECK, DECK_POWER, RESET_DECK, SAVE, CHOOSE_DECK, RANDOM_DECK, NO_FULL_DECK,
         USE, SELL, DISCARD, BUY, CARD_SHOP, EMPTY_BAG, OBTAINED, ALREADY_OWNED, UNKNOWN_ITEM,
-        STARTER_PACK, STARTER_PACK_DESC, FREE, CLAIM,
+        STARTER_PACK, STARTER_PACK_DESC, FREE, CLAIM, ALL,
         PACK_SEALED, PACK_BREAK_SEAL, PACK_SPENT, PACK_REVEAL, PACK_TO_COLLECTION,
         PACK_GUARANTEE, PACK_ODDS,
         ACHIEVEMENTS_LIST, FORFEITS, MATCHES, WIN_RATE, BOONS, NO_ACHIEVEMENT, NEXT_TIER,
         QUESTS, QUESTS_RESET, QUEST_DONE, NO_QUEST,
         QUEST_PLAY_3, QUEST_WIN_1, QUEST_WIN_3, QUEST_BEAT, QUEST_RULE, QUEST_PVP_1,
-        PVP_FIND, PVP_WAITING, PVP_CHALLENGE, PVP_INVITE, PVP_FROM, PVP_SENT_TO,
+        PVP_CHALLENGE, PVP_INVITE, PVP_INVITE_TO, PVP_FROM, PVP_SENT_TO,
         PVP_ACCEPT, PVP_DECLINE, PVP_NO_CHALLENGE,
+        PVP_TABLES, PVP_NO_TABLE, PVP_HOST, PVP_HOST_OPEN, PVP_HOST_CANCEL, PVP_JOIN,
+        PVP_TABLE_BY, PVP_TABLE_MINE, PVP_TABLE_FREE, PVP_TABLE_EXPIRES,
+        PVP_STAKE, PVP_STAKE_MGP, PVP_TRADE,
+        PVP_TRADE_NONE, PVP_TRADE_ONE, PVP_TRADE_DIFF, PVP_TRADE_DIRECT, PVP_TRADE_ALL,
+        PVP_RULES_PICK, PVP_ROULETTE, PVP_ROULETTE_HINT, PVP_FORMAT,
+        PVP_STAKE_WON, PVP_STAKE_LOST, PVP_WON_CARDS, PVP_LOST_CARDS,
+        PVP_CLAIM, PVP_CLAIM_TITLE, PVP_CLAIM_PROMPT, PVP_CLAIM_CONFIRM,
+        PVP_CLAIM_PENDING, PVP_CLAIM_NONE,
+        PVP_ERROR_AFFORD, PVP_ERROR_TABLE_GONE, PVP_ERROR_RULES, PVP_ERROR_OWN_TABLE,
+        PVP_ERROR_IN_MATCH, PVP_ERROR_NO_PLAYER, PVP_ERROR_YOURSELF, PVP_ERROR_NOTHING_OWED,
         PVP_FORFEIT, PVP_YOU_LEFT, PVP_THEY_LEFT, PVP_OVER, PVP_NO_MATCH,
         TUTORIAL, TUTORIAL_1, TUTORIAL_2, TUTORIAL_3, TUTORIAL_4, TUTORIAL_5,
         TUTORIAL_6, TUTORIAL_7, TUTORIAL_8, TUTORIAL_9,

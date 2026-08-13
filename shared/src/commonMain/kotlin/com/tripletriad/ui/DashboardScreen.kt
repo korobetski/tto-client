@@ -98,6 +98,7 @@ internal fun DashboardScreen(
     onStats: () -> Unit,
     onQuests: () -> Unit,
     onPvp: (() -> Unit)?,
+    pvpBadge: String? = null,
     onDecks: () -> Unit,
     onInventory: () -> Unit,
     onHelp: () -> Unit,
@@ -184,6 +185,10 @@ internal fun DashboardScreen(
                     label = strings[StringKeys.MULTIPLAYER],
                     icon = TtoIcons.Person,
                     tag = DASHBOARD_PVP_TEST_TAG,
+                    // A match still running, or a prize still uncollected. The quests card has
+                    // carried a badge from the start; this one had nothing to say until a PvP
+                    // match could end owing somebody a card on a timer.
+                    badge = pvpBadge,
                     // Enabled only with a server behind it. Playing another person is the one
                     // thing in this game that cannot happen offline — see `PvpClient` — so a
                     // local profile gets the row and an explanation rather than a dead tap.

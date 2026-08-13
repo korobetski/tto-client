@@ -272,17 +272,28 @@ private fun cellName(position: Int): String =
  * again closes them. Closed is the default, and closed costs exactly what the old line cost.
  *
  * `FlowRow` is stable in `foundation`; nothing here needs an opt-in.
+ *
+ * @param roulette whether to say the rules are not final yet. A table can be offered with a draw
+ *   pending — the server adds one to three rules as the match opens — and a strip showing only what
+ *   the host ticked would be describing a match nobody is going to play.
+ * @param tag the test tag, or null for none. Null is what a **list** of strips passes: the lobby
+ *   draws one per table, and repeating [MATCH_RULES_TEST_TAG] down a column would make the tag name
+ *   several nodes at once, which is a broken assertion rather than a helpful one.
  */
 @Composable
-internal fun RulesStrip(rules: GameRules) {
+internal fun RulesStrip(
+    rules: GameRules,
+    roulette: Boolean = false,
+    tag: String? = MATCH_RULES_TEST_TAG,
+) {
     val keys = rules.activeRuleKeys()
-    if (keys.isEmpty()) return
+    if (keys.isEmpty() && !roulette) return
     val strings = LocalStrings.current
     var open by remember(keys) { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
-            .testTag(MATCH_RULES_TEST_TAG)
+            .then(if (tag == null) Modifier else Modifier.testTag(tag))
             .fillMaxWidth()
             .clickable { open = !open }
             .padding(horizontal = 8.dp, vertical = 2.dp),
@@ -294,6 +305,12 @@ internal fun RulesStrip(rules: GameRules) {
         ) {
             for (key in keys) {
                 RuleChip(name = strings[key])
+            }
+            // Last, and named as the pending draw it is: the rules before it are settled, and this
+            // says more are coming. `GameRules.roulette` is deliberately not read — that flag means
+            // a draw has *happened*, and on a table it has not.
+            if (roulette) {
+                RuleChip(name = strings[StringKeys.PVP_ROULETTE])
             }
         }
         if (open) {

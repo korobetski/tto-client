@@ -32,6 +32,8 @@ internal enum class Screen {
     QUESTS,
     PVP,
     PVP_MATCH,
+    PVP_TABLE,
+    PVP_CLAIM,
     AVATAR,
     CARDS,
     DECKS,
@@ -70,7 +72,7 @@ internal enum class Screen {
             OPPONENTS, STATS, QUESTS, PVP, CARDS, DECKS, INVENTORY, SHOP, HELP -> DASHBOARD
             AVATAR -> STATS
             MATCH, TUTORIAL, CAMPAIGN -> OPPONENTS
-            PVP_MATCH -> PVP
+            PVP_MATCH, PVP_TABLE, PVP_CLAIM -> PVP
             CAMPAIGN_MATCH -> CAMPAIGN
         }
 }

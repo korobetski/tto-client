@@ -5,11 +5,13 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.data.loadCardCatalog
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.LocalStrings
+import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.loadStrings
 import com.tripletriad.model.Card
 import com.tripletriad.model.CardColor
@@ -219,6 +221,45 @@ class PvpBoardUiTest {
         assertTrue(exited, "the result panel led nowhere")
     }
 
+    /**
+     * The score is told from this player's side even when the server dealt them red.
+     *
+     * Half of all PvP players are red, and the board is mirrored so that they see themselves in
+     * blue like everyone else. The score has to come with it: a red player leading six to four who
+     * is shown "4 — 6" is being told they are losing. This fixture is asymmetric on purpose —
+     * `5 — 5` would pass whether the mirror worked or not.
+     */
+    @Test
+    fun theScoreIsToldFromThisPlayersSideWhenTheServerDealtRed() = board(
+        view = dealtRed(),
+    ) {
+        onNodeWithTag(PVP_SCORE_TEST_TAG).assertTextEquals("6 — 4")
+    }
+
+    /**
+     * A forfeit still names who left when the view has been mirrored.
+     *
+     * The exact regression mirroring introduces: `PvpOutcome.forfeitedBy` is in the **server's**
+     * colours, so comparing it against a view whose side is always blue would tell every red player
+     * the opposite of what happened. Here the reader is red and the reader is the one who left, so
+     * a screen reading the mirrored side would say the opponent did.
+     */
+    @Test
+    fun aForfeitStillNamesWhoLeftWhenTheViewIsMirrored() = board(
+        view = dealtRed().copy(
+            status = PvpMatchStatus.FORFEITED,
+            outcome = PvpOutcome(
+                result = MatchResult.LOSE,
+                blue = 4,
+                red = 6,
+                forfeitedBy = CardColor.RED,
+            ),
+        ),
+    ) {
+        onNodeWithText(strings[StringKeys.PVP_YOU_LEFT]).assertExists()
+        onNodeWithText(strings[StringKeys.PVP_THEY_LEFT]).assertDoesNotExist()
+    }
+
     // ---- Harness ----------------------------------------------------------
 
     /**
@@ -258,7 +299,7 @@ class PvpBoardUiTest {
 
     private fun sessionOver(engine: MockEngine): PvpSession {
         val http = HttpClient(engine) { install(ContentNegotiation) { json(json) } }
-        return PvpSession(PvpClient(http, { "http://server" })) { "token" }
+        return PvpSession(PvpClient(http, { "http://server" }), tokenOf = { "token" })
     }
 
     private fun playing() = PvpMatchView(
@@ -274,6 +315,30 @@ class PvpBoardUiTest {
         first = CardColor.BLUE,
         placement = 0,
         playable = BLUE_CARDS.indices.toList(),
+    )
+
+    /**
+     * A match the server dealt this player as **red**, leading six to four.
+     *
+     * Four cards down — three of them this player's — and three left in each hand. Asymmetric on
+     * both axes so that a screen which forgot to mirror is caught by the numbers rather than by
+     * agreeing with a symmetric fixture.
+     */
+    private fun dealtRed() = playing().copy(
+        side = CardColor.RED,
+        cells = List(BOARD) { position ->
+            when (position) {
+                CENTRE -> PvpCell(BLUE_CARDS[0], CardColor.BLUE)
+                in 0 until PLACED_BY_RED -> PvpCell(RED_CARDS[position], CardColor.RED)
+                else -> null
+            }
+        },
+        hand = RED_CARDS.take(HAND_LEFT),
+        opponentHand = List(HAND_LEFT) { null },
+        placement = PLACED,
+        // Four cards down with blue moving first means it is blue's turn again — the opponent's —
+        // and an empty list is what the server sends a side that may not move.
+        playable = emptyList(),
     )
 
     private fun MockRequestHandleScope.respondJson(body: String): HttpResponseData = respond(
@@ -304,6 +369,11 @@ class PvpBoardUiTest {
         const val HIDDEN_SLOT = 1
         const val OTHER_HIDDEN_SLOT = 3
         const val NOW = 1_767_268_800_000L
+
+        /** [dealtRed]'s shape: four cards down, three of them red's, three left in each hand. */
+        const val PLACED_BY_RED = 3
+        const val PLACED = 4
+        const val HAND_LEFT = 3
 
         /** Ten real ids from the shipped FFXIV block: five each side, none shared. */
         val BLUE_CARDS: List<Int> = (1..5).map { Card.idFor(block = 1, number = it) }

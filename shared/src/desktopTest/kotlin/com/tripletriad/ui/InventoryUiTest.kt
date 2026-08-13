@@ -7,6 +7,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
+import com.tripletriad.data.CardValue
 import com.tripletriad.data.Inventory
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.BoosterItem
@@ -32,6 +33,11 @@ import kotlin.test.assertTrue
  */
 @OptIn(ExperimentalTestApi::class)
 class InventoryUiTest {
+    /** The shipped table, because a card's resale is its rarity and only this knows it. */
+    private val cards: Map<Int, Card> =
+        kotlinx.coroutines.runBlocking { com.tripletriad.data.loadCardCatalog() }.all
+            .associateBy { it.id }
+
     /** A character whose bag holds one of each kind that behaves differently. */
     private fun withBag(): GameSave = Inventory.addAll(
         GameSave.new(createdAt = 0L),
@@ -79,7 +85,7 @@ class InventoryUiTest {
         onNodeWithTag(INVENTORY_USE_TEST_TAG).assertIsEnabled()
     }
 
-    /** Selling pays [CardItem.value] — `id × 4` — and takes one off the stack. */
+    /** Selling pays what the card's rarity is worth — see `CardValue` — and takes one off. */
     @Test
     fun sellingACardPaysForItAndLeavesTheRest() = runComposeUiTest {
         val documents = seeded(withBag())
@@ -92,7 +98,11 @@ class InventoryUiTest {
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { storedSave(documents).mgp > before }
 
         val save = storedSave(documents)
-        assertEquals(before + SELLABLE_CARD * MGP_PER_ID, save.mgp, "the card's own resale value")
+        assertEquals(
+            before + CardValue.resaleOf(SELLABLE_CARD, cards),
+            save.mgp,
+            "the card's own resale value",
+        )
         assertEquals(1, Inventory.count(save, CardItem(SELLABLE_CARD)), "one of the two sold")
     }
 
@@ -305,6 +315,5 @@ class InventoryUiTest {
         val SELLABLE_CARD = Card.idFor(block = 1, number = 44)
 
         /** `CardItem.as:25` — `value = _cardId * 4`. */
-        const val MGP_PER_ID = 4
     }
 }

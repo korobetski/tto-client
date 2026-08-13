@@ -18,6 +18,7 @@ import com.tripletriad.net.isUnauthenticated
 import com.tripletriad.protocol.AccountError
 import com.tripletriad.protocol.Credentials
 import com.tripletriad.protocol.PlayerState
+import com.tripletriad.protocol.PvpRefusal
 import com.tripletriad.protocol.Session
 import com.tripletriad.time.Clock
 
@@ -210,6 +211,26 @@ class AccountSession internal constructor(
     }
 
     /**
+     * Re-reads the profile from the server.
+     *
+     * For the one case where this client is **not** the author of the change: a refereed match
+     * settles server-side, so a PvP win moves MGP and cards somewhere nothing here can see, and the
+     * local `GameSave` is stale the moment the board ends. Everywhere else the client writes first
+     * and sends afterwards — see [persist] — which is why this direction did not exist until PvP
+     * had something to pay out.
+     *
+     * A failure is logged and left. The next successful read carries the same state, and showing a
+     * player an error about a refresh they did not ask for helps nobody.
+     */
+    suspend fun refresh() {
+        val stored = server.session.load(server.server.id, clock.nowMillis()) ?: return
+        when (val result = server.accounts.me(stored.token)) {
+            is AccountResult.Ok -> adopt(result.value)
+            else -> Log.i(TAG) { "could not refresh the profile: $result" }
+        }
+    }
+
+    /**
      * Sends a profile the player changed outside a match, and adopts it locally either way.
      *
      * Local first, on purpose: the shop screen has already told the player they bought the card,
@@ -295,12 +316,43 @@ internal fun AccountResult<*>.message(strings: Strings): String = when (this) {
     is AccountResult.Offline -> strings[StringKeys.ERROR_OFFLINE]
     is AccountResult.UpdateRequired -> strings[StringKeys.ERROR_UPDATE]
     is AccountResult.Failed -> strings.format(StringKeys.ERROR_STATUS, status.toString())
+    is AccountResult.RefusedPvp -> code.message(strings)
+
     is AccountResult.Refused -> when (failure.error) {
         AccountError.USERNAME_TAKEN -> strings[StringKeys.ERROR_NAME_TAKEN]
         AccountError.INVALID_CREDENTIALS -> strings[StringKeys.ERROR_BAD_CREDENTIALS]
         AccountError.MALFORMED_CREDENTIALS -> failure.detail
         AccountError.UNAUTHENTICATED -> strings[StringKeys.ERROR_EXPIRED]
     }
+}
+
+/**
+ * Why a player-versus-player request was refused, as a sentence.
+ *
+ * Its own function rather than an arm of [message], which the eleven branches pushed past the
+ * complexity gate — and the split is the right one anyway: this is a vocabulary about *matches*,
+ * where everything else there is about accounts.
+ *
+ * **Not every code earns a sentence.** The five in the last arm mean this client asked for
+ * something impossible — a format nobody ships, a move the rules forbid, a card that was never at
+ * stake — so they are reported as the failures they are. Writing a player-facing explanation for
+ * them would be explaining a bug to somebody who did not cause it.
+ */
+internal fun PvpRefusal.message(strings: Strings): String = when (this) {
+    PvpRefusal.CANNOT_AFFORD -> strings[StringKeys.PVP_ERROR_AFFORD]
+    PvpRefusal.TABLE_GONE -> strings[StringKeys.PVP_ERROR_TABLE_GONE]
+    PvpRefusal.RULES_NOT_ALLOWED -> strings[StringKeys.PVP_ERROR_RULES]
+    PvpRefusal.ALREADY_WAITING -> strings[StringKeys.PVP_ERROR_OWN_TABLE]
+    PvpRefusal.ALREADY_PLAYING -> strings[StringKeys.PVP_ERROR_IN_MATCH]
+    PvpRefusal.NO_SUCH_PLAYER -> strings[StringKeys.PVP_ERROR_NO_PLAYER]
+    PvpRefusal.YOURSELF -> strings[StringKeys.PVP_ERROR_YOURSELF]
+    PvpRefusal.NOTHING_OWED -> strings[StringKeys.PVP_ERROR_NOTHING_OWED]
+    PvpRefusal.NO_SUCH_FORMAT,
+    PvpRefusal.NO_SUCH_MATCH,
+    PvpRefusal.NOT_YOUR_TURN,
+    PvpRefusal.ILLEGAL_MOVE,
+    PvpRefusal.NOT_THEIRS,
+    -> strings.format(StringKeys.ERROR_STATUS, name)
 }
 
 /**

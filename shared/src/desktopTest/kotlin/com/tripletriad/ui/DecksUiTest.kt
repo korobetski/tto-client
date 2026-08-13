@@ -3,8 +3,10 @@ package com.tripletriad.ui
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.v2.runComposeUiTest
@@ -216,5 +218,36 @@ class DecksUiTest {
 
         /** An ff14 card outside the starter five. */
         val SIXTH_CARD = Card.idFor(block = 1, number = 44)
+    }
+
+    /**
+     * Every pickable card shows its four edges, and its element when it has one.
+     *
+     * The editor drew thumbnails and nothing else, so choosing a deck meant recognising cards from
+     * memory or tapping each one to find out what it was — see [CardStatsLine]. Asserted on the
+     * unmerged tree because the whole tile is one `clickable` and Compose folds the line into it.
+     */
+    @Test
+    fun everyPickableCardShowsItsPowersAndItsType() = runComposeUiTest {
+        val documents = seeded(freshSave())
+        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
+
+        onNodeWithTag(deckSlotTestTag(0)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
+
+        val cards = kotlinx.coroutines.runBlocking { com.tripletriad.data.loadCardCatalog() }
+        val shown = STARTER_CARDS.first()
+        onNodeWithTag(DECK_PICK_GRID_TEST_TAG)
+            .performScrollToNode(hasTestTag(deckPickTestTag(shown)))
+
+        onNodeWithTag(cardStatsTestTag(shown), useUnmergedTree = true).assertExists()
+        val typed = STARTER_CARDS.firstOrNull { cards.byId[it]?.type != null }
+        if (typed != null) {
+            onNodeWithTag(DECK_PICK_GRID_TEST_TAG)
+                .performScrollToNode(hasTestTag(deckPickTestTag(typed)))
+            onNodeWithTag(cardTypeTestTag(typed), useUnmergedTree = true).assertExists()
+        }
     }
 }

@@ -12,7 +12,7 @@ import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.loadStrings
 import com.tripletriad.model.GameSave
 import com.tripletriad.net.PvpClient
-import com.tripletriad.protocol.PvpStake
+import com.tripletriad.protocol.PvpTableRequest
 import com.tripletriad.ui.theme.TripleTriadTheme
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -49,27 +49,6 @@ import kotlin.test.assertTrue
  */
 @OptIn(ExperimentalTestApi::class)
 class PvpLobbyUiTest {
-
-    /** Before anything happens: a button to find a match, and nothing waiting. */
-    @Test
-    fun anIdleLobbyOffersAMatchAndListsNoInvitation() = lobby {
-        onNodeWithTag(PVP_FIND_TEST_TAG).assertExists()
-        onNodeWithTag(PVP_WAITING_TEST_TAG).assertDoesNotExist()
-        onNodeWithTag(PVP_NO_CHALLENGE_TEST_TAG).assertExists()
-        onNodeWithTag(PVP_LIST_TEST_TAG).assertDoesNotExist()
-    }
-
-    /**
-     * Queueing replaces the button with what it is doing.
-     *
-     * Not a spinner beside a button that still says "find a match": the two states are exclusive,
-     * and a player who can still press Find while queued will press it.
-     */
-    @Test
-    fun queueingSaysSoAndTakesTheButtonAway() = lobby(queued = true) {
-        onNodeWithTag(PVP_WAITING_TEST_TAG).assertExists()
-        onNodeWithTag(PVP_FIND_TEST_TAG).assertDoesNotExist()
-    }
 
     /** An invitation received offers both Accept and Decline. */
     @Test
@@ -108,7 +87,7 @@ class PvpLobbyUiTest {
 
     /** The Invite button is dead until a name is typed — an empty challenge names nobody. */
     @Test
-    fun invitingNeedsAName() = lobby {
+    fun invitingNeedsAName() = lobby(onInvites = true) {
         onNodeWithTag(PVP_CHALLENGE_TEST_TAG).assertIsNotEnabled()
 
         onNodeWithTag(PVP_NAME_TEST_TAG).performTextInput("Kuplu")
@@ -124,31 +103,14 @@ class PvpLobbyUiTest {
      */
     @Test
     fun aTypedNameIsTrimmedBeforeItIsSent() {
-        val bodies = mutableListOf<String>()
-
-        lobby(recordBody = bodies::add) {
+        lobby(onInvites = true) {
             onNodeWithTag(PVP_NAME_TEST_TAG).performTextInput("  Kuplu  ")
             onNodeWithTag(PVP_CHALLENGE_TEST_TAG).performClick()
             waitForIdle()
         }
 
-        assertTrue(bodies.any { """"username":"Kuplu"""" in it }, "sent $bodies")
+        assertEquals(listOf("Kuplu"), invited)
     }
-
-    /** Finding a match posts to the queue. */
-    @Test
-    fun findingAMatchJoinsTheQueue() {
-        val paths = mutableListOf<String>()
-
-        lobby(record = paths::add) {
-            onNodeWithTag(PVP_FIND_TEST_TAG).performClick()
-            waitForIdle()
-        }
-
-        assertEquals(1, paths.count { it.endsWith("/pvp/queue") }, "queued via $paths")
-    }
-
-    // ---- Harness ----------------------------------------------------------
 
     /**
      * Renders the lobby with [challenges] listed and the queue in state [queued].
@@ -156,10 +118,17 @@ class PvpLobbyUiTest {
      * The session is driven into that state before composition — see the class KDoc — by answering
      * the two requests it makes and then letting the screen render what it holds.
      */
+    /** Names handed on to the terms screen, in order. */
+    private val invited = mutableListOf<String>()
+
     @Suppress("LongParameterList")
     private fun lobby(
-        queued: Boolean = false,
+        tables: List<String> = emptyList(),
         challenges: List<String> = emptyList(),
+        // The lobby opens on the tables. Anything about invitations has to say so, because the
+        // other tab is not composed at all until it is selected.
+        onInvites: Boolean = challenges.isNotEmpty(),
+        claims: List<String> = emptyList(),
         record: (String) -> Unit = {},
         recordBody: (String) -> Unit = {},
         block: androidx.compose.ui.test.ComposeUiTest.() -> Unit,
@@ -171,8 +140,14 @@ class PvpLobbyUiTest {
                 request.url.encodedPath.endsWith("/challenges") ->
                     respondJson("[${challenges.joinToString(",")}]")
 
-                request.url.encodedPath.endsWith("/queue") ->
-                    respondJson("""{"waiting":$queued}""")
+                request.url.encodedPath.endsWith("/tables") ->
+                    respondJson("[${tables.joinToString(",")}]")
+
+                request.url.encodedPath.endsWith("/claims") ->
+                    respondJson("[${claims.joinToString(",")}]")
+
+                request.url.encodedPath.endsWith("/join") ->
+                    respondJson("""{"waiting":false}""")
 
                 // No match, so the screen stays on the lobby rather than navigating away.
                 else -> respond(
@@ -185,7 +160,8 @@ class PvpLobbyUiTest {
         val session = sessionOver(engine)
         runBlocking {
             session.refreshChallenges()
-            if (queued) session.findMatch()
+            session.refreshTables()
+            session.refreshClaims()
         }
 
         setContent {
@@ -194,18 +170,30 @@ class PvpLobbyUiTest {
                     PvpScreen(
                         profile = GameSave.new(username = ME, createdAt = 0L),
                         session = session,
+                        now = NOW,
                         onMatch = {},
+                        onHost = {},
+                        onInvite = { invited += it },
+                        onClaim = {},
                         onBack = {},
                     )
                 }
             }
+        }
+        if (onInvites) {
+            onNodeWithTag(screenTabTestTag("invites")).performClick()
+            waitForIdle()
         }
         block()
     }
 
     private fun sessionOver(engine: MockEngine): PvpSession {
         val http = HttpClient(engine) { install(ContentNegotiation) { json(json) } }
-        return PvpSession(PvpClient(http, { "http://server" })) { "token" }
+        return PvpSession(
+            client = PvpClient(http, { "http://server" }),
+            tokenOf = { "token" },
+            hostName = ME,
+        )
     }
 
     /** An invitation somebody sent to this player. */
@@ -220,8 +208,8 @@ class PvpLobbyUiTest {
             id = INVITE_ID,
             fromName = from,
             toName = to,
-            stake = PvpStake.None,
             expiresAt = Long.MAX_VALUE,
+            terms = PvpTableRequest(formatId = "free-play"),
         ),
     )
 
@@ -246,6 +234,10 @@ class PvpLobbyUiTest {
 
     private companion object {
         const val ME = "Tester"
+
+        /** Fixed, so a countdown reads the same on every run. */
+        const val NOW = 0L
+        const val TABLE_ID = "t-1"
         const val INVITE_ID = "inv-1"
     }
 }

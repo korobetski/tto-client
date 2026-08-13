@@ -10,10 +10,13 @@ import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.FF14_BLOCK
 import com.tripletriad.FF8_BLOCK
+import com.tripletriad.data.CardValue
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.Card
+import com.tripletriad.model.CardType
 import com.tripletriad.model.GameSave
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -26,6 +29,8 @@ import kotlin.test.assertTrue
  */
 @OptIn(ExperimentalTestApi::class)
 class CollectionUiTest {
+    private val catalog = kotlinx.coroutines.runBlocking { com.tripletriad.data.loadCardCatalog() }
+
     private fun ComposeUiTest.openCards(block: Int = FF14_BLOCK) {
         newCharacter(block)
         openFromBar("cards", CARD_GRID_TEST_TAG)
@@ -153,5 +158,115 @@ class CollectionUiTest {
 
         /** A card in the ff14 set only — number 138, which the 110-card ff8 set has not. */
         val FF14_ONLY_CARD = Card.idFor(block = 1, number = 138)
+    }
+
+    // ---- Filters -----------------------------------------------------------
+
+    /**
+     * A type filter narrows the grid, and the total narrows with it.
+     *
+     * Both halves, because the total is the answer to a question the grid cannot give: "how many
+     * fire cards do I still need" is not something you can count by scrolling.
+     */
+    @Test
+    fun filteringByTypeNarrowsTheGridAndItsTotal() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        openCards()
+
+        onNodeWithTag(CARD_FILTERS_TEST_TAG).assertExists()
+        onNodeWithTag(typeFilterTestTag(CardType.FIRE)).performClick()
+        waitForIdle()
+
+        val fire = catalog.all.count { it.type == CardType.FIRE }
+        val held = STARTER_CARDS.count { catalog.byId[it]?.type == CardType.FIRE }
+        assertTrue(fire in 1 until ALL_CARDS, "the fixture assumes some cards are fire")
+        onNodeWithTag(CARD_TOTAL_TEST_TAG).assertTextEquals(
+            "Owned$DOT_SEPARATOR" + "$held / $fire",
+        )
+    }
+
+    /** Tapping the lit chip clears it, so a filter is never a state you have to guess out of. */
+    @Test
+    fun tappingTheChosenTypeAgainClearsIt() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        openCards()
+
+        onNodeWithTag(typeFilterTestTag(CardType.FIRE)).performClick()
+        onNodeWithTag(typeFilterTestTag(CardType.FIRE)).performClick()
+        waitForIdle()
+
+        onNodeWithTag(CARD_TOTAL_TEST_TAG).assertTextEquals(
+            "Owned$DOT_SEPARATOR${STARTER_CARDS.size} / $ALL_CARDS",
+        )
+    }
+
+    /**
+     * The set filter shows one set at a time — which is what `MODE` used to do by force.
+     *
+     * A **view** now rather than a confinement: nothing about picking it stops the character owning
+     * or playing the other set.
+     */
+    @Test
+    fun filteringBySetShowsOneTableAtATime() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        openCards()
+
+        onNodeWithTag(setFilterTestTag(FF8_BLOCK)).performClick()
+        waitForIdle()
+
+        val ff8 = catalog.block(FF8_BLOCK).size
+        onNodeWithTag(CARD_TOTAL_TEST_TAG).assertTextEquals(
+            "Owned$DOT_SEPARATOR" + "0 / $ff8",
+        )
+    }
+
+    // ---- Selling -----------------------------------------------------------
+
+    /**
+     * A spare copy can be sold from the browser, and the purse says so.
+     *
+     * The bag could always sell a `CardItem`; a card that had *entered the collection* was stuck
+     * there forever. See [com.tripletriad.ui.CardListBody].
+     */
+    @Test
+    fun aSpareCopyCanBeSoldFromTheCollection() = runComposeUiTest {
+        val spare = STARTER_CARDS.first { it !in STARTER_DECK }
+        val documents = seeded(freshSave().copy(mgp = 0))
+        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openFromBar("cards", CARD_GRID_TEST_TAG)
+
+        onNodeWithTag(CARD_GRID_TEST_TAG)
+            .performScrollToNode(hasTestTag(cardCellTestTag(spare)))
+        onNodeWithTag(cardCellTestTag(spare)).performClick()
+        onNodeWithTag(CARD_SELL_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { storedSave(documents).mgp > 0 }
+
+        val save = storedSave(documents)
+        assertFalse(save.ownsCard(spare), "the sold copy is gone from the collection")
+        assertEquals(CardValue.resaleOf(spare, catalog.byId), save.mgp)
+    }
+
+    /**
+     * A card a saved deck is built on offers no Sell at all.
+     *
+     * Not a disabled button: "you cannot sell this" is a question nobody asked, and it would be the
+     * answer on almost every owned card. See [com.tripletriad.model.GameSave.spareCopiesOf].
+     */
+    @Test
+    fun aCardADeckNeedsIsNotOffered() = runComposeUiTest {
+        val inDeck = STARTER_DECK.first()
+        val documents = seeded(freshSave())
+        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openFromBar("cards", CARD_GRID_TEST_TAG)
+
+        onNodeWithTag(CARD_GRID_TEST_TAG)
+            .performScrollToNode(hasTestTag(cardCellTestTag(inDeck)))
+        onNodeWithTag(cardCellTestTag(inDeck)).performClick()
+        waitForIdle()
+
+        assertTrue(exists(CARD_DETAIL_TEST_TAG), "the card is selected")
+        assertFalse(exists(CARD_SELL_TEST_TAG), "a deck's own card must not be sellable")
     }
 }

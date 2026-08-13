@@ -136,14 +136,14 @@ class StringsBundleTest {
         const val REGISTER_MATCH = "STR_REGISTER_MATCH"
 
         /**
-         * Keys defined by any of the four bundles: `import_locales.py`'s union of 691 imported
-         * strings plus the 140 `APP_*` strings this port authored.
+         * Keys defined by any of the four bundles: `import_locales.py`'s 697 imported strings
+         * across the four, plus the 193 `APP_*` strings this port authored.
          */
-        const val UNION_KEYS = 844
+        const val UNION_KEYS = 890
 
         /**
-         * Imported key count plus however many `APP_*` strings that locale translates: 687 + 140,
-         * 688 + 140, then 647 and 680 with no app-owned strings at all.
+         * Imported key count plus however many `APP_*` strings that locale translates: 693 + 193,
+         * 694 + 193, then 653 and 686 with no app-owned strings at all.
          *
          * Almost everything the ported screens show was already translated in four languages by
          * the AS3 bundles. The `APP_*` strings are the ones the original never needed a sentence
@@ -155,18 +155,18 @@ class StringsBundleTest {
         /**
          * ### What the three FFVIII packs added
          *
-         * `STR_GALBADIAN_BOOSTER`, `STR_GUARDIAN_FORCE_BOOSTER` and `STR_CHARACTER_BOOSTER` are in
-         * **all four** bundles, unlike every other string this port has written. They are pack
-         * names — proper nouns of a kind the imported bundles already carry nine of — so leaving
-         * German and Japanese to fall back to English would have put two naming conventions in one
-         * shop. The seven `APP_PACK_*` strings and the three descriptions follow the ordinary rule
-         * and are English and French only.
+         * The six `STR_*_BOOSTER` names — Monster, Galbadian, Fiend, Companion, Guardian Force and
+         * Character — are in **all four** bundles, unlike every other string this port has written.
+         * They are pack names, proper nouns of a kind the imported bundles already carry nine of,
+         * so leaving German and Japanese to fall back to English would have put two naming
+         * conventions in one shop. The seven `APP_PACK_*` strings and the six descriptions follow
+         * the ordinary rule and are English and French only.
          */
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 840,
-            AppLocale.FR_FR to 841,
-            AppLocale.DE_DE to 650,
-            AppLocale.JA_JA to 683,
+            AppLocale.EN_US to 886,
+            AppLocale.FR_FR to 887,
+            AppLocale.DE_DE to 653,
+            AppLocale.JA_JA to 686,
         )
 
         /**
@@ -181,9 +181,9 @@ class StringsBundleTest {
         val EXPECTED_GAPS = mapOf(
             AppLocale.EN_US to 4,
             AppLocale.FR_FR to 3,
-            // 44 imported keys short, plus all 150 app-owned; and 11 short, plus the 150.
-            AppLocale.DE_DE to 194,
-            AppLocale.JA_JA to 161,
+            // 44 imported keys short, plus all 193 app-owned; and 11 short, plus the 193.
+            AppLocale.DE_DE to 237,
+            AppLocale.JA_JA to 204,
         )
     }
 }

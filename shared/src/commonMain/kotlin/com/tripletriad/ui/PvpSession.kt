@@ -13,6 +13,7 @@ import com.tripletriad.model.PlacedCard
 import com.tripletriad.model.TurnOrder
 import com.tripletriad.net.AccountResult
 import com.tripletriad.net.PvpClient
+import com.tripletriad.protocol.ANY_DECK
 import com.tripletriad.protocol.PvpChallenge
 import com.tripletriad.protocol.PvpMatchStatus
 import com.tripletriad.protocol.PvpMatchView
@@ -98,6 +99,14 @@ class PvpSession internal constructor(
     var failure: AccountResult<*>? by mutableStateOf(null)
         private set
 
+    /**
+     * The finished match this player has already read and dismissed, if any.
+     *
+     * Cleared by nothing: a new match has a new id, so it passes the check on its own, and the old
+     * id costs one string. See [clear].
+     */
+    private var dismissed: String? = null
+
     /** True once [resume] has run, whatever it found. The difference from "no match". */
     var isResumed: Boolean by mutableStateOf(false)
         private set
@@ -112,6 +121,48 @@ class PvpSession internal constructor(
      * which is already told from this player's side.
      */
     val side: CardColor? get() = match?.side
+
+    /**
+     * Which of this player's decks they are bringing, as a slot in `GameSave.decks`.
+     *
+     * Held on the session rather than passed at each call site because it is a property of the
+     * *player*, not of any one match: the same five cards are brought to a table they host, a table
+     * they join and an invitation they accept, and asking three times would be asking the same
+     * question three times. It is also why it is not part of `PvpTableRequest`'s terms on the way
+     * out — see that class. [ANY_DECK] leaves the choice to the server, which is where it was until
+     * a player could make it.
+     */
+    var deck: Int by mutableStateOf(ANY_DECK)
+
+    /**
+     * Where each of the three lists has got to — see [ListState].
+     *
+     * ### Why an empty list is not an answer on its own
+     *
+     * A lobby with no tables and a lobby nobody has asked look identical from the outside, and
+     * rendering them the same way tells the player something false: "nobody is here" is an
+     * *answer*, and somebody who reads it leaves — half a second before the first poll comes back
+     * with four tables in it. `ProfileScreen` has always drawn this distinction for the local
+     * profile list; this is it for the three that come over the network.
+     *
+     * ### And why a failure is a third thing
+     *
+     * A spinner that never stops is its own kind of lie. Without [ListState.FAILED] an unreachable
+     * server leaves the lobby loading for ever, which is worse than the empty list it used to show
+     * wrongly — that at least ended. The player is told the server could not be reached and given
+     * something to press.
+     *
+     * Three states, three lists, because they are three requests arriving at three different times
+     * and one flag would have to be wrong about two of them.
+     */
+    var tablesState: ListState by mutableStateOf(ListState.LOADING)
+        private set
+
+    var challengesState: ListState by mutableStateOf(ListState.LOADING)
+        private set
+
+    var claimsState: ListState by mutableStateOf(ListState.LOADING)
+        private set
 
     /** Whether the match on hand has ended, however it ended. */
     val isOver: Boolean get() = match?.status?.let { it != PvpMatchStatus.PLAYING } == true
@@ -145,11 +196,12 @@ class PvpSession internal constructor(
         when (val result = client.currentMatch(token)) {
             is AccountResult.Ok -> {
                 val wasPlaying = match?.status == PvpMatchStatus.PLAYING
-                match = result.value
+                val arrived = result.value
+                match = arrived?.takeUnless { it.matchId == dismissed }
                 // The transition is what is watched, not the state: a match that is over stays
                 // over, and refreshing the profile on every poll of a finished board would be a
                 // request a second for a number that stopped changing.
-                val over = result.value?.status?.let { it != PvpMatchStatus.PLAYING } == true
+                val over = arrived?.status?.let { it != PvpMatchStatus.PLAYING } == true
                 if (wasPlaying && over) onSettled()
             }
 
@@ -192,15 +244,24 @@ class PvpSession internal constructor(
     suspend fun refreshTables() {
         val token = tokenOf() ?: return
         when (val result = client.tables(token)) {
-            is AccountResult.Ok -> tables = result.value
-            else -> Log.i(TAG) { "could not read the lobby: $result" }
+            is AccountResult.Ok -> {
+                tables = result.value
+                tablesState = ListState.READY
+            }
+
+            else -> {
+                // Not published on `failure`: this runs once a second, and a note per poll would
+                // bury the screen. The list's own state is where a failed read is shown.
+                tablesState = ListState.FAILED
+                Log.i(TAG) { "could not read the lobby: $result" }
+            }
         }
     }
 
     /** Opens a table on the terms this player is offering. */
     suspend fun host(request: PvpTableRequest) = request {
         val token = tokenOf() ?: return@request
-        when (val result = client.openTable(token, request)) {
+        when (val result = client.openTable(token, request.copy(deck = deck))) {
             is AccountResult.Ok -> tables = tables + result.value
             else -> failure = result
         }
@@ -223,7 +284,7 @@ class PvpSession internal constructor(
     /** Joins one, which opens the match. */
     suspend fun join(tableId: String) = request {
         val token = tokenOf() ?: return@request
-        when (val result = client.joinTable(token, tableId)) {
+        when (val result = client.joinTable(token, tableId, deck)) {
             is AccountResult.Ok -> {
                 tables = tables.filterNot { it.id == tableId }
                 poll()
@@ -237,15 +298,24 @@ class PvpSession internal constructor(
     suspend fun refreshChallenges() {
         val token = tokenOf() ?: return
         when (val result = client.challenges(token)) {
-            is AccountResult.Ok -> challenges = result.value
-            else -> Log.i(TAG) { "could not read the invitations: $result" }
+            is AccountResult.Ok -> {
+                challenges = result.value
+                challengesState = ListState.READY
+            }
+
+            else -> {
+                // Not published on `failure`: this runs once a second, and a note per poll would
+                // bury the screen. The list's own state is where a failed read is shown.
+                challengesState = ListState.FAILED
+                Log.i(TAG) { "could not read the invitations: $result" }
+            }
         }
     }
 
     /** Invites a named player, on stated terms. */
     suspend fun challenge(username: String, terms: PvpTableRequest) = request {
         val token = tokenOf() ?: return@request
-        when (val result = client.challenge(token, username, terms)) {
+        when (val result = client.challenge(token, username, terms.copy(deck = deck))) {
             is AccountResult.Ok -> challenges = challenges + result.value
             else -> failure = result
         }
@@ -254,7 +324,7 @@ class PvpSession internal constructor(
     /** Accepts an invitation, which opens the match. */
     suspend fun accept(challengeId: String) = request {
         val token = tokenOf() ?: return@request
-        when (val result = client.accept(token, challengeId)) {
+        when (val result = client.accept(token, challengeId, deck)) {
             is AccountResult.Ok -> {
                 challenges = challenges.filterNot { it.id == challengeId }
                 poll()
@@ -309,8 +379,17 @@ class PvpSession internal constructor(
     suspend fun refreshClaims() {
         val token = tokenOf() ?: return
         when (val result = client.claims(token)) {
-            is AccountResult.Ok -> claims = result.value
-            else -> Log.i(TAG) { "could not read the claims: $result" }
+            is AccountResult.Ok -> {
+                claims = result.value
+                claimsState = ListState.READY
+            }
+
+            else -> {
+                // Not published on `failure`: this runs once a second, and a note per poll would
+                // bury the screen. The list's own state is where a failed read is shown.
+                claimsState = ListState.FAILED
+                Log.i(TAG) { "could not read the claims: $result" }
+            }
         }
     }
 
@@ -344,8 +423,17 @@ class PvpSession internal constructor(
         isResumed = true
     }
 
-    /** Forgets a finished match, so the lobby is not showing a board that is over. */
+    /**
+     * Forgets a finished match, so the lobby is not showing a board that is over.
+     *
+     * The id is **remembered**, and that is the whole of it: the server keeps a settled match
+     * readable for a couple of minutes so both players can see how it ended — see
+     * `PvpStore.recentMatchFor` — so without this the next poll would hand it straight back, the
+     * lobby's "a match exists, go to the board" effect would fire, and the player would be bounced
+     * into the result screen they just dismissed, once a second, until the window closed.
+     */
     fun clear() {
+        dismissed = match?.matchId
         match = null
     }
 
@@ -390,6 +478,12 @@ class PvpSession internal constructor(
  * stay right without knowing this happened: both are derived from `side` against `order`, and
  * `score` counts the unplayed hands by side. `playableHandIndices` is not touched, because it
  * indexes a hand, and a hand does not change length when it changes colour.
+ *
+ * **The last play is flipped even though nothing currently reads its colour.** `MatchBanner` wants
+ * its captures and the type of the card, not who played it. Leaving one un-mirrored field in an
+ * otherwise mirrored view would be a trap for the next reader rather than an optimisation — the
+ * rule this function states is that every colour in here is this player's, and a field that quietly
+ * is not would be found the hard way.
  */
 private fun MatchView.asBlue(): MatchView = if (side == CardColor.BLUE) {
     this
@@ -404,6 +498,12 @@ private fun MatchView.asBlue(): MatchView = if (side == CardColor.BLUE) {
         ownHand = ownHand.map { it.copy(owner = CardColor.BLUE) },
         opponentHand = opponentHand.map { it?.copy(owner = CardColor.RED) },
         order = TurnOrder(order.first.opposite()),
+        lastPlay = lastPlay?.let {
+            it.copy(
+                player = it.player.opposite(),
+                card = it.card.copy(owner = it.player.opposite()),
+            )
+        },
     )
 }
 

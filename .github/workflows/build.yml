@@ -146,7 +146,7 @@ jobs:
           path: androidApp/build/outputs/apk/*/*.apk
 
   desktop:
-    name: Desktop JAR
+    name: Desktop JAR + .deb
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -156,6 +156,21 @@ jobs:
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v5
       - run: ./gradlew :desktopApp:build --no-daemon
+
+      # One of the three installers, on every push, so a broken `nativeDistributions` block is
+      # found here rather than at `git tag`. Packaging exercises things `build` never touches —
+      # the icon files exist and are the format jpackage expects, the Deb package name is legal,
+      # the maintainer field is well-formed — and each of those has already been wrong once.
+      #
+      # Only the `.deb`, and only because it is the one this runner can make: jpackage builds for
+      # the host and refuses to cross-build. The `.msi` and `.dmg` are built at release time on
+      # their own runners; what this catches is the shared configuration, which is most of it.
+      - run: ./gradlew :desktopApp:packageDeb --no-daemon
+      - name: Upload the .deb
+        uses: actions/upload-artifact@v6
+        with:
+          name: desktop-deb
+          path: desktopApp/build/compose/binaries/main/deb/*.deb
 
   # The only job that can compile the Apple targets at all: Kotlin/Native silently skips
   # them on a Linux or Windows host, so a green build elsewhere says nothing about iOS.

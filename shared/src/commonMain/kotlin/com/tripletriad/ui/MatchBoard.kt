@@ -46,15 +46,20 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tripletriad.model.AscensionTally
 import com.tripletriad.model.Board
 import com.tripletriad.model.Card
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.CardType
+import com.tripletriad.model.GameRules
 import com.tripletriad.model.HAND_SIZE
 import com.tripletriad.model.HandVisibility
 import com.tripletriad.model.MatchState
 import com.tripletriad.model.PlacedCard
+import com.tripletriad.model.TypeRule
+import com.tripletriad.model.effectivePowers
 import com.tripletriad.model.elementalModifier
+import com.tripletriad.model.powerModifier
 import com.tripletriad.ui.theme.LocalTtoColors
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -99,6 +104,8 @@ internal fun PlayArea(
     val board: @Composable () -> Unit = {
         BoardGrid(
             board = state.board,
+            rules = state.rules,
+            tally = state.tally,
             scale = layout.boardScale,
             drag = drag,
             // The card looking for a cell, by either gesture — a tapped one and a lifted one both
@@ -195,10 +202,17 @@ internal fun DragGhost(drag: BoardDragState, scale: Float) {
  *   one — "where can this go" answered before the attempt rather than by it, which matters most on
  *   a phone, where the finger covers the cell it is aiming at. Under the Elemental rule it answers
  *   the better question too: every free elemental cell shows what it would do to *this* card.
+ * @param rules which modifier applies to the cards standing here, if any.
+ * @param tally how much of it there is, under Bonus or Malus. Neither of these two is enough on its
+ *   own, which is why both arrived together: a grid given only a `Board` can draw the printed
+ *   digits and nothing else, and that is what this one did.
  */
 @Composable
+@Suppress("LongParameterList")
 internal fun BoardGrid(
     board: Board,
+    rules: GameRules,
+    tally: AscensionTally,
     scale: Float,
     drag: BoardDragState,
     held: Card?,
@@ -224,6 +238,8 @@ internal fun BoardGrid(
                         position = position,
                         placed = board[position],
                         element = board.elements[position],
+                        rules = rules,
+                        tally = tally,
                         scale = scale,
                         isTarget = hovered == position && free,
                         isOpen = held != null && free,
@@ -250,22 +266,33 @@ internal fun BoardGrid(
 /**
  * One cell.
  *
- * ### The Elemental rule, made visible
+ * ### The power rules, made visible
  *
  * `Board.elements` has been populated under `TypeRule.ELEMENTAL` since the engine was ported, and
  * `elementalModifier` has been deciding matches with it — but the only thing on screen was the
  * first three letters of the enum name on an *empty* cell. So the rule was invisible exactly when
  * it mattered: once a card was down, nothing said the 7 fighting for that edge was really a 6.
+ * Bonus and Malus were worse: they leave no mark on the board at all, so the only way to follow
+ * them was to count cards by type and do the arithmetic per card, per side, per turn.
  *
- * Three things are drawn now, all from data that was already there:
+ * Four things are drawn now, all from data that was already there:
  *
  * - **the element itself**, as the card artwork's own type icon rather than `EAR` / `LIG`. The
  *   glyphs are in the bundle ([CardArt.typeIcon]) and are what the same element looks like on a
  *   card, which is the comparison a player has to make.
- * - **what the cell did**, on the card sitting on it: `+1` or `−1`.
+ * - **what the rules did to the card sitting here**: `+1`, `−3`, whichever of the three is up.
+ *   [powerModifier] answers for all of them, so the badge is one concept and not three.
+ * - **the digits it left**, on the card itself — see [BoardCard]. The badge says *why* and the
+ *   digits say *what*, which is the split that survives the clamp: a `+4` on an 8 raises that side
+ *   by two, and only the digits can say so.
  * - **what the cell would do**, on every free elemental cell while a card is held. This is the
  *   half that changes play: a hand card has one element, the nine cells have nine, and working out
  *   which cell suits it by reading nine icons is arithmetic the screen can do.
+ *
+ * The prospective badge is **Elemental only**, and deliberately. Under Bonus or Malus every free
+ * cell would show the same number, which is nine copies of one fact — and the fact belongs to the
+ * card, which is not on the board yet. A card in hand is worth what is printed on it; see
+ * [AscensionTally].
  *
  * An untyped card takes `−1` on any elemental cell — see [elementalModifier], where that is
  * documented as intended rather than accidental — so the badge appears for typeless cards too, and
@@ -284,6 +311,8 @@ private fun TileCell(
     position: Int,
     placed: PlacedCard?,
     element: CardType?,
+    rules: GameRules,
+    tally: AscensionTally,
     scale: Float,
     isTarget: Boolean,
     isOpen: Boolean,
@@ -311,19 +340,20 @@ private fun TileCell(
         if (placed == null) {
             element?.let { ElementBadge(position = position, element = it, scale = scale) }
         } else {
-            BoardCard(placed, scale)
+            BoardCard(placed, rules, element, tally, scale)
         }
 
-        // The card's own modifier once it is down; the held card's prospective one while the cell
-        // is free. Never both — a cell holds a card or it does not.
+        // The card's own modifier once it is down, under whichever rule is up; the held card's
+        // prospective one while the cell is free, under Elemental only. Never both — a cell holds
+        // a card or it does not.
         val modifierValue = when {
-            element == null -> 0
-            placed != null -> elementalModifier(placed.card.type, element)
-            held != null -> elementalModifier(held.type, element)
+            placed != null -> powerModifier(placed.card, rules, element, tally)
+            held != null && element != null && rules.typeRule == TypeRule.ELEMENTAL ->
+                elementalModifier(held.type, element)
             else -> 0
         }
         if (modifierValue != 0) {
-            ElementalModifier(
+            PowerModifierBadge(
                 position = position,
                 value = modifierValue,
                 scale = scale,
@@ -366,17 +396,21 @@ private fun ElementBadge(position: Int, element: CardType, scale: Float) {
 }
 
 /**
- * `+1` or `−1`, in the corner of the cell.
+ * `+1`, `−3`, in the corner of the cell — whatever the active rule is doing to the card on it.
  *
  * Tertiary for the bonus and error for the penalty, which is the theme's own pair for "this went
  * your way" and "this did not" — the same two colours the shop and the achievements list use, so
  * the board does not invent a third vocabulary. A plate behind it because the badge sits over card
  * artwork whose colours are not the theme's to choose.
  *
+ * **Colour is not the only carrier**, which is what makes it usable by a player who cannot tell
+ * these two apart: the sign is written. A badge distinguished only by red and green would be a
+ * board with no information on it for about one man in twelve.
+ *
  * The minus is U+2212, not a hyphen: it is a sign, and beside a numeral a hyphen reads short.
  */
 @Composable
-private fun ElementalModifier(position: Int, value: Int, scale: Float, modifier: Modifier) {
+private fun PowerModifierBadge(position: Int, value: Int, scale: Float, modifier: Modifier) {
     val positive = value > 0
 
     Text(
@@ -415,9 +449,27 @@ private fun ElementalModifier(position: Int, value: Int, scale: Float, modifier:
  * An earlier revision used a `rotationY` half-turn instead, which **mirrored the card's contents
  * between 90° and 180°** — every glyph on it drawn backwards for a fifth of a second. A squash
  * cannot do that, because the scale never goes negative. The original's choice was the right one.
+ *
+ * ### It draws what the card is worth here, not what is printed on it
+ *
+ * The digits come from [effectivePowers], so a card standing on a `+3` Bonus board shows the
+ * numbers it will actually fight with, clamp included. Drawing the printed four and putting the
+ * modifier in a corner would leave every comparison on the board — which is the whole of the game
+ * — as arithmetic the player has to do per side, and get right, before deciding a move. The badge
+ * beside it says why the numbers are what they are; on its own it would be a footnote to a lie.
+ *
+ * Recomputed on every composition rather than remembered: it is four `coerceIn`s over values that
+ * change whenever the board does, and a stale cache here would be a card showing another turn's
+ * powers.
  */
 @Composable
-private fun BoardCard(placed: PlacedCard, scale: Float) {
+private fun BoardCard(
+    placed: PlacedCard,
+    rules: GameRules,
+    element: CardType?,
+    tally: AscensionTally,
+    scale: Float,
+) {
     val squashY = remember { Animatable(1f) }
     val stretchX = remember { Animatable(1f) }
     val landing = remember { Animatable(0f) }
@@ -454,6 +506,7 @@ private fun BoardCard(placed: PlacedCard, scale: Float) {
         card = placed.card.copy(owner = shown),
         scale = scale,
         showBack = showBack,
+        powers = effectivePowers(placed.card, rules, element, tally),
         modifier = Modifier.graphicsLayer {
             // The landing and the flip multiply rather than override: a card captured while it
             // is still settling keeps settling. They cannot both be at rest and disagree, since

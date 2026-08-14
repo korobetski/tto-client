@@ -6,15 +6,19 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.tripletriad.data.SaveRepository
+import com.tripletriad.log.CrashLog
 import com.tripletriad.log.Log
 import com.tripletriad.net.ServerConnection
 import com.tripletriad.net.ServerDirectory
 import com.tripletriad.net.ServerStores
 import com.tripletriad.net.SessionStore
+import com.tripletriad.net.TicketStore
 import com.tripletriad.net.TranscriptQueue
 import com.tripletriad.net.serverConnection
 import com.tripletriad.net.serverEntries
 import com.tripletriad.ui.App
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlin.system.exitProcess
 
 /**
@@ -22,6 +26,7 @@ import kotlin.system.exitProcess
  * UI can be built and run on a developer machine without an emulator or Xcode.
  */
 fun main() {
+    installCrashLog()
     val settings = DesktopSettingsStore()
     // `SaveRepository.COLLECTION` rather than the literal "saves": the shared module owns the
     // directory name, so the two hosts cannot drift apart on where a profile lives.
@@ -49,6 +54,30 @@ fun main() {
     // behind. Nothing is lost by ending it here: every save goes through `SaveRepository` at the
     // point of the change, so anything that had to reach disk did so before the window closed.
     exitProcess(0)
+}
+
+/**
+ * Keeps the last few serious lines on disk, and goes on printing them.
+ *
+ * ### Why the desktop needs this as much as the phone
+ *
+ * A packaged build — the `.deb`, `.msi` and `.dmg` this project produces — is launched from a
+ * desktop icon, and its stdout goes to whatever the desktop environment does with stdout, which is
+ * usually nothing. So the argument is the same one the Android host makes: without a file, a player
+ * whose game closed itself has nothing to send.
+ *
+ * The scope is the process. `CrashLog` writes from a single collector and the JVM ends at
+ * `exitProcess` below, so there is nothing to cancel and nothing to wait for — the last snapshot
+ * either reached the file before the exit or did not, which is the limitation its own KDoc names.
+ */
+private fun installCrashLog() {
+    Log.install(
+        CrashLog(
+            store = DesktopDocumentStore(CrashLog.COLLECTION),
+            clock = JvmClock,
+            scope = CoroutineScope(Dispatchers.IO),
+        ),
+    )
 }
 
 /**
@@ -86,6 +115,7 @@ private fun buildServerConnection(): ServerConnection? {
             queue = DesktopDocumentStore(TranscriptQueue.COLLECTION),
             session = DesktopDocumentStore(SessionStore.COLLECTION),
             directory = DesktopDocumentStore(ServerDirectory.COLLECTION),
+            tickets = DesktopDocumentStore(TicketStore.COLLECTION),
         ),
         servers = servers,
         clock = JvmClock,

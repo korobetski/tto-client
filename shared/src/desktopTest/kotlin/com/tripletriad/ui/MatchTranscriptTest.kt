@@ -131,6 +131,7 @@ class MatchTranscriptTest {
                         npc = opponent,
                         format = format,
                         clock = FixedClock(),
+                        nextSeed = { 1 },
                         onPersist = {},
                         onExit = {},
                         onTranscript = { emitted = it },

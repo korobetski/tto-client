@@ -12,6 +12,9 @@
   "APP_EMPTY_BAG": "Votre sac est vide.",
   "APP_HOME": "Accueil",
   "APP_LOADING_CARDS": "chargement des cartes…",
+  "APP_RETRY": "Réessayer",
+  "APP_CARD_FACE_DOWN": "Carte face cachée",
+  "APP_PROFILE_LOCAL_NOTE": "Enregistré sur cet appareil. La progression n'est pas vérifiée par un serveur et ne permet pas de jouer contre d'autres personnes.",
   "APP_MATCHES": "Parties",
   "APP_NO_ACHIEVEMENT": "Aucun succès débloqué pour l’instant.",
   "APP_NO_FULL_DECK": "Aucun deck complet — jouez une main aléatoire, ou construisez-en un.",
@@ -59,6 +62,10 @@
   "APP_ERROR_OFFLINE": "Le serveur est injoignable. Vérifiez votre connexion.",
   "APP_ERROR_UPDATE": "Cette version est trop ancienne pour le serveur. Mettez à jour.",
   "APP_ERROR_STATUS": "Le serveur a répondu {0}.",
+  "APP_ERROR_THROTTLED": "Trop de tentatives. Patientez un instant.",
+  "APP_ERROR_THROTTLED_IN": "Trop de tentatives. Réessayez dans {0}s.",
+  "APP_NO_SEEDS": "Connectez-vous une fois pour continuer à jouer hors ligne.",
+  "APP_LOADING": "Chargement",
   "APP_ERROR_NAME_TAKEN": "Ce nom est déjà pris.",
   "APP_ERROR_BAD_CREDENTIALS": "Ce nom et ce mot de passe ne correspondent à aucun compte.",
   "APP_ERROR_EXPIRED": "Votre session a expiré. Reconnectez-vous.",
@@ -191,5 +198,7 @@
   "APP_PVP_ERROR_NOTHING_OWED": "Il n'y a rien à récupérer.",
   "APP_PVP_FORMAT": "Format",
   "APP_PVP_TABLE_EXPIRES": "encore {0} min",
+  "APP_PVP_DECK": "Deck",
+  "APP_PVP_DECK_ANY": "Automatique",
   "APP_PVP_INVITE_TO": "Défier {0}"
 }

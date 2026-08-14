@@ -177,7 +177,18 @@ android {
 
     buildTypes {
         getByName("release") {
-            isMinifyEnabled = false
+            // R8, which a store would require and which is worth having regardless: it strips the
+            // unused half of every library this app links and shrinks the download a player waits
+            // for. What it costs is a class of failure that **no unit test can see** — a type
+            // removed because the only thing that reaches it is a reflective lookup — which is why
+            // `proguard-rules.pro` states a reason beside every keep, and why the end-to-end run in
+            // the plan's § 5 has to be repeated against a minified build rather than a debug one.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                file("proguard-rules.pro"),
+            )
             // Null when no material was supplied, which leaves the variant unsigned rather than
             // failing — see [releaseSigning].
             signingConfig = signingConfigs.findByName("release")
@@ -221,6 +232,76 @@ val verifyComposeAssets = tasks.register("verifyComposeAssets") {
     }
 }
 
+/**
+ * The same check against the **shrunk** APK, plus the thing shrinking can break.
+ *
+ * ### Why the debug check is not enough
+ *
+ * `isShrinkResources` removes resources R8 believes nothing references, and it cannot see a file
+ * addressed by path at runtime — which is exactly how `Res.readBytes` reaches every catalogue and
+ * every locale bundle in this app. The debug variant is not shrunk, so the check next door passes
+ * whatever the release build does.
+ *
+ * ### And why the dex is searched for serializers
+ *
+ * The other half of the same problem. `kotlinx.serialization` finds a generated `$serializer` by
+ * name, so R8 sees a class nobody calls; remove it and the app builds, installs, launches, and
+ * crashes the first time it decodes a payload. `proguard-rules.pro` keeps them — this is what says
+ * the rules are still doing their job after a library upgrade rewrites the class shapes.
+ *
+ * A string search is coarse: it proves the names survived, not that every serializer did. It is
+ * still the difference between noticing at build time and noticing in a player's hands, and the
+ * only cheaper alternative — running the APK — needs a device this build does not have.
+ */
+/** Whether [slice] appears anywhere in this array. A dex is binary, so this is a byte search. */
+fun ByteArray.containsSlice(slice: ByteArray): Boolean {
+    if (slice.isEmpty() || slice.size > size) return false
+    outer@ for (start in 0..size - slice.size) {
+        for (offset in slice.indices) {
+            if (this[start + offset] != slice[offset]) continue@outer
+        }
+        return true
+    }
+    return false
+}
+
+val verifyReleaseApk = tasks.register("verifyReleaseApk") {
+    group = "verification"
+    description = "Checks the minified APK kept its resources and its serializers."
+
+    val apk = layout.buildDirectory.file("outputs/apk/release/androidApp-release-unsigned.apk")
+    dependsOn("assembleRelease")
+    inputs.file(apk)
+
+    doLast {
+        ZipFile(apk.get().asFile).use { zip ->
+            val entries = zip.entries().asSequence().map { it.name }.toList()
+            val locale = "assets/composeResources/$resPackage/files/locales/tto-en_US.json"
+            check(locale in entries) {
+                "The release APK has no Compose resources — expected $locale. " +
+                    "`isShrinkResources` removed what `Res.readBytes` reads by path."
+            }
+
+            // Searched as bytes rather than decoded to a string: a dex is not text, and the
+            // obvious `readBytes().decodeToString()` on four megabytes of it allocates a copy the
+            // size of the file for a substring search that does not need one.
+            val marker = "\$serializer".encodeToByteArray()
+            val kept = entries.filter { it.endsWith(".dex") }.any { name ->
+                zip.getInputStream(zip.getEntry(name)).use { it.readBytes().containsSlice(marker) }
+            }
+            check(kept) {
+                "The release APK has no generated serializers — R8 removed what nothing calls. " +
+                    "See androidApp/proguard-rules.pro."
+            }
+        }
+    }
+}
+
+// `verifyComposeAssets` only. `verifyReleaseApk` is deliberately **not** wired in here: it has to
+// build and minify the release variant, which is two minutes added to every `check` anybody runs,
+// including the dozen a day that touch one test. The guarantee is not lost — the release workflow
+// runs it explicitly against the signed artifact, which is the moment before anything reaches a
+// player and the only moment a broken keep rule can still be caught for free.
 tasks.named("check") { dependsOn(verifyComposeAssets) }
 
 dependencies {

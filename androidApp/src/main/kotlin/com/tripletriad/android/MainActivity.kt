@@ -9,11 +9,15 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.tripletriad.data.SaveRepository
 import com.tripletriad.log.Log
+import androidx.lifecycle.lifecycleScope
+import com.tripletriad.log.CrashLog
 import com.tripletriad.log.LogLevel
+import com.tripletriad.log.LogSink
 import com.tripletriad.net.ServerConnection
 import com.tripletriad.net.ServerDirectory
 import com.tripletriad.net.ServerStores
 import com.tripletriad.net.SessionStore
+import com.tripletriad.net.TicketStore
 import com.tripletriad.net.TranscriptQueue
 import com.tripletriad.net.serverConnection
 import com.tripletriad.net.serverEntries
@@ -103,6 +107,7 @@ class MainActivity : ComponentActivity() {
                 queue = AndroidDocumentStore(applicationContext, TranscriptQueue.COLLECTION),
                 session = AndroidDocumentStore(applicationContext, SessionStore.COLLECTION),
                 directory = AndroidDocumentStore(applicationContext, ServerDirectory.COLLECTION),
+                tickets = AndroidDocumentStore(applicationContext, TicketStore.COLLECTION),
             ),
             servers = servers,
             clock = AndroidClock,
@@ -150,16 +155,27 @@ class MainActivity : ComponentActivity() {
      */
     private fun installLogcatSink() {
         val debuggable = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+        val logcat = LogSink { level, tag, message, error ->
+            when (level) {
+                LogLevel.DEBUG -> AndroidLog.d(tag, message, error)
+                LogLevel.INFO -> AndroidLog.i(tag, message, error)
+                LogLevel.WARN -> AndroidLog.w(tag, message, error)
+                LogLevel.ERROR -> AndroidLog.e(tag, message, error)
+            }
+        }
+
+        // Logcat **and** a file. On a sideloaded build logcat is a stream nobody is attached to:
+        // a player whose game closes itself has nothing to send, so the report that reaches anyone
+        // who could fix it is "it crashed". `CrashLog` keeps the last few serious lines where the
+        // player can find them, and passes everything through to logcat unchanged — see its KDoc
+        // for why this is a file and not a crash-reporting SDK.
         Log.install(
             minLevel = if (debuggable) LogLevel.DEBUG else LogLevel.INFO,
-            sink = { level, tag, message, error ->
-                when (level) {
-                    LogLevel.DEBUG -> AndroidLog.d(tag, message, error)
-                    LogLevel.INFO -> AndroidLog.i(tag, message, error)
-                    LogLevel.WARN -> AndroidLog.w(tag, message, error)
-                    LogLevel.ERROR -> AndroidLog.e(tag, message, error)
-                }
-            },
+            sink = CrashLog(
+                store = AndroidDocumentStore(applicationContext, CrashLog.COLLECTION),
+                clock = AndroidClock,
+                scope = lifecycleScope,
+            ).apply { next = logcat },
         )
     }
 

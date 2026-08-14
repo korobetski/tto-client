@@ -3,10 +3,12 @@ package com.tripletriad.ui
 import com.tripletriad.model.CaptureKind
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.CardType
+import com.tripletriad.model.GameRules
 import com.tripletriad.model.MatchIntroStep
 import com.tripletriad.model.MatchOutcome
 import com.tripletriad.model.MatchSetup
 import com.tripletriad.model.MatchState
+import com.tripletriad.model.MatchView
 import com.tripletriad.model.PlayResult
 import com.tripletriad.model.TypeRule
 
@@ -309,14 +311,44 @@ enum class MatchBanner(
          * Returns nothing for a state nothing has been played on yet, which the intro
          * sequence covers instead — see [forIntroStep].
          */
-        fun afterPlacement(state: MatchState): List<MatchBanner> {
-            val play = state.lastPlay ?: return emptyList()
+        fun afterPlacement(state: MatchState): List<MatchBanner> = afterPlacement(
+            play = state.lastPlay,
+            rules = state.rules,
+            outcome = state.outcome(),
+            next = state.currentPlayer,
+        )
+
+        /**
+         * The same, for a match this client is not holding the state of.
+         *
+         * A refereed board arrives as a sequence of [MatchView]s and there is no [MatchState] on
+         * this side to ask — so the four things the announcement is made of are read off the view
+         * instead, which carries every one of them. `MatchView.outcome` exists for this call.
+         *
+         * Worth being clear about what makes it exact rather than approximate: the captures come
+         * from the server's own engine run (`PvpPlay`), not from comparing two boards, so a Combo
+         * is announced as a Combo. Nothing here is reconstructed.
+         */
+        fun afterPlacement(view: MatchView): List<MatchBanner> = afterPlacement(
+            play = view.lastPlay,
+            rules = view.rules,
+            outcome = view.outcome(),
+            next = view.currentPlayer,
+        )
+
+        private fun afterPlacement(
+            play: PlayResult?,
+            rules: GameRules,
+            outcome: MatchOutcome?,
+            next: CardColor?,
+        ): List<MatchBanner> {
+            if (play == null) return emptyList()
             return buildList {
                 addAll(captionsFor(play))
-                ascension(state.rules.typeRule, play.card.type)?.let(::add)
-                when (val result = state.outcome()) {
-                    null -> state.currentPlayer?.let { add(turn(it)) }
-                    is MatchOutcome.Win -> add(outcome(result.winner))
+                ascension(rules.typeRule, play.card.type)?.let(::add)
+                when (outcome) {
+                    null -> next?.let { add(turn(it)) }
+                    is MatchOutcome.Win -> add(outcome(outcome.winner))
                     is MatchOutcome.Draw -> add(DRAW)
                     // Both, in that order: `PVEMatchScreen.as:63-68` announces the draw and
                     // then that it is not over. The rematch's own `opening` follows.

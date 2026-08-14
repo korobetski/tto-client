@@ -53,6 +53,8 @@ class ServerConnection internal constructor(
      */
     val pvp: PvpClient,
     val session: SessionStore,
+    /** Unspent match seeds, kept on disk so a match can be played with no network. */
+    val tickets: TicketStore,
     val probe: ServerProbe,
     val reporter: MatchReporter,
     /**
@@ -82,11 +84,15 @@ class ServerConnection internal constructor(
  * @property queue where unjudged transcripts wait, in [TranscriptQueue.COLLECTION].
  * @property session where tokens wait, in [SessionStore.COLLECTION].
  * @property directory where the chosen server is remembered, in [ServerDirectory.COLLECTION].
+ * @property tickets where unspent match seeds wait, in [TicketStore.COLLECTION]. Its own collection
+ *   rather than sharing the queue's, because that one is **enumerated** — `TranscriptQueue` drains
+ *   by listing every key it finds — and a seed document among the transcripts would be read as one.
  */
 data class ServerStores(
     val queue: DocumentStore,
     val session: DocumentStore,
     val directory: DocumentStore,
+    val tickets: DocumentStore,
 )
 
 /**
@@ -125,6 +131,7 @@ fun serverConnection(
     return ServerConnection(
         directory = directory,
         accounts = AccountClient(http, address),
+        tickets = TicketStore(stores.tickets),
         pvp = PvpClient(http, address),
         session = sessions,
         probe = ServerProbe(http, elapsed = clock::nowMillis),

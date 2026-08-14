@@ -11,10 +11,13 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -27,6 +30,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -37,6 +41,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tripletriad.audio.LocalAudio
@@ -419,6 +425,136 @@ internal fun EmptyNote(text: String, tag: String) {
         style = MaterialTheme.typography.bodyMedium,
         modifier = Modifier.testTag(tag).padding(vertical = 24.dp),
     )
+}
+
+/**
+ * A centred "we are still asking" spinner — the waiting counterpart of [EmptyNote].
+ *
+ * ### Why a list needs both
+ *
+ * Because an empty list and an unread list look identical, and rendering them the same way tells
+ * the player something false. "Nobody is here" is an *answer*: somebody who reads it leaves. Half a
+ * second later four tables arrive. `ProfileScreen` has always drawn this distinction for the local
+ * profile list; this is the shape for the ones that come over the network.
+ *
+ * ### The same vertical padding as [EmptyNote], deliberately
+ *
+ * So the two states occupy the same space and the screen does not jump when one replaces the other.
+ * A layout that shifts as an answer arrives is how a player ends up tapping the wrong row.
+ *
+ * Circular rather than the linear bar `AccountScreen` uses, and the difference is where they sit: a
+ * bar belongs at the top of a form that is submitting, and a spinner belongs in the middle of a
+ * space that is about to hold something.
+ */
+@Composable
+internal fun LoadingNote(tag: String) {
+    val strings = LocalStrings.current
+    val label = strings[StringKeys.LOADING]
+
+    Box(
+        modifier = Modifier
+            .testTag(tag)
+            .fillMaxWidth()
+            .padding(vertical = 24.dp)
+            // Announced as one thing rather than left as an unlabelled shape: a spinner with no
+            // description is a screen reader saying nothing at all while the screen is busy.
+            .semantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
+    ) {
+        CircularProgressIndicator(
+            modifier = Modifier.size(SpinnerSize),
+            strokeWidth = SpinnerStroke,
+        )
+    }
+}
+
+/** Big enough to read as a spinner, small enough not to read as the content. */
+private val SpinnerSize = 28.dp
+private val SpinnerStroke = 3.dp
+
+/**
+ * Where a fetched list has got to. **Three states, because a list has three.**
+ *
+ * The one it used to have was "the list I am holding", which conflates two answers and a question:
+ * an empty list means *nothing is there*, *nothing has arrived yet*, or *nothing could be fetched*,
+ * and only the first of those is something to tell a player. Showing the second as the first sends
+ * them away half a second early; showing the third as either leaves them waiting on a server that
+ * is not coming.
+ */
+enum class ListState {
+    /** Asked, nothing back. [LoadingNote]. */
+    LOADING,
+
+    /** Answered. The list is now the truth, empty or not. */
+    READY,
+
+    /** Asked and refused, or not reached at all. [FailedNote]. */
+    FAILED,
+}
+
+/**
+ * A text button that sits inside a list row, at the size a finger actually needs.
+ *
+ * ### Why this exists rather than a bare `TextButton`
+ *
+ * Because a bare one is **40dp tall**, measured — `ButtonDefaults.MinHeight` — and Material's
+ * minimum-touch-target enforcement does not lift it here. 40dp is below the 48dp both Material 3
+ * and Android's own accessibility guidance ask for, and these are the buttons that matter most for
+ * it: Join, Accept, Decline, Claim all sit in a crowded row beside *other* tap targets, which is
+ * exactly where an undersized one gets mis-hit.
+ *
+ * It was a guess until it was measured. `TouchTargetTest` is what turned it into a number, and is
+ * what will say so again if a future Material release changes the default underneath this.
+ *
+ * The **visual** size is untouched: `heightIn` sets a minimum on the layout, so the label and its
+ * padding look exactly as they did and the tappable area grows to meet the hand.
+ */
+@Composable
+internal fun RowButton(
+    label: String,
+    tag: String,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
+    TextButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.testTag(tag).heightIn(min = MinimumTouchTarget),
+    ) {
+        Text(label)
+    }
+}
+
+/** Material 3's minimum touch target, and Android's own accessibility guidance. */
+private val MinimumTouchTarget = 48.dp
+
+/**
+ * A centred "that did not work" line with something to press — the third of [ListState].
+ *
+ * ### Why it has a button and [EmptyNote] does not
+ *
+ * Because it is the only one of the three states the player can do something about. An empty lobby
+ * is not a problem to solve, and a loading one solves itself; a failed read is a dead end unless
+ * something offers a way out of it. A screen that reports a failure and offers nothing is a screen
+ * the player has to leave and re-enter to retry — which they will do, so the only question is
+ * whether the app looks like it knows.
+ */
+@Composable
+internal fun FailedNote(text: String, tag: String, onRetry: () -> Unit) {
+    val strings = LocalStrings.current
+
+    Column(
+        modifier = Modifier.testTag(tag).fillMaxWidth().padding(vertical = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = text,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = MUTED),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        RowButton(label = strings[StringKeys.RETRY], tag = "$tag-retry", onClick = onRetry)
+    }
 }
 
 /**

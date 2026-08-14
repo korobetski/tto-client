@@ -96,7 +96,7 @@ internal fun ColumnScope.CardListBody(
     profile: GameSave,
     catalog: CardCatalog,
     format: Format,
-    onPersist: suspend (GameSave) -> Unit = {},
+    onIntent: suspend (Intent) -> Unit = {},
 ) {
     val strings = LocalStrings.current
     val scope = rememberCoroutineScope()
@@ -133,16 +133,11 @@ internal fun ColumnScope.CardListBody(
         onType = { type = it },
     )
 
-    // Selling takes the copy out of the collection and pays for it. The card table is passed
-    // because a card's worth is its **rarity** and only the catalogue knows it — see `CardValue`.
+    // Selling takes the copy out of the collection and pays for it. Asked rather than computed:
+    // a card's worth is its **rarity**, and on an account it is the server's card table that says
+    // so — a client that worked the price out itself could work out a better one.
     val sell: (Card) -> Unit = { card ->
-        scope.launch {
-            onPersist(
-                profile
-                    .withoutCard(card.id)
-                    .withMgp(CardValue.resaleOf(card.id, catalog.byId)),
-            )
-        }
+        scope.launch { onIntent(Intent.SellCard(card.id)) }
     }
 
     val grid: @Composable (Modifier) -> Unit = { modifier ->

@@ -156,8 +156,13 @@ suspend fun loadCardArt(): CardArt = CardArt(
  * The order `sources/assets/digits/digits.xml` lists its glyphs in.
  *
  * `cdp` and `cdm` — the `+`/`-` of the Ascension modifier — and `cd0` are here because they
- * occupy grid slots and shift everything after them. Nothing draws them yet: no card has a 0,
- * and the modifier badge is not ported.
+ * occupy grid slots and shift everything after them.
+ *
+ * **`cd0` is drawn now.** A board card shows its *effective* powers ([CardDigits]), and Fallen Ace
+ * or an Elemental penalty can take a side to 0 — so the glyph that existed for no card is the one
+ * the rules produce. `cdp` and `cdm` are still unused: the modifier badge is a Material `Text`
+ * rather than these two glyphs, because it has to scale with the board and carry the theme's
+ * bonus/penalty colours, and an 18x18 bitmap does neither.
  */
 private val ATLAS_ORDER = listOf(
     "cdp", "cdm", "cd0", "cd1", "cd2",

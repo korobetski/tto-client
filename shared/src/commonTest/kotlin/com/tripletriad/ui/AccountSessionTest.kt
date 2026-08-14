@@ -1,6 +1,12 @@
 package com.tripletriad.ui
 
+import com.tripletriad.data.ShopOffer
+import com.tripletriad.data.StarterCatalog
+import com.tripletriad.model.BoosterItem
+import com.tripletriad.model.BoosterType
 import com.tripletriad.model.GameSave
+import com.tripletriad.model.PotionItem
+import com.tripletriad.model.PotionType
 import com.tripletriad.net.AccountClient
 import com.tripletriad.net.AccountResult
 import com.tripletriad.net.MatchReporter
@@ -11,10 +17,15 @@ import com.tripletriad.net.ServerEntry
 import com.tripletriad.net.ServerProbe
 import com.tripletriad.net.SessionStore
 import com.tripletriad.net.StoredSession
+import com.tripletriad.net.TicketStore
 import com.tripletriad.net.accountQueueKey
 import com.tripletriad.net.matchProtocolJson
+import com.tripletriad.protocol.BagItemRequest
+import com.tripletriad.protocol.ItemEffect
+import com.tripletriad.protocol.ItemUsed
 import com.tripletriad.protocol.MatchTranscript
 import com.tripletriad.protocol.PlayerState
+import com.tripletriad.protocol.SeedTickets
 import com.tripletriad.protocol.Session
 import com.tripletriad.storage.InMemoryDocumentStore
 import com.tripletriad.time.FixedClock
@@ -27,12 +38,14 @@ import io.ktor.client.request.HttpRequestData
 import io.ktor.client.request.HttpResponseData
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.TextContent
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -45,6 +58,251 @@ import kotlin.test.assertTrue
  * keep that true when the network is not cooperating.
  */
 class AccountSessionTest {
+
+    // ---- Intents ----------------------------------------------------------
+
+    /**
+     * Every intent goes to its own endpoint, walked as a set rather than one at a time.
+     *
+     * The reason `Intent` is a sealed type: a sixth case does not compile until it is handled here
+     * as well as on the server. A test per intent would be five chances to add a sixth that quietly
+     * goes nowhere — this one fails the moment the `when` gains a branch nobody wired up.
+     */
+    @Test
+    fun everyIntentAsksItsOwnEndpoint() = runTest {
+        val expected = mapOf(
+            Intent.Buy(ShopOffer(PotionItem(PotionType.XP), price = 50), "free-play")
+                to "/me/shop/buy",
+            Intent.SellItem(PotionItem(PotionType.XP)) to "/me/bag/sell",
+            Intent.DiscardItem(PotionItem(PotionType.XP)) to "/me/bag/discard",
+            Intent.SellCard(cardId = 257) to "/me/cards/sell",
+            Intent.EnterCampaign(campaignKey = "cc", fee = 500) to "/me/campaign/enter",
+            Intent.ClaimStarter(StarterCatalog(emptyList())) to "/me/starter",
+        )
+
+        for ((intent, path) in expected) {
+            val paths = mutableListOf<String>()
+            val session = signedInSession(
+                answering(HttpStatusCode.OK, encode(player)) { paths += it.url.encodedPath },
+            )
+
+            session.perform(intent)
+
+            assertEquals(listOf(path), paths, "$intent went to $paths")
+            assertEquals(player, session.player, "$intent did not adopt the server's profile")
+        }
+    }
+
+    /** A refused intent is reported and changes nothing, as a refused item use is. */
+    @Test
+    fun aRefusedIntentIsReportedAndChangesNothing() = runTest {
+        val session = signedInSession(answering(HttpStatusCode.Conflict, """{"error":"NOPE"}"""))
+        val before = session.player
+
+        session.perform(Intent.SellCard(cardId = 257))
+
+        assertNotNull(session.failure, "a refused intent was swallowed")
+        assertEquals(before, session.player)
+        assertFalse(session.isBusy)
+    }
+
+    /** With nobody signed in, an intent asks nothing at all. */
+    @Test
+    fun anIntentWithoutASessionAsksNothing() = runTest {
+        val paths = mutableListOf<String>()
+        val session = sessionOver(
+            answering(HttpStatusCode.OK, "{}") { paths += it.url.encodedPath },
+        )
+
+        session.perform(Intent.SellCard(cardId = 257))
+
+        assertTrue(paths.isEmpty(), "a signed-out client still called the server: $paths")
+    }
+
+    // ---- Seed tickets -----------------------------------------------------
+
+    /**
+     * The stock is read from disk first, so a launch with no network can still play.
+     *
+     * The whole reason the seeds are written down. A client that only ever fetched them would be
+     * unable to start a match on a plane, which is exactly the case the stock exists for.
+     */
+    @Test
+    fun theStockIsReadFromDiskBeforeAnythingIsAsked() = runTest {
+        val documents = InMemoryDocumentStore()
+        SessionStore(documents).save(home.id, stored(expiresAt = LATER))
+        TicketStore(documents).save(accountQueueKey(home.id, "kuplu"), listOf(11, 22, 33))
+        // The server answers nothing, so what is held can only have come off the disk.
+        val session = sessionOver(
+            ticketEngine { respondJson(HttpStatusCode.ServiceUnavailable, "") },
+            documents,
+        )
+        session.restore()
+
+        session.loadTickets()
+
+        assertEquals(3, session.ticketsHeld, "the stored seeds were not read")
+        assertEquals(11, session.nextSeed(), "the oldest seed is not the next one")
+    }
+
+    /** Each seed is handed out once, oldest first, and then the stock is empty. */
+    @Test
+    fun eachSeedIsHandedOutOnce() = runTest {
+        val documents = InMemoryDocumentStore()
+        SessionStore(documents).save(home.id, stored(expiresAt = LATER))
+        TicketStore(documents).save(accountQueueKey(home.id, "kuplu"), listOf(1, 2))
+        val session = sessionOver(
+            ticketEngine { respondJson(HttpStatusCode.ServiceUnavailable, "") },
+            documents,
+        )
+        session.restore()
+        session.loadTickets()
+
+        assertEquals(listOf(1, 2), listOf(session.nextSeed(), session.nextSeed()))
+        assertNull(session.nextSeed(), "a seed was handed out that did not exist")
+        assertEquals(0, session.ticketsHeld)
+    }
+
+    /**
+     * A low stock is topped up, and what the server answers replaces what was held.
+     *
+     * Replaces rather than appends because the response is *everything* the account holds unspent —
+     * which is also what repairs a stock that has drifted from the server's idea of it.
+     */
+    @Test
+    fun aLowStockIsToppedUpFromTheServer() = runTest {
+        val documents = InMemoryDocumentStore()
+        SessionStore(documents).save(home.id, stored(expiresAt = LATER))
+        TicketStore(documents).save(accountQueueKey(home.id, "kuplu"), listOf(9))
+        val session = sessionOver(
+            ticketEngine { respondJson(HttpStatusCode.OK, encode(SeedTickets(listOf(7, 8, 9)))) },
+            documents,
+        )
+        session.restore()
+
+        session.loadTickets()
+
+        assertEquals(3, session.ticketsHeld, "the stock was not topped up")
+        assertEquals(
+            listOf(7, 8, 9),
+            TicketStore(documents).load(accountQueueKey(home.id, "kuplu")),
+            "the topped-up stock was not written down",
+        )
+    }
+
+    /**
+     * A top-up that cannot happen leaves the stock alone and reports nothing.
+     *
+     * Offline is the ordinary case here, not a failure: the player keeps what they hold and plays
+     * from it. Putting it on [AccountSession.failure] would raise a note over an unrelated screen.
+     */
+    @Test
+    fun aTopUpThatFailsKeepsWhatIsHeldAndSaysNothing() = runTest {
+        val documents = InMemoryDocumentStore()
+        SessionStore(documents).save(home.id, stored(expiresAt = LATER))
+        TicketStore(documents).save(accountQueueKey(home.id, "kuplu"), listOf(5))
+        val session = sessionOver(
+            ticketEngine { respondJson(HttpStatusCode.ServiceUnavailable, "") },
+            documents,
+        )
+        session.restore()
+
+        session.loadTickets()
+
+        assertEquals(1, session.ticketsHeld, "an unreachable server emptied the stock")
+        assertEquals(5, session.nextSeed())
+        assertNull(session.failure, "being offline was reported as a failure")
+    }
+
+    /** With nobody signed in there is nothing to key a stock on, and nothing is asked. */
+    @Test
+    fun thereIsNoStockWithoutAnAccount() = runTest {
+        val session = sessionOver(answering(HttpStatusCode.NoContent, ""))
+
+        session.loadTickets()
+
+        assertEquals(0, session.ticketsHeld)
+        assertNull(session.nextSeed())
+    }
+
+    // ---- Using an item ----------------------------------------------------
+
+    /**
+     * Using an item **asks the server** and takes the profile it answers with.
+     *
+     * The assertion that matters is the third one: nothing about the resulting profile was computed
+     * here. A pack opened locally would produce a perfectly plausible save that the server never
+     * agreed to, which is the whole vector `POST /me/bag/use` exists to close.
+     */
+    @Test
+    fun usingAnItemAsksTheServerAndAdoptsWhatItAnswers() = runTest {
+        val paths = mutableListOf<String>()
+        val opened = ItemUsed(
+            player = PlayerState(save = GameSave(username = "kuplu", mgp = 4200, cards = mapOf())),
+            effect = ItemEffect.PackOpened(cardIds = listOf(260, 261), newCardIds = setOf(261)),
+        )
+        val session = signedInSession(
+            answering(HttpStatusCode.OK, encode(opened)) { paths += it.url.encodedPath },
+        )
+
+        val effect = session.useItem(BoosterItem(BoosterType.BRONZE))
+
+        assertEquals(ItemEffect.PackOpened(listOf(260, 261), setOf(261)), effect)
+        assertEquals(listOf("/me/bag/use"), paths, "the item was used without asking: $paths")
+        assertEquals(opened.player, session.player, "the server's profile was not adopted")
+        assertFalse(session.isBusy)
+    }
+
+    /**
+     * Each attempt carries an operation id, and two attempts do not share one.
+     *
+     * The id is what makes a retry safe on the server — see `Idempotent` in `:core`. Two *taps* are
+     * two intents and must not collide, or the second one would silently replay the first and the
+     * player would watch the same pack twice having spent two.
+     */
+    @Test
+    fun everyAttemptCarriesItsOwnOperationId() = runTest {
+        val bodies = mutableListOf<String>()
+        val used = ItemUsed(player = player, effect = ItemEffect.NotUseable)
+        val session = signedInSession(
+            MockEngine { request ->
+                bodies += (request.body as TextContent).text
+                respondJson(HttpStatusCode.OK, encode(used))
+            },
+        )
+
+        session.useItem(BoosterItem(BoosterType.BRONZE))
+        session.useItem(BoosterItem(BoosterType.BRONZE))
+
+        val ids = bodies.map { matchProtocolJson.decodeFromString<BagItemRequest>(it).operationId }
+        assertEquals(2, ids.size)
+        assertTrue(ids.all { it.isNotBlank() }, "an attempt carried no operation id: $ids")
+        assertNotEquals(ids[0], ids[1], "two taps shared an operation id")
+    }
+
+    /** Nobody signed in means nothing is used, and no request is made to find that out. */
+    @Test
+    fun usingAnItemWithoutASessionAsksNothing() = runTest {
+        val paths = mutableListOf<String>()
+        val session = sessionOver(
+            answering(HttpStatusCode.OK, "{}") { paths += it.url.encodedPath },
+        )
+
+        assertNull(session.useItem(BoosterItem(BoosterType.BRONZE)))
+        assertTrue(paths.isEmpty(), "a signed-out client still called the server: $paths")
+    }
+
+    /** A refused use is reported rather than swallowed, and nothing is invented in its place. */
+    @Test
+    fun aRefusedUseIsReportedAndChangesNothing() = runTest {
+        val session = signedInSession(answering(HttpStatusCode.Conflict, """{"error":"NOPE"}"""))
+        val before = session.player
+
+        assertNull(session.useItem(BoosterItem(BoosterType.BRONZE)))
+        assertNotNull(session.failure, "a refused use was swallowed")
+        assertEquals(before, session.player, "a refused use changed the profile anyway")
+        assertFalse(session.isBusy)
+    }
 
     // ---- Signing in -------------------------------------------------------
 
@@ -502,9 +760,28 @@ class AccountSessionTest {
             accounts = AccountClient(http, baseUrl = { directory.selected.baseUrl }),
             pvp = PvpClient(http, baseUrl = { directory.selected.baseUrl }),
             session = SessionStore(documents),
+            // The same store the test reads, so "the stock was written down" is answerable.
+            tickets = TicketStore(documents),
             probe = ServerProbe(http) { NOW },
             reporter = reporter,
         )
+    }
+
+    /**
+     * Signed in, with [onTickets] deciding what the seed endpoint answers.
+     *
+     * `/me` has to succeed for any of these to mean anything: the stock is keyed on the account,
+     * and there is no account until `restore` has read one. So the engine answers the profile and
+     * routes only the ticket call to the test.
+     */
+    private fun ticketEngine(
+        onTickets: MockRequestHandleScope.() -> HttpResponseData,
+    ) = MockEngine { request ->
+        if (request.url.encodedPath.endsWith("/matches/tickets")) {
+            onTickets()
+        } else {
+            respondJson(HttpStatusCode.OK, encode(player))
+        }
     }
 
     private fun answering(
@@ -536,6 +813,18 @@ class AccountSessionTest {
 
     private fun stored(expiresAt: Long) =
         StoredSession(token = TOKEN, expiresAt = expiresAt, username = "kuplu")
+
+    /**
+     * A session with a live token already stored, for the calls that need one to do anything.
+     *
+     * Planted rather than signed in, so that the mock engine answers the call under test instead of
+     * a sign-in the test does not care about.
+     */
+    private suspend fun signedInSession(engine: MockEngine): AccountSession {
+        val documents = InMemoryDocumentStore()
+        SessionStore(documents).save(home.id, stored(expiresAt = LATER))
+        return sessionOver(engine, documents)
+    }
 
     private val player = PlayerState(save = GameSave(username = "kuplu", mgp = 4200))
 

@@ -1,9 +1,11 @@
 package com.tripletriad.net
 
+import com.tripletriad.protocol.ANY_DECK
 import com.tripletriad.protocol.AppVersion
 import com.tripletriad.protocol.CURRENT_VERSION
 import com.tripletriad.protocol.PvpChallenge
 import com.tripletriad.protocol.PvpClaim
+import com.tripletriad.protocol.PvpJoinRequest
 import com.tripletriad.protocol.PvpMatchView
 import com.tripletriad.protocol.PvpMove
 import com.tripletriad.protocol.PvpQueueState
@@ -22,6 +24,7 @@ import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.Serializable
@@ -96,11 +99,16 @@ class PvpClient(
     }
 
     /** Joins one, which opens the match. */
-    suspend fun joinTable(token: String, tableId: String): AccountResult<PvpQueueState> =
+    suspend fun joinTable(
+        token: String,
+        tableId: String,
+        deck: Int = ANY_DECK,
+    ): AccountResult<PvpQueueState> =
         call(HTTP_CREATED) {
             client.post("${baseUrl()}/pvp/tables/$tableId/join") {
                 protocolHeaders()
                 bearer(token)
+                setBody(PvpJoinRequest(deck))
             }
         }
 
@@ -128,11 +136,16 @@ class PvpClient(
         }
 
     /** Accepts an invitation, which opens the match. */
-    suspend fun accept(token: String, challengeId: String): AccountResult<PvpQueueState> =
+    suspend fun accept(
+        token: String,
+        challengeId: String,
+        deck: Int = ANY_DECK,
+    ): AccountResult<PvpQueueState> =
         call(HTTP_CREATED) {
             client.post("${baseUrl()}/pvp/challenges/$challengeId/accept") {
                 protocolHeaders()
                 bearer(token)
+                setBody(PvpJoinRequest(deck))
             }
         }
 
@@ -272,6 +285,12 @@ class PvpClient(
         if (status.value == HTTP_UPGRADE_REQUIRED) {
             return AccountResult.UpdateRequired(headers[VERSION_HEADER]?.let(AppVersion::parse))
         }
+        // The lobby is throttled too — opening tables is cheap for the host and visible to everyone
+        // else. Same reading as the account client's: a wait, not a fault. No `Refusal` body comes
+        // with it, so this has to come before the decode.
+        if (status.value == HTTP_TOO_MANY_REQUESTS) {
+            return AccountResult.Throttled(headers[HttpHeaders.RetryAfter]?.toLongOrNull())
+        }
         return try {
             val refusal = body<Refusal>()
             AccountResult.RefusedPvp(refusal.code, refusal.reason)
@@ -294,6 +313,7 @@ class PvpClient(
         const val HTTP_CREATED = 201
         const val HTTP_NO_CONTENT = 204
         const val HTTP_UPGRADE_REQUIRED = 426
+        const val HTTP_TOO_MANY_REQUESTS = 429
         const val DETAIL_LIMIT = 500
 
         /** 409, and the two things it means. See [play]. */

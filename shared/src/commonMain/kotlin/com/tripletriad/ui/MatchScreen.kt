@@ -178,14 +178,21 @@ fun handCardTestTag(owner: CardColor, slot: Int): String =
  *   tournament ladders, where the result decides which rung comes next; ignored by everything
  *   else, which reads the outcome off the state it already holds.
  */
+
+// `CyclomaticComplexMethod` is suppressed for one branch, added deliberately and worth the count:
+// the guard that refuses to draw a board when there is no seed to play it on. The alternative was
+// splitting the body into a second composable behind a fifteen-parameter call, which would move the
+// complexity rather than remove it and put a seam through the middle of the largest screen here.
+// Everything else in this function was already inside the limit and should stay that way.
 @Composable
-@Suppress("LongParameterList")
+@Suppress("LongParameterList", "CyclomaticComplexMethod")
 internal fun MatchScreen(
     catalog: CardCatalog,
     profile: GameSave,
     npc: Npc,
     format: Format,
     clock: Clock,
+    nextSeed: () -> Int?,
     onPersist: suspend (GameSave) -> Unit,
     onExit: () -> Unit,
     onTranscript: suspend (MatchTranscript) -> Unit = {},
@@ -200,9 +207,23 @@ internal fun MatchScreen(
 
     // The seed, kept rather than thrown away, because it is the *whole* of a transcript's
     // randomness: from it alone the server re-derives the roulette, the deal, the coin flip and
-    // every one of the opponent's moves. An `Int` because that is what `MatchTranscript.seed`
-    // carries — the truncation is harmless, a seed only has to be unpredictable and reproducible.
-    val seed = remember(matchIndex, npc.iconId) { (clock.nowMillis() + matchIndex).toInt() }
+    // every one of the opponent's moves.
+    //
+    // **Drawn rather than invented.** On an account it is one the server issued and will accept
+    // once — a client that chose its own would be choosing its own deal, which is what
+    // `RejectionReason.UNKNOWN_SEED` exists to stop. Null means an account has played its offline
+    // stock down and has to reconnect; the board is not drawn, because a match played on a seed
+    // this server will refuse is a match played for nothing.
+    //
+    // A **scripted** match invents one instead, and must: `reportTranscript` never submits one —
+    // the script forces the coin flip, fixes the deal and changes the opponent's strategy, none of
+    // which a seed carries — so a ticket spent on the tutorial would be a ticket spent on a match
+    // that can never be credited.
+    val seed = remember(matchIndex, npc.iconId) { seedFor(script, clock, nextSeed) }
+    if (seed == null) {
+        NoSeedNotice(profile, onExit)
+        return
+    }
 
     // The match generator. The deal, the coin flip and every AI tie-break draw from it, in exactly
     // the order `TranscriptVerifier` replays them.

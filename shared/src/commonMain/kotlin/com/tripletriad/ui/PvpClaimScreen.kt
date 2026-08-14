@@ -34,6 +34,10 @@ import kotlinx.coroutines.launch
 const val PVP_CLAIM_TEST_TAG: String = "pvp-claim"
 const val PVP_CLAIM_CONFIRM_TEST_TAG: String = "pvp-claim-confirm"
 const val PVP_CLAIM_EMPTY_TEST_TAG: String = "pvp-claim-empty"
+
+/** Shown while the prizes have not come back yet — see [PVP_CLAIM_EMPTY_TEST_TAG] for the other. */
+const val PVP_CLAIM_LOADING_TEST_TAG: String = "pvp-claim-loading"
+const val PVP_CLAIM_FAILED_TEST_TAG: String = "pvp-claim-failed"
 const val PVP_CLAIM_PROMPT_TEST_TAG: String = "pvp-claim-prompt"
 
 /** `pvp-prize-<cardId>` — one of the loser's cards, offered as a prize. */
@@ -78,10 +82,22 @@ internal fun PvpClaimScreen(
     LaunchedEffect(session) { session.refreshClaims() }
 
     // Nothing owed is the ordinary state of a player who has collected everything, and it is also
-    // where the screen lands after the last claim is settled.
+    // where the screen lands after the last claim is settled. **But not before the list has been
+    // read**: this screen is reached by tapping a banner that says a prize is waiting, so telling
+    // the player there is nothing while the request is still out contradicts what sent them here.
     val outcome = claim?.outcome
     if (claim == null || outcome == null || outcome.picksOwed == 0) {
-        EmptyNote(strings[StringKeys.PVP_CLAIM_NONE], PVP_CLAIM_EMPTY_TEST_TAG)
+        when (session.claimsState) {
+            ListState.LOADING -> LoadingNote(PVP_CLAIM_LOADING_TEST_TAG)
+            ListState.READY ->
+                EmptyNote(strings[StringKeys.PVP_CLAIM_NONE], PVP_CLAIM_EMPTY_TEST_TAG)
+
+            ListState.FAILED -> FailedNote(
+                text = strings[StringKeys.ERROR_OFFLINE],
+                tag = PVP_CLAIM_FAILED_TEST_TAG,
+                onRetry = { scope.launch { session.refreshClaims() } },
+            )
+        }
         return
     }
 

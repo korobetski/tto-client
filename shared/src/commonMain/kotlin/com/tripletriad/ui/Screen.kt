@@ -75,4 +75,27 @@ internal enum class Screen {
             PVP_MATCH, PVP_TABLE, PVP_CLAIM -> PVP
             CAMPAIGN_MATCH -> CAMPAIGN
         }
+
+    /**
+     * How far this screen is from the menu — derived from [up] rather than written down.
+     *
+     * What it is for: telling **forward from back**. A transition that looks the same in both
+     * directions tells the player nothing about where they just went, and the depth is the only
+     * thing that distinguishes them. See `ScreenMotion`.
+     *
+     * Derived because a second table would be a second thing to update: adding a screen means
+     * adding one line to [up], and getting its depth for free is the whole reason that relation is
+     * a value and not a comment. [SPLASH] and [MENU] are their own parent, which is what terminates
+     * the walk — and is also what makes them depth zero.
+     */
+    val depth: Int
+        get() {
+            var steps = 0
+            var here = this
+            while (here.up != here) {
+                here = here.up
+                steps++
+            }
+            return steps
+        }
 }

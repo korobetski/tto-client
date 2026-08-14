@@ -15,6 +15,7 @@ import com.tripletriad.net.ServerDirectory
 import com.tripletriad.net.ServerEntry
 import com.tripletriad.net.ServerProbe
 import com.tripletriad.net.SessionStore
+import com.tripletriad.net.TicketStore
 import com.tripletriad.net.matchProtocolJson
 import com.tripletriad.net.serverEntries
 import com.tripletriad.protocol.AppVersion
@@ -206,6 +207,7 @@ class ServersUiTest {
             accounts = AccountClient(http, baseUrl = { directory.selected.baseUrl }),
             pvp = PvpClient(http, baseUrl = { directory.selected.baseUrl }),
             session = SessionStore(InMemoryDocumentStore()),
+            tickets = TicketStore(InMemoryDocumentStore()),
             probe = ServerProbe(http) { 0L },
             reporter = MatchReporter.None,
         )

@@ -12,6 +12,9 @@
   "APP_EMPTY_BAG": "Your bag is empty.",
   "APP_HOME": "Home",
   "APP_LOADING_CARDS": "loading cards…",
+  "APP_RETRY": "Try again",
+  "APP_CARD_FACE_DOWN": "Face-down card",
+  "APP_PROFILE_LOCAL_NOTE": "Saved on this device. Progress here is not verified by a server, and cannot be played against other people.",
   "APP_MATCHES": "Matches",
   "APP_NO_ACHIEVEMENT": "No achievement earned yet.",
   "APP_NO_FULL_DECK": "No complete deck — play a random hand, or build one first.",
@@ -59,6 +62,10 @@
   "APP_ERROR_OFFLINE": "The server could not be reached. Check your connection.",
   "APP_ERROR_UPDATE": "This version is too old for the server. Please update.",
   "APP_ERROR_STATUS": "The server answered {0}.",
+  "APP_ERROR_THROTTLED": "Too many attempts. Please wait a moment.",
+  "APP_ERROR_THROTTLED_IN": "Too many attempts. Try again in {0}s.",
+  "APP_NO_SEEDS": "Connect once to keep playing offline.",
+  "APP_LOADING": "Loading",
   "APP_ERROR_NAME_TAKEN": "That name is already taken.",
   "APP_ERROR_BAD_CREDENTIALS": "That name and password do not match an account.",
   "APP_ERROR_EXPIRED": "Your session has expired. Sign in again.",
@@ -191,5 +198,7 @@
   "APP_PVP_ERROR_NOTHING_OWED": "There is nothing to collect.",
   "APP_PVP_FORMAT": "Format",
   "APP_PVP_TABLE_EXPIRES": "{0} min left",
+  "APP_PVP_DECK": "Deck",
+  "APP_PVP_DECK_ANY": "Automatic",
   "APP_PVP_INVITE_TO": "Invite {0}"
 }

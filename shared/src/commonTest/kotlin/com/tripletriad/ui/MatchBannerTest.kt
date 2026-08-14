@@ -13,6 +13,7 @@ import com.tripletriad.model.MatchIntroStep
 import com.tripletriad.model.MatchPreparation
 import com.tripletriad.model.MatchSetup
 import com.tripletriad.model.MatchState
+import com.tripletriad.model.MatchView
 import com.tripletriad.model.OpenRule
 import com.tripletriad.model.OrderRule
 import com.tripletriad.model.PlacedCard
@@ -31,6 +32,55 @@ import kotlin.test.assertTrue
  * SAME played three times for three flipped cards looks like a stutter.
  */
 class MatchBannerTest {
+
+    /**
+     * A refereed match announces its rules, derived from what the wire carries.
+     *
+     * The PvE screen reads these off the `MatchSetup` it built itself. A PvP client has no setup —
+     * the server dealt the hands and tossed the coin — so this board had **no announcements at
+     * all**: you were dropped onto a board playing Reverse and Fallen Ace with nothing having said
+     * so. The rules and who-moves-first do travel, and `MatchPreparation.introSteps` is the same
+     * pure function the server's own setup called, so the sequence is reproducible rather than
+     * approximated.
+     */
+    @Test
+    fun aRefereedMatchAnnouncesTheRulesItIsPlayedUnder() {
+        val rules = GameRules(reverse = true, fallenAce = true, open = OpenRule.ALL_OPEN)
+
+        val played = serverIntroAnimations(rules, CardColor.BLUE)
+
+        val captions = played.filterIsInstance<MatchAnimation.Caption>().map { it.banner }
+        assertTrue(MatchBanner.ALL_OPEN in captions, "All Open was not announced: $captions")
+        assertTrue(MatchBanner.REVERSE in captions, "Reverse was not announced: $captions")
+        assertTrue(MatchBanner.FALLEN_ACE in captions, "Fallen Ace was not announced: $captions")
+        assertTrue(MatchBanner.START in captions, "the match never said Start")
+    }
+
+    /**
+     * The toss reports the server's decision rather than making one.
+     *
+     * `CoinFlip.forced` exists for this and cites the original's PvP screen in its own KDoc: two
+     * clients tossing separately would disagree, and the one who lost the toss they had already
+     * been shown winning would have no way to make sense of it.
+     */
+    @Test
+    fun theTossLandsOnWhoeverTheServerSaidMovesFirst() {
+        for (first in CardColor.entries) {
+            val played = serverIntroAnimations(GameRules(), first)
+
+            val toss = played.filterIsInstance<MatchAnimation.Toss>().single()
+            assertEquals(first, toss.flip.winner, "the coin disagreed with the server")
+        }
+    }
+
+    /** A rule set with nothing in it still says Start, so a plain match is not silent. */
+    @Test
+    fun aMatchWithNoRulesStillOpens() {
+        val played = serverIntroAnimations(GameRules(), CardColor.RED)
+
+        val captions = played.filterIsInstance<MatchAnimation.Caption>().map { it.banner }
+        assertEquals(listOf(MatchBanner.START), captions)
+    }
 
     @Test
     fun aBasicCaptureEarnsNoCaption() {
@@ -532,6 +582,60 @@ class MatchBannerTest {
     )
 
     /**
+     * A refereed board earns the same captions the state-holding one does.
+     *
+     * The equivalence is the whole claim, so it is asserted against the [MatchState] overload
+     * rather than against a hand-written expectation: two functions that agree with a fixture can
+     * still disagree with each other, and a PvP board that announced *nearly* the same things as a
+     * PvE one would be a difference nobody could name.
+     *
+     * Read from **red's** view, deliberately. The captures a move produced belong to the move, not
+     * to whoever is looking at it — a Combo is a Combo on both screens — and the side that did not
+     * play is exactly the side with no engine run of its own to read them off.
+     */
+    @Test
+    fun aRefereedBoardAnnouncesWhatThePlacementDid() {
+        for (kinds in CAPTURE_CASES) {
+            val state = midMatch(kinds = kinds)
+            val view = MatchView.of(state, CardColor.RED, HandVisibility.HIDDEN)
+
+            assertEquals(
+                MatchBanner.afterPlacement(state),
+                MatchBanner.afterPlacement(view),
+                "the two overloads disagreed on ${kinds.toList()}",
+            )
+        }
+    }
+
+    /** And on the ending, which a view computes from hand lengths rather than from hands. */
+    @Test
+    fun aRefereedBoardAnnouncesHowItEnded() {
+        for (blueCells in 0..Board.SIZE) {
+            val state = finished(blueCells)
+            val view = MatchView.of(state, CardColor.RED, HandVisibility.HIDDEN)
+
+            assertEquals(
+                MatchBanner.afterPlacement(state),
+                MatchBanner.afterPlacement(view),
+                "the two overloads disagreed on a $blueCells-cell board",
+            )
+        }
+    }
+
+    /** Nothing has been placed, so there is nothing to say — the intro covers that moment. */
+    @Test
+    fun anUnplayedBoardEarnsNoPlacementCaptions() {
+        val fresh = MatchState(
+            hands = mapOf(CardColor.BLUE to listOf(card), CardColor.RED to listOf(card)),
+        )
+
+        assertEquals(
+            emptyList(),
+            MatchBanner.afterPlacement(MatchView.of(fresh, CardColor.BLUE, HandVisibility.HIDDEN)),
+        )
+    }
+
+    /**
      * A finished board owned [blueCells] to nine, with red still holding the tenth card.
      *
      * That last card is what makes the score add to ten: after nine placements one side
@@ -568,6 +672,18 @@ class MatchBannerTest {
     private val typedCard = card.copy(type = CardType.PRIMALS)
 
     private companion object {
+        /** Every shape a placement's captures come in, including none at all. */
+        val CAPTURE_CASES: List<Array<CaptureKind>> = listOf(
+            emptyArray(),
+            arrayOf(CaptureKind.BASIC),
+            arrayOf(CaptureKind.SAME),
+            arrayOf(CaptureKind.SAME_WALL),
+            arrayOf(CaptureKind.PLUS),
+            arrayOf(CaptureKind.COMBO),
+            arrayOf(CaptureKind.SAME, CaptureKind.COMBO),
+            arrayOf(CaptureKind.PLUS, CaptureKind.COMBO),
+        )
+
         const val TEXTURE_ID_LENGTH = 6
         const val LONGEST_REASONABLE_MILLIS = 2_000
     }

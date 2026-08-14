@@ -334,6 +334,16 @@ object StringKeys {
     /** How long a table has left. `{0}` is whole minutes. See `PvpMatchRow.TABLE_MILLIS`. */
     const val PVP_TABLE_EXPIRES: String = "APP_PVP_TABLE_EXPIRES"
 
+    /**
+     * Which deck the player is bringing, chosen once for the whole lobby.
+     *
+     * [PVP_DECK_ANY] is the default and is not "no deck": it is the server's own choice, the first
+     * complete deck in the save, which is what every PvP match was dealt before a player could say
+     * otherwise.
+     */
+    const val PVP_DECK: String = "APP_PVP_DECK"
+    const val PVP_DECK_ANY: String = "APP_PVP_DECK_ANY"
+
     /** What a match is played for: an amount of MGP, and a trade rule. `{0}` is the amount. */
     const val PVP_STAKE: String = "APP_PVP_STAKE"
     const val PVP_STAKE_MGP: String = "APP_PVP_STAKE_MGP"
@@ -499,6 +509,53 @@ object StringKeys {
 
     /** `The server answered {0}.` — a status code, for the failures with no better name. */
     const val ERROR_STATUS: String = "APP_ERROR_STATUS"
+
+    /**
+     * What a spinner announces to a screen reader.
+     *
+     * Never drawn as text: [LOADING] labels the shape, so that a screen busy fetching something
+     * says so instead of saying nothing at all. See `LoadingNote`.
+     */
+    const val LOADING: String = "APP_LOADING"
+
+    /** The button on a failed list — see `FailedNote`. The only state a player can act on. */
+    const val RETRY: String = "APP_RETRY"
+
+    /**
+     * What a hidden card announces itself as.
+     *
+     * A card the Open rules keep face down must not name itself to a screen reader: that would leak
+     * the opponent's hand through the accessibility tree, which is the same secret `MatchView`
+     * guards on the wire. See `CardView.cardLabel`.
+     */
+    const val CARD_FACE_DOWN: String = "APP_CARD_FACE_DOWN"
+
+    /**
+     * What a profile stored on this device is, said where a player chooses one.
+     *
+     * The whole anti-cheat design promises that **on an account** the server is the only writer of
+     * anything with value. A local save is the other case, deliberately: it is the player's own
+     * file. Naming that is what stops the promise from being read as covering both.
+     */
+    const val PROFILE_LOCAL_NOTE: String = "APP_PROFILE_LOCAL_NOTE"
+
+    /**
+     * No seed left to start a match on — see `SeedTickets`.
+     *
+     * Deliberately not phrased as an error: nothing is wrong, the player has simply been offline
+     * for longer than the stock covers, and reconnecting fixes it.
+     */
+    const val NO_SEEDS: String = "APP_NO_SEEDS"
+
+    /**
+     * Asked too often — see `AccountResult.Throttled`.
+     *
+     * Two of them because the server does not always say how long: [ERROR_THROTTLED_IN] takes
+     * `{0}` seconds, and [ERROR_THROTTLED] is what is shown when there is no number to show. A
+     * single string with a `{0}` that is sometimes blank reads as a bug in the app.
+     */
+    const val ERROR_THROTTLED: String = "APP_ERROR_THROTTLED"
+    const val ERROR_THROTTLED_IN: String = "APP_ERROR_THROTTLED_IN"
     const val ERROR_NAME_TAKEN: String = "APP_ERROR_NAME_TAKEN"
     const val ERROR_BAD_CREDENTIALS: String = "APP_ERROR_BAD_CREDENTIALS"
     const val ERROR_EXPIRED: String = "APP_ERROR_EXPIRED"
@@ -581,6 +638,7 @@ object StringKeys {
         PVP_ACCEPT, PVP_DECLINE, PVP_NO_CHALLENGE,
         PVP_TABLES, PVP_NO_TABLE, PVP_HOST, PVP_HOST_OPEN, PVP_HOST_CANCEL, PVP_JOIN,
         PVP_TABLE_BY, PVP_TABLE_MINE, PVP_TABLE_FREE, PVP_TABLE_EXPIRES,
+        PVP_DECK, PVP_DECK_ANY,
         PVP_STAKE, PVP_STAKE_MGP, PVP_TRADE,
         PVP_TRADE_NONE, PVP_TRADE_ONE, PVP_TRADE_DIFF, PVP_TRADE_DIRECT, PVP_TRADE_ALL,
         PVP_RULES_PICK, PVP_ROULETTE, PVP_ROULETTE_HINT, PVP_FORMAT,
@@ -597,7 +655,8 @@ object StringKeys {
         SIGN_IN_AGAIN, SWITCH_ACCOUNT,
         SIGN_IN, CREATE_ACCOUNT, PASSWORD, ACCOUNT_BLURB,
         ACCOUNT_TO_REGISTER, ACCOUNT_TO_SIGN_IN, UPDATE_NEEDED,
-        ERROR_OFFLINE, ERROR_UPDATE, ERROR_STATUS,
+        ERROR_OFFLINE, ERROR_UPDATE, ERROR_STATUS, ERROR_THROTTLED, ERROR_THROTTLED_IN,
+        NO_SEEDS, LOADING, RETRY, CARD_FACE_DOWN, PROFILE_LOCAL_NOTE,
         ERROR_NAME_TAKEN, ERROR_BAD_CREDENTIALS, ERROR_EXPIRED,
         OPPONENTS_LOCKED, REWARD_CARDS,
         HELP_FAMILY_SIGHT, HELP_FAMILY_PLAY, HELP_FAMILY_CAPTURE, HELP_FAMILY_ELEMENTS,

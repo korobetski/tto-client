@@ -10,6 +10,7 @@ import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.loadStrings
 import com.tripletriad.model.GameSave
 import com.tripletriad.net.PvpClient
+import com.tripletriad.protocol.ANY_DECK
 import com.tripletriad.protocol.PvpTable
 import com.tripletriad.ui.theme.TripleTriadTheme
 import io.ktor.client.HttpClient
@@ -20,6 +21,7 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.HttpResponseData
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.TextContent
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.runBlocking
@@ -152,14 +154,85 @@ class PvpTablesUiTest {
         assertEquals(0, minutesLeft(table, NOW + FIVE_MINUTES * 2))
     }
 
+    /** Every complete deck is offered, plus leaving the choice to the server. */
+    @Test
+    fun everyCompleteDeckIsOfferedAlongsideAutomatic() = lobby(profile = twoDecks()) {
+        onNodeWithTag(pvpDeckTestTag(ANY_DECK)).assertExists()
+        onNodeWithTag(pvpDeckTestTag(0)).assertExists()
+        onNodeWithTag(pvpDeckTestTag(1)).assertExists()
+    }
+
+    /**
+     * A half-built deck is not offered, because naming it would not play it.
+     *
+     * `PveMatches.playerDeck` reads a slot only if it is complete and otherwise falls back, so a
+     * chip for slot 1 here would be a choice the server silently declines to honour.
+     */
+    @Test
+    fun aPartialDeckIsNotOffered() = lobby(profile = onePartialDeck()) {
+        onNodeWithTag(pvpDeckTestTag(0)).assertExists()
+        onNodeWithTag(pvpDeckTestTag(1)).assertDoesNotExist()
+    }
+
+    /** The chosen deck rides along with the join, which is the whole point of choosing it. */
+    @Test
+    fun theChosenDeckIsSentWhenJoining() {
+        val bodies = mutableListOf<String>()
+
+        lobby(profile = twoDecks(), tables = listOf(tableJson()), body = bodies::add) {
+            onNodeWithTag(pvpDeckTestTag(1)).performClick()
+            onNodeWithTag(tableJoinTestTag(TABLE_ID)).performClick()
+            waitForIdle()
+        }
+
+        assertEquals(listOf("""{"deck":1}"""), bodies, "the join carried $bodies")
+    }
+
+    /**
+     * And saying nothing puts no deck on the wire at all.
+     *
+     * `encodeDefaults` is off, so [ANY_DECK] — being the default — is simply absent, and the body
+     * is the empty object. That is the compatible shape rather than a coincidence of it: a server
+     * built before decks could be named reads `{}` as the nothing it always received.
+     */
+    @Test
+    fun joiningWithoutChoosingLeavesItToTheServer() {
+        val bodies = mutableListOf<String>()
+
+        lobby(profile = twoDecks(), tables = listOf(tableJson()), body = bodies::add) {
+            onNodeWithTag(tableJoinTestTag(TABLE_ID)).performClick()
+            waitForIdle()
+        }
+
+        assertEquals(listOf("{}"), bodies, "the join carried $bodies")
+    }
+
     // ---- Harness ----------------------------------------------------------
 
+    /** A profile with two playable decks, so that choosing between them is a real choice. */
+    private fun twoDecks(): GameSave {
+        val profile = GameSave.new(username = ME, createdAt = 0L)
+        val first = profile.decks.first()
+        return profile.copy(decks = listOf(first, first.copy(name = "Second")))
+    }
+
+    /** One playable deck and one that is not, which is what the filter has to tell apart. */
+    private fun onePartialDeck(): GameSave {
+        val profile = GameSave.new(username = ME, createdAt = 0L)
+        val first = profile.decks.first()
+        val partial = first.copy(name = "Partial", cards = first.cards.take(2))
+        return profile.copy(decks = listOf(first, partial))
+    }
+
     /** Renders the lobby with [tables] on offer and [claims] waiting to be collected. */
+    @Suppress("LongParameterList")
     private fun lobby(
         tables: List<String> = emptyList(),
         claims: List<String> = emptyList(),
         refuse: Boolean = false,
         record: (String) -> Unit = {},
+        body: (String) -> Unit = {},
+        profile: GameSave = GameSave.new(username = ME, createdAt = 0L),
         block: androidx.compose.ui.test.ComposeUiTest.() -> Unit,
     ) = runComposeUiTest {
         val engine = MockEngine { request ->
@@ -171,14 +244,17 @@ class PvpTablesUiTest {
                 request.url.encodedPath.endsWith("/claims") ->
                     respondJson("[" + claims.joinToString(",") + "]")
 
-                request.url.encodedPath.endsWith("/join") -> if (refuse) {
-                    respond(
-                        content = """{"code":"CANNOT_AFFORD","reason":"you cannot cover that"}""",
-                        status = HttpStatusCode.Conflict,
-                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
-                    )
-                } else {
-                    respondJson("""{"waiting":false}""")
+                request.url.encodedPath.endsWith("/join") -> {
+                    body((request.body as TextContent).text)
+                    if (refuse) {
+                        respond(
+                            content = REFUSAL,
+                            status = HttpStatusCode.Conflict,
+                            headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                        )
+                    } else {
+                        respondJson("""{"waiting":false}""")
+                    }
                 }
 
                 request.url.encodedPath.endsWith("/challenges") -> respondJson("[]")
@@ -206,7 +282,7 @@ class PvpTablesUiTest {
             CompositionLocalProvider(LocalStrings provides strings) {
                 TripleTriadTheme {
                     PvpScreen(
-                        profile = GameSave.new(username = ME, createdAt = 0L),
+                        profile = profile,
                         session = session,
                         now = NOW,
                         onMatch = {},
@@ -248,6 +324,9 @@ class PvpTablesUiTest {
     private val strings = runBlocking { loadStrings(AppLocale.EN_US) }
 
     private companion object {
+        /** What the server answers a wager the purse cannot cover with. */
+        const val REFUSAL = """{"code":"CANNOT_AFFORD","reason":"you cannot cover that"}"""
+
         const val ME = "Sigfrid"
 
         /** Fixed, so a countdown reads the same on every run. */

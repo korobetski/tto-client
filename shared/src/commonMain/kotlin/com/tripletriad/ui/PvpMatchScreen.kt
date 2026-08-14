@@ -51,6 +51,7 @@ const val PVP_TURN_TEST_TAG: String = "pvp-turn"
 const val PVP_RESULT_TEST_TAG: String = "pvp-result"
 const val PVP_FORFEIT_TEST_TAG: String = "pvp-forfeit"
 const val PVP_DONE_TEST_TAG: String = "pvp-done"
+const val PVP_PAYOUT_TEST_TAG: String = "pvp-payout"
 const val PVP_STAKE_TEST_TAG: String = "pvp-stake"
 const val PVP_WON_TEST_TAG: String = "pvp-won"
 const val PVP_LOST_TEST_TAG: String = "pvp-lost"
@@ -105,6 +106,12 @@ internal fun PvpMatchScreen(
     // The whole channel. Cancelled when the screen goes away, which is what stops a poll a second
     // running behind the dashboard.
     LaunchedEffect(session) { session.watch() }
+
+    // The rule captions and the coin flip, exactly as a PvE match plays them. They were absent
+    // here for the same reason the match had no artwork: this screen was written as "render what
+    // the server says" and the announcements are not something the server says — they are derived
+    // from the rules, which it does. See `serverIntroAnimations`.
+    val banners = pvpBannerQueue(wire?.matchId, view)
 
     // The opponent's move can make a selected card unplayable — Order and Chaos both move on. Kept
     // only while the server still lists it, so a stale highlight cannot survive a turn.
@@ -163,6 +170,8 @@ internal fun PvpMatchScreen(
             }
         }
 
+        MatchBannerOverlay(banners)
+
         if (session.isOver) {
             PvpResult(
                 // `wire.side`, not `view.side`: the view is mirrored so that this player is always
@@ -178,6 +187,53 @@ internal fun PvpMatchScreen(
             )
         }
     }
+}
+
+/**
+ * The announcements this match owes the player, as an event the overlay can play.
+ *
+ * The PvE equivalent is `bannerQueue`, which watches a `MatchState` it owns. Here there is no state
+ * to watch — only views arriving from a poll — so the effect is keyed on **what changed**: the
+ * match id for the opening, and the placement count for everything after it.
+ *
+ * ### Why the placement count and not `lastPlay`
+ *
+ * `bannerQueue` keys on both because a state can change without the count moving. A poll cannot:
+ * views arrive once a second and most of them are the same view, so keying on the value would
+ * re-fire nothing but would compare a whole board every time. The count is the smaller key and it
+ * moves exactly when a card is placed, which is exactly when there is something to say.
+ *
+ * ### Two things it deliberately stays silent about
+ *
+ * A board already under way plays no opening — a match resumed after the app was killed should not
+ * announce Reverse as though it were starting. And the *first* view of a resumed match plays no
+ * capture captions either, for the same reason: the placement it names may have happened minutes
+ * ago, and a client that has just arrived owes the player the position rather than a replay of how
+ * it got there. Both fall out of the same rule below.
+ *
+ * The placement count is also what [BannerEvent.at] is filled with, which is what it wants: two
+ * Sames in a row earn equal caption lists and must still play twice, and the move number is the
+ * monotonic marker that tells them apart.
+ */
+@Composable
+private fun pvpBannerQueue(matchId: String?, view: MatchView?): BannerEvent? {
+    var event by remember(matchId) { mutableStateOf<BannerEvent?>(null) }
+    // What this client had seen when it arrived. Anything at or below it is history, not news.
+    val joinedAt = remember(matchId) { view?.placement ?: 0 }
+
+    LaunchedEffect(matchId, view?.placement) {
+        if (matchId == null || view == null) return@LaunchedEffect
+
+        val animations = when {
+            view.placement > joinedAt -> MatchBanner.afterPlacement(view).asAnimations()
+            view.placement > 0 -> emptyList()
+            else -> serverIntroAnimations(view.rules, view.order.first)
+        }
+        animations.takeIf { it.isNotEmpty() }
+            ?.let { event = BannerEvent(at = view.placement, animations = it) }
+    }
+
+    return event
 }
 
 /** Who is playing, the score, and whose turn it is. */
@@ -258,6 +314,11 @@ private fun PvpPlayArea(
             OpponentRow(view = view, layout = layout)
             BoardGrid(
                 board = view.board,
+                // Both travel on the view already — `MatchView.tally` has been on the wire since
+                // PvP was refereed, precisely so a client can render what the referee computed
+                // rather than recount it. This is the first thing to read them.
+                rules = view.rules,
+                tally = view.tally,
                 scale = layout.boardScale,
                 drag = drag,
                 held = selected ?: drag.card.takeIf { drag.isDragging },
@@ -482,6 +543,17 @@ private fun Payout(outcome: PvpOutcome, cards: Map<Int, Card>) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
+        // What the match itself paid, which is the number a player actually looks for. It was on
+        // the wire from the first release and always zero: the server rolled it inside `creditPvp`
+        // and kept no record, so there was nothing to send. See `V6__match_payout.sql`.
+        Text(
+            text = "+${outcome.mgp} ${strings[StringKeys.MGP]} " +
+                "$DOT_SEPARATOR +${outcome.xp} ${strings[StringKeys.XP]}",
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.testTag(PVP_PAYOUT_TEST_TAG),
+        )
         if (outcome.stakeMgp != 0) {
             Text(
                 text = strings.format(

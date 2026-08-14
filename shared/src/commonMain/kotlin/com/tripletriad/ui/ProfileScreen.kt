@@ -42,6 +42,9 @@ const val PROFILE_NEW_TEST_TAG: String = "profile-new"
 const val PROFILE_NAME_TEST_TAG: String = "profile-name"
 const val PROFILE_CREATE_TEST_TAG: String = "profile-create"
 const val PROFILE_EMPTY_TEST_TAG: String = "profile-empty"
+
+/** The line that says a local profile is this device's, and not arbitrated. */
+const val PROFILE_LOCAL_NOTE_TEST_TAG: String = "profile-local-note"
 const val STARTER_CONFIRM_TEST_TAG: String = "starter-confirm"
 
 /** `profile-row-<key>`, so a test can find a specific profile without knowing its position. */
@@ -92,6 +95,26 @@ internal fun ProfileListScreen(
     var armed by remember { mutableStateOf<String?>(null) }
 
     ScreenScaffold(title = strings[StringKeys.PROFILES], onBack = onBack) {
+        // What a local profile is, said where the choice between the two is actually made.
+        //
+        // The anti-cheat work this game has had makes one promise — **on an account, the server is
+        // the only writer of anything with value**. A `.sav` on this device is the other thing: a
+        // file the player owns, which they can edit with a text editor, and which no amount of
+        // server code protects. That is fine and deliberate: a local save is nobody's business.
+        //
+        // But a guarantee whose boundary is invisible is not a guarantee to the person relying on
+        // it, and "my progress is safe" is exactly the sort of thing a player assumes. So the
+        // boundary is named here rather than left to be inferred from the PvP button being absent.
+        Text(
+            text = strings[StringKeys.PROFILE_LOCAL_NOTE],
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier
+                .testTag(PROFILE_LOCAL_NOTE_TEST_TAG)
+                .fillMaxWidth()
+                .padding(bottom = 8.dp),
+        )
+
         if (session.isLoaded && session.slots.isEmpty()) {
             Text(
                 text = strings[StringKeys.NO_PROFILE],

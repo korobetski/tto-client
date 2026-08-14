@@ -186,6 +186,7 @@ internal fun CampaignMatchScreen(
     profile: GameSave,
     format: Format,
     clock: Clock,
+    nextSeed: () -> Int?,
     onPersist: suspend (GameSave) -> Unit,
     onFinished: () -> Unit,
 ) {
@@ -238,6 +239,7 @@ internal fun CampaignMatchScreen(
                 format = format,
                 npc = entry.npc,
                 clock = clock,
+                nextSeed = nextSeed,
                 onPersist = onPersist,
                 onExit = onFinished,
                 script = script,

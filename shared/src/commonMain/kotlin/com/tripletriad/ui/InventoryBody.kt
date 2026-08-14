@@ -27,16 +27,15 @@ import androidx.compose.ui.unit.dp
 import com.tripletriad.data.CardCatalog
 import com.tripletriad.data.Format
 import com.tripletriad.data.Inventory
-import com.tripletriad.data.ItemUse
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.Strings
 import com.tripletriad.model.Card
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.Item
+import com.tripletriad.protocol.ItemEffect
 import com.tripletriad.ui.theme.LocalTtoColors
 import kotlinx.coroutines.launch
-import kotlin.random.Random
 
 const val INVENTORY_LIST_TEST_TAG: String = "inventory-list"
 const val INVENTORY_EMPTY_TEST_TAG: String = "inventory-empty"
@@ -80,17 +79,18 @@ fun inventoryRowTestTag(item: Item): String = "inventory-row-${itemSlug(item)}"
  * @param onUnlocked a card that has just entered the collection, to be shown off. Reported upwards
  *   rather than drawn here because [UnlockedCard] covers the **whole screen**, and this is one tab
  *   of one — a full-screen overlay placed inside a column is a very tall column entry.
- * @param random the pack draw. Injected for the same reason [Inventory.use] takes one: a drop that
- *   cannot be pinned cannot be asserted on.
+ * @param onUse consumes the item and reports what it did. **Not `Inventory.use` called here**,
+ *   which is what this used to be: on an account the roll belongs to the server, and this screen
+ *   must not be the thing that decides whether it does. See [ProfileGate.useItem].
  */
 @Composable
 internal fun ColumnScope.InventoryBody(
     profile: GameSave,
     catalog: CardCatalog,
     format: Format,
-    onPersist: suspend (GameSave) -> Unit,
+    onUse: suspend (Item) -> ItemEffect?,
+    onIntent: suspend (Intent) -> Unit,
     onUnlocked: (Card) -> Unit,
-    random: Random = Random.Default,
 ) {
     val strings = LocalStrings.current
     val scope = rememberCoroutineScope()
@@ -153,27 +153,32 @@ internal fun ColumnScope.InventoryBody(
             isArmed = armed,
             canUse = item.useable,
             onUse = {
-                val outcome = Inventory.use(profile, item, random)
-                note = useNote(strings, outcome, cards)
                 armed = false
-                // Only a card *entering the collection* is revealed, which is the single
-                // branch `useBtnHandler` plays it in (`:236-245`). Opening a pack yields
-                // another bag item rather than a card, and showing it here would announce a
-                // card the player does not own yet.
-                (outcome as? ItemUse.CardDrawn)?.let { cards[it.cardId] }?.let(onUnlocked)
-                // A pack is turned over rather than announced — see [PackRevealScreen].
-                opened = (outcome as? ItemUse.PackOpened)?.cardIds
-                scope.launch { onPersist(outcome.save) }
+                // Suspending, and it has to be: on an account the answer is a round trip, and
+                // there is nothing to show optimistically because the client no longer knows
+                // what came out. The profile is written by whoever answered — see
+                // [ProfileGate.useItem] — so nothing is persisted from here.
+                scope.launch {
+                    val effect = onUse(item) ?: return@launch
+                    note = useNote(strings, effect, cards)
+                    // Only a card *entering the collection* is revealed, which is the single
+                    // branch `useBtnHandler` plays it in (`:236-245`). Opening a pack yields
+                    // another bag item rather than a card, and showing it here would announce a
+                    // card the player does not own yet.
+                    (effect as? ItemEffect.CardDrawn)?.let { cards[it.cardId] }?.let(onUnlocked)
+                    // A pack is turned over rather than announced — see [PackRevealScreen].
+                    opened = (effect as? ItemEffect.PackOpened)?.cardIds
+                }
             },
             onSell = {
                 armed = false
-                scope.launch { onPersist(Inventory.sell(profile, item, cards)) }
+                scope.launch { onIntent(Intent.SellItem(item)) }
             },
             onDiscard = {
                 if (armed) {
                     armed = false
                     note = null
-                    scope.launch { onPersist(Inventory.remove(profile, item)) }
+                    scope.launch { onIntent(Intent.DiscardItem(item)) }
                 } else {
                     armed = true
                 }
@@ -316,16 +321,16 @@ private fun BagActions(
  * a pack yields *bag entries*, so without something saying so the pack simply vanishes and cards
  * appear further up a scrolled list.
  */
-private fun useNote(strings: Strings, outcome: ItemUse, cards: Map<Int, Card>): String? =
-    when (outcome) {
-        is ItemUse.PackOpened -> null
+private fun useNote(strings: Strings, effect: ItemEffect, cards: Map<Int, Card>): String? =
+    when (effect) {
+        is ItemEffect.PackOpened -> null
 
-        is ItemUse.CardDrawn -> strings.format(
+        is ItemEffect.CardDrawn -> strings.format(
             StringKeys.OBTAINED,
-            cards[outcome.cardId]?.let { strings[it.nameKey] } ?: "#${outcome.cardId}",
+            cards[effect.cardId]?.let { strings[it.nameKey] } ?: "#${effect.cardId}",
         )
 
-        is ItemUse.BoonRaised, is ItemUse.NotUseable -> null
+        is ItemEffect.BoonRaised, is ItemEffect.NotUseable -> null
     }
 
 /**

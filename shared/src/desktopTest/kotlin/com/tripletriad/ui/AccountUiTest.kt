@@ -26,6 +26,7 @@ import com.tripletriad.net.ServerEntry
 import com.tripletriad.net.ServerProbe
 import com.tripletriad.net.SessionStore
 import com.tripletriad.net.StoredSession
+import com.tripletriad.net.TicketStore
 import com.tripletriad.net.matchProtocolJson
 import com.tripletriad.protocol.CURRENT_VERSION
 import com.tripletriad.protocol.PlayerState
@@ -375,6 +376,7 @@ class AccountUiTest {
             accounts = AccountClient(http, baseUrl = { directory.selected.baseUrl }),
             pvp = PvpClient(http, baseUrl = { directory.selected.baseUrl }),
             session = SessionStore(sessions),
+            tickets = TicketStore(InMemoryDocumentStore()),
             probe = ServerProbe(http) { 0L },
             reporter = MatchReporter.None,
         )

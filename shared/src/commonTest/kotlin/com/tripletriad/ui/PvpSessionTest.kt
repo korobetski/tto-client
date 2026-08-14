@@ -1,5 +1,7 @@
 package com.tripletriad.ui
 
+import com.tripletriad.model.Capture
+import com.tripletriad.model.CaptureKind
 import com.tripletriad.model.Card
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.GameRules
@@ -10,6 +12,7 @@ import com.tripletriad.protocol.PvpCell
 import com.tripletriad.protocol.PvpMatchStatus
 import com.tripletriad.protocol.PvpMatchView
 import com.tripletriad.protocol.PvpMove
+import com.tripletriad.protocol.PvpPlay
 import com.tripletriad.protocol.PvpRefusal
 import com.tripletriad.protocol.PvpStake
 import com.tripletriad.protocol.PvpTable
@@ -325,6 +328,44 @@ class PvpSessionTest {
         assertTrue(asked.any { it.endsWith("/pvp/claims") }, "asked $asked")
     }
 
+    /**
+     * A dismissed match does not come back.
+     *
+     * The server keeps a settled match readable for a couple of minutes so the player who did not
+     * place the last card is still told how it ended. The cost is that the lobby polls it straight
+     * back — and the lobby's "a match exists, go to the board" effect would then bounce the player
+     * into a result screen they had just closed, once a second, until the window ran out.
+     */
+    @Test
+    fun aDismissedMatchIsNotPickedUpAgain() = runTest {
+        val session = sessionOver(
+            answering(HttpStatusCode.OK, encode(playing(status = PvpMatchStatus.FINISHED))),
+        )
+        session.poll()
+        assertEquals(MATCH_ID, session.match?.matchId, "there was no match, so this proves nothing")
+
+        session.clear()
+        session.poll()
+
+        assertNull(session.match, "the finished match was handed back after being dismissed")
+    }
+
+    /** And a *different* match still arrives, so dismissing one does not deafen the client. */
+    @Test
+    fun aNewMatchArrivesAfterOneWasDismissed() = runTest {
+        var id = MATCH_ID
+        val session = sessionOver(
+            MockEngine { respondJson(HttpStatusCode.OK, encode(playing().copy(matchId = id))) },
+        )
+        session.poll()
+        session.clear()
+
+        id = "m-2"
+        session.poll()
+
+        assertEquals("m-2", session.match?.matchId)
+    }
+
     /** A card id the catalogue does not know refuses the whole view rather than drawing a hole. */
     @Test
     fun anUnknownCardRefusesTheRenderedView() = runTest {
@@ -406,6 +447,28 @@ class PvpSessionTest {
      * Red moves first and two cards are placed, so `placement` is even and it is red's turn again —
      * which is what makes the mirrored turn assertable rather than accidentally right.
      */
+    /**
+     * The last placement is mirrored with everything else, so no colour in the view is the
+     * server's.
+     *
+     * Nothing reads `lastPlay.player` today — `MatchBanner` wants the captures and the card's type.
+     * It is asserted anyway because the rule this view states is that *every* colour in it is this
+     * player's, and the field that quietly was not would be found by whoever reads it next.
+     */
+    @Test
+    fun theLastPlacementIsMirroredWithTheRestOfTheView() = runTest {
+        val session = sessionOver(answering(HttpStatusCode.OK, encode(dealtRed())))
+        session.resume()
+
+        val view = session.view(catalogue) ?: error("the view did not render")
+        val play = view.lastPlay ?: error("the last play was dropped")
+
+        // The server said RED played it, and red is this player — so they see themselves as blue.
+        assertEquals(CardColor.BLUE, play.player)
+        assertEquals(CardColor.BLUE, play.card.owner)
+        assertEquals(listOf(CaptureKind.SAME), play.captures.map { it.kind })
+    }
+
     private fun dealtRed() = PvpMatchView(
         matchId = MATCH_ID,
         side = CardColor.RED,
@@ -425,6 +488,12 @@ class PvpSessionTest {
         opponentHand = listOf(263, null, null, null),
         first = CardColor.RED,
         placement = 2,
+        lastPlay = PvpPlay(
+            player = CardColor.RED,
+            cardId = 257,
+            position = 0,
+            captures = listOf(Capture(position = 1, kind = CaptureKind.SAME, wave = 0)),
+        ),
     )
 
     /** Every card the two fixtures name, at the catalogue's default of blue. */

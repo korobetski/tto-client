@@ -1,13 +1,22 @@
 package com.tripletriad.net
 
 import com.tripletriad.model.GameSave
+import com.tripletriad.model.Item
 import com.tripletriad.protocol.AccountError
 import com.tripletriad.protocol.AccountFailure
 import com.tripletriad.protocol.AppVersion
+import com.tripletriad.protocol.BagItemRequest
+import com.tripletriad.protocol.BuyRequest
 import com.tripletriad.protocol.CURRENT_VERSION
+import com.tripletriad.protocol.ClaimStarterRequest
 import com.tripletriad.protocol.Credentials
+import com.tripletriad.protocol.EnterCampaignRequest
+import com.tripletriad.protocol.Idempotent
+import com.tripletriad.protocol.ItemUsed
 import com.tripletriad.protocol.PlayerState
 import com.tripletriad.protocol.PvpRefusal
+import com.tripletriad.protocol.SeedTickets
+import com.tripletriad.protocol.SellCardRequest
 import com.tripletriad.protocol.Session
 import com.tripletriad.protocol.VERSION_HEADER
 import io.ktor.client.HttpClient
@@ -107,6 +116,113 @@ class AccountClient(
     }
 
     /**
+     * Uses something from the bag, and lets the server roll it.
+     *
+     * The one call in this client that deliberately gives up a local computation. `Inventory.use`
+     * is a pure `:core` function this client could run in a microsecond — and that is exactly the
+     * problem, because running it locally means holding the dice for a booster. See
+     * `BagItemRequest`.
+     *
+     * [operationId] is the caller's id for the *intent*, not for this attempt: retrying with the
+     * same one returns the first answer rather than opening a second pack.
+     */
+    suspend fun useItem(
+        token: String,
+        item: Item,
+        operationId: String,
+    ): AccountResult<ItemUsed> =
+        call(HTTP_OK) {
+            client.post("${baseUrl()}/me/bag/use") {
+                protocolHeaders()
+                bearer(token)
+                setBody(BagItemRequest(item, operationId))
+            }
+        }
+
+    /**
+     * The five intents whose whole answer is the profile the server wrote.
+     *
+     * One function rather than five, because they differ in exactly two things — the path and the
+     * body — and the shape of a "here is what I want, tell me what happened" call is not worth
+     * writing out five times. [useItem] stays separate because its answer is bigger: a pack has
+     * contents to report as well as a profile to return.
+     *
+     * The **prices are absent from every one of these bodies**, deliberately. See `BuyRequest`.
+     */
+    suspend fun buy(
+        token: String,
+        item: Item,
+        formatId: String,
+        operationId: String,
+    ): AccountResult<PlayerState> =
+        intent(token, "/me/shop/buy", BuyRequest(item, formatId, operationId))
+
+    /** Sells a bag item for what the card table says it is worth. */
+    suspend fun sellItem(
+        token: String,
+        item: Item,
+        operationId: String,
+    ): AccountResult<PlayerState> =
+        intent(token, "/me/bag/sell", BagItemRequest(item, operationId))
+
+    /** Throws a bag item away. Nothing is paid. */
+    suspend fun discardItem(
+        token: String,
+        item: Item,
+        operationId: String,
+    ): AccountResult<PlayerState> =
+        intent(token, "/me/bag/discard", BagItemRequest(item, operationId))
+
+    /** Sells a card out of the collection. */
+    suspend fun sellCard(
+        token: String,
+        cardId: Int,
+        operationId: String,
+    ): AccountResult<PlayerState> =
+        intent(token, "/me/cards/sell", SellCardRequest(cardId, operationId))
+
+    /**
+     * Tops this account's stock of unspent seeds up, and returns everything it now holds.
+     *
+     * A `GET` that writes, and safe as one: the server issues the *difference* between what the
+     * account holds and the ceiling, so calling it twice in a row issues nothing the second time.
+     * A client may therefore ask whenever it notices it is low, including after a response it never
+     * saw, with no operation id and no consequence.
+     */
+    suspend fun tickets(token: String): AccountResult<SeedTickets> =
+        call(HTTP_OK) {
+            client.get("${baseUrl()}/matches/tickets") {
+                protocolHeaders()
+                bearer(token)
+            }
+        }
+
+    /** Claims the box a destitute profile is owed. See `ClaimStarterRequest`. */
+    suspend fun claimStarter(token: String, operationId: String): AccountResult<PlayerState> =
+        intent(token, "/me/starter", ClaimStarterRequest(operationId))
+
+    /** Pays a ladder's entry fee. The amount is the server's — see `EnterCampaignRequest`. */
+    suspend fun enterCampaign(
+        token: String,
+        campaignKey: String,
+        operationId: String,
+    ): AccountResult<PlayerState> =
+        intent(token, "/me/campaign/enter", EnterCampaignRequest(campaignKey, operationId))
+
+    private suspend inline fun <reified T : Idempotent> intent(
+        token: String,
+        path: String,
+        request: T,
+    ): AccountResult<PlayerState> =
+        call(HTTP_OK) {
+            client.post("${baseUrl()}$path") {
+                protocolHeaders()
+                bearer(token)
+                setBody(request)
+            }
+        }
+
+    /**
      * Ends this session on the server.
      *
      * The caller clears its own stored token **regardless** of what this returns. A sign-out that
@@ -176,6 +292,12 @@ class AccountClient(
         if (status.value == HTTP_UPGRADE_REQUIRED) {
             return AccountResult.UpdateRequired(headers[VERSION_HEADER]?.let(AppVersion::parse))
         }
+        // Before the body is read, because there is no body to read: Ktor's rate limiter answers
+        // with the status and `Retry-After` and nothing else, so decoding would fail and this would
+        // arrive as a nameless `Failed`.
+        if (status.value == HTTP_TOO_MANY_REQUESTS) {
+            return AccountResult.Throttled(headers[HttpHeaders.RetryAfter]?.toLongOrNull())
+        }
         return try {
             AccountResult.Refused(body<AccountFailure>())
         } catch (cancellation: CancellationException) {
@@ -195,6 +317,7 @@ class AccountClient(
         const val HTTP_CREATED = 201
         const val HTTP_NO_CONTENT = 204
         const val HTTP_UPGRADE_REQUIRED = 426
+        const val HTTP_TOO_MANY_REQUESTS = 429
         const val DETAIL_LIMIT = 500
     }
 }
@@ -230,6 +353,19 @@ sealed interface AccountResult<out T> {
 
     /** The server is a newer major version. See [com.tripletriad.protocol.AppVersion]. */
     data class UpdateRequired(val serverVersion: AppVersion?) : AccountResult<Nothing>
+
+    /**
+     * Asked too often. Worth retrying, but **not yet** — which is the whole difference.
+     *
+     * Its own case rather than a [Failed] with status 429, because the two need opposite handling:
+     * a failure is a bug to report and this is a wait to observe. Collapsed into `Failed` it would
+     * render as "something went wrong", which is both untrue and an invitation to tap again
+     * immediately — turning a throttle into the load it was installed to shed.
+     *
+     * @property retryAfterSeconds what the server said, or null when it did not say. Null means
+     *   "wait a bit", not "retry now".
+     */
+    data class Throttled(val retryAfterSeconds: Long?) : AccountResult<Nothing>
 
     /** Reached, and something went wrong anyway. A bug or a bad deploy, not a player's mistake. */
     data class Failed(val status: Int, val detail: String) : AccountResult<Nothing>

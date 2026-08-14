@@ -1,6 +1,5 @@
 package com.tripletriad.ui
 
-import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -130,7 +129,7 @@ fun App(
             var screen by remember { mutableStateOf(Screen.SPLASH) }
             val choice = remember { Choice() }
 
-            val gate = rememberGate(session, account)
+            val gate = rememberGate(session, account, startup.catalog, clock)
             val reporter = server?.reporter ?: MatchReporter.None
 
             StartupEffects(startup, server, account, session, pvp) {
@@ -193,9 +192,10 @@ fun App(
                 BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(4.dp)) {
                     val isWide = maxWidth >= WideLayoutThreshold
 
-                    // Crossfade so the splash does not snap to the menu. 220 ms is short enough
-                    // not to feel like a wait and long enough to read as a transition.
-                    Crossfade(targetState = screen, label = "screen") { destination ->
+                    // A shared axis rather than a crossfade: going into a screen and coming back
+                    // out of it used to look identical, so the animation carried no information.
+                    // See [ScreenTransition], which also honours reduced motion.
+                    ScreenTransition(screen) { destination ->
                         CompositionLocalProvider(LocalWideLayout provides isWide) {
                             Destination(
                                 destination = destination,
@@ -249,6 +249,11 @@ private fun StartupEffects(
     LaunchedEffect(server, account) {
         server?.directory?.restore()
         account?.restore()
+        // After the session, because the stock is keyed on the account and there is no account to
+        // key it on until `restore` has run. Reads disk first and tops up only if it can, so a
+        // launch with no network still has whatever the last online one left — which is the whole
+        // reason the seeds are written down. See `AccountSession.loadTickets`.
+        account?.loadTickets()
     }
 
     // Read once, when the app is ready — not on entering the profile list, so the menu can already
@@ -293,8 +298,20 @@ private fun StartupEffects(
  * plumbing: naming it is what makes it findable.
  */
 @Composable
-private fun rememberGate(session: ProfileSession, account: AccountSession?): ProfileGate =
-    if (account != null) rememberAccountGate(account) else rememberLocalGate(session)
+private fun rememberGate(
+    session: ProfileSession,
+    account: AccountSession?,
+    cards: CardCatalog?,
+    clock: Clock,
+): ProfileGate =
+    if (account != null) {
+        rememberAccountGate(account)
+    } else {
+        // The card table, for the prices a local profile has to work out for itself — an account
+        // asks the server instead. Empty before startup has read it, which is a gate nobody can
+        // spend through yet because there is no character either.
+        rememberLocalGate(session, cards?.byId.orEmpty(), clock)
+    }
 
 /**
  * The account the menu should offer to resume, or null when there is nothing to offer.
@@ -665,7 +682,10 @@ private fun CharacterDestination(
                     catalog = catalog,
                     starters = starters,
                     startup = startup,
-                    onPersist = gate.persist,
+                    // The whole gate rather than `gate.persist`: the bag needs a second thing from
+                    // it, and threading them one at a time is how a screen ends up knowing which
+                    // source is live — the exact thing `ProfileGate` exists to hide.
+                    gate = gate,
                     onBack = toDashboard,
                 )
             }
@@ -801,7 +821,9 @@ private fun MatchDestinations(
             profile = profile,
             startup = startup,
             clock = clock,
+            nextSeed = gate.nextSeed,
             onPersist = gate.persist,
+            onIntent = gate.perform,
             onNavigate = onNavigate,
         )
 
@@ -809,6 +831,7 @@ private fun MatchDestinations(
             profile = profile,
             startup = startup,
             clock = clock,
+            nextSeed = gate.nextSeed,
             onPersist = gate.persist,
             onNavigate = onNavigate,
         )
@@ -818,6 +841,7 @@ private fun MatchDestinations(
             startup = startup,
             opponent = choice.opponent,
             clock = clock,
+            nextSeed = gate.nextSeed,
             onPersist = gate.persist,
             // The key is derived from the profile the *match* was played with, not from the gate,
             // whose profile the credit has already replaced by the time this runs. Both name the
@@ -907,6 +931,7 @@ private fun MatchDestination(
     startup: StartupState,
     opponent: Npc?,
     clock: Clock,
+    nextSeed: () -> Int?,
     onPersist: suspend (GameSave) -> Unit,
     onTranscript: suspend (MatchTranscript) -> Unit,
     onExit: () -> Unit,
@@ -924,6 +949,7 @@ private fun MatchDestination(
             npc = chosen,
             format = format,
             clock = clock,
+            nextSeed = nextSeed,
             onPersist = onPersist,
             onExit = onExit,
             onTranscript = onTranscript,
@@ -950,7 +976,9 @@ private fun CampaignDestination(
     profile: GameSave,
     startup: StartupState,
     clock: Clock,
+    nextSeed: () -> Int?,
     onPersist: suspend (GameSave) -> Unit,
+    onIntent: suspend (Intent) -> Unit,
     onNavigate: (Screen) -> Unit,
 ) {
     val ladder = campaign ?: return
@@ -964,8 +992,12 @@ private fun CampaignDestination(
             // The fee is taken here, on the way in, and never given back: `startCampaign`'s
             // handler does `Game.PROFILE_DATAS.MGP -= 500` and then opens the ladder. A defeat
             // costs another 500 to try again, which is the whole of what makes a ladder a stake.
+            //
+            // Charged by whoever holds the profile rather than deducted here — the amount is the
+            // server's, and a client that applied its own could apply none. See
+            // `EnterCampaignRequest`.
             onStart = {
-                scope.launch { onPersist(profile.withMgp(-ladder.fee)) }
+                scope.launch { onIntent(Intent.EnterCampaign(ladder.key, ladder.fee)) }
                 onNavigate(Screen.CAMPAIGN_MATCH)
             },
             onBack = toOpponents,
@@ -984,6 +1016,7 @@ private fun CampaignDestination(
                     profile = profile,
                     format = format,
                     clock = clock,
+                    nextSeed = nextSeed,
                     onPersist = onPersist,
                     onFinished = toOpponents,
                 )
@@ -1068,6 +1101,7 @@ private fun TutorialDestination(
     profile: GameSave,
     startup: StartupState,
     clock: Clock,
+    nextSeed: () -> Int?,
     onPersist: suspend (GameSave) -> Unit,
     onNavigate: (Screen) -> Unit,
 ) {
@@ -1082,6 +1116,7 @@ private fun TutorialDestination(
             tutor = tutor,
             format = format,
             clock = clock,
+            nextSeed = nextSeed,
             onPersist = onPersist,
             onHelp = { onNavigate(Screen.HELP) },
             onExit = { onNavigate(Screen.OPPONENTS) },
@@ -1124,7 +1159,7 @@ private fun CollectionDestination(
     catalog: CardCatalog,
     starters: StarterCatalog,
     startup: StartupState,
-    onPersist: suspend (GameSave) -> Unit,
+    gate: ProfileGate,
     onBack: () -> Unit,
 ) {
     // The shelf is a property of the format, not of the character — see `ShopCatalog.offers`.
@@ -1141,7 +1176,8 @@ private fun CollectionDestination(
             } else {
                 CollectionTab.CARDS
             },
-            onPersist = onPersist,
+            onPersist = gate.persist,
+            onIntent = gate.perform,
             onBack = onBack,
         )
 
@@ -1151,7 +1187,10 @@ private fun CollectionDestination(
             starters = starters,
             format = format,
             initial = if (destination == Screen.INVENTORY) StoreTab.BAG else StoreTab.SHOP,
-            onPersist = onPersist,
+            // No `onPersist`: every write this screen makes moves something of value, so all of
+            // them are intents now — the shop, the bag, and the starter box.
+            onUseItem = gate.useItem,
+            onIntent = gate.perform,
             onBack = onBack,
         )
 

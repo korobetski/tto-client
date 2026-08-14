@@ -4,11 +4,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -31,6 +33,7 @@ import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.Strings
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.TradeRule
+import com.tripletriad.protocol.ANY_DECK
 import com.tripletriad.protocol.PvpChallenge
 import com.tripletriad.protocol.PvpStake
 import com.tripletriad.protocol.PvpTable
@@ -47,7 +50,20 @@ const val PVP_LIST_TEST_TAG: String = "pvp-challenges"
 const val PVP_TABLES_TEST_TAG: String = "pvp-tables"
 const val PVP_LOBBY_TABS_TEST_TAG: String = "pvp-lobby-tabs"
 const val PVP_CLAIM_BANNER_TEST_TAG: String = "pvp-claim-banner"
+const val PVP_CLAIM_BANNER_ACTION_TEST_TAG: String = "pvp-claim-banner-go"
 const val PVP_NOTE_TEST_TAG: String = "pvp-note"
+
+/**
+ * The two states an empty lobby list can be in other than empty — see [ListState].
+ *
+ * Three tags for one region on purpose: `assertDoesNotExist` on a list says nothing about *which*
+ * of the three the screen settled on, and telling a player the wrong one is the bug these exist to
+ * catch.
+ */
+const val PVP_TABLES_LOADING_TEST_TAG: String = "pvp-tables-loading"
+const val PVP_TABLES_FAILED_TEST_TAG: String = "pvp-tables-failed"
+const val PVP_CHALLENGES_LOADING_TEST_TAG: String = "pvp-challenges-loading"
+const val PVP_CHALLENGES_FAILED_TEST_TAG: String = "pvp-challenges-failed"
 
 /** `pvp-invite-<id>` — one invitation row. */
 fun challengeRowTestTag(id: String): String = "pvp-invite-$id"
@@ -55,11 +71,18 @@ fun challengeRowTestTag(id: String): String = "pvp-invite-$id"
 /** `pvp-accept-<id>` — the button that turns an invitation into a match. */
 fun challengeAcceptTestTag(id: String): String = "pvp-accept-$id"
 
+/** `pvp-drop-<id>` — declining one, or withdrawing one you sent. */
+fun challengeDropTestTag(id: String): String = "pvp-drop-$id"
+
 /** `pvp-table-<id>` — one open table. */
 fun tableRowTestTag(id: String): String = "pvp-table-$id"
 
 /** `pvp-join-<id>` — the button that turns a table into a match. */
 fun tableJoinTestTag(id: String): String = "pvp-join-$id"
+
+/** `pvp-deck-<slot>` — one deck to bring. `pvp-deck-any` leaves it to the server. */
+fun pvpDeckTestTag(slot: Int): String =
+    if (slot == ANY_DECK) "pvp-deck-any" else "pvp-deck-$slot"
 
 /** Which half of the lobby is showing. */
 internal enum class LobbyTab { TABLES, CHALLENGES }
@@ -144,6 +167,14 @@ internal fun PvpScreen(
             ClaimBanner(count = session.claims.size, onClaim = onClaim)
         }
 
+        // Above the tabs, because it governs both of them: the deck is brought to a table this
+        // player hosts, a table they join and an invitation they accept alike.
+        DeckPicker(
+            profile = profile,
+            selected = session.deck,
+            onSelect = { session.deck = it },
+        )
+
         ScreenTabs(
             tabs = listOf(
                 strings[StringKeys.PVP_TABLES] to screenTabTestTag("tables"),
@@ -163,6 +194,75 @@ internal fun PvpScreen(
                 scope = scope,
                 onInvite = onInvite,
             )
+        }
+    }
+}
+
+/**
+ * Which deck to bring, asked once for the whole lobby.
+ *
+ * ### Why it is here and not on the way into each match
+ *
+ * PvE asks inside the match, and `DeckSelectorScreen` explains at length why it has to: under the
+ * Random rule the hand is dealt from the whole collection and the question is not worth asking, and
+ * whether Random is in force is not known until the roulette has been drawn. None of that reasoning
+ * survives the crossing to PvP. **The server deals**, before either client has been told anything,
+ * so there is no moment between the roulette and the deal for a client to be asked in. The choice
+ * has to be made in advance or not at all.
+ *
+ * Made once rather than at each button, then. A player brings the same five cards to whatever they
+ * end up playing, and a picker on the Join button — and another on the Accept button, and another
+ * on the host screen — would be the same question asked three times with three chances to disagree.
+ *
+ * ### Only complete decks, and Automatic is not one of them
+ *
+ * The filter is exactly the server's: `PveMatches.playerDeck` reads a slot only `if (isComplete)`
+ * and otherwise falls back, so offering a half-built deck would be offering something that silently
+ * would not be played. Deliberately **not** filtered by format, unlike the PvE selector — the lobby
+ * holds tables in several formats at once and there is no one format to filter against. That
+ * matches what the server does with the slot, which also does not consult the format.
+ *
+ * Absent entirely for a profile with no complete deck, because then there is nothing to choose:
+ * `playerDeck` falls back to five owned cards, which is the one thing that profile can play.
+ */
+@Composable
+private fun DeckPicker(profile: GameSave, selected: Int, onSelect: (Int) -> Unit) {
+    val strings = LocalStrings.current
+    val decks = remember(profile.decks) {
+        profile.decks.withIndex().filter { it.value.isComplete }
+    }
+    if (decks.isEmpty()) return
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(
+            text = strings[StringKeys.PVP_DECK],
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        FlowRow(
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            FilterChip(
+                selected = selected == ANY_DECK,
+                onClick = { onSelect(ANY_DECK) },
+                label = { Text(strings[StringKeys.PVP_DECK_ANY]) },
+                modifier = Modifier.testTag(pvpDeckTestTag(ANY_DECK)),
+            )
+            for ((slot, deck) in decks) {
+                FilterChip(
+                    selected = selected == slot,
+                    onClick = { onSelect(slot) },
+                    label = { Text(deckLabel(strings, deck, slot)) },
+                    modifier = Modifier.testTag(pvpDeckTestTag(slot)),
+                )
+            }
         }
     }
 }
@@ -195,9 +295,11 @@ private fun ClaimBanner(count: Int, onClaim: () -> Unit) {
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.weight(1f),
         )
-        TextButton(onClick = onClaim) {
-            Text(strings[StringKeys.PVP_CLAIM])
-        }
+        RowButton(
+            label = strings[StringKeys.PVP_CLAIM],
+            tag = PVP_CLAIM_BANNER_ACTION_TEST_TAG,
+            onClick = onClaim,
+        )
     }
 }
 
@@ -230,7 +332,20 @@ private fun ColumnScope.TablesBody(
     }
 
     if (session.tables.isEmpty()) {
-        EmptyNote(strings[StringKeys.PVP_NO_TABLE], PVP_NO_TABLE_TEST_TAG)
+        // "Nobody is here" only once somebody has been asked, and never when nobody could be —
+        // see `PvpSession.tablesState`. An empty list is three different things and only one of
+        // them is worth telling a player.
+        when (session.tablesState) {
+            ListState.LOADING -> LoadingNote(PVP_TABLES_LOADING_TEST_TAG)
+            ListState.READY ->
+                EmptyNote(strings[StringKeys.PVP_NO_TABLE], PVP_NO_TABLE_TEST_TAG)
+
+            ListState.FAILED -> FailedNote(
+                text = strings[StringKeys.ERROR_OFFLINE],
+                tag = PVP_TABLES_FAILED_TEST_TAG,
+                onRetry = { scope.launch { session.refreshTables() } },
+            )
+        }
     } else {
         LazyColumn(
             modifier = Modifier
@@ -298,13 +413,12 @@ private fun TableRow(
             // A host joining their own table would be a match against themselves, which the server
             // refuses — so the button is absent rather than offered and then denied.
             if (!mine) {
-                TextButton(
-                    onClick = onJoin,
+                RowButton(
+                    label = strings[StringKeys.PVP_JOIN],
+                    tag = tableJoinTestTag(table.id),
                     enabled = enabled,
-                    modifier = Modifier.testTag(tableJoinTestTag(table.id)),
-                ) {
-                    Text(strings[StringKeys.PVP_JOIN])
-                }
+                    onClick = onJoin,
+                )
             }
         }
 
@@ -390,7 +504,17 @@ private fun ColumnScope.ChallengesBody(
     }
 
     if (session.challenges.isEmpty()) {
-        EmptyNote(strings[StringKeys.PVP_NO_CHALLENGE], PVP_NO_CHALLENGE_TEST_TAG)
+        when (session.challengesState) {
+            ListState.LOADING -> LoadingNote(PVP_CHALLENGES_LOADING_TEST_TAG)
+            ListState.READY ->
+                EmptyNote(strings[StringKeys.PVP_NO_CHALLENGE], PVP_NO_CHALLENGE_TEST_TAG)
+
+            ListState.FAILED -> FailedNote(
+                text = strings[StringKeys.ERROR_OFFLINE],
+                tag = PVP_CHALLENGES_FAILED_TEST_TAG,
+                onRetry = { scope.launch { session.refreshChallenges() } },
+            )
+        }
     } else {
         LazyColumn(
             modifier = Modifier
@@ -460,15 +584,16 @@ private fun ChallengeRow(
             )
         }
         if (!mine) {
-            TextButton(
+            RowButton(
+                label = strings[StringKeys.PVP_ACCEPT],
+                tag = challengeAcceptTestTag(challenge.id),
                 onClick = onAccept,
-                modifier = Modifier.testTag(challengeAcceptTestTag(challenge.id)),
-            ) {
-                Text(strings[StringKeys.PVP_ACCEPT])
-            }
+            )
         }
-        TextButton(onClick = onDrop) {
-            Text(strings[if (mine) StringKeys.CANCEL else StringKeys.PVP_DECLINE])
-        }
+        RowButton(
+            label = strings[if (mine) StringKeys.CANCEL else StringKeys.PVP_DECLINE],
+            tag = challengeDropTestTag(challenge.id),
+            onClick = onDrop,
+        )
     }
 }

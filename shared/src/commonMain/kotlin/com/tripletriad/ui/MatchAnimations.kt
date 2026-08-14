@@ -6,6 +6,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.tripletriad.model.CardColor
+import com.tripletriad.model.CoinFlip
+import com.tripletriad.model.GameRules
+import com.tripletriad.model.MatchPreparation
 import com.tripletriad.model.MatchSetup
 import com.tripletriad.model.MatchState
 import kotlinx.coroutines.delay
@@ -91,6 +95,31 @@ internal fun introAnimations(setup: MatchSetup): List<MatchAnimation> =
     setup.intro.mapNotNull { step ->
         MatchBanner.forIntroStep(step)?.let(MatchAnimation::Caption)
             ?: setup.coinFlip?.let(MatchAnimation::Toss)
+    }
+
+/**
+ * The pre-match sequence for a match the **server** set up.
+ *
+ * A PvE screen carries a `MatchSetup` and reads [MatchSetup.intro] off it, because it did the setup
+ * itself. A refereed match has no setup on this side — the server dealt the hands and tossed the
+ * coin — so the same sequence is derived from the two facts that *do* travel: the rules in force,
+ * and who moves first.
+ *
+ * That derivation is exact rather than approximate. [MatchPreparation.introSteps] is a pure
+ * function of the rules, and the same one the server's own setup called. The one step it cannot
+ * derive is the toss, and [CoinFlip.forced] exists for precisely this case — its KDoc cites the
+ * original's PvP screen, where "the server has already decided and the animation only reports it".
+ *
+ * `rematch = false` unconditionally: sudden death in a refereed match is settled by the server as
+ * part of the same match, so a client never sees the rematch as a separate setup to announce.
+ *
+ * @param first who moves first, **as the view states it** — which on a mirrored board is this
+ *   player's own colour, so the coin lands on the side they see themselves as.
+ */
+internal fun serverIntroAnimations(rules: GameRules, first: CardColor): List<MatchAnimation> =
+    MatchPreparation.introSteps(rules).mapNotNull { step ->
+        MatchBanner.forIntroStep(step)?.let(MatchAnimation::Caption)
+            ?: MatchAnimation.Toss(CoinFlip.forced(first))
     }
 
 /**

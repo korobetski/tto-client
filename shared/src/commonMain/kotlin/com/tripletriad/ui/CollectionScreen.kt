@@ -62,6 +62,7 @@ internal fun CollectionScreen(
     format: Format,
     initial: CollectionTab,
     onPersist: suspend (GameSave) -> Unit,
+    onIntent: suspend (Intent) -> Unit,
     onBack: () -> Unit,
 ) {
     val strings = LocalStrings.current
@@ -91,10 +92,10 @@ internal fun CollectionScreen(
                 profile = profile,
                 catalog = catalog,
                 format = format,
-                // The browser writes now: a spare copy can be sold from it. Through the same
-                // `onPersist` the deck editor uses, so a sale and a saved deck are one kind of
-                // change to one profile.
-                onPersist = onPersist,
+                // The browser writes now: a spare copy can be sold from it. Not through
+                // `onPersist`, which the deck editor still uses — a sale moves **money**, so it
+                // is an intent the server carries out rather than a profile the client hands in.
+                onIntent = onIntent,
             )
 
             CollectionTab.DECKS -> DecksBody(

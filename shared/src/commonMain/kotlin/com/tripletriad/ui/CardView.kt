@@ -11,11 +11,16 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.times
+import com.tripletriad.i18n.LocalStrings
+import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.Card
 import com.tripletriad.model.CardColor
+import com.tripletriad.model.EdgePowers
 
 /**
  * The face of a card, at [scale] times its authored size.
@@ -40,7 +45,12 @@ import com.tripletriad.model.CardColor
  *
  * Layer 0 is the selection glow; this port rings the card instead ([HandCard]), because the
  * glow texture is drawn outside even the sprite bounds and would have to grow every slot.
- * Layer 5 is the Ascension/Descension `±N` badge, which no rule in this UI switches on yet.
+ *
+ * Layer 5 is the Bonus/Malus `±N` badge. It **is** drawn now, but by the tile rather than by the
+ * card — see `TileCell`. A card is drawn in six places and only one of them is a board; a badge
+ * living here would need a rule, a tally and a cell element passed to the shop, the collection and
+ * the pack reveal, all of which would pass nothing. What this composable takes instead is
+ * [powers]: the four numbers to print, already modified.
  *
  * ### Why every dimension is multiplied rather than the layer scaled
  *
@@ -53,17 +63,65 @@ import com.tripletriad.model.CardColor
  * the geometry keeps drawn bounds and reported bounds identical, which is the only version of
  * this that composes safely.
  */
+/**
+ * What a card says to a screen reader: its name and its four powers, or nothing it may not tell.
+ *
+ * ### The face-down case is a leak, not a wording choice
+ *
+ * A card drawn with [showBack] is one the player is **not allowed to see** — the Open rules reveal
+ * some of the opponent's hand and hide the rest, and `HandVisibility` is what decides which. A
+ * label built from the card would announce the hidden ones to anybody with a screen reader on,
+ * which is the same information leak the whole `MatchView` design exists to prevent, arriving
+ * through the accessibility tree instead of the wire.
+ *
+ * So a face-down card is labelled as a face-down card, and the value is never read.
+ *
+ * ### Why the powers are digits and not words
+ *
+ * They are the same four numbers in every language, they are what a player compares, and a
+ * sentence around them would be four words of preamble before the only part that matters. The
+ * order matches the card: top, right, bottom, left.
+ *
+ * They are the [powers] passed in and not the card's own, so a card standing on a Bonus board
+ * reads out what it is worth there. Announcing the printed four while the screen shows something
+ * else would hand a screen-reader user a board nobody else is playing on.
+ */
+@Composable
+private fun cardLabel(card: Card, powers: EdgePowers, showBack: Boolean): String {
+    val strings = LocalStrings.current
+    if (showBack) return strings[StringKeys.CARD_FACE_DOWN]
+
+    val name = strings[card.nameKey]
+    return "$name, ${powers.top} ${powers.right} ${powers.bottom} ${powers.left}"
+}
+
+/**
+ * @param powers the four numbers to print, or null for what is printed on the card. Only a board
+ *   passes anything: everywhere else a card is being *chosen* rather than played, and there is no
+ *   board for a rule to modify it against.
+ */
 @Composable
 internal fun CardFace(
     card: Card,
     scale: Float = 1f,
     showBack: Boolean = false,
+    powers: EdgePowers? = null,
     modifier: Modifier = Modifier,
 ) {
     val art = LocalCardArt.current
     val face = rememberCardFace(art, card)
+    val shown = powers ?: EdgePowers.printed(card)
+    val label = cardLabel(card, shown, showBack)
 
-    Box(modifier = modifier.size(CardSpriteWidth * scale, CardSpriteHeight * scale)) {
+    Box(
+        modifier = modifier
+            .size(CardSpriteWidth * scale, CardSpriteHeight * scale)
+            // The one place every card in the game is drawn, so the one place worth labelling: a
+            // hand, a board cell, a shop row and a collection tile all come through here. Without
+            // it a screen reader is handed a stack of unlabelled boxes, which is a card game that
+            // cannot be played without sight — see [cardLabel].
+            .semantics { contentDescription = label },
+    ) {
         // Layer 1. A `Quad` in the original, so a fill here and not a texture.
         Box(
             modifier = Modifier
@@ -75,7 +133,7 @@ internal fun CardFace(
         Layer(art?.starsFor(card.rarity), RarityX, RarityY, RarityWidth, RarityHeight, scale)
         card.type?.let { Layer(art?.typeIcon(it), TypeX, TypeY, TypeSize, TypeSize, scale) }
         CardDigits(
-            card = card,
+            powers = shown,
             art = art,
             scale = scale,
             modifier = Modifier.offset(x = DigitsOriginX * scale, y = DigitsOriginY * scale),
@@ -127,15 +185,25 @@ internal fun CardBack(color: CardColor, scale: Float = 1f, modifier: Modifier = 
  *
  * `CardDigits.as:29` sets `alpha = 0.5` on the plate, but the `cdbg` texture is already
  * semi-transparent, so nothing dims it again here.
+ *
+ * Takes [EdgePowers] rather than the card, because on a board the two differ: under Bonus, Malus,
+ * Elemental or Fallen Ace what a card is worth is not what is printed on it, and the digits a
+ * player reads have to be the ones the engine fights with. `cd0` is in the atlas for the case that
+ * makes possible — see `CardArt`.
  */
 @Composable
-private fun CardDigits(card: Card, art: CardArt?, scale: Float, modifier: Modifier = Modifier) {
+private fun CardDigits(
+    powers: EdgePowers,
+    art: CardArt?,
+    scale: Float,
+    modifier: Modifier = Modifier,
+) {
     Box(modifier = modifier.size(DigitsClusterWidth * scale, DigitsClusterHeight * scale)) {
         Glyph(art?.digitPlate, DigitsPlateOffsetX, DigitsPlateOffsetY, DigitsPlateSize, scale)
-        Glyph(art?.digit(card.top), x = 14.dp, y = 0.dp, size = DigitSize, scale = scale)
-        Glyph(art?.digit(card.right), x = 26.dp, y = 6.dp, size = DigitSize, scale = scale)
-        Glyph(art?.digit(card.bottom), x = 14.dp, y = 12.dp, size = DigitSize, scale = scale)
-        Glyph(art?.digit(card.left), x = 2.dp, y = 6.dp, size = DigitSize, scale = scale)
+        Glyph(art?.digit(powers.top), x = 14.dp, y = 0.dp, size = DigitSize, scale = scale)
+        Glyph(art?.digit(powers.right), x = 26.dp, y = 6.dp, size = DigitSize, scale = scale)
+        Glyph(art?.digit(powers.bottom), x = 14.dp, y = 12.dp, size = DigitSize, scale = scale)
+        Glyph(art?.digit(powers.left), x = 2.dp, y = 6.dp, size = DigitSize, scale = scale)
     }
 }
 

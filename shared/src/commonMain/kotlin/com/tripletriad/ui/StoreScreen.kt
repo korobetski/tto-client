@@ -17,8 +17,9 @@ import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.Card
 import com.tripletriad.model.GameSave
+import com.tripletriad.model.Item
+import com.tripletriad.protocol.ItemEffect
 import kotlinx.coroutines.launch
-import kotlin.random.Random
 
 /** The tab bar of the store screen — what is for sale, and what has been bought. */
 const val STORE_TABS_TEST_TAG: String = "store-tabs"
@@ -49,7 +50,7 @@ internal enum class StoreTab {
  *   one. [InventoryBody] reports the card upwards instead of drawing it.
  *
  * @param initial which tab to open on; the screen keeps its own selection from then on.
- * @param random the pack draw, threaded to [InventoryBody] — see there.
+ * @param onUseItem consumes a bag item, threaded to [InventoryBody] — see there.
  */
 @Composable
 @Suppress("LongParameterList")
@@ -59,9 +60,9 @@ internal fun StoreScreen(
     starters: StarterCatalog,
     format: Format,
     initial: StoreTab,
-    onPersist: suspend (GameSave) -> Unit,
+    onUseItem: suspend (Item) -> ItemEffect?,
+    onIntent: suspend (Intent) -> Unit,
     onBack: () -> Unit,
-    random: Random = Random.Default,
 ) {
     val strings = LocalStrings.current
     val scope = rememberCoroutineScope()
@@ -106,7 +107,9 @@ internal fun StoreScreen(
                         val offer = selected ?: return@WideButton
                         val bought = itemName(strings, offer.item, cards)
                         scope.launch {
-                            onPersist(ShopCatalog.buy(profile, offer))
+                            // Asked, not computed. On an account the price is the server's and the
+                            // profile that comes back is the one it wrote — see `BuyRequest`.
+                            onIntent(Intent.Buy(offer, format.id))
                             // After the write, not before: the note says the purchase happened,
                             // and a line shown while the save was in flight would be a promise.
                             note.show(strings.format(StringKeys.OBTAINED, bought))
@@ -141,7 +144,10 @@ internal fun StoreScreen(
                 } else {
                     {
                         scope.launch {
-                            onPersist(StarterPack.grantedTo(profile, starters))
+                            // Asked, not granted: the pack puts **cards** in the collection, and
+                            // that is no longer a field this client may write. See
+                            // `ClaimStarterRequest`.
+                            onIntent(Intent.ClaimStarter(starters))
                             note.show(
                                 strings.format(
                                     StringKeys.OBTAINED,
@@ -157,9 +163,9 @@ internal fun StoreScreen(
                 profile = profile,
                 catalog = catalog,
                 format = format,
-                onPersist = onPersist,
+                onUse = onUseItem,
+                onIntent = onIntent,
                 onUnlocked = { unlocked = it },
-                random = random,
             )
         }
     }

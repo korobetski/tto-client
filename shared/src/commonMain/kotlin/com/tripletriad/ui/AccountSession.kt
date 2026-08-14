@@ -4,11 +4,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.Strings
 import com.tripletriad.log.Log
 import com.tripletriad.model.GameSave
+import com.tripletriad.model.Item
 import com.tripletriad.net.AccountResult
 import com.tripletriad.net.ServerConnection
 import com.tripletriad.net.ServerEntry
@@ -17,10 +19,15 @@ import com.tripletriad.net.accountQueueKey
 import com.tripletriad.net.isUnauthenticated
 import com.tripletriad.protocol.AccountError
 import com.tripletriad.protocol.Credentials
+import com.tripletriad.protocol.ItemEffect
 import com.tripletriad.protocol.PlayerState
 import com.tripletriad.protocol.PvpRefusal
+import com.tripletriad.protocol.SeedTickets
 import com.tripletriad.protocol.Session
 import com.tripletriad.time.Clock
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import kotlin.random.Random
 
 /**
  * The signed-in player: the account, the profile the server holds for it, and the stats.
@@ -43,7 +50,17 @@ import com.tripletriad.time.Clock
 class AccountSession internal constructor(
     private val server: ServerConnection,
     private val clock: Clock,
+    /**
+     * Where the seed stock is written back from [nextSeed], which is not a suspending function.
+     *
+     * Null in a test that never plays a match. A scope rather than a coroutine started per call so
+     * that the writes are cancelled with whatever owns this session, instead of outliving it.
+     */
+    private val scope: CoroutineScope? = null,
 ) {
+    /** Unspent seeds, oldest first. See [nextSeed]. */
+    private var tickets: List<Int> = emptyList()
+
     /** The player the server holds, or null when nobody is signed in. */
     var player: PlayerState? by mutableStateOf(null)
         private set
@@ -254,6 +271,188 @@ class AccountSession internal constructor(
     }
 
     /**
+     * Uses something from the bag, letting the server decide what came out.
+     *
+     * ### The one write that does not go local-first
+     *
+     * [persist] writes to the screen and sends afterwards, because the player has already been told
+     * the purchase happened and a round trip is not something to make them watch. This cannot work
+     * that way: **the client does not know the answer**. A booster's contents are the server's roll
+     * now, so there is nothing to show optimistically — showing a pack and then replacing it with a
+     * different one would be worse than a moment's wait.
+     *
+     * ### Where the operation id comes from
+     *
+     * Minted here, per call, and that is the right granularity today: nothing in this client
+     * retries a request on its own, so one tap is one intent. If an automatic retry is ever added
+     * it must reuse the id its first attempt carried — which is what the parameter on
+     * `AccountClient.useItem` is for, and why the id is not generated down there.
+     *
+     * @return what the server did, or null when nobody is signed in or the request failed. A
+     *   failure is reported through [failure] as every other request is.
+     */
+    suspend fun useItem(item: Item): ItemEffect? {
+        val stored = server.session.load(server.server.id, clock.nowMillis())
+        if (stored == null) {
+            Log.w(TAG) { "not signed in; an item was not used" }
+            return null
+        }
+
+        isBusy = true
+        failure = null
+        return try {
+            when (val result = server.accounts.useItem(stored.token, item, newOperationId())) {
+                is AccountResult.Ok -> {
+                    player = result.value.player
+                    result.value.effect
+                }
+
+                else -> {
+                    failure = result
+                    Log.w(TAG) { "an item was not used: $result" }
+                    null
+                }
+            }
+        } finally {
+            isBusy = false
+        }
+    }
+
+    /**
+     * The next seed to play a match on, or null when there is none left.
+     *
+     * ### Why this is synchronous, and what that costs
+     *
+     * Because the screen that needs it is not: a match is assembled from its seed in one pass, and
+     * making that suspend would restructure the whole of `MatchScreen` around a value that is
+     * almost always already in hand. So the stock is loaded ahead of time — see [loadTickets] — and
+     * this pops from it.
+     *
+     * What it costs is that **null is a real answer**. A player who has been offline for fifty
+     * matches has spent the stock and cannot start another until they reconnect. That is the price
+     * of the seed not being theirs to choose, and it is a price worth naming rather than hiding
+     * behind a locally invented number that the server would refuse after the match was played.
+     *
+     * The remainder is written back without waiting, because a seed handed out twice is worse than
+     * a seed lost: the second match on it is refused, and the player watches a real match count for
+     * nothing.
+     */
+    fun nextSeed(): Int? {
+        val seed = tickets.firstOrNull() ?: return null
+        tickets = tickets.drop(1)
+        scope?.launch { queueKey?.let { server.tickets.save(it, tickets) } }
+        return seed
+    }
+
+    /** How many matches can still be started with no network. Rendered by nothing yet. */
+    val ticketsHeld: Int get() = tickets.size
+
+    /**
+     * Reads the stock from disk, then tops it up from the server if it can.
+     *
+     * Disk first and unconditionally, so that a launch with no network still has whatever the last
+     * online launch left behind — which is the entire reason the stock is written down.
+     */
+    suspend fun loadTickets() {
+        val key = queueKey ?: return
+        tickets = server.tickets.load(key)
+        if (tickets.size < SeedTickets.TOP_UP_AT) topUpTickets()
+    }
+
+    /**
+     * Asks the server to top the stock up, and keeps what it answers with.
+     *
+     * The response is everything the account holds unspent, not just the new ones, so this replaces
+     * rather than appends — which is also what repairs a stock that has drifted from the server's
+     * idea of it, whatever the reason.
+     */
+    suspend fun topUpTickets() {
+        val key = queueKey ?: return
+        val stored = server.session.load(server.server.id, clock.nowMillis()) ?: return
+
+        when (val result = server.accounts.tickets(stored.token)) {
+            is AccountResult.Ok -> {
+                tickets = result.value.seeds
+                server.tickets.save(key, tickets)
+            }
+
+            // Offline is the ordinary case here and not a failure to report: the player keeps
+            // whatever they already hold and plays from it. `failure` is left alone deliberately,
+            // so a top-up that could not happen does not put a note over an unrelated screen.
+            else -> Log.i(TAG) { "the seed stock was not topped up: $result" }
+        }
+    }
+
+    /**
+     * Carries out an [Intent] on the account, and adopts the profile the server wrote.
+     *
+     * The account reading of the list `ProfileGate` reads locally. Each case is one call, and the
+     * `when` is exhaustive — which is the point of the sealed type: a sixth intent does not compile
+     * until it is handled here as well as there.
+     *
+     * Nothing is applied optimistically. The server is the one that knows what a thing costs, and a
+     * screen that deducted a guessed price and then corrected it would flicker the purse on every
+     * purchase.
+     */
+    suspend fun perform(intent: Intent) {
+        val stored = server.session.load(server.server.id, clock.nowMillis())
+        if (stored == null) {
+            Log.w(TAG) { "not signed in; an intent was dropped" }
+            return
+        }
+
+        isBusy = true
+        failure = null
+        val operationId = newOperationId()
+        val result = try {
+            when (intent) {
+                is Intent.Buy -> server.accounts.buy(
+                    stored.token,
+                    intent.offer.item,
+                    intent.formatId,
+                    operationId,
+                )
+
+                is Intent.SellItem ->
+                    server.accounts.sellItem(stored.token, intent.item, operationId)
+
+                is Intent.DiscardItem ->
+                    server.accounts.discardItem(stored.token, intent.item, operationId)
+
+                is Intent.SellCard ->
+                    server.accounts.sellCard(stored.token, intent.cardId, operationId)
+
+                is Intent.EnterCampaign ->
+                    server.accounts.enterCampaign(stored.token, intent.campaignKey, operationId)
+
+                // The catalogue the intent carries is the *local* path's; this one sends nothing,
+                // because which box is owed is the server's own catalogue to say.
+                is Intent.ClaimStarter -> server.accounts.claimStarter(stored.token, operationId)
+            }
+        } finally {
+            isBusy = false
+        }
+
+        when (result) {
+            is AccountResult.Ok -> player = result.value
+            else -> {
+                failure = result
+                Log.w(TAG) { "an intent was refused: $result" }
+            }
+        }
+    }
+
+    /**
+     * An id for one intent, unique enough that two of them never collide on one account.
+     *
+     * Not a UUID: `kotlin.uuid` is still opt-in, and what this needs is weaker than uniqueness in
+     * the universe — the server scopes ids to the account, so a collision has to happen twice for
+     * the *same player* to matter. A clock reading and 64 random bits is well past that.
+     */
+    private fun newOperationId(): String =
+        "${clock.nowMillis().toString(RADIX)}-${Random.nextLong().toULong().toString(RADIX)}"
+
+    /**
      * Runs a sign-in or a registration, stores what came back, and drains what was waiting.
      *
      * The drain is the part worth pointing at. A player who finished matches offline has them
@@ -294,6 +493,9 @@ class AccountSession internal constructor(
 
     private companion object {
         const val TAG = "Account"
+
+        /** Base 36 — the shortest an operation id gets without leaving ASCII. */
+        const val RADIX = 36
     }
 }
 
@@ -317,6 +519,13 @@ internal fun AccountResult<*>.message(strings: Strings): String = when (this) {
     is AccountResult.UpdateRequired -> strings[StringKeys.ERROR_UPDATE]
     is AccountResult.Failed -> strings.format(StringKeys.ERROR_STATUS, status.toString())
     is AccountResult.RefusedPvp -> code.message(strings)
+
+    // Deliberately not phrased as an error. The player did nothing wrong and the answer is to
+    // wait, so the wording says that — and says how long whenever the server was willing to.
+    is AccountResult.Throttled ->
+        retryAfterSeconds
+            ?.let { strings.format(StringKeys.ERROR_THROTTLED_IN, it.toString()) }
+            ?: strings[StringKeys.ERROR_THROTTLED]
 
     is AccountResult.Refused -> when (failure.error) {
         AccountError.USERNAME_TAKEN -> strings[StringKeys.ERROR_NAME_TAKEN]
@@ -363,5 +572,9 @@ internal fun PvpRefusal.message(strings: Strings): String = when (this) {
  * would mean the finished match had nowhere to be credited.
  */
 @Composable
-internal fun rememberAccountSession(server: ServerConnection, clock: Clock): AccountSession =
-    remember(server, clock) { AccountSession(server, clock) }
+internal fun rememberAccountSession(server: ServerConnection, clock: Clock): AccountSession {
+    // The composition's own scope, so the seed stock's writes are cancelled with the app rather
+    // than outliving it — see `AccountSession.nextSeed`, which cannot suspend.
+    val scope = rememberCoroutineScope()
+    return remember(server, clock, scope) { AccountSession(server, clock, scope) }
+}

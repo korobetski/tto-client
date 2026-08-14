@@ -68,6 +68,7 @@ class TurnTimerTest {
                         npc = opponent,
                         format = format,
                         clock = FixedClock(),
+                        nextSeed = { 1 },
                         onPersist = {},
                         onExit = {},
                         turnLimit = limit,

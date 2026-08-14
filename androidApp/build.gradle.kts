@@ -269,12 +269,35 @@ val verifyReleaseApk = tasks.register("verifyReleaseApk") {
     group = "verification"
     description = "Checks the minified APK kept its resources and its serializers."
 
-    val apk = layout.buildDirectory.file("outputs/apk/release/androidApp-release-unsigned.apk")
+    // AGP names the output after the signing configuration: a signed build produces
+    // `androidApp-release.apk`, an unsigned one `androidApp-release-unsigned.apk`. This task named
+    // only the second, so it had **never once run against a signed APK** — every release run failed
+    // here with "Input file does not exist", after a green build, which is the worst place to
+    // discover it. `release.yml`'s claim that it "runs against the signed artifact" was false.
+    //
+    // Derived from `releaseSigning` rather than from whichever file happens to be on disk. "Take
+    // whichever exists" is the tempting fix and is wrong in one direction that matters: an unsigned
+    // run would find last week's signed APK still sitting there and verify *that*, reporting a pass
+    // for a file this build did not produce. A verification task may fail confusingly; it may not
+    // pass falsely.
+    val outputs = layout.buildDirectory.dir("outputs/apk/release")
+    val apkName =
+        if (releaseSigning == null) "androidApp-release-unsigned.apk" else "androidApp-release.apk"
     dependsOn("assembleRelease")
-    inputs.file(apk)
+    // The directory and not the file: naming a file that is absent fails during input snapshotting
+    // with Gradle's own wording and a property called `$1`. The check below says which of the two
+    // was expected, and lists what was actually produced.
+    inputs.dir(outputs)
 
     doLast {
-        ZipFile(apk.get().asFile).use { zip ->
+        val apk = outputs.get().file(apkName).asFile
+        check(apk.exists()) {
+            "$apkName was not produced. `assembleRelease` " +
+                (if (releaseSigning == null) "built unsigned" else "was expected to sign") +
+                ", and the release directory holds: " +
+                (outputs.get().asFile.list()?.sorted()?.joinToString() ?: "nothing")
+        }
+        ZipFile(apk).use { zip ->
             val entries = zip.entries().asSequence().map { it.name }.toList()
             val locale = "assets/composeResources/$resPackage/files/locales/tto-en_US.json"
             check(locale in entries) {

@@ -231,6 +231,18 @@ jobs:
           umask 077
           printf '%s' "$TTO_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
 
+          # Exported to the **job**, not to one step. The other three secrets are job-level `env`
+          # above; this one cannot be, because `runner.temp` is not a context that `jobs.<id>.env`
+          # can read. Setting it per step is what it used to do, and the bug that produced is worth
+          # naming: `assembleRelease` had it, `verifyReleaseApk` did not, so the second invocation
+          # configured the module with three of the four and `androidApp/build.gradle.kts` refused
+          # the partial set — correctly, and after a green build, so the release failed at the last
+          # step with a message about signing.
+          #
+          # `$GITHUB_ENV` puts it in front of every later step at once, so no step added after this
+          # one can be the fourth thing that forgets.
+          echo "TTO_KEYSTORE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+
           # `base64 -d` is not the check it looks like: GNU coreutils decodes a truncated secret,
           # and even one holding something that was never a keystore, and exits 0 either way. The
           # size is the only thing it tells us, so it is reported rather than tested — a keystore is
@@ -271,8 +283,6 @@ jobs:
       # decision ever changes. Producing it now costs one task and keeps the option open; producing
       # it later, in a hurry, is when the signing configuration turns out to have drifted.
       - name: Build the signed APK and bundle
-        env:
-          TTO_KEYSTORE: ${{ runner.temp }}/release.jks
         run: |
           ./gradlew :androidApp:assembleRelease :androidApp:bundleRelease --no-daemon \
             -PclientVersion="${{ steps.version.outputs.value }}"
@@ -281,6 +291,13 @@ jobs:
       # crash on a player's device rather than as a failed build. `verifyReleaseApk` reads the APK
       # that was just produced and refuses it if R8 removed the Compose resources or the generated
       # serializers. It runs here, against the *signed* artifact, and not only in `check`.
+      #
+      # That last sentence was false until 2026-08-14 and this step had never once succeeded on a
+      # tag. Two faults, both of which only appear when signing is configured — that is, only here:
+      # `TTO_KEYSTORE` was scoped to the build step alone, so this invocation configured the module
+      # with three of the four secrets and was refused; and the task named the *unsigned* APK, which
+      # a signed build does not produce. Both are fixed and both are reproduced locally with a
+      # throwaway keystore, because neither is reachable from a build that has no key.
       - name: Verify the minified APK kept what it needs
         run: ./gradlew :androidApp:verifyReleaseApk --no-daemon
 

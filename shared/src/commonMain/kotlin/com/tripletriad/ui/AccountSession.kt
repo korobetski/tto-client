@@ -534,7 +534,15 @@ class AccountSession internal constructor(
                 // After `isBusy = false` and after the profile is showing: a queue of twenty
                 // transcripts is twenty round trips, and holding the sign-in button down for them
                 // would make signing in look slow in proportion to how long the player was offline.
-                server.reporter.drain(accountQueueKey(entry.id, session.player.save.username))
+                //
+                // **And what they credited is adopted.** It was not, for as long as this call has
+                // existed: the sign-in landed on the profile as it was *before* the queue was
+                // submitted, so a player who had played offline saw a dashboard that was already
+                // out of date by the time it was drawn — and stayed that way until the next
+                // launch. See `MatchReporter.drain`.
+                server.reporter
+                    .drain(accountQueueKey(entry.id, session.player.save.username))
+                    ?.let { adopt(it) }
             }
 
             else -> {

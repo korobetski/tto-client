@@ -23,6 +23,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -162,6 +163,19 @@ internal fun PackRevealScreen(
  * revealed ones, in the order they were turned, so the card that was just flipped is on top of
  * everything. The guaranteed slot is last in both — see the screen's own note — and therefore ends
  * up on top of the finished pile, which is where the one card worth looking at belongs.
+ *
+ * ### Why the loop is keyed, and what happened without it
+ *
+ * [key] is load-bearing here, not tidiness. This list is **reordered every tap** — a card leaves
+ * the face-down group for the revealed one — and an unkeyed loop gives Compose no identity but
+ * position, so the slot's remembered flip state stays with the *position* while the card moves out
+ * from under it. From the third card on, the two ends of the pile trade states, and the visible
+ * result is precisely the wrong animation: the card the player just turned appears already face-up
+ * with no flip at all, while an older card underneath it turns over a second time.
+ *
+ * Keying on the slot index — which is the card's identity here, since [cardIds] is fixed for the
+ * life of the screen — pins each `PackSlot`'s animation to its own card, so the one that animates
+ * is the one on top.
  */
 @Composable
 private fun PackStack(cardIds: List<Int>, cards: Map<Int, Card>, revealed: Int) {
@@ -177,15 +191,17 @@ private fun PackStack(cardIds: List<Int>, cards: Map<Int, Card>, revealed: Int) 
         contentAlignment = Alignment.Center,
     ) {
         for (index in order) {
-            val step = index - middle
-            PackSlot(
-                index = index,
-                card = cards[cardIds[index]],
-                isOpen = index < revealed,
-                modifier = Modifier
-                    .offset(x = PackFanX * step, y = PackFanY * step)
-                    .rotate(PACK_FAN_DEGREES * step),
-            )
+            key(index) {
+                val step = index - middle
+                PackSlot(
+                    index = index,
+                    card = cards[cardIds[index]],
+                    isOpen = index < revealed,
+                    modifier = Modifier
+                        .offset(x = PackFanX * step, y = PackFanY * step)
+                        .rotate(PACK_FAN_DEGREES * step),
+                )
+            }
         }
     }
 }

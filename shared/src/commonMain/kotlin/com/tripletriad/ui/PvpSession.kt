@@ -164,8 +164,31 @@ class PvpSession internal constructor(
     var claimsState: ListState by mutableStateOf(ListState.LOADING)
         private set
 
-    /** Whether the match on hand has ended, however it ended. */
+    /** Whether the match on hand has ended, however it ended. The board is dead from here on. */
     val isOver: Boolean get() = match?.status?.let { it != PvpMatchStatus.PLAYING } == true
+
+    /**
+     * Whether the winner still owes a choice — see [PvpMatchStatus.AWAITING_CLAIM].
+     *
+     * True on **both** sides while it lasts, which is what makes it useful: the winner is the one
+     * with [PvpOutcome.picksOwed] set, and the loser is the one who can now be told that a card is
+     * being taken out of their hand rather than finding out from their collection afterwards.
+     */
+    val isAwaitingClaim: Boolean get() = match?.status == PvpMatchStatus.AWAITING_CLAIM
+
+    /**
+     * Whether the match is finished **and paid**, which is not the same as [isOver].
+     *
+     * The distinction is what the board polls on. [isOver] is true the moment the ninth card lands,
+     * including in the window where the winner has yet to name their prize — so a board that stops
+     * at [isOver] stops asking precisely when the one remaining question is about to be answered.
+     * The loser saw nothing of the choice made out of their own hand, and the winner's own claim,
+     * made on another screen, was never reflected on the board they made it from.
+     */
+    val isSettled: Boolean
+        get() = match?.status?.let {
+            it != PvpMatchStatus.PLAYING && it != PvpMatchStatus.AWAITING_CLAIM
+        } == true
 
     /**
      * The match as the board renders it, resolving card ids through [cards].
@@ -268,17 +291,32 @@ class PvpSession internal constructor(
     }
 
     /**
-     * Withdraws it. Withdrawn locally whatever the server says.
+     * Withdraws it. Withdrawn locally whatever the server says, but **not silently**.
      *
-     * The same reasoning sign-out uses, and the same reasoning the old "leave the queue" used: the
-     * player pressed a button, and leaving them advertising a match until the network comes back is
-     * a strange answer to it.
+     * The local removal is the same reasoning sign-out uses, and the same reasoning the old "leave
+     * the queue" used: the player pressed a button, and leaving them advertising a match until the
+     * network comes back is a strange answer to it.
+     *
+     * ### Why the refusal is published, unlike [dropChallenge]'s
+     *
+     * The result used to be logged and dropped, on the reading that a table gone from this screen
+     * is the outcome the player asked for. That reading holds for an invitation, which nothing puts
+     * back. It does not hold here: this screen polls, so a table the server still has is **returned
+     * by the very next `refreshTables`, one second later** — the row reappears, the Host button
+     * turns back into Cancel, and a player who wanted to open a different table is left pressing a
+     * button that visibly does nothing and is told nothing about why. The lobby already renders
+     * [failure] as a note; this is the case that most needed one.
      */
     suspend fun cancelTable(tableId: String) = request {
         val token = tokenOf() ?: return@request
         tables = tables.filterNot { it.id == tableId }
-        val ignored = client.cancelTable(token, tableId)
-        Log.i(TAG) { "withdrew table $tableId: $ignored" }
+        when (val result = client.cancelTable(token, tableId)) {
+            is AccountResult.Ok -> Log.i(TAG) { "withdrew table $tableId" }
+            else -> {
+                failure = result
+                Log.i(TAG) { "could not withdraw table $tableId: $result" }
+            }
+        }
     }
 
     /** Joins one, which opens the match. */

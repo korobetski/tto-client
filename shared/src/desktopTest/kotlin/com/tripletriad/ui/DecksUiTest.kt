@@ -250,4 +250,45 @@ class DecksUiTest {
             onNodeWithTag(cardTypeTestTag(typed), useUnmergedTree = true).assertExists()
         }
     }
+
+    // ---- A card the deck names and the profile no longer holds ---------------
+
+    /**
+     * A deck that lost a card to a wager says so, in the list and in the editor.
+     *
+     * `GameSave.withoutCard` leaves the deck standing on purpose — see its KDoc — and `PveMatches`
+     * refuses it wherever it is dealt from. Both are right and together they were silent: the deck
+     * still showed five cards, still read `5 / 5`, and simply stopped appearing in the selector
+     * with no reason given anywhere.
+     */
+    @Test
+    fun aDeckNamingACardNoLongerOwnedSaysSo() = runComposeUiTest {
+        val lost = STARTER_DECK.first()
+        val documents = seeded(freshSave().withoutCard(lost))
+        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
+
+        // Unmerged: the slot row is `ttoClickable`, which absorbs its descendants' semantics —
+        // the same trap `deckPositionTestTag` documents one screen over.
+        onNodeWithTag(deckMissingTestTag(0), useUnmergedTree = true).assertExists()
+
+        onNodeWithTag(deckSlotTestTag(0)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
+        onNodeWithTag(DECK_MISSING_TEST_TAG).assertExists()
+
+        // And it clears the moment the offending position is taken out, which is what makes the
+        // editor the place to repair it.
+        onNodeWithTag(deckPositionTestTag(0)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { !exists(DECK_MISSING_TEST_TAG) }
+    }
+
+    /** An intact deck says nothing — otherwise the warning above would be unfalsifiable. */
+    @Test
+    fun anIntactDeckIsNotWarnedAbout() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        openDecks()
+
+        onNodeWithTag(deckMissingTestTag(0), useUnmergedTree = true).assertDoesNotExist()
+    }
 }

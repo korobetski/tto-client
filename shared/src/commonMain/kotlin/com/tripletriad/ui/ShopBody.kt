@@ -253,7 +253,10 @@ private fun OfferRow(
         if (card != null) {
             CardThumb(card = card)
         } else {
-            ItemIcon(iconId = offer.item.iconId, description = itemName(strings, offer.item, cards))
+            ItemIcon(
+                iconId = itemIconId(offer.item),
+                description = itemName(strings, offer.item, cards),
+            )
         }
 
         Column(modifier = Modifier.weight(1f)) {

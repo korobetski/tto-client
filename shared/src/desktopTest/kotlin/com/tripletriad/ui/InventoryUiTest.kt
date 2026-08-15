@@ -85,6 +85,28 @@ class InventoryUiTest {
         onNodeWithTag(INVENTORY_USE_TEST_TAG).assertIsEnabled()
     }
 
+    /**
+     * Tapping the selected row again puts the actions away.
+     *
+     * The bag is a radio group with no "none" entry, so the row itself has to be the way out —
+     * `listHandler` in the original had the same job. Worth pinning because the footer acts on
+     * whatever is selected: a selection that could not be cleared would leave three live buttons
+     * pointed at an item the player had stopped thinking about.
+     */
+    @Test
+    fun tappingTheSelectedRowAgainClearsTheSelection() = runComposeUiTest {
+        val documents = seeded(withBag())
+        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openBag(documents)
+
+        select(CardItem(SELLABLE_CARD))
+        assertTrue(exists(INVENTORY_USE_TEST_TAG), "the footer should be up")
+
+        select(CardItem(SELLABLE_CARD))
+
+        assertFalse(exists(INVENTORY_USE_TEST_TAG), "a second tap should put the footer away")
+    }
+
     /** Selling pays what the card's rarity is worth — see `CardValue` — and takes one off. */
     @Test
     fun sellingACardPaysForItAndLeavesTheRest() = runComposeUiTest {

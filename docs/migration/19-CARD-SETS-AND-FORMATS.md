@@ -130,18 +130,25 @@ parser** — as `cards.json` and `npcs.json` already are, via `Catalogs` on the 
 {
   "starters": [
     {
-      "id": "core-beasts",
-      "block": 1,
-      "nameKey": "APP_STARTER_CORE_BEASTS",
+      "id": "core",
+      "blocks": [1],
+      "nameKey": "APP_STARTER_CORE",
       "cards": [257, 259, 262, 263, 266, 271, 274, 280, 281, 288],
+      "deck": [257, 259, 262, 263, 266]
+    },
+    {
+      "id": "core-beasts",
+      "blocks": [1, 2],
+      "nameKey": "APP_STARTER_CORE_BEASTS",
+      "cards": [257, 259, 262, 263, 266, 513, 515, 518, 521, 524],
       "deck": [257, 259, 262, 263, 266]
     }
   ]
 }
 ```
 
-- **`block`** is what makes "in function of the available sets" fall out for free: the starters on
-  offer are those whose block is released. No second release flag to keep in step.
+- **`blocks`** is what makes "in function of the available sets" fall out for free: a starter is on
+  offer when **every** block it draws from is released. No second release flag to keep in step.
 - **`cards`** is what the character owns on its first frame; **`deck`** is the five of them that
   fill its first deck slot, replacing `Deck(DEFAULT_DECK_NAME, DEFAULT_CARDS)`.
 - **Fixed, never random.** A random starter makes two new players' first hour incomparable, makes
@@ -164,10 +171,44 @@ into "take the strongest".
 first deck that leaves it in the collection is one the player would have to discover and fix without
 being told there was anything to fix.
 
-This constrains what a set must contain to be startable: **at least nine rarity-1 cards and one
-rarity-2**. Worth knowing while authoring — the current tables would both pass (FFXIV has 22
-one-stars, FFVIII has 33), but a small themed set could easily be written without enough commons to
-open with.
+This constrains what a set must contain to have a starter of its own: **at least nine rarity-1
+cards and one rarity-2**, plus five rarity-1s able to stand as a deck. Worth knowing while
+authoring — the current tables would both pass (FFXIV has 22 one-stars, FFVIII has 33), but a small
+themed set could easily be written without enough commons to open with. A set short of that can
+still appear in a **mixed** starter, contributing the half that is not the deck.
+
+### Mixed starters, and the trap they would otherwise be
+
+A starter may draw from more than one block — that is what `blocks` is a list for. It is the purest
+expression of the decision at the top of this document: ownership was never partitioned, so the box
+you open first need not be either.
+
+But it has to be arranged carefully, because the obvious version is a losing choice. **A five-card
+deck spanning two blocks is illegal in every single-block format.** A player taking a mixed starter
+would begin with a deck admitted only by free play, while a single-set starter is legal everywhere
+the mixed one is *plus* its own set's format. The flexible-looking option would strictly dominate in
+nothing and be dominated in one thing, which is not a choice.
+
+So the two halves are separated:
+
+> **The ten cards may span blocks. The five-card deck may not.**
+
+A mixed starter then gives an immediately playable, format-legal deck *and* five cards pointing at
+a second set, which is a real trade against the single-set starter's ten cards of depth in one:
+
+| | Owns | First deck | Plays |
+|---|---|---|---|
+| Single-set | 10 from one block | 5 from it | free play **and** that block's formats |
+| Mixed | 5 + 5 from two blocks | the 5 from one of them | the same, with a head start on a second set |
+
+Neither dominates: depth in one format against breadth across two. The rarity-2 card sits in the
+deck, as it does everywhere, so both are worth the same.
+
+**Mixes are authored, not derived.** A mixed starter is an ordinary row in `starters.json` that
+happens to name two blocks; there is no combination mechanism, nothing to compose at runtime, and
+the composition rule applies to it unchanged. The cost is that every mix worth offering is written
+by hand — with N sets there are N(N-1)/2 possible pairs and no obligation to author them all. That
+is how a card game ships preconstructed decks: a few chosen ones, not the cross product.
 
 ### The server grants it, not the client
 
@@ -188,11 +229,13 @@ the whole of its abuse surface.
 
 Cheap checks at authoring time, each of which is a content bug that would otherwise reach a player:
 
-- a starter whose cards are not all in its own block;
+- a starter naming a block that does not exist, or whose cards fall outside the blocks it names;
+- a starter whose `deck` spans more than one block, which is a deck legal in no restricted format;
 - a starter that is not exactly nine rarity-1 cards and one rarity-2;
 - a starter whose `deck` is not a subset of its `cards`, is not exactly `HAND_SIZE` long, or does
   not contain the rarity-2 card;
-- a starter legal in **no** format, which is a character created unable to play;
+- a starter whose deck is legal in **no** format — the single-block rule above makes this hard to
+  reach, and it is still checked, because a block with no format at all would slip past it;
 - a released block with no starter at all, which is a set the player cannot begin with.
 
 ### Open
@@ -399,7 +442,8 @@ written until this document is agreed, or it will be written twice.
 - **Card ids** are a 255-wide block per set, encoded as `(block << 8) | number` with `block >= 1`
   and `number` in 1..255. See § Card identifiers.
 - **A starter pack** is ten cards — nine rarity 1 and one rarity 2, the rare one in its five-card
-  deck — chosen at character creation from the released blocks. See § The starter pack.
+  deck — chosen at character creation from the released blocks. It may span two sets; its **deck**
+  may not. See § The starter pack.
 - **Formats live in data**, in `formats.json` beside `campaigns.json`, and opponents declare which
   they play. See § Formats live in data.
 - **Ownership is not gated by set, a deck may mix sets, and free play draws the union of the
@@ -470,7 +514,8 @@ so whoever meets it finds the reason beside it.
 | tto-core | Every shipped card id decodes to a declared block and a number in 1..255, and no id is below 256 — which also proves no legacy id survived the reset. |
 | tto-core | Two cards never share an id, and no block holds more than 255 — asserted over the shipped bundle, as `CardBundleTest` already asserts the tables parse. |
 | tto-core | Every format's rule pool names real `RuleKeys` constants, and every opponent's declared format exists — the two ways authored data can dangle. |
-| tto-core | Every starter is ten cards — nine rarity 1, one rarity 2 — all in its own block, with a `HAND_SIZE` deck drawn from them that includes the rarity-2 card. |
+| tto-core | Every starter is ten cards — nine rarity 1, one rarity 2 — drawn from the blocks it names, with a `HAND_SIZE` deck drawn from them that includes the rarity-2 card. |
+| tto-core | Every starter's deck sits in a single block, mixed starters included — the property that keeps a mixed choice from being unplayable in restricted formats. |
 | tto-core | Every released block offers at least one starter, and holds enough rarity-1 cards to compose one. |
 | tto-server | A starter id that does not exist, or whose block is unreleased, is refused — and the cards granted are the server's, not any list the client sent. |
 | tto-client | A new character is offered exactly the starters of released blocks, and lands owning that starter's cards with its deck in slot 0. |

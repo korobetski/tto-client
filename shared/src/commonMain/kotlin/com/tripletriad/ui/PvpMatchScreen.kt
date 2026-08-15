@@ -1,5 +1,7 @@
 package com.tripletriad.ui
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -13,7 +15,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,10 +42,10 @@ import androidx.compose.ui.unit.dp
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.Card
-import com.tripletriad.model.CardColor
 import com.tripletriad.model.MatchResult
 import com.tripletriad.model.MatchView
 import com.tripletriad.protocol.PvpMatchStatus
+import com.tripletriad.protocol.PvpMatchView
 import com.tripletriad.protocol.PvpMove
 import com.tripletriad.protocol.PvpOutcome
 import com.tripletriad.ui.theme.LocalTtoColors
@@ -58,6 +62,9 @@ const val PVP_PAYOUT_TEST_TAG: String = "pvp-payout"
 const val PVP_STAKE_TEST_TAG: String = "pvp-stake"
 const val PVP_WON_TEST_TAG: String = "pvp-won"
 const val PVP_LOST_TEST_TAG: String = "pvp-lost"
+
+/** The loser, watching the winner name a card out of their hand. See `WitnessPhase`. */
+const val PVP_WAIT_TEST_TAG: String = "pvp-wait"
 
 /** `pvp-card-<slot>` — one of this player's own cards. */
 fun pvpHandTestTag(slot: Int): String = "pvp-card-$slot"
@@ -108,7 +115,13 @@ internal fun PvpMatchScreen(
 
     // The whole channel. Cancelled when the screen goes away, which is what stops a poll a second
     // running behind the dashboard.
-    LaunchedEffect(session) { session.watch() }
+    //
+    // **Until settled, not until over.** The default is `isOver`, which is true from the ninth card
+    // — including through the window where the winner still owes a choice. Stopping there is what
+    // left the loser watching a dead board while a card was taken out of their hand somewhere they
+    // could not see, and what left the winner's own claim invisible on the board they made it from.
+    // See [PvpSession.isSettled].
+    LaunchedEffect(session) { session.watch { session.isSettled } }
 
     // The rule captions and the coin flip, exactly as a PvE match plays them. They were absent
     // here for the same reason the match had no artwork: this screen was written as "render what
@@ -179,12 +192,10 @@ internal fun PvpMatchScreen(
 
         if (session.isOver) {
             PvpResult(
-                // `wire.side`, not `view.side`: the view is mirrored so that this player is always
-                // blue, and `forfeitedBy` is in the server's colours. See `PvpSession.view`.
-                side = wire.side,
-                status = wire.status,
-                outcome = wire.outcome,
+                session = session,
+                wire = wire,
                 cards = cards,
+                now = now,
                 onDone = {
                     session.clear()
                     onExit()
@@ -241,7 +252,23 @@ private fun pvpBannerQueue(matchId: String?, view: MatchView?): BannerEvent? {
     return event
 }
 
-/** Who is playing, the score, and whose turn it is. */
+/**
+ * Who is playing, the score, whose turn it is — and **what is being played under**.
+ *
+ * The rule strip is the late addition and it closes a real gap: a PvE match names its rules above
+ * the board (`BoardRules`) and in the side panel, and a PvP match named them nowhere. The opening
+ * banners say them once, in the first seconds, and a match resumed after the app was killed does
+ * not even get those — see [pvpBannerQueue]. So a player who wanted to know whether Random or
+ * Reverse was in force had to remember the table they joined.
+ *
+ * Random is the case that made this visible: it changes only the **deal**, which the server does,
+ * so the one way to tell it was in force was that the hand did not look like the chosen deck — an
+ * observation indistinguishable from the rule not working. The strip says what the server says is
+ * in force, which is the client's whole share of that question.
+ *
+ * `roulette` is not passed: on a *table* the draw is still pending and the strip says so, but by
+ * the time there is a board the server has drawn and the result is in [MatchView.rules] already.
+ */
 @Composable
 private fun PvpHeader(view: MatchView, opponentName: String, deadline: Long?, now: Long) {
     val strings = LocalStrings.current
@@ -266,6 +293,7 @@ private fun PvpHeader(view: MatchView, opponentName: String, deadline: Long?, no
             style = MaterialTheme.typography.labelMedium,
             modifier = Modifier.testTag(PVP_TURN_TEST_TAG),
         )
+        RulesStrip(view.rules)
     }
 }
 
@@ -472,75 +500,229 @@ private fun OwnRow(
 }
 
 /**
- * How it ended.
+ * How it ended — and, when the wager owes one, **the choice that ends it**.
+ *
+ * ### The claim belongs to the board
+ *
+ * Under One and Diff a match is not over when the ninth card lands: somebody has to name the cards
+ * they are taking, and until they do the server holds the match at
+ * [PvpMatchStatus.AWAITING_CLAIM] and credits nothing. That choice used to happen on a screen of
+ * its own, reached from the lobby, which broke the moment in two for both players. The winner left
+ * the board, went somewhere else, and picked a card out of a hand they were no longer looking at.
+ * The loser was sent back to the lobby immediately and the cards left their collection later, with
+ * no account of when or which — the one event in this game that happens *to* a player and they were
+ * the only party not present for it.
+ *
+ * So the panel has three faces, all of them over the board the match was played on:
+ *
+ * - **The winner owes picks** — the prizes, out of the loser's dealt hand, and no way out but to
+ *   choose. There is deliberately no Back here: the wager is not settled, and a winner who wandered
+ *   off would leave the loser waiting on the server's deadline.
+ * - **The loser waits** — told who is choosing and out of whose hand, with the same countdown the
+ *   winner is working against. A Back **is** offered: the deadline is the server's and can run for
+ *   minutes, and a winner who closes their app must not be able to hold somebody else's session
+ *   hostage. Leaving is a choice; being stuck is not.
+ * - **Settled** — the result and what it paid, which is where every other ending starts.
  *
  * A forfeit says so rather than being reported as a plain win or loss: "you won" and "you won
  * because they left" are not the same sentence to put in front of a player, and the second one is
  * the only honest description of a board that was never finished.
  *
- * @param side the colour the **server** dealt this player, which is not the one on the board: the
- *   board is mirrored so that a player is always blue. [forfeitedBy] arrives in server colours, so
- *   this is the only side it can honestly be compared against.
+ * ### The scrim and the card are not decoration
+ *
+ * This was a bare `Column` over the finished board: unpainted text sitting on top of nine tiles of
+ * card art, which is the one background the payout lines cannot be read against. It now takes the
+ * same dressing `OutcomePanel` takes at the end of a PvE match — the theme's `scrim` over the dead
+ * board, a `Surface` at [OutcomeElevation] under the text — so the two endings look like the same
+ * game ending twice rather than two screens by different hands.
+ *
+ * A `Surface` and not an `AlertDialog` for the reason `OutcomePanel` gives, and here for one more:
+ * [MatchBannerOverlay] is drawn after this in [PvpMatchScreen] and a popup would land over it.
  */
 @Composable
 private fun PvpResult(
-    side: CardColor,
-    status: PvpMatchStatus,
+    session: PvpSession,
+    wire: PvpMatchView,
+    cards: Map<Int, Card>,
+    now: Long,
+    onDone: () -> Unit,
+) {
+    Box(
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.scrim),
+        contentAlignment = Alignment.Center,
+    ) {
+        Surface(
+            modifier = Modifier.testTag(PVP_RESULT_TEST_TAG).widthIn(max = ContentMaxWidth)
+                .padding(SpaceLg),
+            shape = MaterialTheme.shapes.extraLarge,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            tonalElevation = OutcomeElevation,
+            shadowElevation = OutcomeElevation,
+            border = BorderStroke(HairlineWidth, MaterialTheme.colorScheme.outlineVariant),
+        ) {
+            Column(
+                modifier = Modifier.padding(SpaceXl),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(SpaceSm),
+            ) {
+                val outcome = wire.outcome
+                when {
+                    (outcome?.picksOwed ?: 0) > 0 && outcome != null ->
+                        ClaimPhase(session, wire, outcome, cards, now)
+
+                    session.isAwaitingClaim ->
+                        WitnessPhase(wire.opponentName, outcome?.claimDeadline, now, onDone)
+
+                    else -> SettledPhase(wire, outcome, cards, onDone)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The winner naming their prize, on the board they won it on.
+ *
+ * The same picker `PvpClaimScreen` draws — [PrizeRow] is shared between them precisely so the two
+ * routes to this choice cannot drift — and the same rule about what is tappable: once enough are
+ * picked the rest stop responding, because a tap that silently replaced an earlier choice would be
+ * worse feedback than one that does nothing.
+ *
+ * Nothing follows the confirmation: [PvpSession.claim] replaces the match with the settled one, so
+ * this panel simply becomes [SettledPhase] on the next frame, with the cards now listed under what
+ * was won. That is the whole reason the claim lives here — the player sees what they took, in the
+ * place they took it from.
+ */
+@Composable
+private fun ClaimPhase(
+    session: PvpSession,
+    wire: PvpMatchView,
+    outcome: PvpOutcome,
+    cards: Map<Int, Card>,
+    now: Long,
+) {
+    val strings = LocalStrings.current
+    val scope = rememberCoroutineScope()
+    var picked by remember(wire.matchId) { mutableStateOf(emptySet<Int>()) }
+
+    Text(
+        text = strings[StringKeys.PVP_CLAIM_TITLE],
+        color = MaterialTheme.colorScheme.onSurface,
+        style = MaterialTheme.typography.titleLarge,
+        fontWeight = FontWeight.Bold,
+    )
+    Text(
+        text = claimPrompt(outcome.picksOwed, picked.size, outcome.claimDeadline, now, strings),
+        color = MaterialTheme.colorScheme.onSurface,
+        style = MaterialTheme.typography.labelMedium,
+        modifier = Modifier.testTag(PVP_CLAIM_PROMPT_TEST_TAG),
+    )
+    PrizeRow(
+        ids = outcome.pickFrom,
+        cards = cards,
+        picked = picked,
+        owed = outcome.picksOwed,
+        onToggle = { id -> picked = if (id in picked) picked - id else picked + id },
+    )
+    WideButton(
+        label = strings[StringKeys.PVP_CLAIM_CONFIRM],
+        tag = PVP_CLAIM_CONFIRM_TEST_TAG,
+        enabled = picked.size == outcome.picksOwed && !session.isBusy,
+        onClick = { scope.launch { session.claim(wire.matchId, picked.toList()) } },
+    )
+}
+
+/**
+ * What the loser sees while it happens.
+ *
+ * The board is still behind the scrim, which is the point: the cards being chosen from are the ones
+ * that were just played on it. The countdown is the winner's own deadline, so the wait has a stated
+ * end rather than being an indefinite spinner — and past it the server settles for the winner
+ * anyway, which is what makes the number honest.
+ *
+ * Back is offered, and that is a deliberate departure from "the loser must be present for the
+ * choice": present is what the app can offer, captive is not. The deadline belongs to the server
+ * and can run for minutes; a winner who force-quits their app would otherwise hold this session
+ * shut for all of it. The poll keeps running while the screen is up, so a player who stays sees the
+ * cards go.
+ */
+@Composable
+private fun WitnessPhase(opponentName: String, deadline: Long?, now: Long, onDone: () -> Unit) {
+    val strings = LocalStrings.current
+
+    Text(
+        text = strings.format(StringKeys.PVP_CLAIM_WAIT, opponentName),
+        color = MaterialTheme.colorScheme.onSurface,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.testTag(PVP_WAIT_TEST_TAG),
+    )
+    deadline?.let {
+        Text(
+            text = "${(it - now).coerceAtLeast(0L) / MILLIS_PER_SECOND}s",
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
+            style = MaterialTheme.typography.labelMedium,
+        )
+    }
+    WideButton(
+        label = strings[StringKeys.BACK],
+        tag = PVP_DONE_TEST_TAG,
+        filled = false,
+        onClick = onDone,
+    )
+}
+
+/**
+ * The ending, once there is nothing left to decide.
+ *
+ * @param wire the match in **server** colours. `wire.side` and not the view's: the board is
+ *   mirrored so that a player is always blue, and `forfeitedBy` arrives in the server's colours, so
+ *   this is the only side it can honestly be compared against. See [PvpSession.view].
+ */
+@Composable
+private fun SettledPhase(
+    wire: PvpMatchView,
     outcome: PvpOutcome?,
     cards: Map<Int, Card>,
     onDone: () -> Unit,
 ) {
     val strings = LocalStrings.current
 
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(
-            modifier = Modifier.testTag(PVP_RESULT_TEST_TAG).padding(SpaceLg),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(SpaceSm),
-        ) {
-            Text(
-                text = when (outcome?.result) {
-                    MatchResult.WIN -> strings[StringKeys.YOU_WIN]
-                    MatchResult.LOSE -> strings[StringKeys.YOU_LOSE]
-                    MatchResult.DRAW, null -> strings[StringKeys.DRAW]
+    Text(
+        text = when (outcome?.result) {
+            MatchResult.WIN -> strings[StringKeys.YOU_WIN]
+            MatchResult.LOSE -> strings[StringKeys.YOU_LOSE]
+            MatchResult.DRAW, null -> strings[StringKeys.DRAW]
+        },
+        color = MaterialTheme.colorScheme.onSurface,
+        style = MaterialTheme.typography.titleLarge,
+        fontWeight = FontWeight.Bold,
+    )
+    if (wire.status == PvpMatchStatus.FORFEITED) {
+        Text(
+            text = strings[
+                if (outcome?.forfeitedBy == wire.side) {
+                    StringKeys.PVP_YOU_LEFT
+                } else {
+                    StringKeys.PVP_THEY_LEFT
                 },
-                color = MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-            )
-            if (status == PvpMatchStatus.FORFEITED) {
-                Text(
-                    text = strings[
-                        if (outcome?.forfeitedBy == side) {
-                            StringKeys.PVP_YOU_LEFT
-                        } else {
-                            StringKeys.PVP_THEY_LEFT
-                        },
-                    ],
-                    color = MaterialTheme.colorScheme.onSurface,
-                    style = MaterialTheme.typography.labelMedium,
-                )
-            }
-
-            // Everything below was on the wire from the first release and drawn by nothing: a
-            // player was told "you win" and left to guess what it had been worth.
-            if (outcome != null) {
-                Payout(outcome = outcome, cards = cards)
-            }
-
-            WideButton(
-                label = strings[
-                    if ((outcome?.picksOwed ?: 0) > 0) {
-                        StringKeys.PVP_CLAIM
-                    } else {
-                        StringKeys.BACK
-                    },
-                ],
-                tag = PVP_DONE_TEST_TAG,
-                onClick = onDone,
-            )
-        }
+            ],
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.labelMedium,
+        )
     }
+
+    // Everything below was on the wire from the first release and drawn by nothing: a player was
+    // told "you win" and left to guess what it had been worth.
+    if (outcome != null) {
+        Payout(outcome = outcome, cards = cards)
+    }
+
+    WideButton(
+        label = strings[StringKeys.BACK],
+        tag = PVP_DONE_TEST_TAG,
+        onClick = onDone,
+    )
 }
 
 /**

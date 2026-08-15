@@ -49,6 +49,7 @@ import com.tripletriad.time.Clock
 import com.tripletriad.time.FixedClock
 import com.tripletriad.ui.theme.LocalTtoColors
 import com.tripletriad.ui.theme.TripleTriadTheme
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -139,14 +140,19 @@ fun App(
                 if (screen == Screen.SPLASH) screen = Screen.MENU
             }
 
-            // Draining "at launch" means, in practice, when a character is in play: the queue is
-            // per character, so before there is one there is nothing to drain and no key to drain
-            // it under. Keyed on the key rather than on the save, because `persist` replaces the
-            // save object after every match and re-running the effect then would put a network call
-            // at the end of each one — which is the thing the queue exists to avoid.
-            LaunchedEffect(gate.queueKey, reporter) {
-                gate.queueKey?.let { reporter.drain(it) }
-            }
+            HostedTableWatch(
+                pvp = pvp,
+                clock = clock,
+                screen = screen,
+                onOpened = { screen = Screen.PVP_MATCH },
+            )
+
+            MatchSettlement(
+                reporter = reporter,
+                account = account,
+                queueKey = gate.queueKey,
+                screen = screen,
+            )
 
             // Android's system back gesture, which would otherwise finish the activity mid-match
             // — the app would appear to quit from the middle of a game. `BackHandler` is
@@ -313,6 +319,74 @@ private fun StartupEffects(
         if (startup.isReady && isRestored) onReady()
     }
 }
+
+/**
+ * Waiting for somebody to sit down at the table this player opened — from **wherever they are**.
+ *
+ * ### What was wrong
+ *
+ * `PvpScreen` is the only thing in the app that ever asked whether a match had started, and it asks
+ * only while it is on screen: its `watchLobby` loop is cancelled the moment the player navigates
+ * away. So a host would open a table, go and do something else — the shop, their collection, a
+ * match against a program — and the opponent who joined thirty seconds later would sit in front of
+ * a board playing against nobody until the server's grace expired. The host was told nothing, and
+ * the only way to find out was to walk back into the lobby, where the first poll would report the
+ * match that had been waiting the whole time.
+ *
+ * A table is a **standing offer**, and this is the effect that treats it as one: while an offer of
+ * this player's stands, the client keeps asking whether it has been taken up, whatever screen they
+ * happen to be on.
+ *
+ * ### What it deliberately does not do
+ *
+ * **It does not poll all the time.** The condition is a table of this player's own — an offer they
+ * made — and it stops at that table's own `expiresAt`, so an offer nobody took costs five minutes
+ * of requests and not the rest of the session. This is the same argument [PvpSession] makes for
+ * writing its loops as something a screen launches rather than something the session starts: a
+ * request a second for a match nobody is waiting for is exactly what is not wanted here either.
+ *
+ * `tables` is not refreshed while the player is away, which is what keeps `myTable` readable at
+ * all — the lobby's own refresh is what would clear it, and the lobby is not running.
+ *
+ * **It does not trap the player on the board.** The match id is remembered once it has been shown,
+ * so backing out of a match goes back and stays back. The lobby's own effect still bounces a player
+ * standing in the lobby, which is the behaviour it has always had and is not this function's to
+ * change.
+ *
+ * **It does not interrupt a board.** A host who started a match against a program keeps it: being
+ * yanked out mid-placement would lose that match to save a PvP one that still has two minutes of
+ * grace on it. The effect is keyed on the screen as well as the match, so it fires the moment they
+ * leave the board they were on.
+ */
+@Composable
+private fun HostedTableWatch(
+    pvp: PvpSession?,
+    clock: Clock,
+    screen: Screen,
+    onOpened: () -> Unit,
+) {
+    if (pvp == null) return
+    val table = pvp.myTable
+    var announced by remember(pvp) { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(pvp, table?.id) {
+        val offer = table ?: return@LaunchedEffect
+        while (pvp.match == null && clock.nowMillis() < offer.expiresAt) {
+            delay(TABLE_POLL_MILLIS)
+            pvp.poll()
+        }
+    }
+
+    LaunchedEffect(pvp.match?.matchId, screen) {
+        val id = pvp.match?.matchId ?: return@LaunchedEffect
+        if (id == announced || screen in PLAYING_SCREENS) return@LaunchedEffect
+        announced = id
+        onOpened()
+    }
+}
+
+/** The lobby's own interval — see [PvpSession]; a turn lasts thirty seconds. */
+private const val TABLE_POLL_MILLIS = 1_000L
 
 /**
  * Where the character in play comes from.
@@ -762,7 +836,9 @@ private fun SocialDestination(
             PvpScreen(
                 profile = profile,
                 session = session,
-                now = clock.nowMillis(),
+                // Ticking, not sampled — see [rememberNow]. This is what a table's "expires in
+                // n min" counts against, and it used to be read once and never again.
+                now = rememberNow(clock),
                 onMatch = onMatch,
                 onHost = onHost,
                 onInvite = onInvite,
@@ -826,7 +902,10 @@ private fun MatchDestinations(
                     // The whole table rather than the mode's: a PvP opponent plays their own
                     // collection, and while `MODE` still exists the two could differ.
                     cards = startup.catalog?.all?.associateBy { it.id }.orEmpty(),
-                    now = clock.nowMillis(),
+                    // The turn timer's other half. A deadline arriving correctly on every poll
+                    // still reads as a frozen countdown when subtracted from a frozen `now` —
+                    // see [rememberNow], which is the whole of why this screen had no clock.
+                    now = rememberNow(clock),
                     onExit = {
                         // Straight to the prize when one is owed. The alternative is a lobby with
                         // a banner on it, which is one more tap between winning a card and being
@@ -843,7 +922,9 @@ private fun MatchDestinations(
                 PvpClaimScreen(
                     session = session,
                     cards = startup.catalog?.all?.associateBy { it.id }.orEmpty(),
-                    now = clock.nowMillis(),
+                    // The claim deadline is the one the server settles *for* the player, so a
+                    // countdown that does not count is the worst place to have one.
+                    now = rememberNow(clock),
                     onDone = { onNavigate(Screen.PVP) },
                 )
             }
@@ -1117,7 +1198,7 @@ private fun pvpBadge(pvp: PvpSession?): String? = when {
 }
 
 /** Where the match music plays — `BaseMatchScreen`, and every screen that is one. */
-private val PLAYING_SCREENS =
+internal val PLAYING_SCREENS =
     setOf(Screen.MATCH, Screen.TUTORIAL, Screen.CAMPAIGN_MATCH, Screen.PVP_MATCH)
 
 /**

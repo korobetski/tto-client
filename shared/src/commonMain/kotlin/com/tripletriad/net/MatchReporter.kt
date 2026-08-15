@@ -37,8 +37,25 @@ interface MatchReporter {
      */
     suspend fun report(profileKey: String, transcript: MatchTranscript)
 
-    /** Submits whatever is waiting for [profileKey]. Safe to call when nothing is. */
-    suspend fun drain(profileKey: String)
+    /**
+     * Submits whatever is waiting for [profileKey]. Safe to call when nothing is.
+     *
+     * @return the profile the server wrote while crediting, or null when it credited nothing —
+     *   nothing was queued, the server was unreachable, or every receipt was a duplicate or a
+     *   rejection. **The newest one only**, and that is not a shortcut: each receipt's profile
+     *   already includes every match credited before it, so applying them in turn would show the
+     *   player their progression flickering through states the server considers superseded.
+     *
+     * ### Why this is returned rather than delivered to a callback
+     *
+     * It used to be an `onCredited` lambda handed to the constructor, and **nothing ever passed
+     * one** — neither host did, so every profile the server credited was computed, sent, decoded
+     * and dropped. That was not an oversight so much as an impossibility: the reporter is built by
+     * the host, and the thing that has to adopt the profile is the [com.tripletriad.ui.AccountSession]
+     * that `App` creates afterwards. A return value can be used by whoever called; a constructor
+     * callback can only be used by whoever built.
+     */
+    suspend fun drain(profileKey: String): PlayerState?
 
     /** Forgets what is queued for [profileKey]. Called when the profile itself is deleted. */
     suspend fun forget(profileKey: String)
@@ -51,7 +68,7 @@ interface MatchReporter {
      */
     object None : MatchReporter {
         override suspend fun report(profileKey: String, transcript: MatchTranscript) = Unit
-        override suspend fun drain(profileKey: String) = Unit
+        override suspend fun drain(profileKey: String): PlayerState? = null
         override suspend fun forget(profileKey: String) = Unit
     }
 }
@@ -68,16 +85,9 @@ interface MatchReporter {
  * transcript is either kept or lost, which the player finds out about through their progression
  * rather than through a stack trace.
  */
-/**
- * @property onCredited called with the profile the server wrote, whenever a drain credits at least
- *   one match. **The newest one only**, and that is not a shortcut: each receipt's profile already
- *   includes every match credited before it, so applying them in turn would show the player their
- *   progression flickering through states the server considers superseded.
- */
 class QueuedMatchReporter(
     private val queue: TranscriptQueue,
     private val submitter: MatchSubmitter,
-    private val onCredited: suspend (PlayerState) -> Unit = {},
 ) : MatchReporter {
 
     // TooGenericExceptionCaught: the store is implemented per host, so a failed write throws
@@ -96,33 +106,26 @@ class QueuedMatchReporter(
      *
      * This is the function that used to log the verdicts and throw them away, because the server
      * had nothing to credit them to. It now has: every accepted submission comes back with the
-     * profile the server wrote, and [onCredited] is how that reaches the screen the player is
+     * profile the server wrote, and returning it is how that reaches the screen the player is
      * looking at. A rejected or duplicate receipt carries no new profile and changes nothing here.
      */
     @Suppress("TooGenericExceptionCaught")
-    override suspend fun drain(profileKey: String) {
+    override suspend fun drain(profileKey: String): PlayerState? {
         val results = try {
             queue.drain(profileKey, submitter)
         } catch (failure: Exception) {
             Log.w(TAG, failure) { "could not drain the pending queue for '$profileKey'" }
-            return
+            return null
         }
         results.forEach { it.log(profileKey) }
 
-        // `lastOrNull` over the credited ones: see `onCredited`. A duplicate is skipped even though
-        // it does carry a profile — it is the state the server already had, and adopting it would
-        // undo a match credited after it in the same drain.
-        results.asSequence()
+        // `lastOrNull` over the credited ones: see `drain` on the interface. A duplicate is skipped
+        // even though it does carry a profile — it is the state the server already had, and
+        // adopting it would undo a match credited after it in the same drain.
+        return results.asSequence()
             .filterIsInstance<SubmissionResult.Judged>()
             .mapNotNull { if (it.receipt.duplicate) null else it.receipt.player }
             .lastOrNull()
-            ?.let { credited ->
-                try {
-                    onCredited(credited)
-                } catch (failure: Exception) {
-                    Log.w(TAG, failure) { "could not apply the credited profile for '$profileKey'" }
-                }
-            }
     }
 
     @Suppress("TooGenericExceptionCaught")

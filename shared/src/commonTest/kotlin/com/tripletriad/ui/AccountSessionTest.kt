@@ -408,6 +408,40 @@ class AccountSessionTest {
         assertTrue(reporter.drained.isEmpty())
     }
 
+    /**
+     * And what the drain credited is what the player is shown.
+     *
+     * The half that was missing. Signing in submitted the queue and then kept the profile the
+     * *sign-in* had returned — which is the state before any of those matches were credited — so a
+     * player who had played offline landed on a dashboard that the server had already superseded,
+     * and stayed on it until the next launch. See `MatchReporter.drain`, which had no way to hand
+     * the credited profile back to anybody.
+     */
+    @Test
+    fun signingInAdoptsWhatTheDrainCredited() = runTest {
+        val credited = PlayerState(save = GameSave(username = "kuplu", mgp = 9001))
+        val reporter = RecordingReporter(credited = credited)
+        val session =
+            sessionOver(answering(HttpStatusCode.OK, encode(signedIn)), reporter = reporter)
+
+        session.signIn("kuplu", PASSWORD)
+
+        assertEquals(credited, session.player, "the sign-in profile survived the drain")
+    }
+
+    /** A drain that credited nothing leaves the profile the sign-in returned. */
+    @Test
+    fun aDrainThatCreditedNothingChangesNothing() = runTest {
+        val session = sessionOver(
+            answering(HttpStatusCode.OK, encode(signedIn)),
+            reporter = RecordingReporter(credited = null),
+        )
+
+        session.signIn("kuplu", PASSWORD)
+
+        assertEquals(player, session.player)
+    }
+
     // ---- Coming back ------------------------------------------------------
 
     @Test
@@ -714,12 +748,16 @@ class AccountSessionTest {
 
     // ---- Fixtures ---------------------------------------------------------
 
-    private class RecordingReporter : MatchReporter {
+    /**
+     * @param credited what the drain reports the server wrote, or null for "it credited nothing".
+     */
+    private class RecordingReporter(private val credited: PlayerState? = null) : MatchReporter {
         val drained = mutableListOf<String>()
 
         override suspend fun report(profileKey: String, transcript: MatchTranscript) = Unit
-        override suspend fun drain(profileKey: String) {
+        override suspend fun drain(profileKey: String): PlayerState? {
             drained += profileKey
+            return credited
         }
 
         override suspend fun forget(profileKey: String) = Unit

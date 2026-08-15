@@ -118,26 +118,13 @@ internal fun PvpClaimScreen(
             modifier = Modifier.testTag(PVP_CLAIM_PROMPT_TEST_TAG),
         )
 
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(SpaceSm),
-            verticalArrangement = Arrangement.spacedBy(SpaceSm),
-        ) {
-            for (id in outcome.pickFrom) {
-                // A card the catalogue does not know is skipped rather than drawn as a hole — the
-                // same refusal `PvpMatchView.toMatchView` makes, for the same reason.
-                val card = cards[id] ?: continue
-                Prize(
-                    card = card,
-                    selected = id in picked,
-                    // Once enough are picked the rest stop responding, because the server counts
-                    // them: a sixth tap that silently replaced a choice would be worse feedback
-                    // than one that does nothing.
-                    enabled = id in picked || picked.size < outcome.picksOwed,
-                    onTap = { picked = if (id in picked) picked - id else picked + id },
-                )
-            }
-        }
+        PrizeRow(
+            ids = outcome.pickFrom,
+            cards = cards,
+            picked = picked,
+            owed = outcome.picksOwed,
+            onToggle = { id -> picked = if (id in picked) picked - id else picked + id },
+        )
 
         WideButton(
             label = strings[StringKeys.PVP_CLAIM_CONFIRM],
@@ -150,6 +137,46 @@ internal fun PvpClaimScreen(
                 }
             },
         )
+    }
+}
+
+/**
+ * What there is to choose from, as a row of tappable cards.
+ *
+ * Shared with the board's own claim panel — see `PvpMatchScreen.ClaimPhase`. There are two routes
+ * to this choice: the ordinary one, on the board the match was just played on, and this screen,
+ * which is what the lobby's banner leads to when the app was killed before the winner picked. They
+ * must offer the same five cards under the same rules, so they draw them with the same function
+ * rather than with two copies of it.
+ *
+ * @param owed how many are still to be named. Once that many are picked the rest stop responding,
+ *   because the server counts them: a sixth tap that silently replaced an earlier choice would be
+ *   worse feedback than one that does nothing.
+ */
+@Composable
+internal fun PrizeRow(
+    ids: List<Int>,
+    cards: Map<Int, Card>,
+    picked: Set<Int>,
+    owed: Int,
+    onToggle: (Int) -> Unit,
+) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(SpaceSm),
+        verticalArrangement = Arrangement.spacedBy(SpaceSm),
+    ) {
+        for (id in ids) {
+            // A card the catalogue does not know is skipped rather than drawn as a hole — the same
+            // refusal `PvpMatchView.toMatchView` makes, for the same reason.
+            val card = cards[id] ?: continue
+            Prize(
+                card = card,
+                selected = id in picked,
+                enabled = id in picked || picked.size < owed,
+                onTap = { onToggle(id) },
+            )
+        }
     }
 }
 
@@ -192,8 +219,11 @@ private fun Prize(card: Card, selected: Boolean, enabled: Boolean, onTap: () -> 
  * The countdown is stated in whole seconds and stops at zero rather than going negative, for the
  * reason `PvpMatchScreen.turnLine` gives: a clock reading "-4s" says the game is broken, where a
  * clock at zero says the server is about to act.
+ *
+ * Shared with the board's claim panel for the reason [PrizeRow] is: one choice, two routes to it,
+ * and the sentence above it should not depend on which one the player took.
  */
-private fun claimPrompt(
+internal fun claimPrompt(
     owed: Int,
     chosen: Int,
     deadline: Long?,

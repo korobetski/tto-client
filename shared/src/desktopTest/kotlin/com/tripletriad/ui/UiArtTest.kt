@@ -4,7 +4,10 @@ import com.tripletriad.data.loadCardCatalog
 import com.tripletriad.data.loadNpcCatalog
 import com.tripletriad.model.AchievementCatalog
 import com.tripletriad.model.BoosterType
+import com.tripletriad.model.CardItem
 import com.tripletriad.model.GameSave
+import com.tripletriad.model.PotionItem
+import com.tripletriad.model.PotionType
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -63,6 +66,29 @@ class UiArtTest {
         for (booster in BoosterType.entries) {
             assertNotNull(art.icon(booster.iconId), "no icon for ${booster.name}")
         }
+    }
+
+    /**
+     * Every potion too, resolved the way the three screens that draw one resolve it.
+     *
+     * Through [itemIconId] and **not** `PotionItem.iconId`, which is the whole reason this test
+     * exists: the model answers `potionItem`, the AS3 texture name, and nothing under `art/icons/`
+     * is called that. Every potion in the game therefore drew an empty plate — in the bag, on the
+     * shelf and in the list of what a match dropped — with the right picture shipped beside it
+     * under the name the FFXIV art uses. Asking the model directly here would assert the bug.
+     */
+    @Test
+    fun everyPotionHasItsIcon() {
+        for (potion in PotionType.entries) {
+            val item = PotionItem(potion)
+            assertNotNull(art.icon(itemIconId(item)), "no icon for ${potion.name}")
+        }
+    }
+
+    /** And the placeholder a card item falls back to when its card cannot be resolved. */
+    @Test
+    fun theUnresolvedCardItemPlaceholderIsInTheBundle() {
+        assertNotNull(art.icon(itemIconId(CardItem(cardId = 1))), "CardItem's own fallback plate")
     }
 
     /** `AVATAR_ID` has named this since Phase 2, and until now nothing read it. */

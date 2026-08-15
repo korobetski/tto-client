@@ -190,8 +190,14 @@ private fun GameSave.applying(intent: Intent, cards: Map<Int, Card>): GameSave =
     )
     is Intent.DiscardItem -> Inventory.remove(this, intent.item)
 
+    // **Spare copies, not merely owned.** `SellButton` has always hidden itself for a card a saved
+    // deck is built on — see `GameSave.spareCopiesOf` — and this, the code that actually applies
+    // the sale, asked only whether the card was held at all. A rule enforced by the screen and not
+    // by the thing behind it is a rule enforced by nothing, which is the argument
+    // `Deck.isAffordable` makes about the deck editor. Selling the copy a deck names leaves a deck
+    // that cannot be fielded and a card the player meant to keep, gone for a fraction of its worth.
     is Intent.SellCard ->
-        if (!ownsCard(intent.cardId)) {
+        if (spareCopiesOf(intent.cardId) < 1) {
             this
         } else {
             withoutCard(intent.cardId).withMgp(CardValue.resaleOf(intent.cardId, cards))

@@ -52,6 +52,12 @@ const val DECK_RESET_TEST_TAG: String = "deck-reset"
 const val DECK_POWER_TEST_TAG: String = "deck-power"
 const val DECK_PICK_GRID_TEST_TAG: String = "deck-pick-grid"
 
+/** The editor's own "cards you no longer own" line. See [unownedPositions]. */
+const val DECK_MISSING_TEST_TAG: String = "deck-missing"
+
+/** `deck-missing-<index>` — the same warning on one slot of the list. */
+fun deckMissingTestTag(index: Int): String = "deck-missing-$index"
+
 /** `deck-slot-<index>`, 0-based over the five slots. */
 fun deckSlotTestTag(index: Int): String = "deck-slot-$index"
 
@@ -131,6 +137,7 @@ private fun DeckSlots(profile: GameSave, cards: Map<Int, Card>, onEdit: (Int) ->
                 index = index,
                 deck = deck,
                 cards = cards,
+                unowned = unownedPositions(deck, profile.cards),
                 onClick = { onEdit(index) },
             )
         }
@@ -138,7 +145,13 @@ private fun DeckSlots(profile: GameSave, cards: Map<Int, Card>, onEdit: (Int) ->
 }
 
 @Composable
-private fun DeckSlotRow(index: Int, deck: Deck, cards: Map<Int, Card>, onClick: () -> Unit) {
+private fun DeckSlotRow(
+    index: Int,
+    deck: Deck,
+    cards: Map<Int, Card>,
+    unowned: Set<Int>,
+    onClick: () -> Unit,
+) {
     val strings = LocalStrings.current
 
     Row(
@@ -171,10 +184,28 @@ private fun DeckSlotRow(index: Int, deck: Deck, cards: Map<Int, Card>, onClick: 
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+            // Said in words as well as in grey, because grey alone is a hint and this is a
+            // *reason*: a deck of five cards that never appears in the selector is otherwise a
+            // screen refusing to explain itself. `error` and not the faint tone the line above
+            // uses — every other line in this row is a fact about the deck, and this one is the
+            // only thing standing between the player and playing it.
+            if (unowned.isNotEmpty()) {
+                Text(
+                    text = strings.format(StringKeys.DECK_MISSING_CARDS, "${unowned.size}"),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.testTag(deckMissingTestTag(index)),
+                )
+            }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(HairlineWidth)) {
             for (position in 0 until HAND_SIZE) {
-                DeckPosition(card = deck.cards.getOrNull(position)?.let(cards::get))
+                DeckPosition(
+                    card = deck.cards.getOrNull(position)?.let(cards::get),
+                    owned = position !in unowned,
+                )
             }
         }
     }
@@ -222,6 +253,11 @@ private fun DeckEditor(
             modifier = Modifier.testTag(DECK_NAME_TEST_TAG).fillMaxWidth(),
         )
 
+        // Recomputed against the **draft**, so removing the greyed card clears the warning as the
+        // player watches — which is the whole reason the editor greys them too rather than leaving
+        // it to the list. This is the screen where the deck can actually be repaired.
+        val unowned = unownedPositions(draft, profile.cards)
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -238,15 +274,27 @@ private fun DeckEditor(
                             draft = draft.minusCardAt(position)
                         },
                 ) {
-                    DeckPosition(card = card)
+                    DeckPosition(card = card, owned = position !in unowned)
                 }
             }
+        }
+
+        if (unowned.isNotEmpty()) {
+            Text(
+                text = strings.format(StringKeys.DECK_MISSING_CARDS, "${unowned.size}"),
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.testTag(DECK_MISSING_TEST_TAG),
+            )
         }
 
         Text(
             text = "${strings[StringKeys.DECK_POWER]} ${deckPower(draft, cards)}" +
                 "$DOT_SEPARATOR${draft.cards.size} / $HAND_SIZE",
-            color = if (draft.isComplete) {
+            // Affordable as well as complete. `5 / 5` in the affirmative tone on a deck that
+            // cannot be dealt is the screen agreeing the deck is finished while every other place
+            // refuses it.
+            color = if (draft.isComplete && unowned.isEmpty()) {
                 MaterialTheme.colorScheme.tertiary
             } else {
                 MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT)
@@ -365,13 +413,51 @@ private fun DeckEditor(
  * There is no such texture in the imported atlases, so an empty position is an outlined box of the
  * same size — which is the whole point of drawing five of these in a row: a deck that is short a
  * card should look short a card.
+ *
+ * @param owned whether the profile still holds this copy. A deck keeps its five cards when one of
+ *   them is lost — see [unownedPositions] — so the same principle applies: a deck that is short a
+ *   card should *look* short a card, even when it still has five thumbnails in it.
  */
 @Composable
-internal fun DeckPosition(card: Card?) {
+internal fun DeckPosition(card: Card?, owned: Boolean = true) {
     if (card == null) {
         Box(modifier = Modifier.size(DeckThumbSize).rowSurface())
     } else {
-        CardThumb(card = card, size = DeckThumbSize)
+        CardThumb(
+            card = card,
+            size = DeckThumbSize,
+            modifier = if (owned) Modifier else Modifier.alpha(SPENT_ALPHA),
+        )
+    }
+}
+
+/**
+ * Which positions of [deck] name a copy the profile no longer holds.
+ *
+ * ### Why this exists at all
+ *
+ * A card can leave a collection — a card wager takes one — and `GameSave.withoutCard` deliberately
+ * leaves the decks standing rather than editing them down behind the player's back. `PveMatches`
+ * then refuses such a deck wherever it is dealt from. Both halves are right and together they were
+ * silent: the deck showed five cards, looked complete, and simply never appeared where a deck is
+ * chosen. This is the half that says why.
+ *
+ * ### By position, not by card
+ *
+ * A deck may name the same card twice, which is legal while two copies are held. Lose one and
+ * exactly *one* of those two positions is now unbacked — greying both would claim the player owns
+ * none of them, and greying the card id would grey it in a second deck that can still afford it.
+ * So the count is walked in deck order and each occurrence past the copies held is marked, which
+ * is the same arithmetic `Deck.isAffordable` does, reported per position instead of as a verdict.
+ *
+ * @param owned card id to copies held — `GameSave.cards`.
+ */
+internal fun unownedPositions(deck: Deck, owned: Map<Int, Int>): Set<Int> {
+    val seen = mutableMapOf<Int, Int>()
+    return deck.cards.withIndex().mapNotNullTo(mutableSetOf()) { (position, id) ->
+        val used = (seen[id] ?: 0) + 1
+        seen[id] = used
+        position.takeIf { used > (owned[id] ?: 0) }
     }
 }
 

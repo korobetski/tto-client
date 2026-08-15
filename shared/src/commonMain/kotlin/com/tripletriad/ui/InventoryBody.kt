@@ -67,10 +67,10 @@ fun inventoryRowTestTag(item: Item): String = "inventory-row-${itemSlug(item)}"
  *   discards immediately; the bag is the only place in the game where a tap destroys something with
  *   no way back. The second tap is the alert the original meant to write, in the shape the
  *   character list already uses for deletion.
- * - **Items are named, not iconised.** `ItemIcon` resolves `potionItem`, `booster_pack_icon` and
- *   `card_r{n}_icon` out of the UI atlas, which `tools/import_card_art.py` does not import — it
- *   imports the card art. A card item draws its actual card instead, which is more information than
- *   the icon carried.
+ * - **A card item draws its card, not an icon.** `CardItem.iconFor` names `card_r{n}_icon`, a plate
+ *   whose whole content is the rarity — and the card itself says that and everything else besides.
+ *   The other kinds keep their icons; see [itemIconId] for the one whose name does not match
+ *   what is shipped.
  * - **Every write goes through [ProfileSession].** The original saved from `sellBtnHandler` and
  *   `dropBtnHandler` and **not** from `useBtnHandler` — opening a pack or drinking a potion was
  *   persisted only by the `sortBag()` call at the end of the handler, which saves as a side effect
@@ -137,6 +137,10 @@ internal fun ColumnScope.InventoryBody(
                     note = ownedNote(strings, item, owned),
                     isSelected = itemKey(item) == selectedKey,
                     onClick = {
+                        // The note is about the last thing that was done, so it does not survive
+                        // picking something else to do — a refusal left standing over a different
+                        // row reads as a refusal of *that* row.
+                        note = null
                         selectedKey = itemKey(item).takeIf { it != selectedKey }
                     },
                 )
@@ -156,7 +160,17 @@ internal fun ColumnScope.InventoryBody(
                 // what came out. The profile is written by whoever answered — see
                 // [ProfileGate.useItem] — so nothing is persisted from here.
                 scope.launch {
-                    val effect = onUse(item) ?: return@launch
+                    // **Null is an answer and it used to be an early return**, which made a tap
+                    // that could not reach the server indistinguishable from a tap that never
+                    // registered. It means the attempt was not made at all — nobody signed in, or
+                    // the request did not come back — as opposed to [ItemEffect.NotUseable], which
+                    // means it was made and refused. Two different sentences, and both were
+                    // silence.
+                    val effect = onUse(item)
+                    if (effect == null) {
+                        note = strings[StringKeys.ACTION_FAILED]
+                        return@launch
+                    }
                     note = useNote(strings, effect, cards)
                     // Only a card *entering the collection* is revealed, which is the single
                     // branch `useBtnHandler` plays it in (`:236-245`). Opening a pack yields
@@ -168,6 +182,7 @@ internal fun ColumnScope.InventoryBody(
                 }
             },
             onSell = {
+                note = null
                 scope.launch { onIntent(Intent.SellItem(item)) }
             },
             onSellAll = {
@@ -214,7 +229,7 @@ private fun ItemRow(
         if (card != null) {
             CardThumb(card = card)
         } else {
-            ItemIcon(iconId = item.iconId, description = itemName(strings, item, cards))
+            ItemIcon(iconId = itemIconId(item), description = itemName(strings, item, cards))
         }
 
         Column(modifier = Modifier.weight(1f)) {
@@ -330,6 +345,18 @@ private fun BagActions(
  * [PackRevealScreen] instead, which is a better answer to the same problem this note was solving —
  * a pack yields *bag entries*, so without something saying so the pack simply vanishes and cards
  * appear further up a scrolled list.
+ *
+ * ### [ItemEffect.NotUseable] is the one that had to stop being null
+ *
+ * It means the item was **not spent**: either it does nothing, or — the case that actually happens
+ * — the bag the server holds does not contain it. On an account that is reachable through an
+ * ordinary door: a match against a program is credited by the client, the server discards the bag
+ * from that write, and until the transcript has been submitted and replayed the drop exists only on
+ * screen. See [MatchSettlement], which is what closes that window, and this line, which is what the
+ * player gets if it is ever open again.
+ *
+ * Returning null here meant the answer arrived, the row disappeared as the server's own bag
+ * replaced the client's, and nothing on screen accounted for either.
  */
 private fun useNote(strings: Strings, effect: ItemEffect, cards: Map<Int, Card>): String? =
     when (effect) {
@@ -340,7 +367,11 @@ private fun useNote(strings: Strings, effect: ItemEffect, cards: Map<Int, Card>)
             cards[effect.cardId]?.let { strings[it.nameKey] } ?: "#${effect.cardId}",
         )
 
-        is ItemEffect.BoonRaised, is ItemEffect.NotUseable -> null
+        // The boon is shown by the character bar's `MGP ×n`, which is the fact itself rather than
+        // a sentence about it — and it is on screen the moment the potion is drunk.
+        is ItemEffect.BoonRaised -> null
+
+        is ItemEffect.NotUseable -> strings[StringKeys.ITEM_REFUSED]
     }
 
 /**

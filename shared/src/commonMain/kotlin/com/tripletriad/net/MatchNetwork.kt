@@ -1,6 +1,5 @@
 package com.tripletriad.net
 
-import com.tripletriad.protocol.PlayerState
 import com.tripletriad.storage.DocumentStore
 import com.tripletriad.time.Clock
 import io.ktor.client.engine.HttpClientEngineFactory
@@ -108,13 +107,11 @@ data class ServerStores(
  *   of one, and a host with nothing to put here passes no connection at all.
  * @param clock the wall clock, for token expiry, and the monotonic-enough reading a probe measures
  *   its round trip with.
- * @param onCredited what to do with a profile the server credited during a drain.
  */
 fun serverConnection(
     stores: ServerStores,
     servers: List<ServerEntry>,
     clock: Clock,
-    onCredited: suspend (PlayerState) -> Unit = {},
 ): ServerConnection {
     val http = matchSubmitterHttpClient(defaultHttpEngineFactory())
     val directory = ServerDirectory(stores.directory, servers)
@@ -138,7 +135,6 @@ fun serverConnection(
         reporter = QueuedMatchReporter(
             queue = TranscriptQueue(stores.queue),
             submitter = KtorMatchSubmitter(client = http, baseUrl = address, token = token),
-            onCredited = onCredited,
         ),
         releases = GithubReleaseClient(http),
     )

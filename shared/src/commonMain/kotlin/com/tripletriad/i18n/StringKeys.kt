@@ -174,6 +174,16 @@ object StringKeys {
     const val RESET_DECK: String = "STR_RESET_DECK"
     const val SAVE: String = "STR_SAVE"
 
+    /**
+     * Why a deck that looks complete cannot be played. `{0}` is how many of its cards are gone.
+     *
+     * No AS3 key, and no AS3 problem: a card could not leave a collection there. It can here — a
+     * card wager takes one — and `GameSave.withoutCard` leaves the deck standing on purpose rather
+     * than editing it down behind the player's back. That is the right call and it needs saying out
+     * loud, or the deck is simply refused everywhere with five cards visibly in it.
+     */
+    const val DECK_MISSING_CARDS: String = "APP_DECK_MISSING_CARDS"
+
     /** `Play this deck` — the deck selector's confirm, shown before the deal. */
     const val CHOOSE_DECK: String = "STR_CHOOSE_DECK"
 
@@ -206,6 +216,26 @@ object StringKeys {
 
     /** Why Use is refused on a card the profile already has — `InventoryScreen.as:111`. */
     const val ALREADY_OWNED: String = "APP_ALREADY_OWNED"
+
+    /**
+     * The bag was asked to spend something and did not — `ItemEffect.NotUseable`.
+     *
+     * No AS3 equivalent, because the original could not reach the state: `Inventory.use` ran on the
+     * one profile there was. On an account the bag is the server's, and the copy on screen can be
+     * ahead of it — see [com.tripletriad.ui.MatchSettlement]. The wording says what happened to the
+     * *item* rather than blaming the player, because they did nothing wrong.
+     */
+    const val ITEM_REFUSED: String = "APP_ITEM_REFUSED"
+
+    /**
+     * The attempt could not be made at all: no session, or the request never came back.
+     *
+     * Distinct from [ITEM_REFUSED], which is the server answering no. This one is nobody answering,
+     * and the difference matters to the player: one means try something else, the other means try
+     * again. It deliberately does not name a cause — the client does not know one, and
+     * `AccountResult` reaches the screens that can say more.
+     */
+    const val ACTION_FAILED: String = "APP_ACTION_FAILED"
 
     /**
      * A bag entry whose `type` this build does not know.
@@ -397,6 +427,15 @@ object StringKeys {
     const val PVP_CLAIM_CONFIRM: String = "APP_PVP_CLAIM_CONFIRM"
     const val PVP_CLAIM_PENDING: String = "APP_PVP_CLAIM_PENDING"
     const val PVP_CLAIM_NONE: String = "APP_PVP_CLAIM_NONE"
+
+    /**
+     * What the **loser** is told while the winner names their prize. `{0}` is the winner.
+     *
+     * The one line in the claim vocabulary written from the other side of the table. It exists
+     * because the choice is made out of *this* player's hand: they are the one it happens to, and
+     * until now the only account they got of it was a card missing from their collection later.
+     */
+    const val PVP_CLAIM_WAIT: String = "APP_PVP_CLAIM_WAIT"
 
     /** Inviting somebody by name. `{0}` is the other player. */
     const val PVP_CHALLENGE: String = "APP_PVP_CHALLENGE"
@@ -657,7 +696,9 @@ object StringKeys {
         MULTIPLAYER, CARD_LIST, CARDS, HOME, CARD_DECKS, INVENTORY, SHOP, HELP, LOGOUT,
         CARD_INFOS, TOTAL, SIDES, RARITY, CARD_TYPE, PICK_CARD, OWNED,
         DECK, DECK_POWER, RESET_DECK, SAVE, CHOOSE_DECK, RANDOM_DECK, NO_FULL_DECK,
+        DECK_MISSING_CARDS,
         USE, SELL, DISCARD, BUY, CARD_SHOP, EMPTY_BAG, OBTAINED, ALREADY_OWNED, UNKNOWN_ITEM,
+        ITEM_REFUSED, ACTION_FAILED,
         STARTER_PACK, STARTER_PACK_DESC, FREE, CLAIM, ALL,
         PACK_SEALED, PACK_BREAK_SEAL, PACK_SPENT, PACK_REVEAL, PACK_TO_COLLECTION,
         PACK_GUARANTEE, PACK_ODDS,

@@ -204,6 +204,23 @@ class PvpSessionTest {
         assertTrue(offline.tables.isEmpty())
     }
 
+    /**
+     * And it is **reported**, which is the half that was missing.
+     *
+     * The local removal above is optimistic, and this screen polls: a table the server still holds
+     * comes back on the next `refreshTables` a second later, so the Host button turns into Cancel
+     * again and the player is left pressing a control that visibly does nothing. The result used to
+     * be logged and dropped, which is why they were told nothing about it.
+     */
+    @Test
+    fun aRefusedWithdrawalIsReported() = runTest {
+        val offline = sessionOver(MockEngine { error("connection refused") })
+
+        offline.cancelTable("t-1")
+
+        assertTrue(offline.failure != null, "the refusal was swallowed")
+    }
+
     /** A finished match reads as over, which is what stops the board accepting taps. */
     @Test
     fun aFinishedMatchReadsAsOver() = runTest {
@@ -214,6 +231,28 @@ class PvpSessionTest {
         session.resume()
 
         assertTrue(session.isOver)
+    }
+
+    /**
+     * A match waiting on the winner's choice is over **and not settled**, which is the distinction
+     * the board polls on.
+     *
+     * The board used to watch until `isOver`, so it stopped asking at exactly the moment the last
+     * question was about to be answered: the loser watched a dead board while a card was taken out
+     * of their hand somewhere they could not see it happen, and the winner's own claim never
+     * reached the board they made it from.
+     */
+    @Test
+    fun aMatchAwaitingAClaimIsOverButNotSettled() = runTest {
+        val session = sessionOver(
+            answering(HttpStatusCode.OK, encode(playing(status = PvpMatchStatus.AWAITING_CLAIM))),
+        )
+
+        session.resume()
+
+        assertTrue(session.isOver, "the board is finished")
+        assertTrue(session.isAwaitingClaim, "and a choice is owed on it")
+        assertFalse(session.isSettled, "so the poll must keep running")
     }
 
     /** With no token, nothing is sent at all — an offline profile has no PvP to poll for. */

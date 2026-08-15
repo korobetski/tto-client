@@ -585,7 +585,7 @@ private fun RewardRow(item: Item, cards: Map<Int, Card>, strings: Strings) {
         horizontalArrangement = Arrangement.spacedBy(SpaceSm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ItemIcon(iconId = item.iconId, description = name, size = IconSm)
+        ItemIcon(iconId = itemIconId(item), description = name, size = IconSm)
         Text(
             text = if (item.stack > 1) "$name x${item.stack}" else name,
             color = MaterialTheme.colorScheme.onSurface,
@@ -596,8 +596,13 @@ private fun RewardRow(item: Item, cards: Map<Int, Card>, strings: Strings) {
     }
 }
 
-/** Material's own dialog elevation, since the panel stands in for one. */
-private val OutcomeElevation = 6.dp
+/**
+ * Material's own dialog elevation, since the panel stands in for one.
+ *
+ * Shared with `PvpResult`, which stands in for the same dialog at the end of a PvP match and has to
+ * sit at the same height for the two endings to read as one thing.
+ */
+internal val OutcomeElevation = 6.dp
 
 /** `RULE_COMBO` is the rule's *name*; this marks one having happened, and needs no translation. */
 private const val COMBO_MARK = "✦ combo"

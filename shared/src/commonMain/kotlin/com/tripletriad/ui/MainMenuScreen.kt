@@ -1,6 +1,5 @@
 package com.tripletriad.ui
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,7 +14,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -279,26 +277,20 @@ private fun ResumeCard(account: RememberedAccount, active: GameSave?) {
     val strings = LocalStrings.current
     val lapsed = account.state == SessionState.LAPSED
 
-    Surface(
+    // `armed` is the destructive outline, and a lapsed session is what it is for here: the card
+    // still offers Continue, but the thing behind it has expired and the border is the only part
+    // of the card that says so before the player presses it.
+    TtoCard(
         modifier = Modifier.testTag(MENU_RESUME_TEST_TAG).fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        border = BorderStroke(
-            width = 1.dp,
-            color = if (lapsed) {
-                MaterialTheme.colorScheme.error
-            } else {
-                MaterialTheme.colorScheme.outline
-            },
-        ),
+        armed = lapsed,
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.padding(SpaceMd),
+            verticalArrangement = Arrangement.spacedBy(SpaceMd),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(SpaceMd),
             ) {
                 // The character's own avatar when there is one, and its plate when there is not:
                 // the lapsed case has a name and no profile behind it yet.

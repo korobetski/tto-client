@@ -165,6 +165,20 @@ class AccountClient(
     ): AccountResult<PlayerState> =
         intent(token, "/me/bag/sell", BagItemRequest(item, operationId))
 
+    /**
+     * Sells every one of a bag item.
+     *
+     * **No count on the wire**, deliberately: the request names the item and the server counts what
+     * the stored bag holds. See the route, and `BagItemRequest`, whose `stack` says which and never
+     * how many.
+     */
+    suspend fun sellAllItems(
+        token: String,
+        item: Item,
+        operationId: String,
+    ): AccountResult<PlayerState> =
+        intent(token, "/me/bag/sell-all", BagItemRequest(item, operationId))
+
     /** Throws a bag item away. Nothing is paid. */
     suspend fun discardItem(
         token: String,
@@ -234,6 +248,44 @@ class AccountClient(
         val response = client.delete("${baseUrl()}/sessions") {
             protocolHeaders()
             bearer(token)
+        }
+        when (response.status.value) {
+            HTTP_NO_CONTENT, HTTP_OK -> AccountResult.Ok(Unit)
+            else -> response.toFailure()
+        }
+    }
+
+    /**
+     * Deletes the account and everything belonging to it. **Irreversible, and not undoable here.**
+     *
+     * ### Why this sends the password when [signOut] next door sends nothing
+     *
+     * Because the server insists, and the server is right to — `AccountRoutes` argues it: a bearer
+     * token sits on the device in the clear, so a token alone cannot distinguish "the owner asked
+     * to be forgotten" from "somebody picked up an unlocked phone". Only one of those is
+     * recoverable.
+     *
+     * ### And why the caller must **not** clear its token regardless, which is [signOut]'s rule
+     *
+     * The two look alike and their failure modes are opposites. A sign-out that the network refused
+     * still signed the player out in front of them, and the token expiring on its own is a smaller
+     * problem than a button that does nothing. Here a refusal is usually **a wrong password** — the
+     * account is still there, and signing the player out of it would be answering "that is not your
+     * password" by taking away their session. So this reports and changes nothing; see
+     * `AccountSession.deleteAccount`, which only clears on [AccountResult.Ok].
+     *
+     * `204` and `200` both count, and `204` is what the server sends for an account that was
+     * already gone — a client that lost the answer and asked again has got what it asked for.
+     */
+    suspend fun deleteAccount(
+        token: String,
+        credentials: Credentials,
+    ): AccountResult<Unit> = guard {
+        val response = client.delete("${baseUrl()}/accounts/me") {
+            protocolHeaders()
+            bearer(token)
+            contentType(ContentType.Application.Json)
+            setBody(credentials)
         }
         when (response.status.value) {
             HTTP_NO_CONTENT, HTTP_OK -> AccountResult.Ok(Unit)

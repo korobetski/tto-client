@@ -41,16 +41,21 @@ import kotlin.test.assertFalse
  * type, on every side, and redoing it after each turn — for the opponent's cards as well as one's
  * own, since the tally is board-wide and not per player.
  *
- * So the rule shipped as arithmetic homework, and the two things asserted here are what turn it
- * back into a game: the **digits** a card fights with, and a **badge** saying where they came from.
+ * So the rule shipped as arithmetic homework, and what turns it back into a game is a **badge**
+ * over the card saying what the board is doing to it.
  *
- * ### Why the digits are asserted through the accessibility label
+ * ### The digits do **not** move, and that is the sharp half
  *
- * Because the digits themselves are 18x18 bitmaps out of an atlas — `cd7`, `cdA` — and a test
- * cannot read a texture. The label is built from the same [com.tripletriad.model.EdgePowers] the
- * glyphs are chosen from, in `CardFace`, so asserting it pins the numbers that were drawn. It also
- * pins the thing worth pinning on its own account: a screen-reader user is told what the card is
- * worth **here**, not what is printed on it.
+ * A first version folded the modifier into the four numbers, so a 5 on a `+3` board was drawn as an
+ * 8. That is wrong, and not by taste: the **printed** values are what Same and Plus compare —
+ * `RulesEngineOptions.specialPowerBasis` — so a card whose digits had the modifier baked in would
+ * be showing numbers a player cannot use to spot a Same. Every test below therefore asserts the
+ * digits are the card's own *and* that the badge is present; either alone would allow the version
+ * that was wrong.
+ *
+ * The digits are read through the accessibility label because they are 18x18 bitmaps out of an
+ * atlas and a test cannot read a texture. `CardFace` builds the label from the same card the glyphs
+ * come from, so asserting it pins what was drawn.
  *
  * ### Why it composes [PlayArea] rather than playing a match
  *
@@ -61,43 +66,37 @@ import kotlin.test.assertFalse
 @OptIn(ExperimentalTestApi::class)
 class BonusMalusBoardTest {
 
-    /**
-     * A card on a `+3` board draws 8, not 5 — and says `+3`, so the 8 is explicable.
-     *
-     * Both halves matter and neither replaces the other. Digits alone leave a player unable to tell
-     * a strong card from a boosted weak one, which is the judgement a trade or a wager turns on. A
-     * badge alone leaves the arithmetic exactly where it was.
-     */
+    /** A card on a `+3` board keeps its printed 5s and wears a `+3`. */
     @Test
-    fun aCardUnderBonusDrawsWhatItFightsWith() = runComposeUiTest {
+    fun aCardUnderBonusKeepsItsPrintedPowersAndWearsTheBadge() = runComposeUiTest {
         setContent {
             Fixture(tallied(TypeRule.ASCENSION, CardType.BEAST to BONUS).withCard(CELL, beast()))
         }
 
         onNodeWithTag(tileModifierTestTag(CELL), useUnmergedTree = true).assertTextEquals("+3")
-        onNodeWithContentDescription("$BEAST_NAME, 8 8 8 8").assertExists()
+        onNodeWithContentDescription("$BEAST_NAME, 5 5 5 5").assertExists()
     }
 
-    /** And under Malus it draws down, with the sign written rather than merely coloured. */
+    /** And under Malus the sign is written rather than merely coloured — digits still untouched. */
     @Test
-    fun aCardUnderMalusDrawsDown() = runComposeUiTest {
+    fun aCardUnderMalusWearsANegativeBadge() = runComposeUiTest {
         setContent {
             Fixture(tallied(TypeRule.DESCENSION, CardType.BEAST to MALUS).withCard(CELL, beast()))
         }
 
         onNodeWithTag(tileModifierTestTag(CELL), useUnmergedTree = true).assertTextEquals("−2")
-        onNodeWithContentDescription("$BEAST_NAME, 3 3 3 3").assertExists()
+        onNodeWithContentDescription("$BEAST_NAME, 5 5 5 5").assertExists()
     }
 
     /**
-     * A runaway Malus stops the card at 1, which is the rule and not a rendering accident.
+     * A runaway Malus still reports the whole tally, and still leaves the digits alone.
      *
-     * `−9` against a 5 is `−4` on paper. The badge still reports the tally — that is what the board
-     * is doing — and the digits report where it landed. This is the one case where the two numbers
-     * *must* disagree, and a screen showing only one of them would be either wrong or useless.
+     * `−9` against a 5 floors the card at 1 when it *fights* — [MIN_MODIFIED_POWER] — but the badge
+     * reports what the board is doing, not where the arithmetic landed, and the printed 5s are what
+     * Same and Plus will read whatever the tally says.
      */
     @Test
-    fun anOverwhelmingMalusFloorsTheCardAtOne() = runComposeUiTest {
+    fun anOverwhelmingMalusStillShowsTheWholeTally() = runComposeUiTest {
         setContent {
             Fixture(
                 tallied(TypeRule.DESCENSION, CardType.BEAST to RUNAWAY_MALUS)
@@ -106,7 +105,7 @@ class BonusMalusBoardTest {
         }
 
         onNodeWithTag(tileModifierTestTag(CELL), useUnmergedTree = true).assertTextEquals("−9")
-        onNodeWithContentDescription("$BEAST_NAME, 1 1 1 1").assertExists()
+        onNodeWithContentDescription("$BEAST_NAME, 5 5 5 5").assertExists()
     }
 
     /** A card of another type is untouched, so the badge belongs to the card and not the board. */

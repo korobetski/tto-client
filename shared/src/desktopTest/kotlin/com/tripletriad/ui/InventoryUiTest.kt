@@ -106,9 +106,9 @@ class InventoryUiTest {
         assertEquals(1, Inventory.count(save, CardItem(SELLABLE_CARD)), "one of the two sold")
     }
 
-    /** Only a card item is sellable, so Sell is dead on a pack — [BoosterItem.sellable]. */
+    /** Only a card item is sellable, so both Sell buttons are dead on a pack. */
     @Test
-    fun aPackCannotBeSoldAndCannotBeDiscarded() = runComposeUiTest {
+    fun aPackCannotBeSoldByEitherButton() = runComposeUiTest {
         val documents = seeded(withBag())
         setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openBag(documents)
@@ -116,8 +116,9 @@ class InventoryUiTest {
         select(BoosterItem(BoosterType.BRONZE))
 
         onNodeWithTag(INVENTORY_SELL_TEST_TAG).assertIsNotEnabled()
-        // `dropable = false` on a pack, which the AS3 declares and this reproduces.
-        onNodeWithTag(INVENTORY_DISCARD_TEST_TAG).assertIsNotEnabled()
+        onNodeWithTag(INVENTORY_SELL_ALL_TEST_TAG).assertIsNotEnabled()
+        // And Use is live, which is what stops a pack being stuck in the bag now that Discard is
+        // gone: the two item kinds that cannot be sold are exactly the two that are consumed.
         onNodeWithTag(INVENTORY_USE_TEST_TAG).assertIsEnabled()
     }
 
@@ -282,32 +283,52 @@ class InventoryUiTest {
     }
 
     /**
-     * Discard asks twice.
+     * **Sell all** empties the stack in one tap, and is paid for every one of them.
      *
-     * `dropBtnHandler` opens on `// TODO : afficher une Alert` and then destroys the item on the
-     * first tap. Both halves are asserted, because a control that discarded immediately would pass
-     * a test that only checked the item was gone at the end.
+     * This replaced Discard, which destroyed an item for nothing and needed a two-tap arm to be
+     * safe. Being paid is not something to protect a player from, so the arm went with it — and the
+     * assertion below is the one that would have caught the arm being removed from the *wrong*
+     * button: the whole stack goes, not one of it.
      */
     @Test
-    fun discardingTakesTwoTaps() = runComposeUiTest {
+    fun sellingAllEmptiesTheStackAndPaysForEveryOne() = runComposeUiTest {
         val documents = seeded(withBag())
         setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openBag(documents)
 
-        select(CardItem(SELLABLE_CARD))
-        onNodeWithTag(INVENTORY_DISCARD_TEST_TAG).performClick()
-        waitForIdle()
+        val before = storedSave(documents)
+        val held = Inventory.count(before, CardItem(SELLABLE_CARD))
+        val each = Inventory.priceOf(CardItem(SELLABLE_CARD), cards)
+        check(held > 1) { "the fixture needs a stack to empty, had $held" }
 
-        assertEquals(
-            2,
-            Inventory.count(storedSave(documents), CardItem(SELLABLE_CARD)),
-            "the first tap must only arm the control",
-        )
+        select(CardItem(SELLABLE_CARD, stack = held))
+        onNodeWithTag(INVENTORY_SELL_ALL_TEST_TAG).performClick()
 
-        onNodeWithTag(INVENTORY_DISCARD_TEST_TAG).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
-            Inventory.count(storedSave(documents), CardItem(SELLABLE_CARD)) == 1
+            Inventory.count(storedSave(documents), CardItem(SELLABLE_CARD)) == 0
         }
+        assertEquals(
+            before.mgp + each * held,
+            storedSave(documents).mgp,
+            "selling $held paid for fewer than $held",
+        )
+    }
+
+    /**
+     * At a stack of one it is disabled, because it would be the button beside it.
+     *
+     * Two controls that do the same thing invite the player to wonder which one they got wrong.
+     */
+    @Test
+    fun sellAllIsInertWhenThereIsOnlyOne() = runComposeUiTest {
+        val documents = seeded(withBag())
+        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openBag(documents)
+
+        select(CardItem(STARTER_CARDS.first()))
+
+        onNodeWithTag(INVENTORY_SELL_ALL_TEST_TAG).assertIsNotEnabled()
+        onNodeWithTag(INVENTORY_SELL_TEST_TAG).assertIsEnabled()
     }
 
     private companion object {

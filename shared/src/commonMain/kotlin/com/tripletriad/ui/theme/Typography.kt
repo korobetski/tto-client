@@ -38,88 +38,89 @@ internal fun rememberGameFontFamily(): FontFamily = FontFamily(
 )
 
 /**
- * The type scale, in Raleway.
+ * The type scale — Material 3's own, in Raleway.
  *
- * ### The AS3's own ladder, and why the numbers here are not it
+ * ### Why the ladder was re-anchored, twice
  *
- * `BaseTTOTheme.as:669-672` declares four sizes — 18, 24, 28 and 36 — and multiplies each by
- * `scale`, which is the device's DPI over `ORIGINAL_DPI_IPHONE_RETINA` (326). They are therefore
- * **pixels at 326 DPI**, not density-independent units: converted at 160 dp-per-inch they come out
- * as roughly 9, 12, 14 and 18 dp.
+ * The AS3 declares four sizes at `BaseTTOTheme.as:669-672` — 18, 24, 28, 36 — multiplied by the
+ * device's DPI over 326. They are **pixels at 326 DPI**, so at 160 dp-per-inch they come out near
+ * 9, 12, 14 and 18 dp. The first re-anchoring took the *shape* of that ladder — four steps, each
+ * about a fifth larger than the last — and floated it up to 11 / 12 / 13 / 14 / 15 / 16 / 18 sp,
+ * which is what the screens were written against.
  *
- * Nine dp is too small to read on a phone that is not a 2013 Retina display, and flooring the
- * bottom of the ladder while leaving the top would flatten the ratios that make it a ladder. So
- * what is preserved is the **shape** — four steps, each about a fifth larger than the last, with
- * the two smallest carrying metadata and the largest carrying a screen title — re-anchored for
- * density. This is the same judgement `Task 4.2` records for the card geometry: treat the AS3's
- * numbers as design ratios and scale them to the viewport rather than transcribing pixels.
+ * That ladder is the one this replaces, and the reason is that it never stopped being the AS3's:
+ * seven steps inside eight points, so a screen title was two points larger than the body under it
+ * and the whole app read as one dense weight of grey. **The gap between 11 and 18 sp is not a
+ * hierarchy a player can see.** Material's scale spans 11 to 24 for the slots this app uses, and
+ * the difference is not decoration — it is what lets somebody find the title of a screen without
+ * reading it.
  *
- * The sizes below are the ones the fourteen screens were already using, now named once instead of
- * written as a literal at each of the ninety-odd call sites. Re-anchoring the ladder is a design
- * decision and this is the one place it would be made.
+ * The slots below are Material 3's published sizes, line heights and letter spacings. Line height
+ * and tracking were **absent entirely** before this: every style set a size and left the rest at
+ * `TextStyle`'s defaults, which is why the denser screens ran their lines together.
+ *
+ * ### What this costs, and where it is checked
+ *
+ * Bigger text in the same columns. `PvpTableScreen` is the worst case in the app by some distance —
+ * a format picker, twelve rule chips, a checkbox with two lines of explanation, a slider, five
+ * trade options and a button, in one column — and `TextScalingTest` already renders it at 200% to
+ * prove its button stays reachable. That test is the fence this change had to come past.
  *
  * ### Colour is not set here
  *
- * Deliberately, and Task 4.1's own note says why: a `TextStyle` carrying a colour silently
- * overrides the `ColorScheme` everywhere it is used, and then two things claim to decide what
- * colour text is. The scheme decides; these carry family, size and weight only.
+ * Deliberately: a `TextStyle` carrying a colour silently overrides the `ColorScheme` everywhere it
+ * is used, and then two things claim to decide what colour text is. The scheme decides; these carry
+ * family, size, weight and metrics only.
  *
  * ### Every slot carries the family, including the ones nothing names
  *
- * `Text`'s default style is `MaterialTheme.typography.bodyLarge`, and a `Text` that sets `fontSize`
- * without setting `style` still inherits its *family* from there. So leaving the slots this app
- * does not name at their Material defaults would leave most of the screen in the platform font
- * while the theme claimed to have set one. The unnamed slots keep Material's own sizes and take the
- * family.
+ * `Text`'s default style is `bodyLarge`, and a `Text` that sets `fontSize` without setting `style`
+ * still inherits its *family* from there. Leaving the unnamed slots at Material's defaults would
+ * leave most of the screen in the platform font while the theme claimed to have set one.
+ * `ThemeTest.everyTypeSlotCarriesTheGameFont` is what says it does not.
  */
 @Composable
 internal fun appTypography(): Typography {
     val game = rememberGameFontFamily()
-    val base = Typography()
 
-    fun style(size: Int, weight: FontWeight = FontWeight.Normal) =
-        TextStyle(fontFamily = game, fontSize = size.sp, fontWeight = weight)
+    fun style(size: Int, lineHeight: Int, tracking: Double, weight: FontWeight) = TextStyle(
+        fontFamily = game,
+        fontSize = size.sp,
+        lineHeight = lineHeight.sp,
+        letterSpacing = tracking.sp,
+        fontWeight = weight,
+    )
 
-    return base.copy(
-        displayLarge = base.displayLarge.copy(fontFamily = game),
-        displayMedium = base.displayMedium.copy(fontFamily = game),
-        displaySmall = base.displaySmall.copy(fontFamily = game),
-        headlineLarge = base.headlineLarge.copy(fontFamily = game),
-        headlineMedium = base.headlineMedium.copy(fontFamily = game),
-        // `extraLargeFontSize` — `Header`'s own format, which is what a screen title is.
-        headlineSmall = style(TITLE, FontWeight.Bold),
-        titleLarge = base.titleLarge.copy(fontFamily = game),
-        // `largeFontSize` — `largeUILightElementFormat`, the primary control label.
-        titleMedium = style(BUTTON),
-        titleSmall = style(ROW_TITLE, FontWeight.Bold),
-        // `regularFontSize` — the body of every list, and the default every `Text` inherits.
-        bodyLarge = style(BODY),
-        bodyMedium = style(BODY),
-        bodySmall = style(SECONDARY),
-        labelLarge = base.labelLarge.copy(fontFamily = game),
-        // `smallFontSize` — `detailElementFormat`, the line under a row's name.
-        labelMedium = style(META),
-        labelSmall = style(FINE),
+    val regular = FontWeight.Normal
+    val medium = FontWeight.Medium
+
+    return Typography(
+        displayLarge = style(57, 64, -0.25, regular),
+        displayMedium = style(45, 52, 0.0, regular),
+        displaySmall = style(36, 44, 0.0, regular),
+
+        headlineLarge = style(32, 40, 0.0, regular),
+        headlineMedium = style(28, 36, 0.0, regular),
+        // A screen title, and the largest thing the app draws outside the splash.
+        headlineSmall = style(24, 32, 0.0, medium),
+
+        // The app bar's own title.
+        titleLarge = style(22, 28, 0.0, regular),
+        // The label on a `WideButton`, and a card's name in a detail pane.
+        titleMedium = style(16, 24, 0.15, medium),
+        // A list row's name.
+        titleSmall = style(14, 20, 0.1, medium),
+
+        // Body text, and the default every `Text` inherits.
+        bodyLarge = style(16, 24, 0.5, regular),
+        bodyMedium = style(14, 20, 0.25, regular),
+        // A row's secondary line.
+        bodySmall = style(12, 16, 0.4, regular),
+
+        labelLarge = style(14, 20, 0.1, medium),
+        // The `·`-joined metadata line.
+        labelMedium = style(12, 16, 0.5, medium),
+        // The smallest thing on screen: a rules strip, a stack count, a progress figure.
+        labelSmall = style(11, 16, 0.5, medium),
     )
 }
-
-/** Screen titles. */
-private const val TITLE = 18
-
-/** The label on a [com.tripletriad.ui.WideButton]. */
-private const val BUTTON = 16
-
-/** A list row's name. */
-private const val ROW_TITLE = 15
-
-/** Body text, and a card detail's name. */
-private const val BODY = 14
-
-/** A row's secondary line. */
-private const val SECONDARY = 13
-
-/** The `·`-joined metadata line. */
-private const val META = 12
-
-/** The smallest thing on screen: a rules strip, a stack count, a progress figure. */
-private const val FINE = 11

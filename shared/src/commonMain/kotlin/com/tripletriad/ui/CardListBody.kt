@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -360,15 +361,17 @@ private fun CardFilters(
         // A set row only when there is a choice to make. One set admitted is not a filter, it is a
         // row of one chip that does nothing.
         if (sets.size > 1) {
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                FilterChip(strings[StringKeys.ALL], setFilterTestTag(null), set == null) {
-                    onSet(null)
-                }
+            Row(horizontalArrangement = Arrangement.spacedBy(SpaceXs)) {
+                TtoFilterChip(
+                    label = strings[StringKeys.ALL],
+                    tag = setFilterTestTag(null),
+                    selected = set == null,
+                ) { onSet(null) }
                 for (block in sets) {
-                    FilterChip(
+                    TtoFilterChip(
                         label = "$BLOCK_PREFIX$block",
                         tag = setFilterTestTag(block),
-                        isOn = set == block,
+                        selected = set == block,
                         onClick = { onSet(block.takeIf { it != set }) },
                     )
                 }
@@ -377,12 +380,14 @@ private fun CardFilters(
 
         Row(
             modifier = Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(SpaceXs),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            FilterChip(strings[StringKeys.ALL], typeFilterTestTag(null), type == null) {
-                onType(null)
-            }
+            TtoFilterChip(
+                label = strings[StringKeys.ALL],
+                tag = typeFilterTestTag(null),
+                selected = type == null,
+            ) { onType(null) }
             for (candidate in types) {
                 TypeChip(candidate, isOn = type == candidate) {
                     onType(candidate.takeIf { it != type })
@@ -392,25 +397,21 @@ private fun CardFilters(
     }
 }
 
-/** A word in a box that is lit when it is the current choice. */
-@Composable
-private fun FilterChip(label: String, tag: String, isOn: Boolean, onClick: () -> Unit) {
-    Text(
-        text = label,
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (isOn) 1f else MUTED),
-        style = MaterialTheme.typography.labelSmall,
-        fontWeight = if (isOn) FontWeight.Bold else FontWeight.Normal,
-        maxLines = 1,
-        softWrap = false,
-        modifier = Modifier
-            .testTag(tag)
-            .rowSurface(selected = isOn)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-    )
-}
-
-/** The same chip carrying an element's icon — see [CardFilters] for why it is not a word. */
+/**
+ * The element filter — the same chip carrying an icon instead of a word.
+ *
+ * ### Why this one is still hand-built when the word chips are [TtoFilterChip]
+ *
+ * Because a Material chip is a *label* with an optional leading icon, and this has no label at all:
+ * see [CardFilters] for why the elements are drawn rather than named. Feeding an empty label to
+ * `FilterChip` would give a chip padded for text that is not there, twelve times in a row on the
+ * densest strip in the app.
+ *
+ * What it takes from the shared control instead is everything that is not the shape: [ttoClickable]
+ * gives it the 48 dp touch target — these measured about 24 dp, the smallest tap targets in the
+ * game — the selected state a screen reader can read, and the focus ring. The element's own name is
+ * the description, so the strip reads out as twelve named toggles rather than twelve images.
+ */
 @Composable
 private fun TypeChip(type: CardType, isOn: Boolean, onClick: () -> Unit) {
     val icon = LocalCardArt.current?.typeIcon(type)
@@ -419,8 +420,8 @@ private fun TypeChip(type: CardType, isOn: Boolean, onClick: () -> Unit) {
         modifier = Modifier
             .testTag(typeFilterTestTag(type))
             .rowSurface(selected = isOn)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 6.dp, vertical = 3.dp),
+            .ttoClickable(role = Role.Checkbox, selected = isOn, onClick = onClick)
+            .padding(horizontal = SpaceSm, vertical = SpaceXs),
     ) {
         if (icon == null) {
             Text(

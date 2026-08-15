@@ -9,7 +9,13 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.IntOffset
 import com.tripletriad.platform.rememberReducedMotion
+import com.tripletriad.ui.theme.DURATION_MEDIUM
+import com.tripletriad.ui.theme.DURATION_SHORT
+import com.tripletriad.ui.theme.EmphasizedAccelerate
+import com.tripletriad.ui.theme.EmphasizedDecelerate
+import com.tripletriad.ui.theme.Standard
 
 /**
  * How one screen becomes another.
@@ -68,13 +74,20 @@ internal fun transitionFor(from: Screen, to: Screen, reduced: Boolean): ContentT
     }
 
     if (travel == STILL) {
-        return fadeIn(tween(FADE_MILLIS)) togetherWith fadeOut(tween(FADE_MILLIS))
+        val fade = tween<Float>(DURATION_SHORT, easing = Standard)
+        return fadeIn(fade) togetherWith fadeOut(fade)
     }
 
-    return slideInHorizontally(tween(SLIDE_MILLIS)) { width -> travel * width } +
-        fadeIn(tween(SLIDE_MILLIS)) togetherWith
-        slideOutHorizontally(tween(SLIDE_MILLIS)) { width -> -travel * width } +
-        fadeOut(tween(SLIDE_MILLIS))
+    // Asymmetric on purpose: the arriving screen decelerates into place and the leaving one
+    // accelerates away, which is what makes the pair read as one movement rather than as two
+    // things sliding past each other. See `theme/Motion.kt` for why these two curves exist.
+    val entering = tween<IntOffset>(DURATION_MEDIUM, easing = EmphasizedDecelerate)
+    val leaving = tween<IntOffset>(DURATION_MEDIUM, easing = EmphasizedAccelerate)
+
+    return slideInHorizontally(entering) { width -> travel * width } +
+        fadeIn(tween(DURATION_MEDIUM, easing = Standard)) togetherWith
+        slideOutHorizontally(leaving) { width -> -travel * width } +
+        fadeOut(tween(DURATION_MEDIUM, easing = Standard))
 }
 
 /** No travel at all: a sidestep, or a player who has asked for less movement. */
@@ -85,14 +98,3 @@ private const val FORWARD = 1
 
 /** Coming back: it arrives from the left, undoing the gesture that took the player in. */
 private const val BACKWARD = -1
-
-/**
- * Short enough not to be a wait, long enough to be seen.
- *
- * The crossfade this replaced used 220 ms and the reasoning holds; a slide needs a little longer to
- * read as travel rather than as a jump.
- */
-private const val SLIDE_MILLIS = 260
-
-/** A fade has no distance to cover, so it does not need the extra time. */
-private const val FADE_MILLIS = 220

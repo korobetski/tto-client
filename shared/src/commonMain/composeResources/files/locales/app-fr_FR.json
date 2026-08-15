@@ -200,5 +200,10 @@
   "APP_PVP_TABLE_EXPIRES": "encore {0} min",
   "APP_PVP_DECK": "Deck",
   "APP_PVP_DECK_ANY": "Automatique",
-  "APP_PVP_INVITE_TO": "Défier {0}"
+  "APP_PVP_INVITE_TO": "Défier {0}",
+  "APP_ACCOUNT_SETTINGS": "Compte",
+  "APP_DELETE_ACCOUNT": "Supprimer le compte",
+  "APP_DELETE_ACCOUNT_BODY": "Ceci supprime votre compte et tout ce qu'il contient : vos cartes, vos MGP, vos jeux, vos succès et votre historique de parties. C'est irréversible et sans délai de rétractation. Les parties terminées disparaissent aussi de l'historique de vos adversaires, car une partie nomme les deux joueurs. Saisissez votre mot de passe pour confirmer.",
+  "APP_DELETE_ACCOUNT_CONFIRM": "Supprimer définitivement",
+  "APP_SELL_ALL": "Tout vendre"
 }

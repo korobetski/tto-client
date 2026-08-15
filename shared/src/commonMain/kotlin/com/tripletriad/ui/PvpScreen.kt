@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -249,18 +248,18 @@ private fun DeckPicker(profile: GameSave, selected: Int, onSelect: (Int) -> Unit
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            FilterChip(
+            TtoFilterChip(
+                label = strings[StringKeys.PVP_DECK_ANY],
+                tag = pvpDeckTestTag(ANY_DECK),
                 selected = selected == ANY_DECK,
                 onClick = { onSelect(ANY_DECK) },
-                label = { Text(strings[StringKeys.PVP_DECK_ANY]) },
-                modifier = Modifier.testTag(pvpDeckTestTag(ANY_DECK)),
             )
             for ((slot, deck) in decks) {
-                FilterChip(
+                TtoFilterChip(
+                    label = deckLabel(strings, deck, slot),
+                    tag = pvpDeckTestTag(slot),
                     selected = selected == slot,
                     onClick = { onSelect(slot) },
-                    label = { Text(deckLabel(strings, deck, slot)) },
-                    modifier = Modifier.testTag(pvpDeckTestTag(slot)),
                 )
             }
         }

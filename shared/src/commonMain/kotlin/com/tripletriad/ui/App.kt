@@ -440,7 +440,16 @@ private fun Destination(
         )
 
         Screen.OPTIONS -> settings?.let {
-            OptionsScreen(settings = it, onBack = { onNavigate(Screen.MENU) })
+            OptionsScreen(
+                settings = it,
+                onBack = { onNavigate(Screen.MENU) },
+                // Null in local-profile mode, which hides the account group — see `OptionsScreen`.
+                // The session clears itself on success, so there is nothing to sign out of here.
+                account = account,
+                // The same destination `onLogout` goes to, and for a stronger version of its
+                // reason: every screen behind this one is about a character that no longer exists.
+                onDeleted = { onNavigate(chooser) },
+            )
         }
 
         // Everything behind the dashboard needs a character, and a missing one is a state the flow

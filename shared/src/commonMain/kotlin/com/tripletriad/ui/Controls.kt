@@ -1,13 +1,19 @@
 package com.tripletriad.ui
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -15,13 +21,20 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
@@ -31,18 +44,30 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tripletriad.audio.LocalAudio
@@ -67,9 +92,18 @@ const val CHARACTER_BAR_TEST_TAG: String = "character-bar"
  * when the language does. A truncated label is a visible problem; a layout that shifts between
  * languages is a subtle one.
  *
- * @param filled false for the quiet half of a pair — the same button in the theme's surface colours
- *   rather than its primary. Two filled buttons side by side ask the player to choose between two
- *   equally loud things; Material's own dialog pairs one filled action with one that is not.
+ * ### Why this is two Material components and no longer one recoloured one
+ *
+ * It used to be a [Button] whose container was swapped between `primary` and `surfaceVariant` by
+ * hand, which is the shape of a design system that has not been given the roles it needs: Material
+ * already ships the quiet half of a pair as [FilledTonalButton], and hand-colouring one to imitate
+ * it means the disabled state, the elevation and the ripple all have to be imitated too — and each
+ * is a place the two can drift apart. With the scheme now complete, `filled = false` can simply
+ * *be* the tonal button.
+ *
+ * @param filled false for the quiet half of a pair. Two filled buttons side by side ask the player
+ *   to choose between two equally loud things; Material's own dialog pairs one filled action with
+ *   one that is not.
  */
 @Composable
 internal fun WideButton(
@@ -82,27 +116,16 @@ internal fun WideButton(
     // `TouchLabel.as:31` played this on any tap on a control, so it belongs to the control and not
     // to each caller — otherwise the next screen added is the one that forgets it.
     val audio = LocalAudio.current
-    Button(
-        onClick = {
-            audio.play(Sound.UI_CLICK)
-            onClick()
-        },
-        enabled = enabled,
-        modifier = Modifier.fillMaxWidth().height(48.dp).testTag(tag),
-        shape = MaterialTheme.shapes.extraSmall,
-        // `primary` is the card blue and `onPrimary` the theme's light text, so the only thing
-        // left to say is what a *disabled* button looks like — Material would grey it against a
-        // surface this app does not use.
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (filled) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant
-            },
-            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-            disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = DISABLED),
-        ),
-    ) {
+    val press = {
+        audio.play(Sound.UI_CLICK)
+        onClick()
+    }
+    // Material's own height for a button that is the point of its screen, and `large` rather than
+    // `extraSmall`: a 4 dp radius on a 56 dp bar reads as a rectangle, which is what made the
+    // stack of them on the main menu look like a list of table rows rather than a set of choices.
+    val shell = Modifier.fillMaxWidth().height(ButtonHeight).testTag(tag)
+    val shape = MaterialTheme.shapes.large
+    val content: @Composable RowScope.() -> Unit = {
         Text(
             text = label,
             style = MaterialTheme.typography.titleMedium,
@@ -111,6 +134,233 @@ internal fun WideButton(
             overflow = TextOverflow.Ellipsis,
         )
     }
+
+    if (filled) {
+        Button(
+            onClick = press,
+            enabled = enabled,
+            modifier = shell,
+            shape = shape,
+            content = content,
+        )
+    } else {
+        FilledTonalButton(
+            onClick = press,
+            enabled = enabled,
+            modifier = shell,
+            shape = shape,
+            content = content,
+        )
+    }
+}
+
+/** Material's height for a screen's primary action. */
+private val ButtonHeight = 56.dp
+
+/**
+ * Clickable, at the size a finger needs, announcing what it is.
+ *
+ * ### The gap this closes
+ *
+ * There were twenty-two bare `Modifier.clickable` call sites in `ui/` and **not one `Role`,
+ * `selected`, `toggleable` or `stateDescription` in the whole package**. A screen reader met every
+ * list row in this app as an unlabelled node with no role and no state: it could not say that a row
+ * was a button, and on the screens where one row is the current choice — a deck, a server, a locale
+ * — it could not say which. That is not a rough edge, it is the app being unusable without sight.
+ *
+ * Fixing it at twenty-two call sites would have fixed it until the twenty-third. Fixing it here
+ * fixes it for every row that is built this way, including the ones not written yet, which is the
+ * same argument `WideButton` makes about its click sound and `rowSurface` about its border.
+ *
+ * ### Three things, because they are always wanted together
+ *
+ * - **The touch target.** [minimumInteractiveComponentSize] grows the tappable area to 48 dp
+ *   without touching the layout, so a row that *looks* 40 dp tall still takes a thumb. Material's
+ *   own components do this; `clickable` does not, which is what `TouchTargetTest` measured.
+ * - **The semantics.** [role] and, where the caller has one, [selected].
+ * - **The focus ring.** The desktop build is driven by keyboard as well as by mouse, and had no
+ *   visible focus anywhere — tabbing through a screen moved an invisible cursor. Drawn in
+ *   `secondary`, which is the app's state colour, and only while focused.
+ *
+ * @param sound null for a control with a voice of its own — a board cell plays a card being placed,
+ *   and a UI click underneath it is one sound too many.
+ * @param selected null for a row that is merely tappable rather than one of a set of choices. The
+ *   distinction is what a screen reader announces, so guessing it would be worse than omitting it.
+ */
+@Composable
+internal fun Modifier.ttoClickable(
+    role: Role = Role.Button,
+    enabled: Boolean = true,
+    selected: Boolean? = null,
+    shape: Shape? = null,
+    sound: Sound? = Sound.UI_CLICK,
+    onClick: () -> Unit,
+): Modifier {
+    val audio = LocalAudio.current
+    val interactions = remember { MutableInteractionSource() }
+    val focused by interactions.collectIsFocusedAsState()
+    val ring = MaterialTheme.colorScheme.secondary
+    val ringShape = shape ?: MaterialTheme.shapes.small
+
+    return this
+        .minimumInteractiveComponentSize()
+        .clickable(
+            interactionSource = interactions,
+            indication = LocalIndication.current,
+            enabled = enabled,
+            role = role,
+            onClick = {
+                sound?.let { audio.play(it) }
+                onClick()
+            },
+        )
+        .then(
+            if (focused) Modifier.border(FocusRingWidth, ring, ringShape) else Modifier,
+        )
+        .semantics { selected?.let { this.selected = it } }
+}
+
+/** Thick enough to see against a row's own one-dp border without being mistaken for it. */
+private val FocusRingWidth = 2.dp
+
+/**
+ * A grouped panel: rounded, outlined, and holding a column of related things.
+ *
+ * ### Why this is one composable and was five
+ *
+ * "Rounded surface, `surfaceVariant` fill, one-dp outline" was written out by hand in five places —
+ * `rowSurface` here, the settings group, the menu's resume card, the match's rule chip and its
+ * outcome panel — and the five had already begun to disagree about their radius. Material ships the
+ * pattern as [OutlinedCard]; what was being hand-rolled was a card with the parts that make it a
+ * card left off.
+ *
+ * The fill is `surfaceContainerHigh` and not `surfaceVariant`, which is the correction the whole
+ * palette rewrite turns on: `surfaceVariant` is Material's *de-emphasis* role, several tones
+ * lighter than the surface, and dimmed text on it measures 3.77:1 — under AA. See `ContrastTest`.
+ *
+ * @param onClick present only for a card that is itself a destination. A card that does nothing
+ *   should not report a role to a screen reader, so the clickable path is taken only when there is
+ *   something to click.
+ * @param selected null for a card that is not one of a set of choices — which is most of them. The
+ *   three states are meaningfully different to a screen reader: *chosen*, *not chosen*, and *not
+ *   the kind of thing that gets chosen*. A boolean could only say the first two.
+ */
+@Composable
+internal fun TtoCard(
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    selected: Boolean? = null,
+    armed: Boolean = false,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val game = LocalTtoColors.current
+    val shape = MaterialTheme.shapes.medium
+    val isChosen = selected == true
+    val clickable = onClick?.let { action ->
+        Modifier.ttoClickable(selected = selected, shape = shape, onClick = action)
+    } ?: Modifier
+
+    OutlinedCard(
+        modifier = modifier.then(clickable),
+        shape = shape,
+        colors = CardDefaults.outlinedCardColors(
+            containerColor = if (isChosen) {
+                game.selectedFill
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerHigh
+            },
+        ),
+        border = BorderStroke(
+            width = HairlineWidth,
+            color = when {
+                armed -> MaterialTheme.colorScheme.error
+                isChosen -> game.selectedOutline
+                else -> MaterialTheme.colorScheme.outlineVariant
+            },
+        ),
+        content = content,
+    )
+}
+
+/**
+ * The label above a group of settings, rules or statistics.
+ *
+ * Promoted out of `OptionsScreen`, which was the only screen that had one — the other dense screens
+ * wrote a bare `Text` and each picked its own colour and case. What it gains on the way is
+ * `semantics { heading() }`, which is how a screen reader offers "jump to next heading"; without it
+ * the only way through a long settings column is to read every row of it.
+ *
+ * `tertiary` is the affirmative accent and deliberately not `primary`: a heading is not an action,
+ * and a column of amber labels would compete with the button at the bottom of it.
+ */
+@Composable
+internal fun SectionHeader(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text = text.uppercase(),
+        color = MaterialTheme.colorScheme.tertiary,
+        style = MaterialTheme.typography.labelMedium,
+        modifier = modifier.padding(bottom = SpaceXs).semantics { heading() },
+    )
+}
+
+/**
+ * One filter, format, rule or locale — the app's only chip.
+ *
+ * ### Why there were three of these
+ *
+ * Because nothing said there should be one. `CardListBody` drew a `Text` on a `rowSurface` and
+ * called it a chip; `PvpScreen` and `PvpTableScreen` used Material's [FilterChip] with its
+ * defaults; `OptionsScreen` used [FilterChip] with eight lines of hand-written colours. The three
+ * looked like three different controls, and two of them were **visibly wrong** — with
+ * `secondaryContainer` unfilled in the old scheme, a selected chip on the two PvP screens came out
+ * in Material's baseline purple.
+ *
+ * Now there is one, its selected state is `secondaryContainer` — the state family, which is what
+ * Material means that role for — and the chips on five screens are the same object.
+ */
+@Composable
+internal fun TtoFilterChip(
+    label: String,
+    tag: String,
+    selected: Boolean,
+    enabled: Boolean = true,
+    leading: (@Composable () -> Unit)? = null,
+    onClick: () -> Unit,
+) {
+    val audio = LocalAudio.current
+
+    FilterChip(
+        selected = selected,
+        onClick = {
+            audio.play(Sound.UI_CLICK)
+            onClick()
+        },
+        enabled = enabled,
+        label = {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        leadingIcon = leading,
+        shape = MaterialTheme.shapes.small,
+        colors = FilterChipDefaults.filterChipColors(
+            containerColor = Color.Transparent,
+            labelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
+            selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+            selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        ),
+        border = FilterChipDefaults.filterChipBorder(
+            enabled = enabled,
+            selected = selected,
+            borderColor = MaterialTheme.colorScheme.outlineVariant,
+            selectedBorderColor = MaterialTheme.colorScheme.secondary,
+        ),
+        modifier = Modifier.testTag(tag),
+    )
 }
 
 /**
@@ -233,7 +483,20 @@ internal fun ScreenScaffold(
                         // Tagged rather than found by text: a confirmation names the thing it is
                         // about — a card, a pack — so its wording is data, and a test asserting on
                         // it would be asserting on the catalogue.
-                        Snackbar(snackbarData = data, modifier = Modifier.testTag(host.tag))
+                        //
+                        // The colours are named rather than defaulted **because the default is
+                        // right**: `inverseSurface` is what a snackbar is meant to draw on, and for
+                        // as long as the scheme left that role unfilled every confirmation in this
+                        // game appeared as a light lavender box on a dark screen. Saying them here
+                        // is what makes that visible at the one call site it was ever wrong at.
+                        Snackbar(
+                            snackbarData = data,
+                            modifier = Modifier.testTag(host.tag),
+                            shape = MaterialTheme.shapes.small,
+                            containerColor = MaterialTheme.colorScheme.inverseSurface,
+                            contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                            actionColor = MaterialTheme.colorScheme.inversePrimary,
+                        )
                     }
                 }
             },
@@ -279,33 +542,39 @@ internal fun ScreenTabs(
 ) {
     val audio = LocalAudio.current
 
-    PrimaryTabRow(
-        selectedTabIndex = selected,
-        modifier = modifier.fillMaxWidth(),
-        containerColor = Color.Transparent,
-        contentColor = MaterialTheme.colorScheme.onBackground,
-    ) {
-        tabs.forEachIndexed { index, (label, tag) ->
-            Tab(
-                selected = index == selected,
-                onClick = {
-                    audio.play(Sound.UI_CLICK)
-                    onSelect(index)
-                },
-                modifier = Modifier.testTag(tag),
-                text = {
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.labelLarge,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                },
-                selectedContentColor = MaterialTheme.colorScheme.onBackground,
-                unselectedContentColor =
-                MaterialTheme.colorScheme.onBackground.copy(alpha = MUTED),
-            )
+    // The gap belongs to the tab row and not to each screen behind it. A `PrimaryTabRow` puts its
+    // indicator flush against its own bottom edge, so content that starts immediately underneath
+    // has the underline running through its first line — which is what the collection's
+    // "Owned · 10 / 263" was doing once the type scale grew.
+    Column(modifier = modifier.fillMaxWidth()) {
+        PrimaryTabRow(
+            selectedTabIndex = selected,
+            containerColor = Color.Transparent,
+            contentColor = MaterialTheme.colorScheme.onBackground,
+        ) {
+            tabs.forEachIndexed { index, (label, tag) ->
+                Tab(
+                    selected = index == selected,
+                    onClick = {
+                        audio.play(Sound.UI_CLICK)
+                        onSelect(index)
+                    },
+                    modifier = Modifier.testTag(tag),
+                    text = {
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.titleSmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                    selectedContentColor = MaterialTheme.colorScheme.onBackground,
+                    unselectedContentColor =
+                    MaterialTheme.colorScheme.onBackground.copy(alpha = MUTED),
+                )
+            }
         }
+        Spacer(modifier = Modifier.height(SpaceMd))
     }
 }
 
@@ -377,7 +646,7 @@ internal fun CharacterActions(save: GameSave) {
         )
         // The purse as the game's own coin rather than the letters `MGP`: it is the one number on
         // this bar the player is tracking, and `icons/PGS.png` is what the original marked it with.
-        ItemIcon(iconId = "PGS", description = strings[StringKeys.MGP], size = PURSE_ICON)
+        ItemIcon(iconId = "PGS", description = strings[StringKeys.MGP], size = IconSm)
         Text(
             text = "${save.mgp}",
             color = MaterialTheme.colorScheme.onBackground,
@@ -508,25 +777,81 @@ enum class ListState {
  *
  * The **visual** size is untouched: `heightIn` sets a minimum on the layout, so the label and its
  * padding look exactly as they did and the tappable area grows to meet the hand.
+ *
+ * @param color the label's colour, or null for the button's own. Passed only by the destructive
+ *   ones — `error` is the theme's word for "this went badly", and a row that ends an account
+ *   looking like a row that opens a list is a row nobody reads twice.
  */
 @Composable
 internal fun RowButton(
     label: String,
     tag: String,
     enabled: Boolean = true,
+    color: Color? = null,
     onClick: () -> Unit,
 ) {
     TextButton(
         onClick = onClick,
         enabled = enabled,
-        modifier = Modifier.testTag(tag).heightIn(min = MinimumTouchTarget),
+        colors = color?.let { ButtonDefaults.textButtonColors(contentColor = it) }
+            ?: ButtonDefaults.textButtonColors(),
+        modifier = Modifier.testTag(tag).heightIn(min = MinTouchTarget),
     ) {
         Text(label)
     }
 }
 
-/** Material 3's minimum touch target, and Android's own accessibility guidance. */
-private val MinimumTouchTarget = 48.dp
+/**
+ * One credential field, shared by the sign-in form and the delete-account confirmation.
+ *
+ * Extracted from `AccountScreen`, whose own note explains why it may not be copied: the two differ
+ * in whether the characters are shown, and "a second copy of the eight-line `colors` block is how
+ * the two forms would start looking different". A third copy would have been worse — the password
+ * box that ends an account should not be able to drift from the one that opens a session.
+ *
+ * @param contentType what the platform's password manager should make of this field. Declaring it
+ *   is what lets the OS offer to save the password and fill it back in — which is the *right* place
+ *   for a password to be remembered, and the reason this app stores none of its own. Without the
+ *   hint, autofill falls back to guessing from labels and mostly does not offer at all. Inert on
+ *   desktop, where Compose has no autofill backend yet.
+ */
+@Composable
+internal fun CredentialField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    tag: String,
+    imeAction: ImeAction,
+    contentType: ContentType,
+    isPassword: Boolean = false,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        singleLine = true,
+        // The password is masked as it is typed, and this is the only place in the app that
+        // renders one at all. It is never logged, never stored, and never put in a `toString`.
+        visualTransformation = if (isPassword) {
+            PasswordVisualTransformation()
+        } else {
+            VisualTransformation.None
+        },
+        keyboardOptions = KeyboardOptions(imeAction = imeAction),
+        colors = TextFieldDefaults.colors(
+            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+            unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
+        ),
+        modifier = Modifier
+            .testTag(tag)
+            .semantics { this.contentType = contentType }
+            .fillMaxWidth(),
+    )
+}
 
 /**
  * A centred "that did not work" line with something to press — the third of [ListState].
@@ -561,14 +886,27 @@ internal fun FailedNote(text: String, tag: String, onRetry: () -> Unit) {
  * The shared list-row surface: rounded, filled, outlined, and tappable.
  *
  * Six screens draw this same box. A modifier rather than a wrapper composable so a row keeps
- * control of its own layout — some are a `Row`, some a `Column`, and one is a grid cell.
+ * control of its own layout — some are a `Row`, some a `Column`, and one is a grid cell. Where a
+ * whole group is being drawn rather than one row, [TtoCard] is the same thing as a container.
  *
  * `@Composable` because it reads the theme, which is what a `Modifier` extension may do as long as
  * it is called from a composition — every call site here is inside one.
  *
+ * ### The fill moved, and it is the point of the palette rewrite
+ *
+ * It was `surfaceVariant`, which in Material 3 is a **de-emphasis** role several tones lighter than
+ * the surface — not the thing a row sits on. That is `surfaceContainerHigh`, and the difference is
+ * measurable rather than nominal: `FAINT` text on `surfaceVariant` is 3.77:1, under WCAG AA, and on
+ * `surfaceContainerHigh` it is 5.04. Nearly every row in this app carries a dimmed secondary line.
+ * See `ContrastTest`, which measures both.
+ *
+ * The tone it lands on — `#2D2926` — is within a step of the `#2E2A26` the rows were already drawn
+ * in, so the screens keep their appearance and gain a role that explains it.
+ *
  * @param armed draws the destructive-confirmation outline instead of the ordinary one.
- * @param selected draws the card-blue outline and tints the fill, for a row that is the current
- *   choice rather than merely tappable.
+ * @param selected draws the state outline and tints the fill, for a row that is the current choice
+ *   rather than merely tappable. **Marking it visually is half the job** — pass the same flag to
+ *   [ttoClickable] so a screen reader is told too.
  */
 @Composable
 internal fun Modifier.rowSurface(
@@ -578,49 +916,26 @@ internal fun Modifier.rowSurface(
     val game = LocalTtoColors.current
     val shape = MaterialTheme.shapes.small
     return clip(shape)
-        .background(if (selected) game.selectedFill else MaterialTheme.colorScheme.surfaceVariant)
+        .background(
+            if (selected) {
+                game.selectedFill
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerHigh
+            },
+        )
         .border(
-            width = 1.dp,
+            width = HairlineWidth,
             color = when {
                 armed -> MaterialTheme.colorScheme.error
                 selected -> game.selectedOutline
-                else -> MaterialTheme.colorScheme.outline
+                else -> MaterialTheme.colorScheme.outlineVariant
             },
             shape = shape,
         )
 }
 
-/** Keeps every list screen the same width on a desktop window that is far wider than a phone. */
-internal val ContentMaxWidth = 520.dp
-
-/**
- * What a screen gets instead when it lays out two panes and the window is [LocalWideLayout].
- *
- * Only the screens that opt in take it. A list does not become more readable at 900 dp — it becomes
- * a row of text with a hand's width of nothing in the middle — so widening every screen because the
- * window allows it would be spending the space rather than using it.
- */
-internal val WideContentMaxWidth = 920.dp
-
-/** The `·`-joined metadata line used by the profile and opponent rows. */
-internal const val DOT_SEPARATOR = "  ·  "
-
 /*
- * The alphas this app dims text by. Four steps, named once: a screen with six shades of white is a
- * screen where each was picked separately.
+ * The width limits, the `·` separator and the four alphas moved to `Dimens.kt`, which is where the
+ * rest of the spacing and sizing tokens now live. They are in the same package, so no call site
+ * changed — see that file for why they are not in `ui/theme/`.
  */
-
-/** A secondary line under a row's name. */
-internal const val SUBDUED = 0.75f
-
-/** An explanatory line, and an empty-state note. */
-internal const val MUTED = 0.7f
-
-/** Metadata that should recede: a count, a rarity, a description. */
-internal const val FAINT = 0.6f
-
-/** A disabled control's own label. */
-internal const val DISABLED = 0.4f
-
-/** The purse coin in the app bar. Smaller than a bag row's icon, which is a 32 dp plate. */
-private val PURSE_ICON = 18.dp

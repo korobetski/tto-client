@@ -24,6 +24,27 @@ complexity:
   TooManyFunctions:
     thresholdInFiles: 20
     thresholdInClasses: 20
+    # `AccountClient` is one function per HTTP endpoint and nothing else — every one is three
+    # lines that name a path and a body. Its count is the size of the server's API surface, not
+    # a measure of how much this class does, and the rule's own remedy (split the class) would
+    # mean deciding which half of one API two clients own. The threshold stays where it is for
+    # everything that is a *design*; this file is a mirror.
+    #
+    # **The test paths are not decoration.** `excludes` here *replaces* detekt's own default list
+    # rather than adding to it, so naming only the file above silently un-exempted every test
+    # source and six test classes failed at once. detekt's defaults are repeated below because
+    # this key overwrites them; `desktopTest` is ours and is not among them.
+    excludes:
+      - '**/net/AccountClient.kt'
+      - '**/test/**'
+      - '**/androidTest/**'
+      - '**/commonTest/**'
+      - '**/desktopTest/**'
+      - '**/jvmTest/**'
+      - '**/androidUnitTest/**'
+      - '**/androidInstrumentedTest/**'
+      - '**/jsTest/**'
+      - '**/iosTest/**'
 
 naming:
   FunctionNaming:

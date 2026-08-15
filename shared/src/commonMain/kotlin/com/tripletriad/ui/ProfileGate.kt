@@ -98,6 +98,14 @@ sealed interface Intent {
     /** Sell a bag item for what the card table says. */
     data class SellItem(val item: Item) : Intent
 
+    /**
+     * Sell **every one** of a bag item, at the same price each.
+     *
+     * Distinct from [SellItem] rather than a count on it, because the count is not the client's to
+     * name: on an account the server reads it off the stored bag. See `AccountClient.sellAllItems`.
+     */
+    data class SellAllItems(val item: Item) : Intent
+
     /** Throw a bag item away. Nothing is paid. */
     data class DiscardItem(val item: Item) : Intent
 
@@ -171,6 +179,15 @@ internal fun rememberLocalGate(
 private fun GameSave.applying(intent: Intent, cards: Map<Int, Card>): GameSave = when (intent) {
     is Intent.Buy -> ShopCatalog.buy(this, intent.offer)
     is Intent.SellItem -> Inventory.sell(this, intent.item, cards)
+
+    // The same `:core` function the server calls, given the same count it would compute — the
+    // local path reads the bag it owns, and there is nobody here to keep honest either way.
+    is Intent.SellAllItems -> Inventory.sell(
+        this,
+        intent.item,
+        cards,
+        count = Inventory.count(this, intent.item).coerceAtLeast(1),
+    )
     is Intent.DiscardItem -> Inventory.remove(this, intent.item)
 
     is Intent.SellCard ->

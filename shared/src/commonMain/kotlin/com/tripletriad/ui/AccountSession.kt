@@ -185,6 +185,56 @@ class AccountSession internal constructor(
     }
 
     /**
+     * Deletes this account on the server, and only then locally. **Irreversible.**
+     *
+     * ### The order is the opposite of [signOut]'s, deliberately
+     *
+     * `signOut` clears the token first and ignores the answer, because a sign-out a dead network
+     * could refuse would be a button that sometimes does nothing. Here the server's answer is the
+     * only thing that matters, and the likely refusal is **a wrong password**. Clearing first would
+     * mean mistyping your password signs you out of an account that still exists — answering "that
+     * is not your password" by taking away the session.
+     *
+     * So nothing local changes unless the server says the account is gone. On success everything
+     * [signOut] clears is cleared for the same reasons, [lastUsername] included: there is no longer
+     * an account for that name to offer back.
+     *
+     * ### It cannot be attempted while signed out
+     *
+     * There is no stored token to authenticate with and no account to delete, so this returns false
+     * rather than sending a request that could only be refused.
+     *
+     * @param password re-typed by the player. Never stored, never logged; it goes into one request
+     *   and out of scope with it.
+     * @return whether the account was deleted. False leaves [failure] set to why.
+     */
+    suspend fun deleteAccount(password: String): Boolean {
+        val entry = server.server
+        val stored = server.session.load(entry.id, clock.nowMillis()) ?: return false
+        val name = save?.username ?: stored.username
+
+        isBusy = true
+        failure = null
+        val result = server.accounts.deleteAccount(stored.token, Credentials(name, password))
+        isBusy = false
+
+        if (result is AccountResult.Ok) {
+            player = null
+            failure = null
+            lastUsername = null
+            tickets = emptyList()
+            server.session.clear(entry.id)
+            Log.i(TAG) { "the account was deleted at the player's request" }
+        } else {
+            failure = result
+            // The account name is not in this line and the password certainly is not — `LogSecrecy`
+            // in the server makes the same promise on its side. The result names the refusal.
+            Log.w(TAG) { "an account deletion was refused: $result" }
+        }
+        return result is AccountResult.Ok
+    }
+
+    /**
      * Moves to another server, if it is not the one already in play.
      *
      * ### Why this signs the player out
@@ -415,6 +465,9 @@ class AccountSession internal constructor(
 
                 is Intent.SellItem ->
                     server.accounts.sellItem(stored.token, intent.item, operationId)
+
+                is Intent.SellAllItems ->
+                    server.accounts.sellAllItems(stored.token, intent.item, operationId)
 
                 is Intent.DiscardItem ->
                     server.accounts.discardItem(stored.token, intent.item, operationId)

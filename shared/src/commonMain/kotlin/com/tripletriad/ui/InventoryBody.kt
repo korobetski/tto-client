@@ -41,7 +41,7 @@ const val INVENTORY_LIST_TEST_TAG: String = "inventory-list"
 const val INVENTORY_EMPTY_TEST_TAG: String = "inventory-empty"
 const val INVENTORY_USE_TEST_TAG: String = "inventory-use"
 const val INVENTORY_SELL_TEST_TAG: String = "inventory-sell"
-const val INVENTORY_DISCARD_TEST_TAG: String = "inventory-discard"
+const val INVENTORY_SELL_ALL_TEST_TAG: String = "inventory-sell-all"
 
 /** The line saying what using something did. Absent until something has been used. */
 const val INVENTORY_NOTE_TEST_TAG: String = "inventory-note"
@@ -104,7 +104,6 @@ internal fun ColumnScope.InventoryBody(
     // deselects it. Holding the `Item` itself would keep a row whose stack no longer exists.
     var selectedKey by remember(format) { mutableStateOf<Item?>(null) }
     var note by remember(format) { mutableStateOf<String?>(null) }
-    var armed by remember { mutableStateOf(false) }
 
     // The cards a pack just dealt, while the player is turning them over. Held here rather than
     // navigated to because the reveal is a *moment inside using an item*, not a destination: the
@@ -139,7 +138,6 @@ internal fun ColumnScope.InventoryBody(
                     isSelected = itemKey(item) == selectedKey,
                     onClick = {
                         selectedKey = itemKey(item).takeIf { it != selectedKey }
-                        armed = false
                     },
                 )
             }
@@ -150,10 +148,9 @@ internal fun ColumnScope.InventoryBody(
         BagActions(
             item = item,
             cards = cards,
-            isArmed = armed,
+            stack = item.stack,
             canUse = item.useable,
             onUse = {
-                armed = false
                 // Suspending, and it has to be: on an account the answer is a round trip, and
                 // there is nothing to show optimistically because the client no longer knows
                 // what came out. The profile is written by whoever answered — see
@@ -171,17 +168,11 @@ internal fun ColumnScope.InventoryBody(
                 }
             },
             onSell = {
-                armed = false
                 scope.launch { onIntent(Intent.SellItem(item)) }
             },
-            onDiscard = {
-                if (armed) {
-                    armed = false
-                    note = null
-                    scope.launch { onIntent(Intent.DiscardItem(item)) }
-                } else {
-                    armed = true
-                }
+            onSellAll = {
+                note = null
+                scope.launch { onIntent(Intent.SellAllItems(item)) }
             },
         )
     }
@@ -259,17 +250,35 @@ private fun ItemRow(
     }
 }
 
-/** Use, Sell and Discard, each enabled by the selected item's own flags. */
+/**
+ * Use, Sell and Sell all, each enabled by the selected item's own flags.
+ *
+ * ### Discard is gone, and nothing is stranded by its going
+ *
+ * The third button used to be Discard: destroy the item, be paid nothing. It was the only control
+ * in the game where a tap destroyed something for no return, which is why it grew the two-tap arm.
+ * Selling the stack is what a player actually wants from that corner of the screen — and the arm
+ * goes with it, because being paid is not something to be protected from.
+ *
+ * Checked before removing it rather than assumed: every item type is **sellable or useable**, and
+ * the two that cannot be sold — a pack and a potion — are exactly the two that are consumed by
+ * using them. So no item can end up with no way out of the bag. `Item.dropable` is now read by
+ * nothing on this screen; it stays on the model because the server's `/me/bag/discard` still
+ * honours it for a client that asks.
+ *
+ * @param stack how many of the item the bag holds, which is what the third button says it will
+ *   sell. Passed in rather than counted here so the label and the intent cannot disagree about it.
+ */
 @Composable
 @Suppress("LongParameterList")
 private fun BagActions(
     item: Item,
     cards: Map<Int, Card>,
-    isArmed: Boolean,
+    stack: Int,
     canUse: Boolean,
     onUse: () -> Unit,
     onSell: () -> Unit,
-    onDiscard: () -> Unit,
+    onSellAll: () -> Unit,
 ) {
     val strings = LocalStrings.current
     val price = Inventory.priceOf(item, cards)
@@ -299,15 +308,15 @@ private fun BagActions(
         }
         Box(modifier = Modifier.weight(1f)) {
             WideButton(
-                // The armed label is the confirmation: the button says what the second tap does.
-                label = if (isArmed) {
-                    "${strings[StringKeys.DISCARD]} ?"
-                } else {
-                    strings[StringKeys.DISCARD]
-                },
-                tag = INVENTORY_DISCARD_TEST_TAG,
-                enabled = item.dropable,
-                onClick = onDiscard,
+                // What it will pay, not how many it will sell: the player can see the stack on the
+                // row, and the number that decides the tap is the total. `Sell 12` beside
+                // `Sell all 36` reads as one price and one price times three, which is what it is.
+                label = "${strings[StringKeys.SELL_ALL]} ${price * stack}",
+                tag = INVENTORY_SELL_ALL_TEST_TAG,
+                // Disabled at a stack of one, where it would be the button beside it: two controls
+                // that do the same thing invite the player to wonder which one they got wrong.
+                enabled = price > 0 && stack > 1,
+                onClick = onSellAll,
             )
         }
     }

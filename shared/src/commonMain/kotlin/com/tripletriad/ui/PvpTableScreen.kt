@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -112,7 +111,9 @@ internal fun PvpTableScreen(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 for (option in formats.formats) {
-                    FilterChip(
+                    TtoFilterChip(
+                        label = strings[option.nameKey],
+                        tag = formatToggleTestTag(option.id),
                         selected = format.id == option.id,
                         onClick = {
                             format = option
@@ -121,8 +122,6 @@ internal fun PvpTableScreen(
                             // request the server refuses for a reason the screen never showed.
                             rules = option.confine(rules)
                         },
-                        label = { Text(strings[option.nameKey]) },
-                        modifier = Modifier.testTag(formatToggleTestTag(option.id)),
                     )
                 }
             }
@@ -138,13 +137,13 @@ internal fun PvpTableScreen(
             // rather than offered and then refused by the server.
             for (key in format.choosableRuleKeys()) {
                 val on = key in rules.activeRuleKeys()
-                FilterChip(
+                TtoFilterChip(
+                    label = strings[key],
+                    tag = ruleToggleTestTag(key),
                     selected = on,
                     // `toggling` rather than a local when: the key-to-rule table lives in `:core`
                     // and is `internal` there, precisely so a second copy cannot drift from it.
                     onClick = { rules = rules.toggling(key, !on) },
-                    label = { Text(strings[key]) },
-                    modifier = Modifier.testTag(ruleToggleTestTag(key)),
                 )
             }
         }
@@ -196,11 +195,11 @@ internal fun PvpTableScreen(
             // Exclusive: a match is played under one trade rule or none, so these are radio
             // buttons wearing a chip's clothes rather than a set of independent flags.
             for (option in TradeRule.entries) {
-                FilterChip(
+                TtoFilterChip(
+                    label = strings[tradeKey(option)],
+                    tag = tradeToggleTestTag(option),
                     selected = trade == option,
                     onClick = { trade = option },
-                    label = { Text(strings[tradeKey(option)]) },
-                    modifier = Modifier.testTag(tradeToggleTestTag(option)),
                 )
             }
         }

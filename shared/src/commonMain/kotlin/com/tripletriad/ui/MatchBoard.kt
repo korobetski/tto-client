@@ -57,7 +57,6 @@ import com.tripletriad.model.HandVisibility
 import com.tripletriad.model.MatchState
 import com.tripletriad.model.PlacedCard
 import com.tripletriad.model.TypeRule
-import com.tripletriad.model.effectivePowers
 import com.tripletriad.model.elementalModifier
 import com.tripletriad.model.powerModifier
 import com.tripletriad.ui.theme.LocalTtoColors
@@ -340,7 +339,7 @@ private fun TileCell(
         if (placed == null) {
             element?.let { ElementBadge(position = position, element = it, scale = scale) }
         } else {
-            BoardCard(placed, rules, element, tally, scale)
+            BoardCard(placed, scale)
         }
 
         // The card's own modifier once it is down, under whichever rule is up; the held card's
@@ -450,26 +449,19 @@ private fun PowerModifierBadge(position: Int, value: Int, scale: Float, modifier
  * between 90° and 180°** — every glyph on it drawn backwards for a fifth of a second. A squash
  * cannot do that, because the scale never goes negative. The original's choice was the right one.
  *
- * ### It draws what the card is worth here, not what is printed on it
+ * ### It draws the **printed** powers, and the modifier is a badge beside them
  *
- * The digits come from [effectivePowers], so a card standing on a `+3` Bonus board shows the
- * numbers it will actually fight with, clamp included. Drawing the printed four and putting the
- * modifier in a corner would leave every comparison on the board — which is the whole of the game
- * — as arithmetic the player has to do per side, and get right, before deciding a move. The badge
- * beside it says why the numbers are what they are; on its own it would be a footnote to a lie.
+ * A previous revision folded the modifier into the digits, so a 5 on a `+3` board was drawn as an
+ * 8. That was wrong, and not merely as a matter of taste: **the printed values are what decide Same
+ * and Plus** — see `RulesEngineOptions.specialPowerBasis`, which now says so — so a card whose
+ * digits had the modifier baked in would be showing numbers a player cannot use to spot a Same. The
+ * one thing the board must never do is renumber the cards a rule reads.
  *
- * Recomputed on every composition rather than remembered: it is four `coerceIn`s over values that
- * change whenever the board does, and a stale cache here would be a card showing another turn's
- * powers.
+ * So the digits are the card's own, and `TileCell` draws `+3` over the top. The player adds it up
+ * for the basic comparison, which is the only comparison it applies to.
  */
 @Composable
-private fun BoardCard(
-    placed: PlacedCard,
-    rules: GameRules,
-    element: CardType?,
-    tally: AscensionTally,
-    scale: Float,
-) {
+private fun BoardCard(placed: PlacedCard, scale: Float) {
     val squashY = remember { Animatable(1f) }
     val stretchX = remember { Animatable(1f) }
     val landing = remember { Animatable(0f) }
@@ -506,7 +498,6 @@ private fun BoardCard(
         card = placed.card.copy(owner = shown),
         scale = scale,
         showBack = showBack,
-        powers = effectivePowers(placed.card, rules, element, tally),
         modifier = Modifier.graphicsLayer {
             // The landing and the flip multiply rather than override: a card captured while it
             // is still settling keeps settling. They cannot both be at rest and disagree, since

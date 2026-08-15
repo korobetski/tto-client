@@ -20,7 +20,6 @@ import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.Card
 import com.tripletriad.model.CardColor
-import com.tripletriad.model.EdgePowers
 
 /**
  * The face of a card, at [scale] times its authored size.
@@ -49,8 +48,7 @@ import com.tripletriad.model.EdgePowers
  * Layer 5 is the Bonus/Malus `±N` badge. It **is** drawn now, but by the tile rather than by the
  * card — see `TileCell`. A card is drawn in six places and only one of them is a board; a badge
  * living here would need a rule, a tally and a cell element passed to the shop, the collection and
- * the pack reveal, all of which would pass nothing. What this composable takes instead is
- * [powers]: the four numbers to print, already modified.
+ * the pack reveal, all of which would pass nothing. The digits below it stay the card's own.
  *
  * ### Why every dimension is multiplied rather than the layer scaled
  *
@@ -82,36 +80,32 @@ import com.tripletriad.model.EdgePowers
  * sentence around them would be four words of preamble before the only part that matters. The
  * order matches the card: top, right, bottom, left.
  *
- * They are the [powers] passed in and not the card's own, so a card standing on a Bonus board
- * reads out what it is worth there. Announcing the printed four while the screen shows something
- * else would hand a screen-reader user a board nobody else is playing on.
+ * They are the card's **printed** four, everywhere, including on a board under Bonus, Malus or
+ * Elemental. That is not an omission: those are the values Same and Plus read
+ * (`RulesEngineOptions.specialPowerBasis`), so they are the values a player reasons with, and a
+ * label that quietly announced modified ones would describe a board nobody else is playing on. The
+ * modifier is announced separately, by the badge `TileCell` draws — which is a `Text`, and so is in
+ * the accessibility tree already.
  */
 @Composable
-private fun cardLabel(card: Card, powers: EdgePowers, showBack: Boolean): String {
+private fun cardLabel(card: Card, showBack: Boolean): String {
     val strings = LocalStrings.current
     if (showBack) return strings[StringKeys.CARD_FACE_DOWN]
 
     val name = strings[card.nameKey]
-    return "$name, ${powers.top} ${powers.right} ${powers.bottom} ${powers.left}"
+    return "$name, ${card.top} ${card.right} ${card.bottom} ${card.left}"
 }
 
-/**
- * @param powers the four numbers to print, or null for what is printed on the card. Only a board
- *   passes anything: everywhere else a card is being *chosen* rather than played, and there is no
- *   board for a rule to modify it against.
- */
 @Composable
 internal fun CardFace(
     card: Card,
     scale: Float = 1f,
     showBack: Boolean = false,
-    powers: EdgePowers? = null,
     modifier: Modifier = Modifier,
 ) {
     val art = LocalCardArt.current
     val face = rememberCardFace(art, card)
-    val shown = powers ?: EdgePowers.printed(card)
-    val label = cardLabel(card, shown, showBack)
+    val label = cardLabel(card, showBack)
 
     Box(
         modifier = modifier
@@ -133,7 +127,7 @@ internal fun CardFace(
         Layer(art?.starsFor(card.rarity), RarityX, RarityY, RarityWidth, RarityHeight, scale)
         card.type?.let { Layer(art?.typeIcon(it), TypeX, TypeY, TypeSize, TypeSize, scale) }
         CardDigits(
-            powers = shown,
+            card = card,
             art = art,
             scale = scale,
             modifier = Modifier.offset(x = DigitsOriginX * scale, y = DigitsOriginY * scale),
@@ -186,24 +180,22 @@ internal fun CardBack(color: CardColor, scale: Float = 1f, modifier: Modifier = 
  * `CardDigits.as:29` sets `alpha = 0.5` on the plate, but the `cdbg` texture is already
  * semi-transparent, so nothing dims it again here.
  *
- * Takes [EdgePowers] rather than the card, because on a board the two differ: under Bonus, Malus,
- * Elemental or Fallen Ace what a card is worth is not what is printed on it, and the digits a
- * player reads have to be the ones the engine fights with. `cd0` is in the atlas for the case that
- * makes possible — see `CardArt`.
+ * Always the card's own numbers. What a modifier does is drawn *over* the card by `TileCell`, and
+ * deliberately not folded in here — see [CardFace].
  */
 @Composable
 private fun CardDigits(
-    powers: EdgePowers,
+    card: Card,
     art: CardArt?,
     scale: Float,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier.size(DigitsClusterWidth * scale, DigitsClusterHeight * scale)) {
         Glyph(art?.digitPlate, DigitsPlateOffsetX, DigitsPlateOffsetY, DigitsPlateSize, scale)
-        Glyph(art?.digit(powers.top), x = 14.dp, y = 0.dp, size = DigitSize, scale = scale)
-        Glyph(art?.digit(powers.right), x = 26.dp, y = 6.dp, size = DigitSize, scale = scale)
-        Glyph(art?.digit(powers.bottom), x = 14.dp, y = 12.dp, size = DigitSize, scale = scale)
-        Glyph(art?.digit(powers.left), x = 2.dp, y = 6.dp, size = DigitSize, scale = scale)
+        Glyph(art?.digit(card.top), x = 14.dp, y = 0.dp, size = DigitSize, scale = scale)
+        Glyph(art?.digit(card.right), x = 26.dp, y = 6.dp, size = DigitSize, scale = scale)
+        Glyph(art?.digit(card.bottom), x = 14.dp, y = 12.dp, size = DigitSize, scale = scale)
+        Glyph(art?.digit(card.left), x = 2.dp, y = 6.dp, size = DigitSize, scale = scale)
     }
 }
 

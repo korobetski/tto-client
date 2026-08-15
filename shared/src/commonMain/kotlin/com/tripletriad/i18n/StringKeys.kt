@@ -611,6 +611,36 @@ object StringKeys {
     const val UPDATE_AVAILABLE_BODY: String = "APP_UPDATE_AVAILABLE_BODY"
     const val UPDATE_GET: String = "APP_UPDATE_GET"
 
+    /**
+     * The settings group that is about the **account** rather than about the app.
+     *
+     * `STR_GENERAL_SETTINGS` and `STR_AUDIO_SETTINGS` came from the AS3, which had no accounts and
+     * so has no third heading to borrow.
+     */
+    /**
+     * `Sell all` — the bag's third button, where Discard used to be.
+     *
+     * No AS3 key: the original sold one at a time and had a Drop beside it. `STR_SELL` is the
+     * neighbour and is deliberately not reused with a suffix, because the two differ by more than a
+     * word in every language this ships in.
+     */
+    const val SELL_ALL: String = "APP_SELL_ALL"
+
+    const val ACCOUNT_SETTINGS: String = "APP_ACCOUNT_SETTINGS"
+
+    /** `Delete account`, and the paragraph that has to be read before it can be meant. */
+    const val DELETE_ACCOUNT: String = "APP_DELETE_ACCOUNT"
+    const val DELETE_ACCOUNT_BODY: String = "APP_DELETE_ACCOUNT_BODY"
+
+    /**
+     * The second button, which is a different sentence from the first on purpose.
+     *
+     * `STR_DELETE_CONFIRM` exists and is what the local profile list arms with, and it is
+     * deliberately not reused: that one deletes a file the player can make again, this one ends an
+     * account. A shared string would make the two gestures look interchangeable.
+     */
+    const val DELETE_ACCOUNT_CONFIRM: String = "APP_DELETE_ACCOUNT_CONFIRM"
+
     /** Every key above, for the tests that assert each resolves. */
     val all: List<String> = listOf(
         NEXT_MATCH, YOU_WIN, YOU_LOSE, DRAW, SUDDEN_DEATH,
@@ -664,6 +694,8 @@ object StringKeys {
         SERVER_UNKNOWN, SERVER_CHECKING, SERVER_ONLINE, SERVER_DEGRADED,
         SERVER_OUTDATED, SERVER_UNREACHABLE, SERVER_UNUSABLE,
         UPDATE_REQUIRED, UPDATE_REQUIRED_BODY, UPDATE_AVAILABLE, UPDATE_AVAILABLE_BODY, UPDATE_GET,
+        SELL_ALL,
+        ACCOUNT_SETTINGS, DELETE_ACCOUNT, DELETE_ACCOUNT_BODY, DELETE_ACCOUNT_CONFIRM,
     )
 
     /** The subset this port authored, which is the subset that may be untranslated. */

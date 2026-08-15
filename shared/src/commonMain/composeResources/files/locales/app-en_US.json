@@ -200,5 +200,10 @@
   "APP_PVP_TABLE_EXPIRES": "{0} min left",
   "APP_PVP_DECK": "Deck",
   "APP_PVP_DECK_ANY": "Automatic",
-  "APP_PVP_INVITE_TO": "Invite {0}"
+  "APP_PVP_INVITE_TO": "Invite {0}",
+  "APP_ACCOUNT_SETTINGS": "Account",
+  "APP_DELETE_ACCOUNT": "Delete account",
+  "APP_DELETE_ACCOUNT_BODY": "This deletes your account and everything on it: your cards, your MGP, your decks, your achievements and your match history. It cannot be undone and there is no grace period. Finished matches disappear from your opponents' histories too, because a match record names both players. Type your password to confirm.",
+  "APP_DELETE_ACCOUNT_CONFIRM": "Delete permanently",
+  "APP_SELL_ALL": "Sell all"
 }

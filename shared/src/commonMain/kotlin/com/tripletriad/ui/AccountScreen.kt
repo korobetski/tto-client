@@ -8,12 +8,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -26,11 +23,8 @@ import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.platform.LocalAutofillManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentType
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.tripletriad.CLIENT_VERSION
@@ -171,7 +165,7 @@ internal fun AccountScreen(
                 style = MaterialTheme.typography.labelMedium,
             )
 
-            AccountField(
+            CredentialField(
                 value = username,
                 onValueChange = { username = it.take(Credentials.USERNAME_LENGTH.last) },
                 label = strings[StringKeys.USERNAME],
@@ -180,7 +174,7 @@ internal fun AccountScreen(
                 contentType = if (isRegistering) ContentType.NewUsername else ContentType.Username,
             )
 
-            AccountField(
+            CredentialField(
                 value = password,
                 onValueChange = { password = it.take(Credentials.PASSWORD_LENGTH.last) },
                 label = strings[StringKeys.PASSWORD],
@@ -278,56 +272,6 @@ private fun VersionLine() {
             .fillMaxWidth()
             .padding(top = 4.dp),
         textAlign = TextAlign.Center,
-    )
-}
-
-/**
- * One field, styled like the profile screen's.
- *
- * Extracted because the two differ only in whether the characters are shown, and a second copy of
- * the eight-line `colors` block is how the two forms would start looking different.
- *
- * @param contentType what the platform's password manager should make of this field. Declaring it
- *   is what lets the OS offer to save the password and fill it back in — which is the *right* place
- *   for a password to be remembered, and the reason this app stores none of its own. Without the
- *   hint, autofill falls back to guessing from labels and mostly does not offer at all. Inert on
- *   desktop, where Compose has no autofill backend yet.
- */
-@Composable
-private fun AccountField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    label: String,
-    tag: String,
-    imeAction: ImeAction,
-    contentType: ContentType,
-    isPassword: Boolean = false,
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(label) },
-        singleLine = true,
-        // The password is masked as it is typed, and this is the only place in the app that
-        // renders one at all. It is never logged, never stored, and never put in a `toString`.
-        visualTransformation = if (isPassword) {
-            PasswordVisualTransformation()
-        } else {
-            VisualTransformation.None
-        },
-        keyboardOptions = KeyboardOptions(imeAction = imeAction),
-        colors = TextFieldDefaults.colors(
-            focusedTextColor = MaterialTheme.colorScheme.onSurface,
-            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-            focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-            unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
-        ),
-        modifier = Modifier
-            .testTag(tag)
-            .semantics { this.contentType = contentType }
-            .fillMaxWidth(),
     )
 }
 

@@ -41,6 +41,9 @@ import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -119,6 +122,10 @@ internal fun PlayArea(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            // Nothing in a match touches the edge of the window. It used to: in landscape the
+            // outermost hand card sat flush against the glass, which on a phone is where the
+            // curve of the screen begins and where a palm rests.
+            .padding(PlayAreaInset)
             .onGloballyPositioned { drag.origin = it.positionInRoot() },
     ) {
         PlayAreaContents(layout = layout, hand = hand, board = board)
@@ -133,10 +140,16 @@ private fun PlayAreaContents(
     hand: @Composable (CardColor) -> Unit,
     board: @Composable () -> Unit,
 ) {
+    // `spacedBy` and not `SpaceBetween`: the gap is a design decision now rather than whatever
+    // happened to be left over, and centring the group is what keeps the board in the middle of
+    // the window on a viewport with room to spare.
     if (layout.landscape) {
         Row(
             modifier = Modifier.fillMaxSize(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(
+                HandBoardGap,
+                Alignment.CenterHorizontally,
+            ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             hand(CardColor.RED)
@@ -146,7 +159,7 @@ private fun PlayAreaContents(
     } else {
         Column(
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.SpaceBetween,
+            verticalArrangement = Arrangement.spacedBy(HandBoardGap, Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             hand(CardColor.RED)
@@ -254,7 +267,15 @@ internal fun BoardGrid(
                                     drag.unregisterCell(position)
                                 }
                             }
-                            .clickable { onPlace(position) },
+                            // **The board is the one place `ttoClickable` is wrong**, and the
+                            // reason is geometry: it grows every target to 48 dp beyond the
+                            // layout, and nine cells tiling with a 4 dp gutter would then overlap
+                            // each other's hit areas and steal taps from their neighbours. A cell
+                            // is `CardSpriteWidth` — 88 dp at full scale — so it needs no help.
+                            // What it did need is the role, which `CardFace` cannot supply: the
+                            // card inside is labelled (see `cardLabel`), and the *cell* was an
+                            // unlabelled box a screen reader could not tell was pressable.
+                            .clickable(role = Role.Button) { onPlace(position) },
                     )
                 }
             }
@@ -666,7 +687,11 @@ private fun HandCard(
                     }
                 },
             )
-            .clickable(enabled = active) { onSelect(card) },
+            // Role and state, no growth — see `BoardGrid` for why the match layer opts out of
+            // `ttoClickable`. `selected` is the ring the card wears when it is the one in hand,
+            // and without it that ring is visible and unannounced.
+            .semantics { selected = isSelected }
+            .clickable(enabled = active, role = Role.Button) { onSelect(card) },
     ) {
         // Dimmed rather than removed while it is in the air: taking it out of the hand would
         // re-lay-out the four cards beside it in the middle of the gesture.
@@ -830,6 +855,36 @@ private val ModifierPadding = 3.dp
 /** The gap between cards in a hand. Shared with the PvP board so the two lay out alike. */
 internal val HandGap = 3.dp
 
+/**
+ * The gap between a hand and the board, which is **not** the gap between two cards.
+ *
+ * In landscape the arrangement is hand | board | hand, and the three used to be separated by
+ * whatever `SpaceBetween` had left over — which on a phone held sideways was about two dp. Seven
+ * columns of identically sized cards with identical gutters is not three groups, it is one wide
+ * grid, and a player could not see where their hand stopped and the board began.
+ *
+ * Four times the gutter, so the eye reads it as a break rather than as a wider gutter, and counted
+ * in [matchLayout] so the space is reserved rather than hoped for.
+ */
+internal val HandBoardGap = 16.dp
+
+/** Nothing in a match touches the edge of the window. See `PlayArea`. */
+internal val PlayAreaInset = 8.dp
+
+/**
+ * How far the match's own header sits below the top of the window.
+ *
+ * A match is the one part of this app with no app bar, so its first line of text starts at the very
+ * top of the glass — and on a phone that is where the camera is. `App` already insets the whole
+ * tree out of a reported `displayCutout`, which handles the phones that report one; this is the
+ * margin for the rest, and for the fact that a score jammed against the edge reads as clipped even
+ * on a screen with nothing in the way.
+ *
+ * Small on purpose. Nine tiles and two hands are what this screen is for, and every dp spent here
+ * comes out of the board — see `matchLayout`, which is handed whatever the header leaves.
+ */
+internal val MatchHeaderTopInset = 12.dp
+
 internal fun matchLayout(width: Dp, height: Dp): MatchLayout {
     val landscape = width >= height
     val columns = if (landscape) LANDSCAPE_HAND_COLUMNS else HAND_SIZE
@@ -840,17 +895,31 @@ internal fun matchLayout(width: Dp, height: Dp): MatchLayout {
     val boardWidth = CardSpriteWidth.value * BOARD_WIDTH + TileGap.value * (BOARD_WIDTH + 1)
     val boardHeight = CardSpriteHeight.value * BOARD_WIDTH + TileGap.value * (BOARD_WIDTH + 1)
 
+    // The two breaks between the three groups, on whichever axis they are stacked along. Counted
+    // here rather than left to `SpaceBetween`'s leftover, which is how they came out at two dp on
+    // a phone in landscape — see [HandBoardGap].
+    //
+    // **Taken off the space rather than added to the need**, and the difference is not cosmetic:
+    // `scale` divides the available size by the needed one, so anything inside `needed` is treated
+    // as scaling with the cards. The gap does not — it is a fixed 16 dp — and counting it there
+    // overstated the room by the amount the gap was notionally shrunk, which came out as a 6 dp
+    // overflow at 640x360. `MatchLayoutTest.theArrangementAlwaysFitsInTheSpaceItWasGiven` is what
+    // said so.
+    val breaks = HandBoardGap.value * 2
+    val roomWidth = if (landscape) width.value - breaks else width.value
+    val roomHeight = if (landscape) height.value else height.value - breaks
+
     val neededWidth = if (landscape) handWidth * 2 + boardWidth else maxOf(handWidth, boardWidth)
     val neededHeight =
         if (landscape) maxOf(handHeight, boardHeight) else handHeight * 2 + boardHeight
 
-    val scale = minOf(width.value / neededWidth, height.value / neededHeight)
+    val scale = minOf(roomWidth / neededWidth, roomHeight / neededHeight)
         .coerceIn(MIN_CARD_SCALE, MAX_CARD_SCALE)
 
-    // Whatever the hands did not need, on the axis they are stacked along.
-    val boardWidthBudget = if (landscape) width.value - handWidth * 2 * scale else width.value
+    // Whatever the hands did not need, out of the room the breaks left.
+    val boardWidthBudget = if (landscape) roomWidth - handWidth * 2 * scale else roomWidth
     val boardHeightBudget =
-        if (landscape) height.value else height.value - handHeight * 2 * scale
+        if (landscape) roomHeight else roomHeight - handHeight * 2 * scale
     val boardScale = minOf(boardWidthBudget / boardWidth, boardHeightBudget / boardHeight)
         .coerceIn(scale, MAX_CARD_SCALE)
 

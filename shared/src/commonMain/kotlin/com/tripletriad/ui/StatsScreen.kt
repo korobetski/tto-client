@@ -1,7 +1,6 @@
 package com.tripletriad.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -102,7 +101,7 @@ internal fun StatsScreen(profile: GameSave, onAvatar: () -> Unit, onBack: () -> 
             modifier = Modifier
                 .testTag(STATS_TABLE_TEST_TAG)
                 .fillMaxWidth()
-                .padding(top = 10.dp),
+                .padding(top = SpaceMd),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             StatRow(StringKeys.WINS, "${profile.stats.wins}")
@@ -120,12 +119,9 @@ internal fun StatsScreen(profile: GameSave, onAvatar: () -> Unit, onBack: () -> 
             )
         }
 
-        Text(
+        SectionHeader(
             text = strings[StringKeys.ACHIEVEMENTS_LIST],
-            color = MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(top = 14.dp, bottom = 6.dp),
+            modifier = Modifier.padding(top = SpaceLg),
         )
 
         if (families.isEmpty()) {
@@ -138,7 +134,7 @@ internal fun StatsScreen(profile: GameSave, onAvatar: () -> Unit, onBack: () -> 
                     .testTag(STATS_ACHIEVEMENTS_TEST_TAG)
                     .fillMaxWidth()
                     .weight(1f),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(SpaceSm),
             ) {
                 items(families, key = { it.key }) { family ->
                     AchievementRow(family = family, profile = profile)
@@ -163,11 +159,11 @@ internal fun LevelBar(profile: GameSave, onAvatar: (() -> Unit)? = null) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(SpaceMd),
     ) {
         AvatarBadge(
             profile = profile,
-            modifier = onAvatar?.let { Modifier.clickable(onClick = it) } ?: Modifier,
+            modifier = onAvatar?.let { Modifier.ttoClickable(onClick = it) } ?: Modifier,
         )
         Box(modifier = Modifier.weight(1f)) { LevelMeter(profile) }
     }
@@ -185,7 +181,7 @@ private fun LevelMeter(profile: GameSave) {
 
     Column(
         modifier = Modifier.testTag(STATS_LEVEL_TEST_TAG).fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(SpaceXs),
     ) {
         Text(
             text = "${strings[StringKeys.LEVEL]} ${profile.level}$DOT_SEPARATOR" +
@@ -193,6 +189,7 @@ private fun LevelMeter(profile: GameSave) {
             color = MaterialTheme.colorScheme.onSurface,
             style = MaterialTheme.typography.bodySmall,
             maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
         Meter(fraction = fraction, colour = MaterialTheme.colorScheme.tertiary)
     }
@@ -207,9 +204,9 @@ private fun StatRow(labelKey: String, value: String) {
         modifier = Modifier
             .fillMaxWidth()
             .rowSurface()
-            .padding(horizontal = 10.dp, vertical = 6.dp),
+            .padding(horizontal = SpaceMd, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(SpaceSm),
     ) {
         Text(
             text = strings[labelKey],
@@ -253,13 +250,13 @@ private fun AchievementRow(family: AchievementFamily, profile: GameSave) {
             .testTag(achievementFamilyTestTag(family.key))
             .fillMaxWidth()
             .rowSurface(selected = earned != null)
-            .padding(10.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+            .padding(SpaceMd),
+        verticalArrangement = Arrangement.spacedBy(SpaceXs),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(SpaceSm),
         ) {
             AchievementIcon(
                 iconId = family.face.iconId,
@@ -315,7 +312,7 @@ private fun AchievementRow(family: AchievementFamily, profile: GameSave) {
             val progress = next.progressFor(profile)
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(SpaceSm),
             ) {
                 Text(
                     text = strings.format(StringKeys.NEXT_TIER, strings[next.labelKey]),

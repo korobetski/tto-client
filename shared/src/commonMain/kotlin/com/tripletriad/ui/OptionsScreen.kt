@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -22,7 +20,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.unit.dp
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
@@ -100,7 +97,7 @@ internal fun OptionsScreen(
     ScreenScaffold(title = strings[StringKeys.SETTINGS], onBack = onBack, snackbar = note) {
         Column(
             modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(SpaceLg),
         ) {
             SettingsGroup(strings[StringKeys.GENERAL_SETTINGS]) {
                 Label(strings[StringKeys.LANGUAGE])
@@ -304,16 +301,7 @@ private fun VolumeRow(
                 style = MaterialTheme.typography.labelMedium,
             )
         }
-        Slider(
-            value = value,
-            onValueChange = onChange,
-            modifier = Modifier.testTag(tag),
-            colors = SliderDefaults.colors(
-                thumbColor = MaterialTheme.colorScheme.tertiary,
-                activeTrackColor = MaterialTheme.colorScheme.tertiary,
-                inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f),
-            ),
-        )
+        TtoSlider(value = value, onValueChange = onChange, tag = tag)
     }
 }
 

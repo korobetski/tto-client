@@ -1,6 +1,5 @@
 package com.tripletriad.ui
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +18,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -211,10 +211,10 @@ private fun DeckChoiceRow(
             .testTag(deckChoiceTestTag(row))
             .fillMaxWidth()
             .rowSurface(selected = isSelected)
-            .clickable(onClick = onClick)
-            .padding(10.dp),
+            .ttoClickable(role = Role.RadioButton, selected = isSelected, onClick = onClick)
+            .padding(SpaceMd),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(SpaceSm),
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -229,7 +229,9 @@ private fun DeckChoiceRow(
                 text = "${strings[StringKeys.DECK_POWER]} ${deckPower(deck, cards)}",
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
                 style = MaterialTheme.typography.labelSmall,
-                maxLines = 1,
+                // See `DecksBody`: one line cuts the number this line exists to report.
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(1.dp)) {

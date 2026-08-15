@@ -1185,6 +1185,11 @@ lie.
 
 ## 📞 Related Documents
 
+- **The design system**: [../development/design-system.md](../development/design-system.md) — where
+  Task 4.1's palette and Task 4.2's type scale ended up. Both were transcriptions of
+  `BaseTTOTheme.as` and both have since been replaced by tonal ramps and Material's own scale; that
+  document records what changed and why, which is the deviation this phase's tasks no longer
+  describe.
 - **Phase Overview**: [00-INDEX.md](./00-INDEX.md)
 - **Current System**: [02-CURRENT-SYSTEM-ANALYSIS.md](./02-CURRENT-SYSTEM-ANALYSIS.md)
 - **Phase 3**: [07-PHASE-3-CORE-LOGIC.md](./07-PHASE-3-CORE-LOGIC.md)

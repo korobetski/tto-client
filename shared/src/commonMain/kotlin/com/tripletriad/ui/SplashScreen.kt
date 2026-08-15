@@ -58,7 +58,7 @@ internal fun SplashScreen(state: StartupState) {
     )
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
+        modifier = Modifier.fillMaxSize().padding(SpaceXl),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -82,7 +82,7 @@ internal fun SplashScreen(state: StartupState) {
             text = strings[state.phase.labelKey],
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = SUBDUED),
             style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.padding(top = 32.dp, bottom = 12.dp)
+            modifier = Modifier.padding(top = SpaceXxl, bottom = SpaceMd)
                 .testTag(SPLASH_PHASE_TEST_TAG),
         )
 
@@ -90,7 +90,9 @@ internal fun SplashScreen(state: StartupState) {
             progress = { progress },
             modifier = Modifier.fillMaxWidth().widthIn(max = LogoMaxWidth).height(3.dp),
             color = MaterialTheme.colorScheme.tertiary,
-            trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+            // `surfaceContainerHighest` is Material's own track role. It was an alpha over
+            // `onSurface`, which is a way of asking for a surface without having one to ask for.
+            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
             gapSize = 0.dp,
             drawStopIndicator = {},
         )

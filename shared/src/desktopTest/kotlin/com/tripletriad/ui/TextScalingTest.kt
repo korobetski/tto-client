@@ -8,6 +8,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
@@ -90,6 +91,65 @@ class TextScalingTest {
         onNodeWithTag(PVP_TABLE_OPEN_TEST_TAG).assertIsDisplayed()
         onNodeWithTag(PVP_TABLE_ROULETTE_TEST_TAG).assertIsDisplayed()
         onNodeWithTag(PVP_TABLE_MGP_TEST_TAG).assertIsDisplayed()
+    }
+
+    /**
+     * The settings screen at 200%, which is where the refresh spent the most vertical space.
+     *
+     * `SettingsGroup` is a card holding a label, a row of locale chips and two labelled sliders,
+     * and every one of those grew: the chips became real Material chips with a 32 dp body, and the
+     * type scale moved the labels from 14 sp to 16. The screen scrolls, so the failure to watch for
+     * is not overflow but a control that scrolling cannot reach.
+     */
+    @Test
+    fun theSettingsScreenStaysUsableAtDoubleTextSize() = app(fontScale = 2f) {
+        awaitMenu()
+        onNodeWithTag(MENU_OPTIONS_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(OPTIONS_BACKGROUND_VOLUME_TEST_TAG) }
+
+        onNodeWithTag(optionsLanguageTestTag(AppLocale.EN_US)).assertIsDisplayed()
+        onNodeWithTag(OPTIONS_BACKGROUND_VOLUME_TEST_TAG).assertIsDisplayed()
+        onNodeWithTag(OPTIONS_NOISE_VOLUME_TEST_TAG).assertIsDisplayed()
+    }
+
+    /**
+     * The dashboard at 200%: the hero action and the navigation bar are both still reachable.
+     *
+     * Those two because they are the pair scrolling cannot rescue. The grid between them scrolls,
+     * so a card growing is absorbed; the bar is pinned to the bottom and Play is the first thing in
+     * the list, and a layout that pushed either out of the window would leave a player who needs
+     * large text unable to start a match or leave the screen.
+     *
+     * **It does not catch truncation, which is checked by eye.** `HomeCard` was `height(72.dp)`
+     * and clipped `Quêtes journalières` to `Quêtes journalièr…` once the type scale grew; putting
+     * that fixed height back leaves this test green, because a clipped label is still a displayed
+     * one. Verified by doing exactly that. Asserting on truncation means reaching into
+     * `TextLayoutResult` for every label on the screen, which would be a test about Compose's text
+     * engine rather than about this layout — see the note at the top of this file about what is
+     * deliberately not asserted.
+     */
+    @Test
+    fun theDashboardStaysUsableAtDoubleTextSize() = app(fontScale = 2f) {
+        newCharacter()
+
+        onNodeWithTag(DASHBOARD_PLAY_TEST_TAG).assertIsDisplayed()
+        onNodeWithTag(navTestTag("home")).assertIsDisplayed()
+    }
+
+    /** The whole app on a small handset at a chosen text scale. */
+    private fun app(
+        fontScale: Float,
+        block: androidx.compose.ui.test.ComposeUiTest.() -> Unit,
+    ) = runComposeUiTest {
+        setContent {
+            val base = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(base.density, fontScale)) {
+                Box(modifier = Modifier.size(PHONE_WIDTH, PHONE_HEIGHT)) {
+                    App(store = settingsFor(AppLocale.EN_US))
+                }
+            }
+        }
+        block()
     }
 
     private fun tableEditor(

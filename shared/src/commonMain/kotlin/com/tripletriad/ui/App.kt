@@ -1,8 +1,11 @@
 package com.tripletriad.ui
 
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -184,12 +187,34 @@ fun App(
             ) {
                 // Only a hairline of padding: the board and ten cards want every dp there is.
                 //
+                // ### Except where the camera is
+                //
+                // The Android host hides the system bars and turns decor fitting off — nine tiles
+                // and two hands need every dp, and the AS3 original was `fullScreen` too — so
+                // nothing reserves anything and content runs to the physical edge of the glass. A
+                // hidden status bar leaves no gap; a **punch-hole camera is still there**, and on
+                // the phones that have one it was sitting on top of the score during a match.
+                //
+                // `displayCutout` and not `safeDrawing`: the bars are hidden deliberately, and
+                // reserving their space would hand back the room that hiding them bought. The
+                // inset is empty on desktop and on a phone without a cutout, so this costs
+                // nothing where there is nothing to avoid — and it is applied once, here, rather
+                // than by each of twenty-five screens.
+                //
+                // Inside the `Surface` rather than on it, so the backdrop still paints edge to
+                // edge and the cutout sits on the game's own colour instead of on black.
+                //
                 // `BoxWithConstraints` so the whole tree knows whether it has a phone's width or a
                 // window's — measured once, here, rather than per screen: the rail and the panes
                 // have to agree, and a screen measuring itself would answer differently depending
                 // on what is padding it. See [LocalWideLayout] for why this is a comparison rather
                 // than a dependency on `material3-adaptive`.
-                BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(4.dp)) {
+                BoxWithConstraints(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .windowInsetsPadding(WindowInsets.displayCutout)
+                        .padding(4.dp),
+                ) {
                     val isWide = maxWidth >= WideLayoutThreshold
 
                     // A shared axis rather than a crossfade: going into a screen and coming back

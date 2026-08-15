@@ -2,10 +2,11 @@ package com.tripletriad.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -14,6 +15,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -120,12 +122,12 @@ internal fun DashboardScreen(
 
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
-            modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth().weight(1f).padding(top = SpaceMd),
+            horizontalArrangement = Arrangement.spacedBy(SpaceSm),
+            verticalArrangement = Arrangement.spacedBy(SpaceSm),
             // A scrolling grid has no natural bottom margin, and the last row would otherwise sit
             // against the edge of a short window.
-            contentPadding = PaddingValues(bottom = 12.dp),
+            contentPadding = PaddingValues(bottom = SpaceMd),
         ) {
             // Play is on the navigation bar too, and is the one repetition worth keeping: it is
             // what the screen is *for*, and a hero action that also has a bar entry is what every
@@ -204,14 +206,26 @@ internal fun DashboardScreen(
 }
 
 /**
- * One destination.
+ * One destination — the tile the main menu and the dashboard are both built out of.
  *
  * The click sound is played here and not by the caller, for the reason [WideButton] gives: a screen
  * added later is the one that forgets it.
  *
- * @param accented the one card that is the point of the screen. Filled in the card blue rather than
- *   the row surface, which is the only weight difference between it and the other seven — a second
- *   size, a second shape and a second type scale would be three ways of saying the same thing.
+ * ### Why the height is a minimum and not a height
+ *
+ * It was `height(72.dp)`, which was fine while every label fitted on one line at 15 sp. At
+ * Material's 16 sp `titleMedium` the longest of them does not: **Quêtes journalières** wrapped and
+ * then clipped to `Quêtes journalièr…`, which is a card that cannot say what it leads to. A grid
+ * row is as tall as its tallest item, so a minimum lets the one long label push its whole row down
+ * and keeps the cards beside it exactly the same size. A fixed height can only truncate, and it
+ * truncates in whichever language happens to be longest — which is not a decision, it is a bug that
+ * only shows up in German and French.
+ *
+ * @param accented the one card that is the point of the screen. `primaryContainer` rather than
+ *   `primary`: in Material, full `primary` is the fill of a *control* — a button, a switch, a chip
+ *   — and a 72 dp tile spanning the grid is a surface. The container tone is the same amber an
+ *   octave down, which still makes it the only warm thing on the screen without turning a third of
+ *   the dashboard into a button.
  * @param badge a count the destination wants to report — `1 / 3`. Trailing and in the label style,
  *   not a Material `Badge`: that is a red dot for *unread*, and a quest tally is a progress
  *   reading, not an alert. Null on every card that has nothing to count, which is all but one.
@@ -227,10 +241,14 @@ internal fun HomeCard(
     onClick: () -> Unit,
 ) {
     val audio = LocalAudio.current
+    val container = if (accented) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerHigh
+    }
     val content = when {
-        !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = DISABLED)
-        accented -> MaterialTheme.colorScheme.onPrimary
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
+        accented -> MaterialTheme.colorScheme.onPrimaryContainer
+        else -> MaterialTheme.colorScheme.onSurface
     }
 
     Card(
@@ -239,46 +257,55 @@ internal fun HomeCard(
             onClick()
         },
         enabled = enabled,
-        modifier = Modifier.fillMaxWidth().height(CARD_HEIGHT).testTag(tag),
+        modifier = Modifier.fillMaxWidth().heightIn(min = CARD_MIN_HEIGHT).testTag(tag),
         shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
-            containerColor = if (accented) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant
-            },
+            containerColor = container,
             contentColor = content,
-            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-            disabledContentColor = content,
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            // Dimmed rather than a different colour: a disabled card is the same destination, and
+            // `Multiplayer` on a local profile has to stay readable enough to be understood as
+            // "not now" instead of as a rendering fault. See `DashboardScreen`'s own note.
+            disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = DISABLED),
         ),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 14.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .padding(horizontal = SpaceMd, vertical = SpaceSm),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(SpaceMd),
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                modifier = Modifier.size(CARD_ICON),
+                modifier = Modifier.size(IconMd),
             )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            if (badge != null) {
+            // The badge sits **under** the label rather than beside it. Beside it, the two shared
+            // the width of a half-grid card and the label lost: `Quêtes journalières` came out as
+            // `Quêtes jo / urnalières`, broken mid-word, because the longest word in it no longer
+            // fitted the column the badge had left. Under it the label gets the full width and the
+            // count reads as what it is — a subtitle about the destination above it.
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = badge,
-                    style = MaterialTheme.typography.labelMedium,
-                    maxLines = 1,
-                    softWrap = false,
-                    // Derived from the card's own tag rather than passed: a badge belongs to a
-                    // card, and one tag is one thing to keep in step instead of two.
-                    modifier = Modifier.testTag("$tag-badge"),
+                    text = label,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
+                if (badge != null) {
+                    Text(
+                        text = badge,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = LocalContentColor.current.copy(alpha = SUBDUED),
+                        maxLines = 1,
+                        softWrap = false,
+                        // Derived from the card's own tag rather than passed: a badge belongs to a
+                        // card, and one tag is one thing to keep in step instead of two.
+                        modifier = Modifier.testTag("$tag-badge"),
+                    )
+                }
             }
         }
     }
@@ -300,12 +327,12 @@ private fun LogoutRow(label: String, onClick: () -> Unit) {
             Icon(
                 imageVector = TtoIcons.Logout,
                 contentDescription = null,
-                modifier = Modifier.size(CARD_ICON),
+                modifier = Modifier.size(IconMd),
             )
-            Text(text = label, modifier = Modifier.padding(start = 8.dp))
+            Text(text = label, modifier = Modifier.padding(start = SpaceSm))
         }
     }
 }
 
-private val CARD_HEIGHT = 72.dp
-private val CARD_ICON = 22.dp
+/** Two lines of `titleMedium` plus its padding, which is what the longest label needs. */
+private val CARD_MIN_HEIGHT = 72.dp

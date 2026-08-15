@@ -8,14 +8,18 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -25,13 +29,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -104,8 +108,12 @@ internal fun PackRevealScreen(
                     radius = Float.POSITIVE_INFINITY,
                 ),
             )
+            // **The one deliberate `clickable` left in the app.** Everything else goes through
+            // `ttoClickable`, which draws a focus ring — and a focus ring on a tap target the size
+            // of the whole screen is a blue border around the game. The button below it is the
+            // reachable, announced control; this is the shortcut for a thumb anywhere on the glass.
             .clickable(onClick = advance)
-            .padding(24.dp),
+            .padding(SpaceXl),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -118,19 +126,7 @@ internal fun PackRevealScreen(
             textAlign = TextAlign.Center,
         )
 
-        FlowRow(
-            modifier = Modifier.padding(vertical = 22.dp).widthIn(max = PackGridMaxWidth),
-            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            for ((index, id) in cardIds.withIndex()) {
-                PackSlot(
-                    index = index,
-                    card = cards[id],
-                    isOpen = index < revealed,
-                )
-            }
-        }
+        PackStack(cardIds = cardIds, cards = cards, revealed = revealed)
 
         RevealButton(
             label = strings[if (isSpent) StringKeys.PACK_TO_COLLECTION else StringKeys.PACK_REVEAL],
@@ -141,7 +137,61 @@ internal fun PackRevealScreen(
 }
 
 /**
- * One slot: face down, or turned over.
+ * The pack as a **pile**, not a grid.
+ *
+ * ### What was wrong with five slots in a row
+ *
+ * Two things. The cards were drawn at **70%** so that five of them plus their
+ * gaps would fit a phone's width, which meant the most expensive purchase in the game was also the
+ * only place the artwork was shown *smaller* than everywhere else. And five evenly spaced slots is
+ * a grid: it says these five cards are a set to be compared, when what the screen is actually about
+ * is turning them over one at a time.
+ *
+ * A pile says the second thing. It also stops the width dictating the size, because the cards
+ * overlap — which is what buys the resolution back: they are drawn at **1:1** now, and the art is
+ * authored at exactly [CardSpriteWidth] x [CardSpriteHeight], so this is the native pixel size
+ * rather than any resampling of it.
+ *
+ * ### The fan, and the order they are drawn in
+ *
+ * Each card is offset and rotated by its distance from the middle of the pile, so all five peek out
+ * and the stacking is visible rather than implied.
+ *
+ * Z-order is what makes it readable while it is being dealt: the **unrevealed** cards are drawn
+ * first and back-to-front, so the next one to turn is the topmost of the face-down pile; then the
+ * revealed ones, in the order they were turned, so the card that was just flipped is on top of
+ * everything. The guaranteed slot is last in both — see the screen's own note — and therefore ends
+ * up on top of the finished pile, which is where the one card worth looking at belongs.
+ */
+@Composable
+private fun PackStack(cardIds: List<Int>, cards: Map<Int, Card>, revealed: Int) {
+    val middle = (cardIds.size - 1) / 2f
+
+    // Unrevealed first, furthest-out to nearest, then revealed in the order they were turned.
+    val order = cardIds.indices.sortedWith(
+        compareBy<Int> { if (it < revealed) 1 else 0 }.thenBy { if (it < revealed) it else -it },
+    )
+
+    Box(
+        modifier = Modifier.padding(vertical = SpaceXl).size(PackStackWidth, PackStackHeight),
+        contentAlignment = Alignment.Center,
+    ) {
+        for (index in order) {
+            val step = index - middle
+            PackSlot(
+                index = index,
+                card = cards[cardIds[index]],
+                isOpen = index < revealed,
+                modifier = Modifier
+                    .offset(x = PackFanX * step, y = PackFanY * step)
+                    .rotate(PACK_FAN_DEGREES * step),
+            )
+        }
+    }
+}
+
+/**
+ * One card in the pile: face down, or turned over.
  *
  * The turn is a Y-axis rotation from 90° to 0 — the design's `flipin .4s ease-out` — plus a scale
  * from .9, so the card arrives rather than appears. Driven by [animateFloatAsState] keyed on
@@ -152,7 +202,7 @@ internal fun PackRevealScreen(
  * second one for this screen would put two card backs in a game that has one.
  */
 @Composable
-private fun PackSlot(index: Int, card: Card?, isOpen: Boolean) {
+private fun PackSlot(index: Int, card: Card?, isOpen: Boolean, modifier: Modifier = Modifier) {
     val colors = LocalTtoColors.current
     val turn by animateFloatAsState(
         targetValue = if (isOpen) 1f else 0f,
@@ -162,7 +212,7 @@ private fun PackSlot(index: Int, card: Card?, isOpen: Boolean) {
     val isPrize = isOpen && card != null && card.rarity >= PRIZE_RARITY
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .testTag(packSlotTestTag(index))
             .graphicsLayer {
                 rotationY = (1f - turn) * FLIP_DEGREES
@@ -181,42 +231,59 @@ private fun PackSlot(index: Int, card: Card?, isOpen: Boolean) {
             // as a gap, because a hole in the grid would read as a card that failed to turn.
             Box(
                 modifier = Modifier
-                    .width(PackSlotWidth)
-                    .height(PackSlotHeight)
+                    .width(CardSpriteWidth)
+                    .height(CardSpriteHeight)
                     .background(colors.backdrop),
             )
         } else {
-            CardFace(card = card, scale = PACK_SLOT_SCALE, showBack = !isOpen)
+            CardFace(card = card, showBack = !isOpen)
         }
     }
 }
 
-/** The one control: `Reveal` while there is a card left, then the way out. */
+/**
+ * The one control: `Reveal` while there is a card left, then the way out.
+ *
+ * ### Two Material buttons, where there was a `Box` pretending to be one
+ *
+ * It was a clipped, filled, clickable box with hand-picked padding — which is a button with its
+ * touch target, its ripple, its focus and its disabled state all left off. The two states it swings
+ * between are exactly Material's two weights, and saying so gets all four back:
+ *
+ * - **While cards remain** the button is quiet, because the *cards* are the screen. An
+ *   [OutlinedButton] is present without competing with what it is asking you to look at.
+ * - **Once the pack is spent** it is the only thing left to do, so it fills — and in `tertiary`
+ *   rather than `primary`, keeping the affirmative reading this app gives that role everywhere
+ *   else. Amber here would make leaving look like the point of opening a pack.
+ */
 @Composable
 private fun RevealButton(label: String, isSpent: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .testTag(PACK_REVEAL_ACTION_TEST_TAG)
-            .clip(RoundedCornerShape(6.dp))
-            .background(
-                if (isSpent) {
-                    MaterialTheme.colorScheme.tertiary
-                } else {
-                    Color.Transparent
-                },
-            )
-            .clickable(onClick = onClick)
-            .padding(horizontal = 24.dp, vertical = 11.dp),
-    ) {
-        Text(
-            text = label,
-            color = if (isSpent) {
-                MaterialTheme.colorScheme.onTertiary
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            },
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold,
+    val shape = MaterialTheme.shapes.large
+    val text: @Composable RowScope.() -> Unit = {
+        Text(text = label, style = MaterialTheme.typography.titleMedium)
+    }
+    val shell = Modifier.testTag(PACK_REVEAL_ACTION_TEST_TAG)
+
+    if (isSpent) {
+        Button(
+            onClick = onClick,
+            modifier = shell,
+            shape = shape,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.tertiary,
+                contentColor = MaterialTheme.colorScheme.onTertiary,
+            ),
+            content = text,
+        )
+    } else {
+        OutlinedButton(
+            onClick = onClick,
+            modifier = shell,
+            shape = shape,
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = MaterialTheme.colorScheme.onSurface,
+            ),
+            content = text,
         )
     }
 }
@@ -234,14 +301,27 @@ private fun labelFor(revealed: Int, size: Int): String = when {
     else -> StringKeys.PACK_BREAK_SEAL
 }
 
-/** Five 84dp slots wrap to 3 + 2 on a phone, which is the design's grid. */
-private val PackGridMaxWidth = 276.dp
-private val PackSlotWidth = 84.dp
-private val PackSlotHeight = 112.dp
-private val PackLabelTracking = 2.4.sp
+/*
+ * The pile's geometry. Small on purpose: this is a stack that has been knocked slightly out of
+ * true, not a hand of cards fanned out to be read.
+ */
 
-/** `CardFace` is drawn at its sprite size; this brings a card down to the grid's 84dp. */
-private const val PACK_SLOT_SCALE = 0.7f
+/** How far each card sits from the one before it. */
+private val PackFanX = 15.dp
+private val PackFanY = 9.dp
+
+/** And how far it is turned. Five cards span twice this either side of the middle. */
+private const val PACK_FAN_DEGREES = 5f
+
+/**
+ * The box the pile is centred in.
+ *
+ * The fan itself is 104 + 4x15 across and 128 + 4x9 down; the rest is what the rotation throws
+ * outside that, which has to be reserved or the outermost cards clip against the edge.
+ */
+private val PackStackWidth = 240.dp
+private val PackStackHeight = 216.dp
+private val PackLabelTracking = 2.4.sp
 
 /** `flipin .4s ease-out`. */
 private const val PACK_FLIP_MILLIS = 400

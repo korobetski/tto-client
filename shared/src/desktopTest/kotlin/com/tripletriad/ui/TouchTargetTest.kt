@@ -1,9 +1,11 @@
 package com.tripletriad.ui
 
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import com.tripletriad.i18n.AppLocale
@@ -25,6 +27,7 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
+import kotlin.test.assertTrue
 
 /**
  * That the things a player taps are big enough to tap.
@@ -68,6 +71,93 @@ class TouchTargetTest {
     @Test
     fun theHostButtonIsBigEnoughToTap() = lobby {
         onNodeWithTag(PVP_HOST_TEST_TAG).assertHeightIsAtLeast(MINIMUM)
+    }
+
+    /**
+     * The rows the shared modifier is responsible for, across four screens.
+     *
+     * ### Why this stopped being one spot check
+     *
+     * It used to test a single lobby row, on the grounds that "if `rowSurface` rows are tall enough
+     * here they are tall enough everywhere they are built the same way" — which was a claim about a
+     * *drawing* helper that had nothing to do with touch. `Modifier.ttoClickable` is the one that
+     * does: it calls `minimumInteractiveComponentSize`, so a row's tappable area no longer depends
+     * on what its contents happen to measure. That makes a sweep worth having, because now a row
+     * failing means the modifier was **not called** rather than that somebody's padding was thin.
+     *
+     * ### It measures the **touch** bounds, and the tests above do not
+     *
+     * That distinction turned out to matter, and it is why this test is written differently from
+     * its three neighbours. `assertHeightIsAtLeast` reads a node's *layout* bounds, and Compose
+     * extends a clickable's pointer bounds outwards to the 48 dp minimum without moving a pixel of
+     * what is drawn. Measured here: the collection's element filter draws **32 dp** and takes
+     * **48 dp** of touch; the help screen's rule row draws 38 and takes 48; the `×` in the profile
+     * list draws 34 and takes 48. An assertion on the layout would fail all three, and all three
+     * are perfectly reachable — as this test discovered on its first run, before it was pointed at
+     * `SemanticsNode.touchBoundsInRoot` instead.
+     *
+     * The three tests above are left measuring layout because that is the honest claim for them: a
+     * lobby row and a button are as tall as they look.
+     *
+     * ### What this can and cannot catch
+     *
+     * It catches a control that has become genuinely unreachable — one whose pointer bounds shrink,
+     * or that stops being clickable at all. It does **not** guard any particular call inside
+     * `ttoClickable`: removing the `minimumInteractiveComponentSize` that used to be there changed
+     * none of the numbers above, which is how that call was found to be doing nothing and removed.
+     * Worth knowing before reading a green run as proof of more than it says.
+     */
+    @Test
+    fun everyOrdinaryRowIsBigEnoughToTap() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+
+        newCharacter()
+
+        openFromBar("cards", CARD_GRID_TEST_TAG)
+        assertTouchTarget(typeFilterTestTag(null))
+        assertTouchTarget(cardCellTestTag(STARTER_CARDS.first()))
+
+        onNodeWithTag(screenTabTestTag("decks")).performClick()
+        waitForIdle()
+        assertTouchTarget(deckSlotTestTag(0))
+
+        openFromBar("play", OPPONENT_LIST_TEST_TAG)
+        scrollToOpponent(TEST_OPPONENT)
+        assertTouchTarget(opponentRowTestTag(TEST_OPPONENT))
+
+        openFromBar("home", DASHBOARD_PLAY_TEST_TAG)
+        openFromDashboard(DASHBOARD_HELP_TEST_TAG, HELP_LIST_TEST_TAG)
+        assertTouchTarget(helpRuleTestTag(FIRST_HELP_RULE))
+    }
+
+    /**
+     * The smallest thing in the app: the `×` beside a character in the profile list.
+     *
+     * One glyph in 8 dp of padding, drawing 34 dp tall. Every other row the sweep visits is a list
+     * row already taller than the minimum, so this is the one whose touch bounds are doing real
+     * work — and the one that would notice first if a future Compose release stopped extending
+     * them.
+     */
+    @Test
+    fun theSmallestSharedTargetIsBigEnoughToTap() = runComposeUiTest {
+        val documents = seeded(GameSave.new(username = "Kuplu", createdAt = 0L))
+        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+
+        awaitMenu()
+        onNodeWithTag(MENU_PLAY_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_LIST_TEST_TAG) }
+
+        assertTouchTarget(profileDeleteTestTag(documents.stored.keys.single()))
+    }
+
+    /** The tappable area of [tag], which is not the same as how tall it draws. */
+    private fun ComposeUiTest.assertTouchTarget(tag: String) {
+        val node = onNodeWithTag(tag).fetchSemanticsNode()
+        val height = with(node.layoutInfo.density) { node.touchBoundsInRoot.height.toDp() }
+        assertTrue(
+            height >= MINIMUM - TOLERANCE,
+            "$tag has a ${height.value.toInt()} dp touch target, under $MINIMUM",
+        )
     }
 
     private fun lobby(block: androidx.compose.ui.test.ComposeUiTest.() -> Unit) = runComposeUiTest {
@@ -115,8 +205,14 @@ class TouchTargetTest {
         const val NOW = 1_770_000_000_000L
         const val TABLE_ID = "t-1"
 
+        /** The first rule the help screen lists, which every format admits. */
+        const val FIRST_HELP_RULE = "RULE_SAME"
+
         /** Material 3's minimum touch target, and Android's own accessibility guidance. */
         val MINIMUM = 48.dp
+
+        /** The same slack `assertHeightIsAtLeast` allows, so the two agree about rounding. */
+        val TOLERANCE = 0.5.dp
 
         val TABLE = """
             {"id":"$TABLE_ID","hostName":"Kuplu2","formatId":"free-play",

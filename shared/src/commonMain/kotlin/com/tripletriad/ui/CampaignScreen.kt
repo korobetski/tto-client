@@ -73,7 +73,7 @@ internal fun CampaignScreen(
     ScreenScaffold(title = campaignTitle(strings, campaign), onBack = onBack) {
         Column(
             modifier = Modifier.testTag(CAMPAIGN_LIST_TEST_TAG).fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(SpaceSm),
         ) {
             for ((step, entry) in campaign.steps.withIndex()) {
                 RungRow(step = step, entry = entry)
@@ -84,7 +84,7 @@ internal fun CampaignScreen(
             text = "${strings[StringKeys.MATCH_FEE]} ${campaign.fee} ${strings[StringKeys.MGP]}",
             color = LocalTtoColors.current.transient,
             style = MaterialTheme.typography.labelMedium,
-            modifier = Modifier.padding(vertical = 12.dp),
+            modifier = Modifier.padding(vertical = SpaceMd),
         )
 
         WideButton(
@@ -111,9 +111,9 @@ private fun RungRow(step: Int, entry: CampaignStep) {
     val npc = entry.npc
 
     Row(
-        modifier = Modifier.fillMaxWidth().rowSurface().padding(12.dp),
+        modifier = Modifier.fillMaxWidth().rowSurface().padding(SpaceMd),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(SpaceMd),
     ) {
         Text(
             text = "${step + 1}",
@@ -228,7 +228,7 @@ internal fun CampaignMatchScreen(
             modifier = Modifier
                 .testTag(CAMPAIGN_STEP_TEST_TAG)
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp),
+                .padding(horizontal = SpaceMd),
         )
         // Keyed on the rung rather than trusting the opponent to differ: `MatchScreen` re-deals on
         // `npc.iconId`, and two rungs of one ladder sharing an icon would silently keep the board.

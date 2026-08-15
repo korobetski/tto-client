@@ -7,10 +7,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
-import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -21,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
@@ -128,6 +127,19 @@ internal val WideLayoutThreshold = 600.dp
  * Which is the layout the original had: `card_list.jpg` is a 1024-wide stage with its controls on
  * one side and its content beside them, and this port had been drawing a 520 dp column in the
  * middle of a desktop window with nothing either side of it.
+ *
+ * ### Neither of these names a colour any more, and that is the point
+ *
+ * Both used to hand-write five: `indicatorColor = primary`, `selectedIconColor = onPrimary`, and
+ * three alpha-dimmed variants of `onBackground`. Every one of those was **working around a scheme
+ * that was not finished**. Material's own defaults put the selection pill on `secondaryContainer` —
+ * the state role, which is what a navigation indicator is — and the unselected entries on
+ * `onSurfaceVariant`, which is what that role is for. With the palette complete they are simply
+ * right, and the amber indicator the overrides produced was saying "this is an action" about the
+ * thing marking where you already are.
+ *
+ * The container stays transparent because [App] paints the backdrop under everything, and a bar
+ * that filled its own would put a lighter band across the bottom of every screen.
  */
 @Composable
 internal fun SideNavigation(state: Navigation) {
@@ -136,7 +148,7 @@ internal fun SideNavigation(state: Navigation) {
     NavigationRail(
         modifier = Modifier.testTag(NAV_RAIL_TEST_TAG),
         containerColor = Color.Transparent,
-        contentColor = MaterialTheme.colorScheme.onBackground,
+        contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
         for (tab in Tab.entries) {
             NavigationRailItem(
@@ -144,16 +156,14 @@ internal fun SideNavigation(state: Navigation) {
                 onClick = { state.onSelect(tab) },
                 modifier = Modifier.testTag(navTestTag(tab.name.lowercase())),
                 icon = { Icon(imageVector = tab.icon, contentDescription = null) },
-                label = { Text(text = strings[tab.labelKey], maxLines = 1) },
-                colors = NavigationRailItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.onPrimary,
-                    selectedTextColor = MaterialTheme.colorScheme.onBackground,
-                    indicatorColor = MaterialTheme.colorScheme.primary,
-                    unselectedIconColor =
-                    MaterialTheme.colorScheme.onBackground.copy(alpha = MUTED),
-                    unselectedTextColor =
-                    MaterialTheme.colorScheme.onBackground.copy(alpha = MUTED),
-                ),
+                label = {
+                    Text(
+                        text = strings[tab.labelKey],
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
             )
         }
     }
@@ -164,6 +174,8 @@ internal fun SideNavigation(state: Navigation) {
  *
  * Held to [ContentMaxWidth] and centred for the reason the app bar is: on a desktop window the
  * four targets would otherwise sit a hand's width apart with the content in the middle.
+ *
+ * See [SideNavigation] for why neither of them names a colour.
  */
 @Composable
 internal fun BottomNavigation(state: Navigation) {
@@ -173,7 +185,7 @@ internal fun BottomNavigation(state: Navigation) {
         NavigationBar(
             modifier = Modifier.testTag(NAV_BAR_TEST_TAG).widthIn(max = ContentMaxWidth),
             containerColor = Color.Transparent,
-            contentColor = MaterialTheme.colorScheme.onBackground,
+            contentColor = MaterialTheme.colorScheme.onSurface,
         ) {
             for (tab in Tab.entries) {
                 NavigationBarItem(
@@ -181,16 +193,14 @@ internal fun BottomNavigation(state: Navigation) {
                     onClick = { state.onSelect(tab) },
                     modifier = Modifier.testTag(navTestTag(tab.name.lowercase())),
                     icon = { Icon(imageVector = tab.icon, contentDescription = null) },
-                    label = { Text(text = strings[tab.labelKey], maxLines = 1) },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = MaterialTheme.colorScheme.onPrimary,
-                        selectedTextColor = MaterialTheme.colorScheme.onBackground,
-                        indicatorColor = MaterialTheme.colorScheme.primary,
-                        unselectedIconColor =
-                        MaterialTheme.colorScheme.onBackground.copy(alpha = MUTED),
-                        unselectedTextColor =
-                        MaterialTheme.colorScheme.onBackground.copy(alpha = MUTED),
-                    ),
+                    label = {
+                        Text(
+                            text = strings[tab.labelKey],
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
                 )
             }
         }

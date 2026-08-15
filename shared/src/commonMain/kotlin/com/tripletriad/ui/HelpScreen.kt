@@ -2,7 +2,6 @@ package com.tripletriad.ui
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -79,7 +78,7 @@ internal fun HelpScreen(profile: GameSave, onBack: () -> Unit) {
     CharacterScaffold(profile = profile, title = strings[StringKeys.HELP], onBack = onBack) {
         LazyColumn(
             modifier = Modifier.testTag(HELP_LIST_TEST_TAG).fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(SpaceSm),
         ) {
             for (family in HELP_FAMILIES) {
                 item(key = family.labelKey) { HelpSectionHeader(family.labelKey) }
@@ -115,7 +114,7 @@ private fun HelpSectionHeader(labelKey: String) {
         modifier = Modifier
             .testTag(helpFamilyTestTag(labelKey))
             .fillMaxWidth()
-            .padding(top = 14.dp, bottom = 2.dp),
+            .padding(top = SpaceLg, bottom = 2.dp),
     )
 }
 
@@ -134,14 +133,17 @@ private fun HelpRow(ruleKey: String, isOpen: Boolean, onClick: () -> Unit) {
             .testTag(helpRuleTestTag(ruleKey))
             .fillMaxWidth()
             .rowSurface(selected = isOpen)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+            // A rule row opens and closes its own explanation, so it is a disclosure rather than a
+            // choice: `selected` is what a screen reader needs to say whether the text below it is
+            // showing, and without it an expanded row and a collapsed one sound identical.
+            .ttoClickable(selected = isOpen, onClick = onClick)
+            .padding(horizontal = SpaceMd, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(SpaceSm),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(SpaceSm),
         ) {
             Text(
                 text = strings[ruleKey],

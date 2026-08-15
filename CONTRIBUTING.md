@@ -19,6 +19,7 @@ Start here:
 | Branches, commits, PRs | [docs/development/git-workflow.md](docs/development/git-workflow.md) |
 | Formatting, naming, docs | [docs/development/coding-standards.md](docs/development/coding-standards.md) |
 | Layering, state, DI | [docs/development/architecture-guidelines.md](docs/development/architecture-guidelines.md) |
+| Colours, type, spacing, shared controls | [docs/development/design-system.md](docs/development/design-system.md) |
 
 ## Before you start: one blocking legal issue
 

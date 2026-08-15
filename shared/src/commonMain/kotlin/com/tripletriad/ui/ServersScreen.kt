@@ -1,7 +1,6 @@
 package com.tripletriad.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -154,10 +154,17 @@ private fun ServerRow(
             .testTag(serverRowTestTag(entry))
             .fillMaxWidth()
             .rowSurface(selected = isSelected)
-            .clickable(enabled = !isSelected, onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .ttoClickable(
+                role = Role.RadioButton,
+                // The server already in use is still announced as chosen — it is simply not
+                // something to choose again.
+                enabled = !isSelected,
+                selected = isSelected,
+                onClick = onClick,
+            )
+            .padding(horizontal = SpaceMd, vertical = SpaceMd),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(SpaceMd),
     ) {
         StatusDot(status)
         Column(modifier = Modifier.weight(1f)) {
@@ -200,10 +207,10 @@ internal fun ServerIndicator(connectivity: Connectivity, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .testTag(MENU_SERVER_TEST_TAG)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 6.dp),
+            .ttoClickable(onClick = onClick)
+            .padding(horizontal = SpaceSm, vertical = SpaceSm),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(SpaceSm),
     ) {
         StatusDot(status)
         Text(
@@ -324,14 +331,11 @@ private fun ServerStatus.describe(strings: Strings): String = when (this) {
  */
 @Composable
 private fun ServerStatus.tint(): Color = when (this) {
-    is ServerStatus.Online -> Healthy
+    is ServerStatus.Online -> LocalTtoColors.current.positive
     is ServerStatus.Degraded, ServerStatus.Checking -> LocalTtoColors.current.transient
     is ServerStatus.Outdated -> LocalTtoColors.current.transient
     is ServerStatus.Unreachable, is ServerStatus.Unusable -> MaterialTheme.colorScheme.error
     ServerStatus.Unknown -> MaterialTheme.colorScheme.onSurface.copy(alpha = DISABLED)
 }
-
-/** The one colour the theme has no entry for: the original palette is warm and has no green. */
-private val Healthy = Color(0xFF5FA85F)
 
 private val DotSize = 8.dp

@@ -1,6 +1,5 @@
 package com.tripletriad.ui
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,11 +22,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.tripletriad.data.SaveSlot
 import com.tripletriad.data.Starter
 import com.tripletriad.data.StarterCatalog
@@ -176,10 +175,10 @@ private fun ProfileRow(
             .testTag(profileRowTestTag(slot.key))
             .fillMaxWidth()
             .rowSurface(armed = isArmed)
-            .clickable(onClick = onSelect)
-            .padding(12.dp),
+            .ttoClickable(onClick = onSelect)
+            .padding(SpaceMd),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(SpaceSm),
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -206,26 +205,33 @@ private fun ProfileRow(
                     "${save.stats.draws} ${strings[StringKeys.DRAWS]}",
                     "${save.stats.defeats} ${strings[StringKeys.DEFEATS]}",
                 ).joinToString(DOT_SEPARATOR),
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
                 style = MaterialTheme.typography.labelSmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
+        // Two styles rather than two raw `sp` values: the armed state spells the word out and the
+        // resting one is a single glyph, so they are different *kinds* of label and the scale
+        // already names both. The sizes it used — 18 and 12 — predate the type scale.
         Text(
             text = if (isArmed) strings[StringKeys.DELETE] else "×",
             color = if (isArmed) {
                 MaterialTheme.colorScheme.error
             } else {
-                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT)
             },
-            fontSize = if (isArmed) 12.sp else 18.sp,
+            style = if (isArmed) {
+                MaterialTheme.typography.labelMedium
+            } else {
+                MaterialTheme.typography.titleLarge
+            },
             maxLines = 1,
             softWrap = false,
             modifier = Modifier
                 .testTag(profileDeleteTestTag(slot.key))
-                .clickable(onClick = onDelete)
-                .padding(horizontal = 8.dp, vertical = 4.dp),
+                .ttoClickable(onClick = onDelete)
+                .padding(horizontal = SpaceSm, vertical = SpaceXs),
         )
     }
 }
@@ -458,8 +464,12 @@ private fun StarterChoice(
         modifier = modifier
             .testTag(starterChoiceTestTag(starter.id))
             .rowSurface(selected = isSelected)
-            .clickable(onClick = onClick)
-            .padding(vertical = 12.dp),
+            .ttoClickable(
+                role = Role.RadioButton,
+                selected = isSelected,
+                onClick = onClick,
+            )
+            .padding(vertical = SpaceMd),
         contentAlignment = Alignment.Center,
     ) {
         Text(

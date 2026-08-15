@@ -94,14 +94,22 @@ class MatchLayoutTest {
         }
     }
 
-    /** What the arrangement actually occupies: two hand areas plus the board, on both axes. */
+    /**
+     * What the arrangement actually occupies: two hand areas, the board, and the two breaks.
+     *
+     * The breaks are [HandBoardGap] and they are counted here for the same reason `matchLayout`
+     * reserves them — they are real space between the three groups. Leaving them out of this sum
+     * would let the test pass a layout that fits only if the hands touch the board, which is the
+     * arrangement the gap exists to prevent.
+     */
     private fun footprint(layout: MatchLayout): Pair<Dp, Dp> {
         val boardWidth = (CardSpriteWidth * BOARD_SIDE + BoardGapTotal) * layout.boardScale
         val boardHeight = (CardSpriteHeight * BOARD_SIDE + BoardGapTotal) * layout.boardScale
+        val breaks = HandBoardGap * 2
         return if (layout.landscape) {
-            (layout.handWidth * 2 + boardWidth) to maxOf(layout.handHeight, boardHeight)
+            (layout.handWidth * 2 + boardWidth + breaks) to maxOf(layout.handHeight, boardHeight)
         } else {
-            maxOf(layout.handWidth, boardWidth) to (layout.handHeight * 2 + boardHeight)
+            maxOf(layout.handWidth, boardWidth) to (layout.handHeight * 2 + boardHeight + breaks)
         }
     }
 

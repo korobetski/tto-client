@@ -3,7 +3,6 @@ package com.tripletriad.ui
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
@@ -101,7 +101,9 @@ private fun AvatarTile(avatarId: String, isSelected: Boolean, onClick: () -> Uni
                 color = if (isSelected) colors.primary else colors.primary.copy(alpha = RING),
                 shape = CircleShape,
             )
-            .clickable(onClick = onClick),
+            // The picker is a set of mutually exclusive portraits, and the ring is the only
+            // thing that says which one is worn — so the state has to be announced too.
+            .ttoClickable(role = Role.RadioButton, selected = isSelected, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         if (image != null) {

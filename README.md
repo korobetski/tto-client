@@ -614,12 +614,24 @@ both players' clocks but listens to only the player's, so only the player's is d
 
 ## Theme
 
-One dark theme, built from `theme/BaseTTOTheme.as` rather than from Material's defaults:
-`PRIMARY_BACKGROUND_COLOR`, `LIST_BACKGROUND_COLOR`, `LIGHT_TEXT_COLOR` and the rest, transcribed in
-[`ui/theme/Colors.kt`](shared/src/commonMain/kotlin/com/tripletriad/ui/theme/Colors.kt) and pinned
-by `ThemeTest`. The card colours travel beside the scheme in `TtoColors`, because "the blue player's
-card" is not one of Material's thirty-odd colour roles and forcing it into `tertiaryContainer` would
-make every call site read as a lie about what it is drawing.
+One dark theme, and **no longer a transcription**. It used to be `BaseTTOTheme.as`'s constants poured
+straight into eighteen of Material's thirty-odd colour roles, with the other twelve left at
+`darkColorScheme()`'s baseline — which is why every `Snackbar` in the game rendered as a light
+lavender box, and why the same `FilterChip` looked like two different controls depending on the
+screen. It is now six **tonal ramps** in
+[`ui/theme/Palette.kt`](shared/src/commonMain/kotlin/com/tripletriad/ui/theme/Palette.kt), every
+role filled from them in
+[`Colors.kt`](shared/src/commonMain/kotlin/com/tripletriad/ui/theme/Colors.kt), and every ramp seeded
+from a colour that was already in this app.
+
+**[docs/development/design-system.md](docs/development/design-system.md) is the full account** — the
+palette, the type scale, the shapes, the 4 dp spacing grid, the shared controls, and every place the
+refresh deliberately stops following the original. `ThemeTest` guards completeness and `ContrastTest`
+guards legibility; between them nothing here can drift quietly.
+
+The card colours travel beside the scheme in `TtoColors` and are **untouched by the refresh**,
+because "the blue player's card" is not one of Material's colour roles, and re-deriving them from a
+ramp would have changed the board to make the buttons tidier.
 
 **The font is Raleway**, which is what `BaseTTOTheme.as:118` declares and what `:115-116` embed —
 Regular as `normal`, Medium as `bold`, so the game's "bold" is a medium weight. The migration plan
@@ -631,13 +643,12 @@ Raleway has no CJK coverage, so `ja_JA` falls back per glyph to the platform fac
 Raleway in the same line. The AS3 needed two `Noto-ja` bitmap fonts for this; Skia and Android do it
 themselves.
 
-The **type scale is re-anchored, not transcribed**. The AS3's four sizes (18/24/28/36) are pixels at
-326 DPI, which convert to about 9/12/14/18 dp — too small on anything that is not a 2013 Retina
-display. The ladder's shape is kept and its anchor is not, the same judgement the card geometry gets.
-
-Before this existed the app ran on `darkColorScheme()` and every Material control was hand-coloured
-at its call site to hide the default purple. Fourteen screens now read the theme, and no
-`Color.White` or `fontSize` literal is left in any of them.
+The **type scale is re-anchored twice, not transcribed**. The AS3's four sizes (18/24/28/36) are
+pixels at 326 DPI, which convert to about 9/12/14/18 dp — too small on anything that is not a 2013
+Retina display. The port's first re-anchoring kept the ladder's shape at 11–18 sp; that turned out to
+be seven steps inside eight points, so a screen title was two points larger than the body under it
+and the app read as one dense weight of grey. It is Material's own scale now, with the line heights
+and letter spacing that were absent entirely before.
 
 ## Audio
 

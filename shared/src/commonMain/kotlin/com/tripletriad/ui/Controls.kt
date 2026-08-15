@@ -37,6 +37,8 @@ import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -47,7 +49,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -172,15 +173,25 @@ private val ButtonHeight = 56.dp
  * fixes it for every row that is built this way, including the ones not written yet, which is the
  * same argument `WideButton` makes about its click sound and `rowSurface` about its border.
  *
- * ### Three things, because they are always wanted together
+ * ### Two things, because they are always wanted together
  *
- * - **The touch target.** [minimumInteractiveComponentSize] grows the tappable area to 48 dp
- *   without touching the layout, so a row that *looks* 40 dp tall still takes a thumb. Material's
- *   own components do this; `clickable` does not, which is what `TouchTargetTest` measured.
  * - **The semantics.** [role] and, where the caller has one, [selected].
  * - **The focus ring.** The desktop build is driven by keyboard as well as by mouse, and had no
  *   visible focus anywhere — tabbing through a screen moved an invisible cursor. Drawn in
  *   `secondary`, which is the app's state colour, and only while focused.
+ *
+ * ### It does *not* grow the touch target, and that is a correction
+ *
+ * It called [androidx.compose.material3.minimumInteractiveComponentSize] for a while, on the
+ * understanding — taken from `TouchTargetTest`'s own note — that "nothing enforces the 48 dp
+ * minimum on `Modifier.clickable`". Measuring it says otherwise: the `×` in the profile list draws
+ * 34 dp tall and reports **48 dp of touch bounds** with that call removed, and so does the help
+ * screen's rule row at 38 dp. `clickable` already extends its own pointer bounds to the minimum.
+ *
+ * The old note was not wrong, it was about something else: `assertHeightIsAtLeast` reads *layout*
+ * bounds, so what it measured was how tall a row **looks**, which is a real concern and a different
+ * one. The call was doing nothing, and a line of code that documents itself as doing something it
+ * does not is worse than no line at all.
  *
  * @param sound null for a control with a voice of its own — a board cell plays a card being placed,
  *   and a UI click underneath it is one sound too many.
@@ -203,7 +214,6 @@ internal fun Modifier.ttoClickable(
     val ringShape = shape ?: MaterialTheme.shapes.small
 
     return this
-        .minimumInteractiveComponentSize()
         .clickable(
             interactionSource = interactions,
             indication = LocalIndication.current,
@@ -576,6 +586,44 @@ internal fun ScreenTabs(
         }
         Spacer(modifier = Modifier.height(SpaceMd))
     }
+}
+
+/**
+ * A value on a range — the volumes, and the wager on a PvP table.
+ *
+ * ### The third of these, and the same story as the chips
+ *
+ * There were two sliders and they looked like two different controls. `OptionsScreen` hand-wrote
+ * three colours; `PvpTableScreen` took Material's defaults — and in Material 3 an inactive track
+ * defaults to `secondaryContainer`, which in this palette is a **strong blue**. So a wager slider
+ * sitting at zero drew a full-width bar of solid blue with the thumb at the far left, which reads
+ * as *full* to anybody who does not stop to work out which end is which. A control whose empty
+ * state looks like its full state is worse than no control.
+ *
+ * `tertiary` for the filled part, which is the reading this app gives that role everywhere: a
+ * filled progress bar, an affordable price, a complete deck. `surfaceContainerHighest` behind it,
+ * which is Material's own track role and is what the splash's progress bar was moved to for the
+ * same reason.
+ */
+@Composable
+internal fun TtoSlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    tag: String,
+    modifier: Modifier = Modifier,
+    valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
+) {
+    Slider(
+        value = value,
+        onValueChange = onValueChange,
+        valueRange = valueRange,
+        modifier = modifier.testTag(tag),
+        colors = SliderDefaults.colors(
+            thumbColor = MaterialTheme.colorScheme.tertiary,
+            activeTrackColor = MaterialTheme.colorScheme.tertiary,
+            inactiveTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        ),
+    )
 }
 
 /**

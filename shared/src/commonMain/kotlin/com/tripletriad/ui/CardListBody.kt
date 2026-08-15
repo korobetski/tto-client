@@ -2,14 +2,16 @@ package com.tripletriad.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -21,6 +23,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -120,7 +123,8 @@ internal fun ColumnScope.CardListBody(
         color = MaterialTheme.colorScheme.onSurface.copy(alpha = SUBDUED),
         style = MaterialTheme.typography.labelMedium,
         maxLines = 1,
-        modifier = Modifier.testTag(CARD_TOTAL_TEST_TAG).padding(bottom = 8.dp),
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.testTag(CARD_TOTAL_TEST_TAG).padding(bottom = SpaceSm),
     )
 
     CardFilters(
@@ -184,7 +188,9 @@ private fun CardCell(card: Card, copies: Int, isSelected: Boolean, onClick: () -
         modifier = Modifier
             .testTag(cardCellTestTag(card.id))
             .rowSurface(selected = isSelected)
-            .clickable(onClick = onClick)
+            // Tapping a cell opens the card beside the grid, and tapping it again closes it — so
+            // it is a toggle, and the selected state is what the detail pane is showing.
+            .ttoClickable(selected = isSelected, onClick = onClick)
             .padding(1.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -249,16 +255,23 @@ private fun CardDetail(
             EmptyNote(strings[StringKeys.PICK_CARD], CARD_DETAIL_EMPTY_TEST_TAG)
         } else {
             Row(
-                modifier = Modifier.testTag(CARD_DETAIL_TEST_TAG).fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.testTag(CARD_DETAIL_TEST_TAG).fillMaxSize(),
+                horizontalArrangement = Arrangement.spacedBy(SpaceMd),
             ) {
                 CardFace(card = card, scale = DETAIL_SCALE)
-                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                // **`fillMaxHeight` is what makes the rest of this work.** Without it the column
+                // was as tall as its own contents, so `weight(1f)` on the description had no
+                // remainder to take, the column overflowed the panel, and what fell off the bottom
+                // was the Sell button — the one control the panel exists to offer. The description
+                // was cut mid-sentence with nothing to say it could be scrolled.
+                Column(
+                    modifier = Modifier.fillMaxHeight().weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(SpaceXs),
+                ) {
                     Text(
                         text = strings[card.nameKey],
                         color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -277,9 +290,16 @@ private fun CardDetail(
                         Text(
                             text = strings[description],
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
-                            style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                            // `bodySmall` and not `labelSmall`: this is the only prose in the game
+                            // and it was being drawn at the size the app uses for a stack count.
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .verticalScroll(rememberScrollState()),
                         )
+                    } else {
+                        Spacer(modifier = Modifier.weight(1f))
                     }
 
                     SellButton(card, profile, onSell)
@@ -309,18 +329,30 @@ private fun CardDetail(
  * asked, and the answer would be a button on almost every owned card.
  */
 @Composable
-private fun SellButton(card: Card, profile: GameSave, onSell: (Card) -> Unit) {
+private fun ColumnScope.SellButton(card: Card, profile: GameSave, onSell: (Card) -> Unit) {
     val strings = LocalStrings.current
     if (profile.spareCopiesOf(card.id) < 1) return
 
-    WideButton(
-        label = "${strings[StringKeys.SELL]} ${CardValue.resaleOf(
-            card.id,
-            mapOf(card.id to card),
-        )}",
-        tag = CARD_SELL_TEST_TAG,
+    // Compact, and not the full-width [WideButton] this used to be. A 56 dp bar across a 184 dp
+    // panel is the loudest thing on a screen whose subject is the card beside it, and every dp it
+    // spans is a dp the description does not get. Selling is an occasional action on a duplicate,
+    // not the reason anybody opened the collection.
+    FilledTonalButton(
         onClick = { onSell(card) },
-    )
+        modifier = Modifier.testTag(CARD_SELL_TEST_TAG).align(Alignment.End),
+        shape = MaterialTheme.shapes.large,
+        contentPadding = PaddingValues(horizontal = SpaceLg, vertical = SpaceSm),
+    ) {
+        Text(
+            text = "${strings[StringKeys.SELL]} ${CardValue.resaleOf(
+                card.id,
+                mapOf(card.id to card),
+            )}",
+            style = MaterialTheme.typography.labelLarge,
+            maxLines = 1,
+            softWrap = false,
+        )
+    }
 }
 
 /**
@@ -460,7 +492,20 @@ private val ThumbWidth = CardSpriteWidth * THUMB_SCALE
 
 /** Two thirds, so the panel fits a card, three lines and a scrolling description on a phone. */
 private const val DETAIL_SCALE = 0.66f
-private val DetailHeight = CardSpriteHeight * DETAIL_SCALE + 20.dp
+
+/**
+ * How tall the detail panel is, and why it is a constant.
+ *
+ * Fixed rather than fitted, so the grid does not jump under the finger that just tapped it — see
+ * `CardListBody`, which selects and deselects on the same tap.
+ *
+ * It used to be the card art plus padding, about 98 dp, which was the height of the *picture* and
+ * had nothing to do with what sits beside it: a name, a facts line, a paragraph of flavour text and
+ * a Sell button do not fit in 98 dp and the last two did not appear at all. This is what they
+ * actually need — the button at its Material height, three or four lines of description above it,
+ * and the rest scrolling.
+ */
+private val DetailHeight = 196.dp
 
 /** Wide enough for the card and its facts side by side, and no wider — the grid wants the rest. */
 private val DetailPaneWidth = 260.dp

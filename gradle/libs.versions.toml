@@ -10,29 +10,14 @@ kotlin = "2.4.10"
 # Raising it is two edits and one release, in this order: tag `tto-core`, then this line, then
 # `tto-server`'s. A local `publishToMavenLocal` is how a change is tried before any of that — see
 # `settings.gradle.kts` for why the local copy wins over the published one.
-core = "0.7.1"
+
+core = "0.7.2"
 
 compose = "1.11.1"
-# Material 3 is versioned apart from the rest of Compose Multiplatform and has been since 1.11:
-# `org.jetbrains.compose.material3:material3` has published nothing stable past 1.9.0, while
-# runtime/foundation/ui are at 1.11.1. The `compose.material3` DSL accessor resolved 1.9.0 all by
-# itself; naming it here changes nothing about what is built and makes the split visible.
 composeMaterial3 = "1.9.0"
 activityCompose = "1.13.0"
 androidxCore = "1.19.0"
 serializationJson = "1.11.0"
-# `runTest` and `kotlinx-coroutines-core` must agree, and this pin is what keeps them agreeing —
-# the hazard it guards against is the whole build being upgraded silently by a *test* dependency.
-#
-# Raised from 1.8.1 to 1.11.0 on 2026-08-07, deliberately and in its own commit, ahead of adding
-# Ktor Client. Ktor 3.5.2 brings the coroutines **BOM**, whose constraint outranks a plain
-# `version.ref`, so the network layer would have moved this number on its own and buried the change
-# in an unrelated diff. Moving it first makes it a decision with its own test run rather than a
-# side effect.
-#
-# Checked before the bump: Compose Multiplatform 1.9.3 asks for 1.8.0 transitively, not 1.8.1, so
-# nothing here was pinned to Compose's needs. The server has been resolving `:core` against 1.11.0
-# since it started consuming it, so this is the version the engine was already running on.
 coroutines = "1.11.0"
 # The same version the server runs, and deliberately so: they speak to each other, and a mismatch
 # between two Ktor majors is a class of bug nobody should spend an evening on. Bump both together.

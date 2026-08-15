@@ -1,6 +1,5 @@
 package com.tripletriad.ui
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -26,7 +25,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.Strings
@@ -233,9 +231,9 @@ private fun DeckPicker(profile: GameSave, selected: Int, onSelect: (Int) -> Unit
     if (decks.isEmpty()) return
 
     Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = SpaceXs),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(SpaceSm),
     ) {
         Text(
             text = strings[StringKeys.PVP_DECK],
@@ -245,8 +243,8 @@ private fun DeckPicker(profile: GameSave, selected: Int, onSelect: (Int) -> Unit
         )
         FlowRow(
             modifier = Modifier.weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(SpaceSm),
+            verticalArrangement = Arrangement.spacedBy(SpaceXs),
         ) {
             TtoFilterChip(
                 label = strings[StringKeys.PVP_DECK_ANY],
@@ -282,11 +280,14 @@ private fun ClaimBanner(count: Int, onClaim: () -> Unit) {
         modifier = Modifier
             .testTag(PVP_CLAIM_BANNER_TEST_TAG)
             .fillMaxWidth()
+            // The one tinted thing in the lobby, which is what makes the tint mean something:
+            // a prize on a timer is the only item here that will be settled *against* the player
+            // if they ignore it.
             .rowSurface(selected = true)
-            .clickable(onClick = onClaim)
-            .padding(10.dp),
+            .ttoClickable(onClick = onClaim)
+            .padding(SpaceMd),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(SpaceSm),
     ) {
         Text(
             text = strings.format(StringKeys.PVP_CLAIM_PENDING, "$count"),
@@ -351,7 +352,7 @@ private fun ColumnScope.TablesBody(
                 .testTag(PVP_TABLES_TEST_TAG)
                 .fillMaxWidth()
                 .weight(1f),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(SpaceSm),
         ) {
             items(session.tables, key = { it.id }) { table ->
                 TableRow(
@@ -387,14 +388,20 @@ private fun TableRow(
         modifier = Modifier
             .testTag(tableRowTestTag(table.id))
             .fillMaxWidth()
-            .rowSurface(selected = !mine)
-            .padding(10.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+            // A plain row. It used to be `selected = !mine`, which tinted every table **except**
+            // the player's own — so in a lobby of six, five were marked and one was not, and a
+            // mark carried by the majority is not a mark. The row already says whose table it is
+            // in words, on its first line, in whichever language the player reads; the tint was
+            // saying the same thing again and worse. See the claim banner below, which is now the
+            // only tinted thing on this screen and means something because of it.
+            .rowSurface()
+            .padding(SpaceMd),
+        verticalArrangement = Arrangement.spacedBy(SpaceXs),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(SpaceSm),
         ) {
             Text(
                 text = if (mine) {
@@ -478,9 +485,9 @@ private fun ColumnScope.ChallengesBody(
     var name by remember { mutableStateOf("") }
 
     Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = SpaceSm),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(SpaceSm),
     ) {
         OutlinedTextField(
             value = name,
@@ -520,7 +527,7 @@ private fun ColumnScope.ChallengesBody(
                 .testTag(PVP_LIST_TEST_TAG)
                 .fillMaxWidth()
                 .weight(1f),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(SpaceSm),
         ) {
             items(session.challenges, key = { it.id }) { challenge ->
                 ChallengeRow(
@@ -554,10 +561,12 @@ private fun ChallengeRow(
         modifier = Modifier
             .testTag(challengeRowTestTag(challenge.id))
             .fillMaxWidth()
-            .rowSurface(selected = !mine)
-            .padding(10.dp),
+            // Plain, for the reason `TableRow` gives: the first line already says whether this
+            // invitation was sent or received.
+            .rowSurface()
+            .padding(SpaceMd),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(SpaceSm),
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(

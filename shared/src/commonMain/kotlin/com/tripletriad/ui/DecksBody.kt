@@ -1,7 +1,6 @@
 package com.tripletriad.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -146,8 +146,8 @@ private fun DeckSlotRow(index: Int, deck: Deck, cards: Map<Int, Card>, onClick: 
             .testTag(deckSlotTestTag(index))
             .fillMaxWidth()
             .rowSurface()
-            .clickable(onClick = onClick)
-            .padding(10.dp),
+            .ttoClickable(onClick = onClick)
+            .padding(SpaceMd),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -165,10 +165,14 @@ private fun DeckSlotRow(index: Int, deck: Deck, cards: Map<Int, Card>, onClick: 
                     "${strings[StringKeys.DECK_POWER]} ${deckPower(deck, cards)}",
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
                 style = MaterialTheme.typography.labelSmall,
-                maxLines = 1,
+                // Two lines: this is `0 / 5 · Deck power 34`, the row also carries five
+                // thumbnails, and at one line the **number** is what falls off the end — so the
+                // line was clipping to `0 / 5 · Puissance du` and reporting no power at all.
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(1.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(HairlineWidth)) {
             for (position in 0 until HAND_SIZE) {
                 DeckPosition(card = deck.cards.getOrNull(position)?.let(cards::get))
             }
@@ -230,7 +234,7 @@ private fun DeckEditor(
                 Box(
                     modifier = Modifier
                         .testTag(deckPositionTestTag(position))
-                        .clickable(enabled = card != null) {
+                        .ttoClickable(enabled = card != null) {
                             draft = draft.minusCardAt(position)
                         },
                 ) {
@@ -300,7 +304,13 @@ private fun DeckEditor(
                         modifier = Modifier
                             .testTag(deckPickTestTag(card.id))
                             .rowSurface(selected = card.id in draft.cards)
-                            .clickable(enabled = !draft.isComplete && remaining > 0) {
+                            // A pick goes in and comes out of the draft, so it toggles rather
+                            // than chooses: `Checkbox` is what a screen reader should hear.
+                            .ttoClickable(
+                                role = Role.Checkbox,
+                                selected = card.id in draft.cards,
+                                enabled = !draft.isComplete && remaining > 0,
+                            ) {
                                 draft = draft.plusCard(card.id)
                             }
                             .padding(1.dp),

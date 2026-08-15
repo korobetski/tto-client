@@ -135,7 +135,7 @@ internal fun MainMenuScreen(
     val logo by produceState<ImageBitmap?>(initialValue = null) { value = loadLogo() }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+        modifier = Modifier.fillMaxSize().padding(horizontal = SpaceLg),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -165,7 +165,7 @@ internal fun MainMenuScreen(
             style = MaterialTheme.typography.bodySmall,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.testTag(MENU_PROFILE_TEST_TAG).padding(top = 12.dp),
+            modifier = Modifier.testTag(MENU_PROFILE_TEST_TAG).padding(top = SpaceMd),
         )
 
         // Probed once on arrival, and again whenever the menu is returned to. The releases page is
@@ -179,15 +179,15 @@ internal fun MainMenuScreen(
         }
 
         Column(
-            modifier = Modifier.padding(top = 16.dp).widthIn(max = MenuMaxWidth).fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(top = SpaceLg).widthIn(max = MenuMaxWidth).fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(SpaceSm),
         ) {
             remembered?.let { ResumeCard(it, active) }
 
             LazyVerticalGrid(
                 columns = GridCells.Fixed(MENU_COLUMNS),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(SpaceSm),
+                verticalArrangement = Arrangement.spacedBy(SpaceSm),
             ) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     HomeCard(
@@ -323,7 +323,7 @@ private fun ResumeCard(account: RememberedAccount, active: GameSave?) {
                 }
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(SpaceSm)) {
                 Box(modifier = Modifier.weight(RESUME_GO_WEIGHT)) {
                     WideButton(
                         label = strings[

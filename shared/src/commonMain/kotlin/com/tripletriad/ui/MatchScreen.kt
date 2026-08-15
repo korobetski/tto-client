@@ -496,19 +496,21 @@ internal fun MatchScreen(
                 log = log,
             )
         },
-    ) {
+    ) { panelShown ->
         StatusBar(
             state = state,
             selected = selected,
             npc = npc,
             opponentName = strings[npc.nameKey],
             turnFraction = turnFraction,
-            // On a wide window the opponent has a whole panel of their own, and drawing a 26 dp
-            // face beside a 50 dp one is the sort of duplicate that looks like a bug.
-            showOpponent = !wide,
+            // With a panel the opponent has a whole column of their own, and drawing a 26 dp face
+            // beside a 50 dp one is the sort of duplicate that looks like a bug. Keyed on whether
+            // the panel was *drawn* rather than on the width — a phone in landscape is wide and
+            // has no panel, and for a while that left the rules strip nowhere at all.
+            showOpponent = !panelShown,
             onExit = onExit,
         )
-        BoardRules(match.rules, wide)
+        BoardRules(match.rules, panelShown)
 
         // The play area takes whatever the status bar leaves and sizes every card to what it
         // actually got. Nothing below this line guesses at a screen size or a "chrome"
@@ -522,7 +524,9 @@ internal fun MatchScreen(
                 state = state,
                 selected = selected,
                 visibility = visibility,
-                layout = matchLayout(maxWidth, maxHeight),
+                // Less the padding `PlayArea` applies, so the scale is derived from the space
+                // the cards actually get rather than from the space before the margin.
+                layout = matchLayout(maxWidth - PlayAreaInset * 2, maxHeight - PlayAreaInset * 2),
                 playable = playable(state),
                 onSelect = { if (it in playable(state)) selected = it },
                 onPlace = { position -> selected?.let { place(it, position) } },
@@ -532,6 +536,8 @@ internal fun MatchScreen(
                 OutcomePanel(
                     reward = it,
                     opponentName = strings[npc.nameKey],
+                    // So a dropped card can be called by its name rather than counted.
+                    cards = catalog.byId,
                     next = next,
                     onDone = onExit,
                 )
@@ -667,7 +673,7 @@ private fun StatusBar(
     showOpponent: Boolean,
     onExit: () -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(modifier = Modifier.fillMaxWidth().padding(top = MatchHeaderTopInset)) {
         StatusRow(
             state = state,
             selected = selected,
@@ -703,7 +709,7 @@ private fun TurnTimerBar(fraction: Float?) {
         modifier = Modifier
             .testTag(TURN_TIMER_TEST_TAG)
             .fillMaxWidth()
-            .padding(horizontal = 8.dp)
+            .padding(horizontal = SpaceSm)
             .height(TurnTimerHeight)
             .clip(TurnTimerShape)
             .background(MaterialTheme.colorScheme.outline.copy(alpha = TIMER_TRACK_ALPHA)),
@@ -740,8 +746,8 @@ private fun StatusRow(
     onExit: () -> Unit,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = SpaceXs),
+        horizontalArrangement = Arrangement.spacedBy(SpaceSm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         val strings = LocalStrings.current
@@ -797,7 +803,9 @@ private fun StatusRow(
                     maxLines = 1,
                     softWrap = false,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.testTag(MATCH_OPPONENT_TEST_TAG).padding(vertical = 4.dp),
+                    modifier = Modifier.testTag(
+                        MATCH_OPPONENT_TEST_TAG,
+                    ).padding(vertical = SpaceXs),
                 )
             }
         }

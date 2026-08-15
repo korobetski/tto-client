@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -19,8 +18,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import com.tripletriad.data.FormatCatalog
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
@@ -107,8 +104,8 @@ internal fun PvpTableScreen(
             SectionLabel(strings[StringKeys.PVP_FORMAT])
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(SpaceSm),
+                verticalArrangement = Arrangement.spacedBy(SpaceXs),
             ) {
                 for (option in formats.formats) {
                     TtoFilterChip(
@@ -130,8 +127,8 @@ internal fun PvpTableScreen(
         SectionLabel(strings[StringKeys.PVP_RULES_PICK])
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(SpaceSm),
+            verticalArrangement = Arrangement.spacedBy(SpaceXs),
         ) {
             // Straight from the format's pool, so a rule the format does not allow is not offered
             // rather than offered and then refused by the server.
@@ -149,7 +146,7 @@ internal fun PvpTableScreen(
         }
 
         Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+            modifier = Modifier.fillMaxWidth().padding(top = SpaceXs),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Checkbox(
@@ -179,18 +176,19 @@ internal fun PvpTableScreen(
         )
         // Bounded by the purse, because the server refuses a wager the host cannot cover — and a
         // slider that can be dragged into a refusal is a slider that lies about what it offers.
-        Slider(
+        TtoSlider(
             value = mgp.toFloat(),
             onValueChange = { mgp = (it / STEP).roundToInt() * STEP },
+            tag = PVP_TABLE_MGP_TEST_TAG,
+            modifier = Modifier.fillMaxWidth(),
             valueRange = 0f..profile.mgp.toFloat().coerceAtLeast(0f),
-            modifier = Modifier.fillMaxWidth().testTag(PVP_TABLE_MGP_TEST_TAG),
         )
 
         SectionLabel(strings[StringKeys.PVP_TRADE])
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(SpaceSm),
+            verticalArrangement = Arrangement.spacedBy(SpaceXs),
         ) {
             // Exclusive: a match is played under one trade rule or none, so these are radio
             // buttons wearing a chip's clothes rather than a set of independent flags.
@@ -236,13 +234,7 @@ internal fun PvpTableScreen(
 /** A heading inside a screen's column. The same weight the lobby's own headings use. */
 @Composable
 private fun SectionLabel(text: String) {
-    Text(
-        text = text,
-        color = MaterialTheme.colorScheme.onSurface,
-        style = MaterialTheme.typography.bodyMedium,
-        fontWeight = FontWeight.Bold,
-        modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
-    )
+    SectionHeader(text = text, modifier = Modifier.padding(top = SpaceMd))
 }
 
 /** Wagers move in tens: a slider that can land on 37 MGP is precision nobody wanted. */

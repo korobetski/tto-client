@@ -87,7 +87,9 @@ internal fun QuestsScreen(
             text = strings.format(StringKeys.QUESTS_RESET, isoDate(at)),
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
             style = MaterialTheme.typography.labelSmall,
-            modifier = Modifier.testTag(QUESTS_RESET_TEST_TAG).padding(top = 8.dp, bottom = 8.dp),
+            modifier = Modifier.testTag(
+                QUESTS_RESET_TEST_TAG,
+            ).padding(top = SpaceSm, bottom = 8.dp),
         )
 
         if (quests.isEmpty()) {
@@ -100,7 +102,7 @@ internal fun QuestsScreen(
                     .testTag(QUESTS_LIST_TEST_TAG)
                     .fillMaxWidth()
                     .weight(1f),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(SpaceSm),
             ) {
                 items(quests, key = { it.quest.id }) { status ->
                     QuestRow(status = status, opponents = opponents, formatId = formatId)
@@ -130,13 +132,13 @@ private fun QuestRow(
             .testTag(questRowTestTag(quest.id))
             .fillMaxWidth()
             .rowSurface(selected = status.isCompleted)
-            .padding(10.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+            .padding(SpaceMd),
+        verticalArrangement = Arrangement.spacedBy(SpaceXs),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(SpaceSm),
         ) {
             AchievementIcon(iconId = quest.iconId, description = "", size = 28.dp)
             Text(
@@ -166,6 +168,8 @@ private fun QuestRow(
                 color = LocalTtoColors.current.transient,
                 style = MaterialTheme.typography.labelSmall,
                 maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.testTag(questProgressTestTag(quest.id)),
             )
         } else {

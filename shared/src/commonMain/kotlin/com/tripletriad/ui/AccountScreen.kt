@@ -141,7 +141,7 @@ internal fun AccountScreen(
     ScreenScaffold(title = title, onBack = onBack, snackbar = note) {
         Column(
             modifier = Modifier.testTag(ACCOUNT_SCREEN_TEST_TAG).fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(SpaceMd),
         ) {
             // A bar rather than a spinner on the button: `restore()` and a submit both go through
             // `isBusy`, and the first of those happens with nothing on screen to spin. Always laid

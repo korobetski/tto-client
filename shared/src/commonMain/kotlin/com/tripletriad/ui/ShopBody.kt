@@ -1,6 +1,5 @@
 package com.tripletriad.ui
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -18,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -129,7 +129,7 @@ internal fun ColumnScope.ShopBody(
 
     LazyColumn(
         modifier = Modifier.testTag(SHOP_LIST_TEST_TAG).fillMaxWidth().weight(1f),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(SpaceSm),
     ) {
         items(offers, key = ::shopOfferTestTag) { offer ->
             OfferRow(
@@ -172,10 +172,10 @@ private fun StarterPackPanel(
         modifier = Modifier
             .testTag(SHOP_STARTER_TEST_TAG)
             .fillMaxWidth()
-            .padding(bottom = 8.dp)
+            .padding(bottom = SpaceSm)
             .rowSurface(selected = true)
-            .padding(10.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+            .padding(SpaceMd),
+        verticalArrangement = Arrangement.spacedBy(SpaceSm),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -240,10 +240,12 @@ private fun OfferRow(
             .testTag(shopOfferTestTag(offer))
             .fillMaxWidth()
             .rowSurface(selected = isSelected)
-            .clickable(onClick = onClick)
-            .padding(8.dp),
+            // Exclusive: the shelf has one selection at a time and the Buy button acts on it, so
+            // these are radio buttons wearing a row's clothes.
+            .ttoClickable(role = Role.RadioButton, selected = isSelected, onClick = onClick)
+            .padding(SpaceSm),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(SpaceSm),
     ) {
         // The card if the offer is a card, its icon otherwise — a booster pack has artwork of
         // its own, and a shelf of nothing but text is the thing this screen was worst at.
@@ -265,9 +267,13 @@ private fun OfferRow(
             )
             Text(
                 text = strings[offer.item.descriptionKey],
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha * DESCRIPTION_ALPHA),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha * FAINT),
                 style = MaterialTheme.typography.labelSmall,
-                maxLines = 1,
+                // Two lines, not one. At the old type scale a pack's description fitted; at
+                // Material's it does not, and `Six cartes communes pour démarrer une collec…` is a
+                // shelf that will not say what it is selling. A row growing by one line is a
+                // cheaper price than a description nobody can finish reading.
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             // What a pack actually promises. A row that says "five cards" and nothing else asks
@@ -279,7 +285,9 @@ private fun OfferRow(
                     modifier = Modifier.testTag(shopOddsTestTag(offer)),
                     color = MaterialTheme.colorScheme.tertiary.copy(alpha = alpha),
                     style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1,
+                    // Same reasoning as the description above, and it matters more here: this
+                    // line is the pack's *odds*, and `· Chance de …` is the half that got cut.
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
@@ -300,8 +308,7 @@ private fun OfferRow(
 }
 
 /** `isEnabled = false` in the original, which greyed the whole renderer. */
-private const val UNAFFORDABLE_ALPHA = 0.4f
-private const val DESCRIPTION_ALPHA = 0.6f
+private const val UNAFFORDABLE_ALPHA = DISABLED
 
 /** A chance is shown as a whole percentage; nobody reads a pack's odds to two decimals. */
 private const val PERCENT = 100

@@ -1,6 +1,5 @@
 package com.tripletriad.ui
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -116,12 +115,12 @@ internal fun OpponentScreen(
                 text = strings[StringKeys.NO_OPPONENT],
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
                 style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.testTag(OPPONENT_EMPTY_TEST_TAG).padding(vertical = 24.dp),
+                modifier = Modifier.testTag(OPPONENT_EMPTY_TEST_TAG).padding(vertical = SpaceXl),
             )
         } else {
             LazyColumn(
                 modifier = Modifier.testTag(OPPONENT_LIST_TEST_TAG).fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(SpaceSm),
             ) {
                 items(opponents, key = { it.iconId }) { npc ->
                     OpponentRow(npc = npc, cards = cards, onClick = { onChallenge(npc) })
@@ -138,7 +137,7 @@ internal fun OpponentScreen(
                             modifier = Modifier
                                 .testTag(OPPONENT_LOCKED_TEST_TAG)
                                 .fillMaxWidth()
-                                .padding(vertical = 8.dp),
+                                .padding(vertical = SpaceSm),
                         )
                     }
                 }
@@ -169,12 +168,7 @@ private fun CampaignPanel(
 ) {
     val strings = LocalStrings.current
 
-    Text(
-        text = strings[StringKeys.CAMPAIGNS],
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
-        style = MaterialTheme.typography.labelSmall,
-        modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
-    )
+    SectionHeader(text = strings[StringKeys.CAMPAIGNS], modifier = Modifier.fillMaxWidth())
     CampaignRow(
         label = strings[StringKeys.TUTORIAL],
         tag = TUTORIAL_ROW_TEST_TAG,
@@ -206,10 +200,10 @@ private fun CampaignRow(label: String, tag: String, onClick: () -> Unit) {
         modifier = Modifier
             .testTag(tag)
             .fillMaxWidth()
-            .padding(bottom = 8.dp)
+            .padding(bottom = SpaceSm)
             .rowSurface()
-            .clickable(onClick = onClick)
-            .padding(12.dp),
+            .ttoClickable(onClick = onClick)
+            .padding(SpaceMd),
     )
 }
 
@@ -230,14 +224,14 @@ private fun OpponentRow(npc: Npc, cards: Map<Int, Card>, onClick: () -> Unit) {
             .testTag(opponentRowTestTag(npc.iconId))
             .fillMaxWidth()
             .rowSurface()
-            .clickable(onClick = onClick)
-            .padding(12.dp),
+            .ttoClickable(onClick = onClick)
+            .padding(SpaceMd),
         verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(SpaceSm),
         ) {
             NpcPortrait(npc = npc, name = strings[npc.nameKey])
             Text(
@@ -307,7 +301,7 @@ private fun RewardCards(iconId: String, rewards: List<Pair<Card, Double>>) {
     )
     Row(
         modifier = Modifier.testTag(opponentRewardsTestTag(iconId)),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(SpaceSm),
     ) {
         for ((card, rate) in rewards) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {

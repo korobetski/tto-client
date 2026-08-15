@@ -1,7 +1,6 @@
 package com.tripletriad.ui
 
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,8 +21,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.Card
@@ -102,9 +101,9 @@ internal fun PvpClaimScreen(
     }
 
     Column(
-        modifier = Modifier.fillMaxWidth().testTag(PVP_CLAIM_TEST_TAG).padding(16.dp),
+        modifier = Modifier.fillMaxWidth().testTag(PVP_CLAIM_TEST_TAG).padding(SpaceLg),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(SpaceSm),
     ) {
         Text(
             text = strings[StringKeys.PVP_CLAIM_TITLE],
@@ -121,8 +120,8 @@ internal fun PvpClaimScreen(
 
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(SpaceSm),
+            verticalArrangement = Arrangement.spacedBy(SpaceSm),
         ) {
             for (id in outcome.pickFrom) {
                 // A card the catalogue does not know is skipped rather than drawn as a hole — the
@@ -161,7 +160,14 @@ private fun Prize(card: Card, selected: Boolean, enabled: Boolean, onTap: () -> 
         Box(
             modifier = Modifier
                 .testTag(prizeTestTag(card.id))
-                .clickable(enabled = enabled, onClick = onTap),
+                // Several cards can be owed at once under Diff, so picking is a set of
+                // independent toggles rather than one choice — `Checkbox`, not `RadioButton`.
+                .ttoClickable(
+                    role = Role.Checkbox,
+                    selected = selected,
+                    enabled = enabled,
+                    onClick = onTap,
+                ),
         ) {
             CardFace(card = card)
             if (selected) {

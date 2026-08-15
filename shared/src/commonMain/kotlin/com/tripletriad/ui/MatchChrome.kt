@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
@@ -29,18 +30,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.tripletriad.data.MatchReward
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.Strings
+import com.tripletriad.model.Card
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.GameRules
+import com.tripletriad.model.Item
 import com.tripletriad.model.MatchResult
 import com.tripletriad.model.MatchState
 import com.tripletriad.model.Npc
@@ -61,6 +62,12 @@ const val MATCH_SIDE_TEST_TAG: String = "match-side"
 /** The move log inside it. Present with the panel, empty until the first placement. */
 const val MATCH_LOG_TEST_TAG: String = "match-log"
 
+/** The named drops on the outcome panel. Absent when a match dropped nothing. */
+const val MATCH_REWARDS_TEST_TAG: String = "match-rewards"
+
+/** `match-reward-<slug>` — one per dropped item, so a test can name the one it means. */
+fun matchRewardTestTag(item: Item): String = "match-reward-${itemSlug(item)}"
+
 /**
  * The board, and — on a window wide enough — a column beside it.
  *
@@ -78,31 +85,60 @@ const val MATCH_LOG_TEST_TAG: String = "match-log"
  *
  * @param side the panel. A slot rather than the panel itself, so this composable is about the
  *   arrangement and knows nothing about a match.
+ * @param content the board and its chrome, told **whether the panel was actually drawn**. It has to
+ *   be told rather than left to work it out from the width: the decision now depends on the height
+ *   too, and only this composable measures that. What the caller does with it is decide the two
+ *   things that would otherwise be drawn twice or not at all — the opponent's face and the rules
+ *   strip, both of which live in the panel when there is one.
  */
 @Composable
 internal fun MatchFrame(
     wide: Boolean,
     side: @Composable () -> Unit,
-    content: @Composable ColumnScope.() -> Unit,
+    content: @Composable ColumnScope.(panelShown: Boolean) -> Unit,
 ) {
-    if (!wide) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            content = content,
-        )
-        return
-    }
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        // **Width is not enough, and a phone held sideways is why.** A 890x411 window clears the
+        // 600 dp threshold comfortably, so it used to get the panel — and the panel is a *column*:
+        // a portrait, the rules, and a move log that grows downwards. At 411 dp tall it could show
+        // the portrait, one chip and the word "Matches" over an empty space, while charging the
+        // board 200 dp of width it badly needed. The board came out squeezed so that a panel could
+        // display nothing.
+        //
+        // So the panel asks for height as well, and a phone in landscape now gets the whole width
+        // for the board — which is what it wanted the width for.
+        val roomForPanel = wide && maxHeight >= SidePanelMinHeight
 
-    Row(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier.weight(1f).fillMaxHeight(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            content = content,
-        )
-        side()
+        if (!roomForPanel) {
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) { content(false) }
+            return@BoxWithConstraints
+        }
+
+        // The panel goes on the **left**. It is context — who is being played, what the rules do,
+        // what has happened — and context belongs where reading starts; the board is what the eye
+        // should land on afterwards and stay on. On the right it was the last thing before the
+        // edge of the screen and the first thing a right-handed thumb covered.
+        Row(modifier = Modifier.fillMaxSize()) {
+            side()
+            Column(
+                modifier = Modifier.weight(1f).fillMaxHeight(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) { content(true) }
+        }
     }
 }
+
+/**
+ * The height below which [MatchSidePanel] has nowhere to put itself.
+ *
+ * The panel's own content is a portrait, a rules strip and a move log — about 300 dp before the log
+ * has a single line in it. 560 leaves the log somewhere to grow and is comfortably above every
+ * phone in landscape and comfortably below every tablet and desktop window.
+ */
+private val SidePanelMinHeight = 560.dp
 
 /**
  * Who is being played, how it stands, what the rules do, and what has happened so far.
@@ -129,11 +165,11 @@ internal fun MatchSidePanel(
             .testTag(MATCH_SIDE_TEST_TAG)
             .width(SidePanelWidth)
             .fillMaxHeight()
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(SpaceMd),
+        verticalArrangement = Arrangement.spacedBy(SpaceMd),
     ) {
         Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(SpaceSm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             NpcPortrait(npc = npc, name = opponentName)
@@ -296,11 +332,11 @@ internal fun RulesStrip(
             .then(if (tag == null) Modifier else Modifier.testTag(tag))
             .fillMaxWidth()
             .clickable { open = !open }
-            .padding(horizontal = 8.dp, vertical = 2.dp),
+            .padding(horizontal = SpaceSm, vertical = 2.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(SpaceXs),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             for (key in keys) {
@@ -342,8 +378,8 @@ internal fun RulesStrip(
 private fun RuleChip(name: String) {
     Surface(
         shape = MaterialTheme.shapes.extraSmall,
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        border = BorderStroke(HairlineWidth, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Text(
             text = name,
@@ -351,7 +387,7 @@ private fun RuleChip(name: String) {
             style = MaterialTheme.typography.labelSmall,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+            modifier = Modifier.padding(horizontal = SpaceSm, vertical = 2.dp),
         )
     }
 }
@@ -380,6 +416,7 @@ private fun RuleChip(name: String) {
 internal fun OutcomePanel(
     reward: MatchReward,
     opponentName: String,
+    cards: Map<Int, Card>,
     next: ScriptExit?,
     onDone: () -> Unit,
 ) {
@@ -391,31 +428,37 @@ internal fun OutcomePanel(
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.scrim),
         contentAlignment = Alignment.Center,
     ) {
-        OutcomeCard(reward, opponentName, next, onDone, strings)
+        OutcomeCard(reward, opponentName, cards, next, onDone, strings)
     }
 }
 
 @Composable
+@Suppress("LongParameterList")
 private fun OutcomeCard(
     reward: MatchReward,
     opponentName: String,
+    cards: Map<Int, Card>,
     next: ScriptExit?,
     onDone: () -> Unit,
     strings: Strings,
 ) {
+    // `surfaceContainerHigh` and `extraLarge`, which are what Material dresses a dialog in — and
+    // this panel stands in for one deliberately, as the note above `OutcomePanel` explains. It was
+    // `surface` at `medium`, so the thing that lands over the board was the same tone as the
+    // board's own background with a slightly rounder corner.
     Surface(
         modifier = Modifier.testTag(MATCH_RESULT_TEST_TAG).widthIn(max = ContentMaxWidth)
-            .padding(16.dp),
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surface,
+            .padding(SpaceLg),
+        shape = MaterialTheme.shapes.extraLarge,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
         tonalElevation = OutcomeElevation,
         shadowElevation = OutcomeElevation,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        border = BorderStroke(HairlineWidth, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(SpaceXl),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(SpaceMd),
         ) {
             Text(
                 text = when (reward.result) {
@@ -424,8 +467,9 @@ private fun OutcomeCard(
                     MatchResult.DRAW -> strings[StringKeys.DRAW]
                 },
                 color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
+                // The one place in the app that announces an outcome, so it takes the scale's own
+                // headline rather than a `20.sp` that belonged to no ladder.
+                style = MaterialTheme.typography.headlineSmall,
             )
             Text(
                 text = opponentName,
@@ -441,18 +485,36 @@ private fun OutcomeCard(
                     add("+${reward.mgp} ${strings[StringKeys.MGP]}")
                     if (reward.xp > 0) add("+${reward.xp} ${strings[StringKeys.XP]}")
                 }.joinToString(DOT_SEPARATOR),
-                color = PayoutText,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
+                // The affirmative pair rather than a green literal of this file's own — see
+                // `TtoColors.positive`, which is where `ServersScreen`'s went too.
+                color = LocalTtoColors.current.positive,
+                style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.testTag(MATCH_PAYOUT_TEST_TAG),
             )
 
+            // **Named, not counted.** This said `Rewards: 1` — a line that tells the player
+            // something happened and refuses to say what, about the only part of a match whose
+            // contents are not already visible somewhere else. The MGP is in the payout above and
+            // the cards flipped on the board in front of them; a dropped item exists nowhere but
+            // here until they go and look in the bag for it.
+            //
+            // `itemName` is the shop's own naming, so a Bronze Pack is called the same thing where
+            // it is won as where it is sold, in every language, including the card items whose
+            // name is the card's.
             if (reward.items.isNotEmpty()) {
-                Text(
-                    text = "${strings[StringKeys.REWARDS]}: ${reward.items.size}",
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-                    style = MaterialTheme.typography.labelMedium,
-                )
+                Column(
+                    modifier = Modifier.fillMaxWidth().testTag(MATCH_REWARDS_TEST_TAG),
+                    verticalArrangement = Arrangement.spacedBy(SpaceXs),
+                ) {
+                    Text(
+                        text = strings[StringKeys.REWARDS],
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                    for (item in reward.items) {
+                        RewardRow(item = item, cards = cards, strings = strings)
+                    }
+                }
             }
             for (achievement in reward.achievements) {
                 Text(
@@ -483,8 +545,8 @@ private fun OutcomeCard(
             }
 
             Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = SpaceSm),
+                horizontalArrangement = Arrangement.spacedBy(SpaceSm),
             ) {
                 // Leaving first and quiet, playing again second and filled — a dialog's
                 // `dismissButton` / `confirmButton` order, and the one the player wants most often
@@ -508,8 +570,31 @@ private fun OutcomeCard(
     }
 }
 
-/** A reward is always positive, and written in a colour that says so rather than in the accent. */
-private val PayoutText = Color(0xFF7FD18B)
+/**
+ * One dropped item: what it looks like, what it is called, and how many.
+ *
+ * The count is appended only when there is more than one, for the reason the collection's copy
+ * badge gives: `x1` on every row is noise, and a row without a count is unambiguous.
+ */
+@Composable
+private fun RewardRow(item: Item, cards: Map<Int, Card>, strings: Strings) {
+    val name = itemName(strings, item, cards)
+
+    Row(
+        modifier = Modifier.testTag(matchRewardTestTag(item)),
+        horizontalArrangement = Arrangement.spacedBy(SpaceSm),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ItemIcon(iconId = item.iconId, description = name, size = IconSm)
+        Text(
+            text = if (item.stack > 1) "$name x${item.stack}" else name,
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
 
 /** Material's own dialog elevation, since the panel stands in for one. */
 private val OutcomeElevation = 6.dp

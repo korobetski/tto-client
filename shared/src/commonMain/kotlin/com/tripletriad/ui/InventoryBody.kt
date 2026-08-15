@@ -1,6 +1,5 @@
 package com.tripletriad.ui
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -201,10 +201,11 @@ private fun ItemRow(
             .testTag(inventoryRowTestTag(item))
             .fillMaxWidth()
             .rowSurface(selected = isSelected)
-            .clickable(onClick = onClick)
-            .padding(8.dp),
+            // One at a time: the buttons below the list act on whatever is selected.
+            .ttoClickable(role = Role.RadioButton, selected = isSelected, onClick = onClick)
+            .padding(SpaceSm),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(SpaceSm),
     ) {
         // A card item shows the card; everything else shows the icon `Item.iconId` has named
         // since Phase 2 and that nothing has drawn until now — the booster's own tribe pack, the

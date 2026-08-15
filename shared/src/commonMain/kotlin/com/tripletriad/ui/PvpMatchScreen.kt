@@ -30,6 +30,9 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.tripletriad.i18n.LocalStrings
@@ -140,7 +143,9 @@ internal fun PvpMatchScreen(
             )
 
             BoxWithConstraints(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                val layout = matchLayout(maxWidth, maxHeight)
+                // See `MatchScreen`: less what `PvpPlayArea` pads with.
+                val layout =
+                    matchLayout(maxWidth - PlayAreaInset * 2, maxHeight - PlayAreaInset * 2)
 
                 PvpPlayArea(
                     view = view,
@@ -242,7 +247,9 @@ private fun PvpHeader(view: MatchView, opponentName: String, deadline: Long?, no
     val strings = LocalStrings.current
 
     Column(
-        modifier = Modifier.fillMaxWidth().padding(8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = SpaceSm, end = SpaceSm, bottom = SpaceSm, top = MatchHeaderTopInset),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
@@ -304,12 +311,17 @@ private fun PvpPlayArea(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            // See `PlayArea`: nothing in a match touches the edge of the window.
+            .padding(PlayAreaInset)
             .onGloballyPositioned { drag.origin = it.positionInRoot() },
     ) {
         Column(
             modifier = Modifier.fillMaxSize().testTag(PVP_BOARD_TEST_TAG),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceEvenly,
+            // The same break the PvE board puts between a hand and the board, and for the same
+            // reason: `SpaceEvenly` made the gap whatever was left over, which on a short window
+            // is nothing.
+            verticalArrangement = Arrangement.spacedBy(HandBoardGap, Alignment.CenterVertically),
         ) {
             OpponentRow(view = view, layout = layout)
             BoardGrid(
@@ -427,7 +439,11 @@ private fun OwnRow(
                             }
                         },
                     )
-                    .clickable(enabled = playable) { onSelect(card) }
+                    // See `MatchBoard`: the match layer keeps a plain `clickable` so that
+                    // adjacent cards do not grow into each other's hit areas, and states the role
+                    // and the selection by hand.
+                    .semantics { this.selected = selected?.id == card.id }
+                    .clickable(enabled = playable, role = Role.Button) { onSelect(card) }
                     .graphicsLayer {
                         alpha = when {
                             // Dimmed rather than removed while in the air: taking it out of the row
@@ -478,9 +494,9 @@ private fun PvpResult(
 
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
-            modifier = Modifier.testTag(PVP_RESULT_TEST_TAG).padding(16.dp),
+            modifier = Modifier.testTag(PVP_RESULT_TEST_TAG).padding(SpaceLg),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(SpaceSm),
         ) {
             Text(
                 text = when (outcome?.result) {
@@ -541,7 +557,7 @@ private fun Payout(outcome: PvpOutcome, cards: Map<Int, Card>) {
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(SpaceXs),
     ) {
         // What the match itself paid, which is the number a player actually looks for. It was on
         // the wire from the first release and always zero: the server rolled it inside `creditPvp`
@@ -589,7 +605,7 @@ private fun CardRow(labelKey: String, ids: List<Int>, cards: Map<Int, Card>, tag
             color = MaterialTheme.colorScheme.onSurface,
             style = MaterialTheme.typography.labelSmall,
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(SpaceXs)) {
             for (id in ids) {
                 cards[id]?.let { CardThumb(card = it, size = PrizeThumbSize) }
             }

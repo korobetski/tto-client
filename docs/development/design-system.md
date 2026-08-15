@@ -8,8 +8,7 @@ the deviation *and* the reason. The visual refresh is one large deviation, so it
 once rather than repeated in a note on every screen. Each section below names what the original did,
 what this port does now, and why.
 
-**Status:** the tokens (below) are in place. The screens are being moved onto them in batches; the
-sections marked *in progress* describe the target, not what every screen does today.
+**Status:** complete. The tokens are in place and every screen is on them.
 
 ---
 
@@ -83,8 +82,6 @@ This is not only a naming question. `ContrastTest` measures it: `FAINT` text on 
 **3.77:1**, under WCAG AA, and `MUTED` is 4.51 — clear by a hundredth. On `surfaceContainerHigh`,
 which is where the row surface moved and which comes out at `#2D2926`, the same `FAINT` text is
 5.04. The screens keep the appearance they had and gain a role that explains it.
-
-*In progress:* the screens are still being moved off `surfaceVariant`.
 
 ### Colours that stayed
 
@@ -219,8 +216,6 @@ played it on any tap on a control, so it belongs to the control rather than to e
 Opt out with `sound = null` where the control has a voice of its own — a board cell plays a card
 being placed, and a UI click underneath it is one sound too many.
 
-*In progress:* the rows are being moved onto it batch by batch.
-
 ### `TtoCard` — one container, and there were five
 
 "Rounded surface, `surfaceVariant` fill, one-dp outline" was written out by hand in five places —
@@ -265,3 +260,174 @@ screen. Saying them at the one call site they were ever wrong at is what keeps t
 `ScreenTabs` owns the gap under itself: a `PrimaryTabRow` puts its indicator flush against its own
 bottom edge, so content starting immediately underneath had the underline running through its first
 line once the type scale grew.
+
+---
+
+## 7. What the batches changed on the screens
+
+### Navigation — the overrides came *off*
+
+`SideNavigation` and `BottomNavigation` each hand-wrote five colours: `indicatorColor = primary`,
+`selectedIconColor = onPrimary`, and three alpha-dimmed variants of `onBackground`. Every one was
+working around a scheme that was not finished. Material's own defaults put the selection pill on
+`secondaryContainer` — the state role, which is exactly what a navigation indicator is — and the
+unselected entries on `onSurfaceVariant`. Deleting the overrides is what made them right, and it
+removed the amber indicator that had been saying "this is an action" about the marker for where you
+already are.
+
+### Two layout bugs the larger type scale exposed
+
+Both were latent: a fixed size that happened to fit at 15 sp and did not at 16.
+
+- **`HomeCard` had `height(72.dp)`.** *Quêtes journalières* wrapped and then clipped to
+  `Quêtes journalièr…` — a card that cannot say where it leads. It is `heightIn(min = …)` now: a
+  grid row is as tall as its tallest item, so one long label pushes its row down and the cards
+  beside it stay identical. A fixed height can only truncate, and it truncates in whichever
+  language happens to be longest, which is a bug that only appears in French and German.
+- **The badge sat beside the label** and won the width fight, leaving the label too narrow for its
+  own longest word — `Quêtes jo / urnalières`, broken mid-word. It is under the label now, where
+  the count reads as a subtitle about the destination above it.
+
+The lesson for the batches still to come: a fixed `height` on anything holding translated text is
+a truncation waiting for a language, and the type scale is what made the waiting stop.
+
+### Raw values that had no name
+
+`ProfileScreen`'s delete control carried `fontSize = if (isArmed) 12.sp else 18.sp` — two sizes that
+predate the type scale — and three `alpha = 0.5f` literals that predate the four named alphas.
+`SplashScreen`'s progress track was `onSurface.copy(alpha = 0.12f)`, which is a way of asking for a
+surface when you have no surface role to ask for; it is `surfaceContainerHighest` now, which is
+Material's own track.
+
+`ServersScreen`'s private `Healthy` green is gone into `TtoColors.positive`.
+
+### Three screens that were saying less than they knew
+
+- **The card detail** drew its column without `fillMaxHeight`, so `weight(1f)` on the description
+  had no remainder to take and the column overflowed a panel fixed at the height of the card
+  *picture*. What fell off the bottom was the Sell button. The panel is sized for what it holds now,
+  the description is `bodySmall` rather than the size used for a stack count, and the button is a
+  compact tonal one instead of a 56 dp bar across a screen whose subject is the card beside it.
+- **The pack reveal** drew five slots in a row at 70% scale — so the most expensive purchase in the
+  game was the one place the artwork appeared *smaller* than everywhere else, and five evenly spaced
+  slots said "compare these" about a screen that is for turning them over one at a time. It is a
+  pile now: cards overlapped with a slight rotation and offset, which is what buys the resolution
+  back, and they are drawn 1:1 against art authored at exactly 104x128.
+- **The outcome panel** said `Rewards: 1`. A dropped item exists nowhere but that line until the
+  player goes looking in the bag, so counting them was the one thing it should not do. Each is named
+  now, with the shop's own `itemName`, so a Bronze Pack is called the same thing where it is won as
+  where it is sold.
+
+### The clipping sweep
+
+The larger type scale turned a latent defect into a visible one, and looking for the visible case
+found the class. **Ten `Text`s in `ui/` had `maxLines` with no `overflow`**, and Compose's default
+is `TextOverflow.Clip` — a hard cut with no ellipsis, so the reader gets no sign that anything was
+removed. Two of them were losing information that the line existed to carry:
+
+- The shop's pack terms cut at `Une carte 4★ ou mieux, garantie · Chance de …`, dropping the odds.
+  The row's own KDoc argues that a pack which does not state its odds makes the player guess and
+  guess wrong; the line was doing exactly that.
+- The deck rows read `0 / 5 · Puissance du`, clipping **the number** — a deck-power line reporting
+  no deck power.
+
+Both now wrap to two lines. The other eight took an ellipsis: they only overflow in the longest
+languages, but a hard clip is never the right answer, because it is indistinguishable from text
+that simply ends there.
+
+A `maxLines` without an `overflow` is worth treating as a defect on sight.
+
+### The match layer, and the one place `ttoClickable` is wrong
+
+The board and the two hands keep a plain `Modifier.clickable`, and the reason is geometry.
+`ttoClickable` grows every target to 48 dp *beyond its layout*; nine cells tiling with a 4 dp
+gutter would then overlap each other's hit areas and steal taps from their neighbours. A cell is
+`CardSpriteWidth` — 88 dp at full scale — so it needs no help, and the growth would be a
+regression rather than a fix.
+
+What those cells *did* need was the role and the state, which they now state by hand. The cards
+inside were already labelled — `CardFace` announces name and four powers, which is what makes this
+game playable without sight at all — but the **cell** was an unlabelled box a screen reader could
+not tell was pressable, and the ring a held card wears was visible and unannounced.
+
+Two chrome corrections came with it. The outcome panel drew on `surface` at `medium`, so the thing
+that lands *over* the board was the same tone as the board's own background; it is
+`surfaceContainerHigh` at `extraLarge` now, which is what Material dresses a dialog in, and the
+panel stands in for one deliberately. And its `20.sp` result line — the one place in the app that
+announces a win — belonged to no ladder; it is `headlineSmall`.
+
+The animation timings are **not** tokenised. `MatchBoard` and `CoinFlipCards` carry durations
+transcribed from the original's `Starling.juggler.tween(card, 0.3, …)` calls, with the citation
+beside each. Those are measurements of the source material, not house style, and replacing them
+with `Motion.kt`'s three steps would have thrown away the thing the port exists to preserve. Same
+for the card geometry: the 88×118 sprite and its offsets stay literal.
+
+### The camera, and the landscape match
+
+The Android host hides the system bars and turns decor fitting off — nine tiles and two hands need
+every dp — so nothing reserved anything and content ran to the physical edge of the glass. A hidden
+status bar leaves no gap; a **punch-hole camera is still there**, and on the phones that have one it
+sat on top of the score. `App` now insets the whole tree by `WindowInsets.displayCutout`
+(`displayCutout` and not `safeDrawing`: reserving the hidden bars would hand back the room that
+hiding them bought), and the match's own header takes a small top margin on top of that, because a
+score jammed against the edge reads as clipped even where nothing is in the way.
+
+Landscape was worse than it looked. Three faults, all visible in one screenshot of a phone held
+sideways:
+
+- **The hands read as part of the board.** `Arrangement.SpaceBetween` gave hand | board | hand
+  whatever width was left over, which came to about two dp — seven columns of identically sized
+  cards with identical gutters, which is one wide grid and not three groups. There is a
+  `HandBoardGap` now, reserved in `matchLayout` rather than hoped for.
+- **The side panel was drawn where it could show nothing.** 890x411 clears the 600 dp width
+  threshold, so it got the panel — and the panel is a *column*: a portrait, the rules, a move log
+  that grows downwards. At 411 dp tall it showed a portrait, one chip and an empty space, while
+  charging the board 200 dp of width. It asks for height as well now.
+- **Nothing was padded from the window edge**, so the outermost hand card sat against the glass.
+
+Fixing the first exposed a fourth: adding the gap to `matchLayout`'s *needed* size overstated the
+room, because `scale` divides available by needed and so treats everything inside `needed` as
+scaling with the cards — and a 16 dp gap does not. It comes off the available size instead.
+`MatchLayoutTest` caught it as a 6 dp overflow at 640x360 once its `footprint` helper was taught to
+count the gap.
+
+The panel also moved to the **left**. It is context — who is being played, what the rules do, what
+has happened — and context belongs where reading starts.
+
+### `TtoSlider` — the third control that was two controls
+
+Same story as the chips, found the same way: `OptionsScreen` hand-wrote three colours,
+`PvpTableScreen` took Material's defaults. In Material 3 a slider's **inactive** track defaults to
+`secondaryContainer`, which in this palette is a strong blue — so the wager slider sitting at zero
+drew a full-width bar of solid blue with the thumb at the far left. It read as *full*. A control
+whose empty state looks like its full state is worse than no control.
+
+Both are now `tertiary` on `surfaceContainerHighest`: the affirmative accent for the filled part,
+which is the reading this app gives `tertiary` everywhere, and Material's own track role behind it.
+
+### The lobby tint that marked the majority
+
+`TableRow` and `ChallengeRow` drew `rowSurface(selected = !mine)` — tinting every table **except**
+the player's own. In a lobby of six, five were marked and one was not, and a mark carried by the
+majority is not a mark. Both rows already say whose they are in words, on their first line, in the
+player's own language; the tint was repeating that badly.
+
+Both are plain rows now, which leaves the claim banner as the only tinted thing on the screen — and
+that is what makes its tint mean something. A prize on a timer is the one item in the lobby that
+gets settled *against* the player if they ignore it.
+
+### Section headings, which four screens each invented
+
+`SectionHeader` now labels the settings groups, the achievements list, the campaign list and the
+PvP table's five sections. Before, `OptionsScreen` had the only real one and the other three wrote a
+bare `Text` — one in `bodyMedium` bold at full strength, one in `labelSmall` at `MUTED`, one in
+`bodyMedium` bold with its own padding. Three ways of saying "this is a heading", none of which said
+it to a screen reader.
+
+### One thing that is *meant* to fail contrast
+
+The disabled **Multiplayer** card on a local profile draws its label at `DISABLED` (0.4) over
+`surfaceContainerHigh`, which measures about 3.2:1 — under AA. That is correct and deliberate: WCAG
+1.4.3 exempts inactive components explicitly, and a disabled destination that met the same bar as an
+active one would not read as disabled. `ContrastTest` asserts the three alphas that carry live text
+and not this one.

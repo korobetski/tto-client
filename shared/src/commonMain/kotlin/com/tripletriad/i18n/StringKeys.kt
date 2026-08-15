@@ -228,6 +228,16 @@ object StringKeys {
     const val ITEM_REFUSED: String = "APP_ITEM_REFUSED"
 
     /**
+     * The answer came back and nothing changed — [com.tripletriad.ui.IntentOutcome.REFUSED].
+     *
+     * Deliberately vague where [ITEM_REFUSED] is specific: the bag knows the refusal is about an
+     * item it holds, and the shelf does not know whether the offer was declined for the price, the
+     * format or the stock. Naming a cause the client has not been told would be a guess in the one
+     * place a player would take it for fact.
+     */
+    const val NOTHING_HAPPENED: String = "APP_NOTHING_HAPPENED"
+
+    /**
      * The attempt could not be made at all: no session, or the request never came back.
      *
      * Distinct from [ITEM_REFUSED], which is the server answering no. This one is nobody answering,
@@ -698,7 +708,7 @@ object StringKeys {
         DECK, DECK_POWER, RESET_DECK, SAVE, CHOOSE_DECK, RANDOM_DECK, NO_FULL_DECK,
         DECK_MISSING_CARDS,
         USE, SELL, DISCARD, BUY, CARD_SHOP, EMPTY_BAG, OBTAINED, ALREADY_OWNED, UNKNOWN_ITEM,
-        ITEM_REFUSED, ACTION_FAILED,
+        ITEM_REFUSED, NOTHING_HAPPENED, ACTION_FAILED,
         STARTER_PACK, STARTER_PACK_DESC, FREE, CLAIM, ALL,
         PACK_SEALED, PACK_BREAK_SEAL, PACK_SPENT, PACK_REVEAL, PACK_TO_COLLECTION,
         PACK_GUARANTEE, PACK_ODDS,

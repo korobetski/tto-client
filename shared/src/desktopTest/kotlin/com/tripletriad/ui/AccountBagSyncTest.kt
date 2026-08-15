@@ -7,7 +7,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
@@ -51,9 +54,11 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import kotlin.random.Random
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
@@ -130,7 +135,104 @@ class AccountBagSyncTest {
         )
     }
 
+    /**
+     * A **sale** the server refuses says so, where it used to say nothing at all.
+     *
+     * The same window as the use above, one button along and worse: `ProfileGate.perform` answered
+     * `Unit`, so the bag could not tell a sale from a refusal — and on an account a refusal also
+     * replaces the client's bag with the server's, so the row vanished, no MGP arrived, and nothing
+     * on screen accounted for either. See `sellNote`.
+     */
+    @Test
+    fun aSellTheServerRefusesSaysSo() = runComposeUiTest {
+        setContent {
+            Bag(withWonCard(), onUse = { null }, onIntent = { IntentOutcome.REFUSED })
+        }
+
+        sell()
+
+        assertTrue(
+            isVisible(strings[StringKeys.ITEM_REFUSED]),
+            "a refused sale said nothing",
+        )
+    }
+
+    /** And one that never reached the server says the other thing — as a use does. */
+    @Test
+    fun aSellThatCouldNotBeAttemptedSaysSoToo() = runComposeUiTest {
+        setContent {
+            Bag(withWonCard(), onUse = { null }, onIntent = { IntentOutcome.UNREACHABLE })
+        }
+
+        sell()
+
+        assertTrue(
+            isVisible(strings[StringKeys.ACTION_FAILED]),
+            "a sale that never reached the server said nothing",
+        )
+    }
+
+    /**
+     * A second tap while the first request is out is not a second sale.
+     *
+     * Nothing disabled these buttons while an operation was in flight, and every one of them is a
+     * round trip on an account. Two taps were **two intents with two operation ids**, which is
+     * exactly what `Idempotent` does not deduplicate: the server sees two different requests and
+     * carries out both. On Sell all that meant selling a stack that was no longer there and being
+     * paid nothing for it; on Use it meant a pack really opened twice.
+     *
+     * The tap is delivered rather than merely asserted against, because `assertIsNotEnabled` alone
+     * would pass against a button that was disabled *and* still wired to the same handler.
+     */
+    @Test
+    fun aSecondTapWhileTheFirstIsOutDoesNothing() = runComposeUiTest {
+        val answered = CompletableDeferred<Unit>()
+        var asked = 0
+        var done = false
+        setContent {
+            Bag(
+                withWonCard(),
+                onUse = { null },
+                onIntent = {
+                    asked++
+                    answered.await()
+                    done = true
+                    IntentOutcome.APPLIED
+                },
+            )
+        }
+
+        onNodeWithTag(inventoryRowTestTag(CardItem(WON_CARD))).performClick()
+        onNodeWithTag(INVENTORY_SELL_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { asked == 1 }
+
+        onNodeWithTag(INVENTORY_SELL_TEST_TAG).assertIsNotEnabled()
+        onNodeWithTag(INVENTORY_SELL_TEST_TAG).performClick()
+        waitForIdle()
+        assertEquals(1, asked, "the second tap was sent as a second sale")
+
+        // Released, so the flag is seen to be dropped rather than merely never raised: a button
+        // that stayed dead after the answer came back would be the other half of this bug.
+        answered.complete(Unit)
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { done }
+        waitForIdle()
+        onNodeWithTag(INVENTORY_SELL_TEST_TAG).assertIsEnabled()
+    }
+
     // ---- Harness -----------------------------------------------------------
+
+    /** A local profile holding the card the match dropped, and nothing else. */
+    private fun withWonCard(): GameSave = Inventory.add(
+        GameSave.new(username = NAME, createdAt = 0L),
+        CardItem(WON_CARD),
+    )
+
+    /** Select the won card and tap Sell, then wait for whatever the screen has to say. */
+    private fun ComposeUiTest.sell() {
+        onNodeWithTag(inventoryRowTestTag(CardItem(WON_CARD))).performClick()
+        onNodeWithTag(INVENTORY_SELL_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(INVENTORY_NOTE_TEST_TAG) }
+    }
 
     @Composable
     private fun Fixture(session: AccountSession) {
@@ -144,7 +246,7 @@ class AccountBagSyncTest {
     private fun Bag(
         profile: GameSave,
         onUse: suspend (Item) -> ItemEffect?,
-        onIntent: suspend (Intent) -> Unit = {},
+        onIntent: suspend (Intent) -> IntentOutcome = { IntentOutcome.APPLIED },
     ) {
         CompositionLocalProvider(LocalStrings provides strings) {
             TripleTriadTheme {

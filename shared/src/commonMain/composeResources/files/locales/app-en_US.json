@@ -14,6 +14,7 @@
   "APP_ITEM_REFUSED": "Nothing happened — your bag no longer holds that.",
   "APP_HOME": "Home",
   "APP_LOADING_CARDS": "loading cards…",
+  "APP_NOTHING_HAPPENED": "Nothing happened.",
   "APP_RETRY": "Try again",
   "APP_CARD_FACE_DOWN": "Face-down card",
   "APP_PROFILE_LOCAL_NOTE": "Saved on this device. Progress here is not verified by a server, and cannot be played against other people.",

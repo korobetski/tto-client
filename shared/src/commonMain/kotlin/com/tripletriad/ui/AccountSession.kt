@@ -443,12 +443,19 @@ class AccountSession internal constructor(
      * Nothing is applied optimistically. The server is the one that knows what a thing costs, and a
      * screen that deducted a guessed price and then corrected it would flicker the purse on every
      * purchase.
+     *
+     * @return what happened, for the screen that asked. **An `Ok` is not the same as "it
+     *   happened"**: the routes answer 200 with the stored profile for an intent they decline to
+     *   act on — an item the bag does not hold, a card no deck can spare — which is exactly the
+     *   case that used to leave a row disappearing and nothing paid, silently. So the profile that
+     *   came back is compared with the one that went out, and that comparison is the answer.
      */
-    suspend fun perform(intent: Intent) {
+    suspend fun perform(intent: Intent): IntentOutcome {
+        val before = player?.save
         val stored = server.session.load(server.server.id, clock.nowMillis())
         if (stored == null) {
             Log.w(TAG) { "not signed in; an intent was dropped" }
-            return
+            return IntentOutcome.UNREACHABLE
         }
 
         isBusy = true
@@ -486,11 +493,16 @@ class AccountSession internal constructor(
             isBusy = false
         }
 
-        when (result) {
-            is AccountResult.Ok -> player = result.value
+        return when (result) {
+            is AccountResult.Ok -> {
+                player = result.value
+                if (result.value.save == before) IntentOutcome.REFUSED else IntentOutcome.APPLIED
+            }
+
             else -> {
                 failure = result
                 Log.w(TAG) { "an intent was refused: $result" }
+                IntentOutcome.UNREACHABLE
             }
         }
     }

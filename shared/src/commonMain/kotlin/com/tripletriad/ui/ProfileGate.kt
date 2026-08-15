@@ -50,7 +50,8 @@ import kotlin.random.Random
  *   the whole reason this is not just another [persist]: locally the roll happens here, on an
  *   account it happens on the server. See [rememberAccountGate].
  * @property perform carries out an [Intent] — everything else that moves something of value. Same
- *   split as [useItem]: locally it is arithmetic, on an account it is a request.
+ *   split as [useItem]: locally it is arithmetic, on an account it is a request, and it reports
+ *   what happened for the same reason — see [IntentOutcome].
  * @property nextSeed the randomness for one match, or null when there is none to be had. **The
  *   third thing the two sources genuinely disagree about**: a local profile makes one up, because
  *   there is nobody to keep honest; an account spends one the server issued, because a client that
@@ -62,9 +63,51 @@ class ProfileGate(
     val queueKey: String?,
     val persist: suspend (GameSave) -> Unit,
     val useItem: suspend (Item) -> ItemEffect?,
-    val perform: suspend (Intent) -> Unit,
+    val perform: suspend (Intent) -> IntentOutcome,
     val nextSeed: () -> Int?,
 )
+
+/**
+ * What carrying out an [Intent] did, so the screen that asked can say.
+ *
+ * ### Why this is not `Unit`, which is what it was
+ *
+ * Because a screen that cannot tell the difference between "sold" and "the server would not sell
+ * it" has to guess, and both of the guesses on offer are wrong: the shop announced *"Obtained X"*
+ * whatever came back, and the bag said nothing at all. The second is the shape the reported bug
+ * took — a Sell that removed the row and paid nothing, with no account of either.
+ *
+ * ### Why three states and not a boolean
+ *
+ * The same three [ProfileGate.useItem] already answers with `ItemEffect?`, and for the same reason:
+ * they tell the player to do different things. [REFUSED] means ask for something else; [UNREACHABLE]
+ * means ask again. Collapsing them would make one of those advice wrong half the time.
+ *
+ * The two sources answer them differently and both can answer all three — see `rememberLocalGate`,
+ * where it is arithmetic on a file, and `AccountSession.perform`, where it is a status code and a
+ * comparison of the profile the server sent back.
+ */
+enum class IntentOutcome {
+    /** It happened: the profile changed. Nothing to say — the purse and the row say it. */
+    APPLIED,
+
+    /**
+     * The answer came back and nothing changed.
+     *
+     * The honest ones: an item the bag does not hold, a card no deck can spare, a shelf that does
+     * not stock the offer. Not a failure — the player asked for something that is not there.
+     */
+    REFUSED,
+
+    /**
+     * No answer at all: nobody signed in, or the request did not come back.
+     *
+     * Distinct from [REFUSED] because nothing is known about whether it *would* have worked, and
+     * because on an account `AccountSession.failure` holds the reason for a screen that can show
+     * more than this enum can.
+     */
+    UNREACHABLE,
+}
 
 /**
  * Something the player asked for that moves money or cards.
@@ -159,7 +202,18 @@ internal fun rememberLocalGate(
             // is what stops a price from being one thing offline and another on an account.
             perform = { intent ->
                 val current = session.active
-                if (current != null) session.persist(current.applying(intent, cards))
+                    ?: return@ProfileGate IntentOutcome.UNREACHABLE
+                // Every branch of `applying` refuses by returning the profile **unchanged** — see
+                // `Intent.SellCard`, which is the one that most visibly does — so comparing is how
+                // the local path knows the same thing a status code tells the account path. It is
+                // a data class, so this is the field-by-field comparison it looks like.
+                val updated = current.applying(intent, cards)
+                if (updated == current) {
+                    IntentOutcome.REFUSED
+                } else {
+                    session.persist(updated)
+                    IntentOutcome.APPLIED
+                }
             },
             // Invented, and that is correct here. A local save is the player's own file; a seed
             // they could not choose would protect nothing from anybody, and it would take offline

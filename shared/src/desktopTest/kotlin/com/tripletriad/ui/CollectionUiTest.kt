@@ -1,5 +1,7 @@
 package com.tripletriad.ui
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertTextEquals
@@ -11,10 +13,15 @@ import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.FF14_BLOCK
 import com.tripletriad.FF8_BLOCK
 import com.tripletriad.data.CardValue
+import com.tripletriad.data.loadFormatCatalog
 import com.tripletriad.i18n.AppLocale
+import com.tripletriad.i18n.LocalStrings
+import com.tripletriad.i18n.StringKeys
+import com.tripletriad.i18n.loadStrings
 import com.tripletriad.model.Card
 import com.tripletriad.model.CardType
 import com.tripletriad.model.GameSave
+import com.tripletriad.ui.theme.TripleTriadTheme
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -30,6 +37,8 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalTestApi::class)
 class CollectionUiTest {
     private val catalog = kotlinx.coroutines.runBlocking { com.tripletriad.data.loadCardCatalog() }
+    private val formats = kotlinx.coroutines.runBlocking { loadFormatCatalog() }
+    private val strings = kotlinx.coroutines.runBlocking { loadStrings(AppLocale.EN_US) }
 
     private fun ComposeUiTest.openCards(block: Int = FF14_BLOCK) {
         newCharacter(block)
@@ -268,5 +277,53 @@ class CollectionUiTest {
 
         assertTrue(exists(CARD_DETAIL_TEST_TAG), "the card is selected")
         assertFalse(exists(CARD_SELL_TEST_TAG), "a deck's own card must not be sellable")
+    }
+
+    /**
+     * A sale the profile's holder refuses is **reported**, where it used to be silent.
+     *
+     * The screen had no snackbar at all, and `ProfileGate.perform` answered `Unit`, so there was
+     * neither an answer to report nor anywhere to put one. The refusal is reachable on an account
+     * through an ordinary door: a card the client credited itself for a match against a program is
+     * not in the server's collection until the transcript has been submitted and replayed, and the
+     * collection is then replaced by the server's own — so the copy appears to have been sold for
+     * nothing. See `sellCardNote`.
+     *
+     * Driven through a fixture rather than [App], because the refusal is precisely what the local
+     * path cannot produce here: `SellButton` hides itself for the only card `applying` refuses.
+     */
+    @Test
+    fun aRefusedSaleIsSaidOutLoud() = runComposeUiTest {
+        val spare = STARTER_CARDS.first { it !in STARTER_DECK }
+        setContent { Cards(freshSave()) { IntentOutcome.REFUSED } }
+
+        onNodeWithTag(CARD_GRID_TEST_TAG)
+            .performScrollToNode(hasTestTag(cardCellTestTag(spare)))
+        onNodeWithTag(cardCellTestTag(spare)).performClick()
+        onNodeWithTag(CARD_SELL_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(COLLECTION_NOTE_TEST_TAG) }
+
+        assertTrue(
+            isVisible(strings[StringKeys.NOTHING_HAPPENED]),
+            "a refused sale said nothing",
+        )
+    }
+
+    /** The cards screen alone, over whatever answer a sale is to get. */
+    @Composable
+    private fun Cards(profile: GameSave, onIntent: suspend (Intent) -> IntentOutcome) {
+        CompositionLocalProvider(LocalStrings provides strings) {
+            TripleTriadTheme {
+                CollectionScreen(
+                    profile = profile,
+                    catalog = catalog,
+                    format = formats.default!!,
+                    initial = CollectionTab.CARDS,
+                    onPersist = {},
+                    onIntent = onIntent,
+                    onBack = {},
+                )
+            }
+        }
     }
 }

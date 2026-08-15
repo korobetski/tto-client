@@ -15,6 +15,7 @@ import com.tripletriad.data.StarterCatalog
 import com.tripletriad.data.StarterPack
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
+import com.tripletriad.i18n.Strings
 import com.tripletriad.model.Card
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.Item
@@ -61,7 +62,7 @@ internal fun StoreScreen(
     format: Format,
     initial: StoreTab,
     onUseItem: suspend (Item) -> ItemEffect?,
-    onIntent: suspend (Intent) -> Unit,
+    onIntent: suspend (Intent) -> IntentOutcome,
     onBack: () -> Unit,
 ) {
     val strings = LocalStrings.current
@@ -109,10 +110,16 @@ internal fun StoreScreen(
                         scope.launch {
                             // Asked, not computed. On an account the price is the server's and the
                             // profile that comes back is the one it wrote — see `BuyRequest`.
-                            onIntent(Intent.Buy(offer, format.id))
+                            val outcome = onIntent(Intent.Buy(offer, format.id))
                             // After the write, not before: the note says the purchase happened,
                             // and a line shown while the save was in flight would be a promise.
-                            note.show(strings.format(StringKeys.OBTAINED, bought))
+                            //
+                            // **And only if it did.** This line used to be unconditional, so a
+                            // purchase the server declined — or one that never reached it —
+                            // announced the item anyway, over a purse that had not moved. The
+                            // button's `isAffordableBy` guard is the client's opinion about the
+                            // client's price; the server holds both.
+                            note.show(boughtNote(strings, outcome, bought))
                         }
                     },
                 )
@@ -147,10 +154,11 @@ internal fun StoreScreen(
                             // Asked, not granted: the pack puts **cards** in the collection, and
                             // that is no longer a field this client may write. See
                             // `ClaimStarterRequest`.
-                            onIntent(Intent.ClaimStarter(starters))
+                            val outcome = onIntent(Intent.ClaimStarter(starters))
                             note.show(
-                                strings.format(
-                                    StringKeys.OBTAINED,
+                                boughtNote(
+                                    strings,
+                                    outcome,
                                     strings[StringKeys.STARTER_PACK],
                                 ),
                             )
@@ -176,3 +184,20 @@ internal fun StoreScreen(
         UnlockedCard(card = card) { unlocked = null }
     }
 }
+
+/**
+ * What the shelf says after a Buy or a Claim — three answers where there used to be one.
+ *
+ * The snackbar is the only account this screen gives of a purchase, and it announced the item
+ * unconditionally. So a refused purchase and a request that never left said the same thing as a
+ * successful one, over a purse and a bag that had not changed. The bag's own version of this is
+ * `sellNote`, and the split is the same one [IntentOutcome] draws.
+ *
+ * @param bought what the player asked for, named. Only used when they actually got it.
+ */
+private fun boughtNote(strings: Strings, outcome: IntentOutcome, bought: String): String =
+    when (outcome) {
+        IntentOutcome.APPLIED -> strings.format(StringKeys.OBTAINED, bought)
+        IntentOutcome.REFUSED -> strings[StringKeys.NOTHING_HAPPENED]
+        IntentOutcome.UNREACHABLE -> strings[StringKeys.ACTION_FAILED]
+    }

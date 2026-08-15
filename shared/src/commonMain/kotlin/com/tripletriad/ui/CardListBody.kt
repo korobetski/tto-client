@@ -94,13 +94,16 @@ fun cardCopiesTestTag(cardId: Int): String = "card-copies-$cardId"
  *
  * @param catalog both card tables. Only the profile's own is read: card ids index whichever table
  * `MODE` names, so showing the other collection's card for an id would be showing a different card.
+ * @param note where a refused sale is reported. Owned by [CollectionScreen] because the snackbar
+ * belongs to the scaffold, and this is one tab inside it.
  */
 @Composable
 internal fun ColumnScope.CardListBody(
     profile: GameSave,
     catalog: CardCatalog,
     format: Format,
-    onIntent: suspend (Intent) -> Unit = {},
+    onIntent: suspend (Intent) -> IntentOutcome,
+    note: NoteHost,
 ) {
     val strings = LocalStrings.current
     val scope = rememberCoroutineScope()
@@ -141,8 +144,26 @@ internal fun ColumnScope.CardListBody(
     // Selling takes the copy out of the collection and pays for it. Asked rather than computed:
     // a card's worth is its **rarity**, and on an account it is the server's card table that says
     // so — a client that worked the price out itself could work out a better one.
+    //
+    // One at a time, and answered. Both for the reasons the bag's buttons are — see the `busy` flag
+    // in [InventoryBody]: two taps were two sales of two copies, and `perform` answered `Unit`, so
+    // a sale the server declined took the tap and said nothing at all.
+    var selling by remember(format) { mutableStateOf(false) }
     val sell: (Card) -> Unit = { card ->
-        scope.launch { onIntent(Intent.SellCard(card.id)) }
+        if (!selling) {
+            selling = true
+            scope.launch {
+                // The flag is dropped before the note is shown, not after: `NoteHost.show` suspends
+                // for as long as the line is on screen, and a button held disabled for those four
+                // seconds would look like the refusal had also broken it.
+                val outcome = try {
+                    onIntent(Intent.SellCard(card.id))
+                } finally {
+                    selling = false
+                }
+                sellCardNote(strings, outcome)?.let { note.show(it) }
+            }
+        }
     }
 
     val grid: @Composable (Modifier) -> Unit = { modifier ->
@@ -180,6 +201,29 @@ internal fun ColumnScope.CardListBody(
         CardDetail(selected, profile, sell)
         grid(Modifier.fillMaxWidth().weight(1f).padding(top = 10.dp))
     }
+}
+
+/**
+ * What a card sale did, in one line — the bag's `sellNote`, one screen along.
+ *
+ * ### The refusal this screen can actually provoke
+ *
+ * [SellButton] already hides itself for a card no deck can spare, so the obvious no is unreachable
+ * from here. The one that is not: on an account the collection is the **server's**, and a card the
+ * client credited itself for a match against a program is not in it until the transcript has been
+ * submitted and replayed. Selling it in that window is refused, the collection is then replaced by
+ * the server's own, and the copy appears to have been sold for nothing. See [MatchSettlement] for
+ * what closes the window, and this for the window being open.
+ *
+ * [StringKeys.NOTHING_HAPPENED] and not the bag's `ITEM_REFUSED`: the bag's line says the *bag* no
+ * longer holds it, which is a sentence about a place this screen is not.
+ */
+private fun sellCardNote(strings: Strings, outcome: IntentOutcome): String? = when (outcome) {
+    // Silent on purpose, as in the bag: the copy badge and the purse in the app bar have both
+    // already said it.
+    IntentOutcome.APPLIED -> null
+    IntentOutcome.REFUSED -> strings[StringKeys.NOTHING_HAPPENED]
+    IntentOutcome.UNREACHABLE -> strings[StringKeys.ACTION_FAILED]
 }
 
 @Composable

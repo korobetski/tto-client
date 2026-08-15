@@ -1093,7 +1093,7 @@ private fun CampaignDestination(
     clock: Clock,
     nextSeed: () -> Int?,
     onPersist: suspend (GameSave) -> Unit,
-    onIntent: suspend (Intent) -> Unit,
+    onIntent: suspend (Intent) -> IntentOutcome,
     onNavigate: (Screen) -> Unit,
 ) {
     val ladder = campaign ?: return

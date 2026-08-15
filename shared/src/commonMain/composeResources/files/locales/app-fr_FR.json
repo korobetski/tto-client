@@ -14,6 +14,7 @@
   "APP_ITEM_REFUSED": "Rien ne s'est passé — votre sac ne contient plus cet objet.",
   "APP_HOME": "Accueil",
   "APP_LOADING_CARDS": "chargement des cartes…",
+  "APP_NOTHING_HAPPENED": "Rien ne s'est passé.",
   "APP_RETRY": "Réessayer",
   "APP_CARD_FACE_DOWN": "Carte face cachée",
   "APP_PROFILE_LOCAL_NOTE": "Enregistré sur cet appareil. La progression n'est pas vérifiée par un serveur et ne permet pas de jouer contre d'autres personnes.",

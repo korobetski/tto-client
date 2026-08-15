@@ -89,7 +89,7 @@ internal fun ColumnScope.InventoryBody(
     catalog: CardCatalog,
     format: Format,
     onUse: suspend (Item) -> ItemEffect?,
-    onIntent: suspend (Intent) -> Unit,
+    onIntent: suspend (Intent) -> IntentOutcome,
     onUnlocked: (Card) -> Unit,
 ) {
     val strings = LocalStrings.current
@@ -104,6 +104,21 @@ internal fun ColumnScope.InventoryBody(
     // deselects it. Holding the `Item` itself would keep a row whose stack no longer exists.
     var selectedKey by remember(format) { mutableStateOf<Item?>(null) }
     var note by remember(format) { mutableStateOf<String?>(null) }
+
+    /*
+     * Whether an operation is out, which is what stops a second tap landing behind the first.
+     *
+     * On an account every one of these three buttons is a round trip, and until now nothing
+     * disabled them while it was in flight. Two taps on Use meant **two requests with two operation
+     * ids**, which is precisely what `Idempotent` cannot help with: they are two different intents
+     * as far as the server is concerned, so a double-tapped pack really was opened twice — and the
+     * second reveal replaced the first, so the cards from one of them appeared out of nowhere in
+     * the bag. Two taps on Sell all sold a stack that was no longer there and paid nothing for it.
+     *
+     * One flag for all three rather than one each: they act on the same selected item, and there
+     * is no pair of them that makes sense to have in flight at once.
+     */
+    var busy by remember(format) { mutableStateOf(false) }
 
     // The cards a pack just dealt, while the player is turning them over. Held here rather than
     // navigated to because the reveal is a *moment inside using an item*, not a destination: the
@@ -149,29 +164,40 @@ internal fun ColumnScope.InventoryBody(
     }
 
     selected?.let { item ->
+        // One operation at a time, and the note is cleared as it starts: a line left standing while
+        // the next request is out is an answer to the previous tap being read as an answer to this
+        // one. See [busy].
+        val start: (suspend () -> String?) -> Unit = { work ->
+            note = null
+            busy = true
+            scope.launch {
+                try {
+                    note = work()
+                } finally {
+                    busy = false
+                }
+            }
+        }
+
         BagActions(
             item = item,
             cards = cards,
             stack = item.stack,
-            canUse = item.useable,
+            canUse = item.useable && !busy,
+            enabled = !busy,
             onUse = {
                 // Suspending, and it has to be: on an account the answer is a round trip, and
                 // there is nothing to show optimistically because the client no longer knows
                 // what came out. The profile is written by whoever answered — see
                 // [ProfileGate.useItem] — so nothing is persisted from here.
-                scope.launch {
+                start {
                     // **Null is an answer and it used to be an early return**, which made a tap
                     // that could not reach the server indistinguishable from a tap that never
                     // registered. It means the attempt was not made at all — nobody signed in, or
                     // the request did not come back — as opposed to [ItemEffect.NotUseable], which
                     // means it was made and refused. Two different sentences, and both were
                     // silence.
-                    val effect = onUse(item)
-                    if (effect == null) {
-                        note = strings[StringKeys.ACTION_FAILED]
-                        return@launch
-                    }
-                    note = useNote(strings, effect, cards)
+                    val effect = onUse(item) ?: return@start strings[StringKeys.ACTION_FAILED]
                     // Only a card *entering the collection* is revealed, which is the single
                     // branch `useBtnHandler` plays it in (`:236-245`). Opening a pack yields
                     // another bag item rather than a card, and showing it here would announce a
@@ -179,18 +205,33 @@ internal fun ColumnScope.InventoryBody(
                     (effect as? ItemEffect.CardDrawn)?.let { cards[it.cardId] }?.let(onUnlocked)
                     // A pack is turned over rather than announced — see [PackRevealScreen].
                     opened = (effect as? ItemEffect.PackOpened)?.cardIds
+                    useNote(strings, effect, cards)
                 }
             },
-            onSell = {
-                note = null
-                scope.launch { onIntent(Intent.SellItem(item)) }
-            },
-            onSellAll = {
-                note = null
-                scope.launch { onIntent(Intent.SellAllItems(item)) }
-            },
+            onSell = { start { sellNote(strings, onIntent(Intent.SellItem(item))) } },
+            onSellAll = { start { sellNote(strings, onIntent(Intent.SellAllItems(item))) } },
         )
     }
+}
+
+/**
+ * What a sale did, in one line — the same three answers a use gets, in the same three words.
+ *
+ * ### Why a sale needs one at all
+ *
+ * Because it can do nothing, and used to do nothing *invisibly*. `ProfileGate.perform` answered
+ * `Unit`, so the bag could not tell a sale from a refusal and said nothing either way; on an
+ * account a refusal also replaces the client's bag with the server's, so the row disappears and no
+ * MGP arrives. That is the same shape the reported Use bug had, one button along.
+ *
+ * [IntentOutcome.APPLIED] is deliberately silent. The purse in the app bar and the row that just
+ * lost a copy have already said it, and a snackbar repeating what two other things on screen show
+ * is noise on the one action a player performs in runs of five.
+ */
+private fun sellNote(strings: Strings, outcome: IntentOutcome): String? = when (outcome) {
+    IntentOutcome.APPLIED -> null
+    IntentOutcome.REFUSED -> strings[StringKeys.ITEM_REFUSED]
+    IntentOutcome.UNREACHABLE -> strings[StringKeys.ACTION_FAILED]
 }
 
 /**
@@ -284,6 +325,9 @@ private fun ItemRow(
  *
  * @param stack how many of the item the bag holds, which is what the third button says it will
  *   sell. Passed in rather than counted here so the label and the intent cannot disagree about it.
+ * @param enabled false while an operation is out. All three at once, because all three act on the
+ *   same item and each of them is a round trip on an account — see the `busy` flag in
+ *   [InventoryBody] for what a second tap used to buy.
  */
 @Composable
 @Suppress("LongParameterList")
@@ -292,6 +336,7 @@ private fun BagActions(
     cards: Map<Int, Card>,
     stack: Int,
     canUse: Boolean,
+    enabled: Boolean,
     onUse: () -> Unit,
     onSell: () -> Unit,
     onSellAll: () -> Unit,
@@ -318,7 +363,7 @@ private fun BagActions(
                 // answers at all. Zero means the shop will not buy it.
                 label = "${strings[StringKeys.SELL]} $price",
                 tag = INVENTORY_SELL_TEST_TAG,
-                enabled = price > 0,
+                enabled = enabled && price > 0,
                 onClick = onSell,
             )
         }
@@ -331,7 +376,7 @@ private fun BagActions(
                 tag = INVENTORY_SELL_ALL_TEST_TAG,
                 // Disabled at a stack of one, where it would be the button beside it: two controls
                 // that do the same thing invite the player to wonder which one they got wrong.
-                enabled = price > 0 && stack > 1,
+                enabled = enabled && price > 0 && stack > 1,
                 onClick = onSellAll,
             )
         }

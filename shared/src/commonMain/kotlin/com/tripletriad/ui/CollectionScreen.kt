@@ -17,6 +17,14 @@ import com.tripletriad.model.GameSave
 const val COLLECTION_TABS_TEST_TAG: String = "collection-tabs"
 
 /**
+ * What became of a sale, when it was not what the player asked for.
+ *
+ * The screen had no snackbar at all until now, which is why selling a card the server would not
+ * part with was silent — the one refusal this screen can provoke and the one it could not report.
+ */
+const val COLLECTION_NOTE_TEST_TAG: String = "collection-note"
+
+/**
  * The two halves of the cards screen, in the order they are shown.
  *
  * An enum and not two booleans because it is the *destination* a caller asks for: the dashboard's
@@ -62,17 +70,19 @@ internal fun CollectionScreen(
     format: Format,
     initial: CollectionTab,
     onPersist: suspend (GameSave) -> Unit,
-    onIntent: suspend (Intent) -> Unit,
+    onIntent: suspend (Intent) -> IntentOutcome,
     onBack: () -> Unit,
 ) {
     val strings = LocalStrings.current
     var tab by remember { mutableStateOf(initial) }
     var editing by remember { mutableStateOf<Int?>(null) }
+    val note = rememberNoteHost(COLLECTION_NOTE_TEST_TAG)
 
     CharacterScaffold(
         profile = profile,
         title = strings[StringKeys.CARDS],
         onBack = { if (editing != null) editing = null else onBack() },
+        snackbar = note,
         // The one screen that lays out two panes, so the one that asks for the wider column. See
         // [WideContentMaxWidth] for why the other screens do not get it for free.
         wide = true,
@@ -96,6 +106,10 @@ internal fun CollectionScreen(
                 // `onPersist`, which the deck editor still uses — a sale moves **money**, so it
                 // is an intent the server carries out rather than a profile the client hands in.
                 onIntent = onIntent,
+                // And the answer needs somewhere to land, which is the scaffold's snackbar and not
+                // the tab: a refusal that arrives after the player has switched to the decks is
+                // still an answer to the tap they made.
+                note = note,
             )
 
             CollectionTab.DECKS -> DecksBody(

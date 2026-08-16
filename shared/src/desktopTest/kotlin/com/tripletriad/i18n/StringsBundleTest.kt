@@ -137,13 +137,13 @@ class StringsBundleTest {
 
         /**
          * Keys defined by any of the four bundles: `import_locales.py`'s 697 imported strings
-         * across the four, plus the 267 `APP_*` strings this port authored.
+         * across the four, plus the 270 `APP_*` strings this port authored.
          */
-        const val UNION_KEYS = 964
+        const val UNION_KEYS = 967
 
         /**
-         * Imported key count plus however many `APP_*` strings that locale translates: 693 + 267,
-         * 694 + 267, then 653 and 686 with no app-owned strings at all.
+         * Imported key count plus however many `APP_*` strings that locale translates: 693 + 270,
+         * 694 + 270, then 653 and 686 with no app-owned strings at all.
          *
          * Almost everything the ported screens show was already translated in four languages by
          * the AS3 bundles. The `APP_*` strings are the ones the original never needed a sentence
@@ -168,8 +168,8 @@ class StringsBundleTest {
          * the ordinary rule and are English and French only.
          */
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 960,
-            AppLocale.FR_FR to 961,
+            AppLocale.EN_US to 963,
+            AppLocale.FR_FR to 964,
             AppLocale.DE_DE to 653,
             AppLocale.JA_JA to 686,
         )
@@ -186,9 +186,9 @@ class StringsBundleTest {
         val EXPECTED_GAPS = mapOf(
             AppLocale.EN_US to 4,
             AppLocale.FR_FR to 3,
-            // 44 imported keys short, plus all 267 app-owned; and 11 short, plus the 267.
-            AppLocale.DE_DE to 311,
-            AppLocale.JA_JA to 278,
+            // 44 imported keys short, plus all 270 app-owned; and 11 short, plus the 270.
+            AppLocale.DE_DE to 314,
+            AppLocale.JA_JA to 281,
         )
     }
 }

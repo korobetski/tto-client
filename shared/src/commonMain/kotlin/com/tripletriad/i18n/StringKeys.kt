@@ -537,6 +537,16 @@ object StringKeys {
     const val LESSON_TITLE_BONUS: String = "APP_LESSON_TITLE_BONUS"
     const val LESSON_TITLE_ORDER: String = "APP_LESSON_TITLE_ORDER"
     const val LESSON_TITLE_EXAM: String = "APP_LESSON_TITLE_EXAM"
+    /**
+     * The opening match's closing lines — **three**, where a position lesson has one.
+     *
+     * It is a whole nine-placement game and the tutor watched it, so what it ends on can react to
+     * how it went. The positions cannot be lost, so their one sentence is about the rule instead;
+     * see [LESSON_SAME_DONE] and its siblings.
+     */
+    const val LESSON_BASICS_WIN: String = "APP_LESSON_BASICS_WIN"
+    const val LESSON_BASICS_LOSE: String = "APP_LESSON_BASICS_LOSE"
+    const val LESSON_BASICS_DRAW: String = "APP_LESSON_BASICS_DRAW"
     const val LESSON_SAME_1: String = "APP_LESSON_SAME_1"
     const val LESSON_SAME_2: String = "APP_LESSON_SAME_2"
     const val LESSON_SAME_DONE: String = "APP_LESSON_SAME_DONE"
@@ -832,6 +842,7 @@ object StringKeys {
         LESSON_TITLE_SAME_WALL, LESSON_TITLE_REVERSE, LESSON_TITLE_FALLEN_ACE,
         LESSON_TITLE_REVERSE_FALLEN_ACE, LESSON_TITLE_ELEMENTAL,
         LESSON_TITLE_BONUS, LESSON_TITLE_ORDER, LESSON_TITLE_EXAM,
+        LESSON_BASICS_WIN, LESSON_BASICS_LOSE, LESSON_BASICS_DRAW,
         LESSON_SAME_1, LESSON_SAME_2, LESSON_SAME_DONE,
         LESSON_PLUS_1, LESSON_PLUS_2, LESSON_PLUS_DONE,
         LESSON_COMBO_1, LESSON_COMBO_2, LESSON_COMBO_DONE,

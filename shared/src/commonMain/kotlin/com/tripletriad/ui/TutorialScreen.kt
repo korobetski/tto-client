@@ -14,6 +14,7 @@ import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.MatchAiOptions
+import com.tripletriad.model.MatchResult
 import com.tripletriad.model.Npc
 import com.tripletriad.time.Clock
 import kotlin.time.Duration.Companion.seconds
@@ -171,6 +172,19 @@ internal fun scriptFor(step: Int, speakerKey: String, catalog: CardCatalog): Mat
 /**
  * The ported `TutorialScreen`, whole: the fixed hand, the rigged flip, the doubled turn and the
  * opponent that plays its worst move.
+ *
+ * ### And a closing line, which it never had
+ *
+ * The AS3 ends `TutorialScreen` on `TutorialRematchPanel` and says nothing over it, so the longest
+ * lesson in the course — nine placements, nine spoken lines — was the one that finished in silence
+ * while every one-move position after it closed with a sentence. `LessonScriptTest` is what now
+ * fails if a lesson is added without one.
+ *
+ * **Three lines rather than one**, unlike the positions. A position is composed so it cannot be
+ * lost, so its single sentence is about the rule and the score is beside the point; this is a whole
+ * game that the tutor watched, and it can go three ways even against an opponent playing its worst
+ * move. A congratulation printed over a defeat is exactly the kind of thing a scripted match gets
+ * wrong.
  */
 private fun openingScript(speakerKey: String): MatchScript = MatchScript(
     speakerKey = speakerKey,
@@ -179,6 +193,11 @@ private fun openingScript(speakerKey: String): MatchScript = MatchScript(
     turnLimit = TUTORIAL_TURN_LIMIT,
     aiOptions = MatchAiOptions.TUTOR,
     lesson = ::tutorialLines,
+    outcomeLines = mapOf(
+        MatchResult.WIN to StringKeys.LESSON_BASICS_WIN,
+        MatchResult.LOSE to StringKeys.LESSON_BASICS_LOSE,
+        MatchResult.DRAW to StringKeys.LESSON_BASICS_DRAW,
+    ),
     counted = false,
     explains = true,
     outcomeTitle = StringKeys.LESSON_COMPLETE,

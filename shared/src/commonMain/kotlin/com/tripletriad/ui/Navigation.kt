@@ -74,7 +74,11 @@ internal enum class Tab(val root: Screen, val labelKey: String, val icon: ImageV
  */
 internal val Screen.tab: Tab?
     get() = when (this) {
-        Screen.DASHBOARD, Screen.STATS, Screen.QUESTS, Screen.HELP, Screen.AVATAR -> Tab.HOME
+        // The course keeps the bar, like the rule book it sits beside: it is a list to read and
+        // leave, not a board. Its *lessons* are matches and answer null below.
+        Screen.DASHBOARD, Screen.STATS, Screen.QUESTS, Screen.HELP, Screen.AVATAR,
+        Screen.LESSONS,
+        -> Tab.HOME
         Screen.OPPONENTS, Screen.PVP, Screen.PVP_TABLE -> Tab.PLAY
         Screen.CARDS, Screen.DECKS -> Tab.CARDS
         Screen.SHOP, Screen.INVENTORY -> Tab.STORE

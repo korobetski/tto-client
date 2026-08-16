@@ -4,7 +4,7 @@ import com.tripletriad.data.CardCatalog
 import com.tripletriad.model.Card
 
 /**
- * The twelve block-1 cards the lessons name, built here rather than loaded.
+ * The fifteen block-1 cards the lessons name, built here rather than loaded.
  *
  * `commonTest` has no filesystem on Kotlin/Native, and what the lesson tests are about is the
  * *positions* rather than the loader — which `CardCatalogTest` covers. The powers are transcribed
@@ -26,6 +26,9 @@ internal val LESSON_CATALOG: CardCatalog = CardCatalog(
         lessonCard(id = 267, top = 5, right = 5, bottom = 2, left = 2, name = "Ahriman"),
         lessonCard(id = 268, top = 2, right = 5, bottom = 5, left = 2, name = "Goobbue"),
         lessonCard(id = 269, top = 3, right = 7, bottom = 2, left = 1, name = "Chocobo"),
+        lessonCard(id = 270, top = 1, right = 4, bottom = 7, left = 1, name = "Amalj'aa"),
+        lessonCard(id = 318, top = 1, right = 8, bottom = 10, left = 8, name = "Hildibrand"),
+        lessonCard(id = 319, top = 10, right = 6, bottom = 4, left = 8, name = "Nanamo Ul Namo"),
     ),
 )
 

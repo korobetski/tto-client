@@ -44,6 +44,7 @@ const val DASHBOARD_QUESTS_BADGE_TEST_TAG: String = "dashboard-quests-badge"
 const val DASHBOARD_DECKS_TEST_TAG: String = "dashboard-decks"
 const val DASHBOARD_INVENTORY_TEST_TAG: String = "dashboard-inventory"
 const val DASHBOARD_HELP_TEST_TAG: String = "dashboard-help"
+const val DASHBOARD_LESSONS_TEST_TAG: String = "dashboard-lessons"
 const val DASHBOARD_LOGOUT_TEST_TAG: String = "dashboard-logout"
 
 /**
@@ -104,6 +105,8 @@ internal fun DashboardScreen(
     onDecks: () -> Unit,
     onInventory: () -> Unit,
     onHelp: () -> Unit,
+    onLessons: () -> Unit,
+    lessonsBadge: String,
     onLogout: () -> Unit,
 ) {
     val strings = LocalStrings.current
@@ -180,6 +183,19 @@ internal fun DashboardScreen(
                     icon = TtoIcons.Help,
                     tag = DASHBOARD_HELP_TEST_TAG,
                     onClick = onHelp,
+                )
+            }
+            // Beside the rule book, which is what the course ends at and what a player who wants
+            // one rule rather than a lesson about it should reach in the same tap. The badge is the
+            // quests card's, for the same reason: a course is a thing you are part-way through, and
+            // the number is what says so without opening it.
+            item {
+                HomeCard(
+                    label = strings[StringKeys.LESSONS],
+                    icon = TtoIcons.Quest,
+                    tag = DASHBOARD_LESSONS_TEST_TAG,
+                    badge = lessonsBadge,
+                    onClick = onLessons,
                 )
             }
             item(span = { GridItemSpan(maxLineSpan) }) {

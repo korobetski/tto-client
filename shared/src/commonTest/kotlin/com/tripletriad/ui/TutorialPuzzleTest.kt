@@ -46,7 +46,7 @@ class TutorialPuzzleTest {
                 "lesson $index: the player has to be the one to move",
             )
             assertEquals(
-                PUZZLE_CELL,
+                puzzle.cell,
                 state.playablePositions().singleOrNull(),
                 "lesson $index: one cell free, and it is the one every line names",
             )
@@ -110,29 +110,97 @@ class TutorialPuzzleTest {
         val chained = captures.single { it.kind == CaptureKind.COMBO }
         assertTrue(chained.wave >= 1, "a combo is a later wave, was ${chained.wave}")
         assertTrue(
-            chained.position !in played.neighboursOfTheMove(),
+            chained.position !in played.neighboursOfTheMove(CENTRE),
             "the third card is not one the placed card is even beside — that is the point of it",
         )
     }
 
     /**
-     * **Raw power captures nothing, in any of them.**
+     * Same Wall counts the wall as an ace, and is taught from a cell that has one.
      *
-     * Each position replayed with its rule switched off. If anything still turns, the lesson proves
-     * nothing: the player would have won that exchange anyway, and the line explaining why is
-     * false.
+     * The lesson that cannot be taught from the centre — `touchesAceWall` needs a side facing a
+     * wall, and the centre is the one cell with none. Asserted as the *cell* as well as the
+     * capture, because a position moved to the middle would still build, still look right, and
+     * silently stop demonstrating anything.
+     */
+    @Test
+    fun sameWallNeedsAWallAndUsesOne() {
+        val puzzle = TUTORIAL_PUZZLES[SAME_WALL_LESSON]
+        val played = play(SAME_WALL_LESSON)
+
+        assertEquals(TOP_CENTRE, puzzle.cell, "Same Wall cannot be taught from the centre")
+        assertEquals(setOf(SAME_WALL_BELOW_CELL), played.capturedPositions())
+        assertEquals(setOf(CaptureKind.SAME_WALL), played.kinds(), "the wall is what makes it")
+    }
+
+    /** Under Reverse the lower number is the stronger one, and the placement lives on that. */
+    @Test
+    fun reverseCapturesWithTheWeakerSide() {
+        val played = play(REVERSE_LESSON)
+
+        assertEquals(setOf(REVERSE_ABOVE_CELL), played.capturedPositions())
+        assertEquals(setOf(CaptureKind.BASIC), played.kinds(), "Reverse works through raw power")
+    }
+
+    /** A 1 takes an A: Fallen Ace drops the 10 to 0 before anything else looks at it. */
+    @Test
+    fun fallenAceTurnsAnAceIntoTheWeakestSide() {
+        val played = play(FALLEN_ACE_LESSON)
+
+        assertEquals(setOf(FALLEN_ACE_ABOVE_CELL), played.capturedPositions())
+        assertEquals(setOf(CaptureKind.BASIC), played.kinds())
+    }
+
+    /**
+     * The pair, and the interaction that is the whole lesson.
+     *
+     * Neither rule alone captures here — [theRuleIsTheOnlyExplanation] is what asserts that, from
+     * the puzzle's own baselines — so this only has to show that together they do, and that raw
+     * power is *not* the baseline being claimed: an ace beats a 4 without any rule at all, which
+     * is exactly why this lesson needed different baselines from the other six.
+     */
+    @Test
+    fun reverseAndFallenAceTogetherMakeAnAceUnbeatable() {
+        val puzzle = TUTORIAL_PUZZLES[REVERSE_FALLEN_ACE_LESSON]
+        val played = play(REVERSE_FALLEN_ACE_LESSON)
+
+        assertEquals(setOf(REVERSE_FALLEN_ACE_BELOW_CELL), played.capturedPositions())
+        assertEquals(setOf(CaptureKind.BASIC), played.kinds())
+        assertEquals(
+            listOf(GameRules(reverse = true), GameRules(fallenAce = true)),
+            puzzle.baselines,
+            "the pair is dead one rule at a time, which is the claim — not that raw power is",
+        )
+    }
+
+    /**
+     * **The rule being taught is the only explanation** — every lesson, every baseline.
+     *
+     * Each position is replayed under the rule sets it claims to be dead under
+     * ([TutorialPuzzle.baselines]). For six of the seven that is the empty set: if raw power still
+     * turns a card, the player would have won that exchange anyway and the line explaining why is
+     * false. For the pair lesson the baselines are Reverse and Fallen Ace *one at a time*, because
+     * an ace captures plenty on raw power and the claim there is the interaction.
+     *
+     * Also asserts the baselines are not vacuous — a puzzle with an empty list would pass this
+     * test by asking nothing, which is the failure mode of a check driven by its own data.
      */
     @Test
     fun theRuleIsTheOnlyExplanation() {
         for ((index, puzzle) in TUTORIAL_PUZZLES.withIndex()) {
-            val setup = assertNotNull(puzzleSetup(puzzle, catalog))
-            val plain = setup.state.copy(rules = GameRules())
+            assertTrue(puzzle.baselines.isNotEmpty(), "lesson $index proves nothing about itself")
 
-            assertEquals(
-                emptyList(),
-                plain.play(plain.currentHand.single(), PUZZLE_CELL).lastPlay?.captures.orEmpty(),
-                "lesson $index captures on power alone, so it does not demonstrate its rule",
-            )
+            for (baseline in puzzle.baselines) {
+                val setup = assertNotNull(puzzleSetup(puzzle, catalog))
+                val plain = setup.state.copy(rules = baseline)
+
+                assertEquals(
+                    emptyList(),
+                    plain.play(plain.currentHand.single(), puzzle.cell)
+                        .lastPlay?.captures.orEmpty(),
+                    "lesson $index already captures under $baseline, so it demonstrates nothing",
+                )
+            }
         }
     }
 
@@ -168,8 +236,9 @@ class TutorialPuzzleTest {
 
     /** Builds the lesson and plays the one move it asks for. */
     private fun play(lesson: Int): MatchState {
-        val setup = assertNotNull(puzzleSetup(TUTORIAL_PUZZLES[lesson], catalog))
-        return setup.state.play(setup.state.currentHand.single(), PUZZLE_CELL)
+        val puzzle = TUTORIAL_PUZZLES[lesson]
+        val setup = assertNotNull(puzzleSetup(puzzle, catalog))
+        return setup.state.play(setup.state.currentHand.single(), puzzle.cell)
     }
 
     private fun MatchState.capturedPositions(): Set<Int> =
@@ -179,8 +248,8 @@ class TutorialPuzzleTest {
         lastPlay?.captures.orEmpty().mapTo(mutableSetOf()) { it.kind }
 
     /** The cells the placed card is actually beside. */
-    private fun MatchState.neighboursOfTheMove(): Set<Int> =
-        Side.entries.mapNotNullTo(mutableSetOf()) { board.neighbour(PUZZLE_CELL, it) }
+    private fun MatchState.neighboursOfTheMove(cell: Int): Set<Int> =
+        Side.entries.mapNotNullTo(mutableSetOf()) { board.neighbour(cell, it) }
 
     private companion object {
         /** The lessons resolve their card ids through this; see [LESSON_CATALOG]. */
@@ -189,6 +258,10 @@ class TutorialPuzzleTest {
         const val SAME_LESSON = 0
         const val PLUS_LESSON = 1
         const val COMBO_LESSON = 2
+        const val SAME_WALL_LESSON = 3
+        const val REVERSE_LESSON = 4
+        const val FALLEN_ACE_LESSON = 5
+        const val REVERSE_FALLEN_ACE_LESSON = 6
 
         /** Middle-right and bottom-centre: the two sides Same matches. */
         const val SAME_RIGHT_CELL = 5
@@ -199,6 +272,16 @@ class TutorialPuzzleTest {
         const val PLUS_LEFT_CELL = 3
 
         const val EXPECTED_COMBO_CAPTURES = 3
+
+        /** The centre, seen from cell 1: the card Same Wall takes. */
+        const val SAME_WALL_BELOW_CELL = 4
+
+        /** Top-centre, seen from the middle: the card Reverse and Fallen Ace each take. */
+        const val REVERSE_ABOVE_CELL = 1
+        const val FALLEN_ACE_ABOVE_CELL = 1
+
+        /** Bottom-centre: the card the pair takes. */
+        const val REVERSE_FALLEN_ACE_BELOW_CELL = 7
 
         const val DODO_ID = 257
         val DODO_POWERS = listOf(4, 2, 3, 4)

@@ -19,8 +19,8 @@ import kotlin.test.assertTrue
  * The requirement covers wins, defeats, draws **and forfeits**, and the last of those is why this
  * is asserted at both ends rather than only at the credit: [GameSave.forfeits] is
  * `startedMatches - endedMatches`, so a lesson skipped at one end only would leave behind exactly
- * the mark it was avoiding — an abandoned match, one per lesson. That is a failure mode where each
- * half looks correct on its own, which is why [theWholeCourseLeavesTheRecordAlone] walks the pair.
+ * the mark it was avoiding — an abandoned match, one per lesson. That is a failure mode where
+ * each half looks correct alone, which is why [theWholeCourseLeavesTheRecordAlone] walks the pair.
  *
  * Asserted against the extensions rather than through the UI because they are where the decision
  * is; `TutorialUiTest` covers the screen that calls them.

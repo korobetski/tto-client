@@ -207,6 +207,21 @@ internal object TtoIcons {
     }
 
     /**
+     * A tick, alone — a lesson that has been finished.
+     *
+     * The same stroke [Quest] draws inside its card, without the card. What it marks here is a row
+     * in a list rather than a destination, so the shape that identifies the *subject* would be
+     * repeated eight times down the screen and identify nothing.
+     */
+    val Done: ImageVector by lazy {
+        icon("Done") {
+            moveTo(5f, 12.5f)
+            lineTo(10f, 17.5f)
+            lineTo(19f, 6.5f)
+        }
+    }
+
+    /**
      * One stroked path on a 24-unit grid.
      *
      * `defaultWidth`/`defaultHeight` are 24 dp because that is what an [androidx.compose.material3

@@ -59,7 +59,6 @@ class CampaignUiTest {
         newCharacter(FF14_BLOCK)
         openOpponents()
 
-        assertTrue(exists(TUTORIAL_ROW_TEST_TAG), "the lesson is in both collections")
         assertTrue(exists(campaignRowTestTag(GOLD_SAUCER)), "the Gold Saucer is the ff14 ladder")
         assertTrue(exists(campaignRowTestTag(CARD_CLUB)), "the Card Club is the ff8 one")
     }

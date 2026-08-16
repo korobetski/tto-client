@@ -15,9 +15,16 @@ committed as data.
 
 `RulesEngine.resolve` in `tto-core` — BASIC, SAME, PLUS, SAME_WALL and COMBO,
 with the same `CAPTURE_PRECEDENCE` de-duplication and the same rule that combo
-propagates from special captures only. Restricted to what a lesson uses: no
-Elemental, Reverse, Fallen Ace, Ascension or Descension, so effective power is
-printed power throughout and `facing`/`own` need no `SpecialPowerBasis` branch.
+propagates from special captures only. Reverse and Fallen Ace are modelled too,
+in `beats` and `effective`: Reverse swaps which side must be greater rather than
+negating the test, and Fallen Ace turns a printed 10 into 0 *before* anything
+else. Note Same and Plus keep reading **printed** powers — `SpecialPowerBasis`
+defaults to PRINTED — so Fallen Ace does not reach them, while `touchesAceWall`
+reads the effective power and therefore does.
+
+**Not modelled: Elemental, Ascension and Descension.** All three change effective
+power per cell or per tally, so a position that is "pure" here may not be under
+them; those lessons have to be composed against the real engine instead.
 
 **This is a second implementation of rules that live in `tto-core`, and it will
 drift.** It is a search tool, not an oracle: what it prints is a candidate, and
@@ -41,6 +48,7 @@ SIDES = (TOP, RIGHT, BOTTOM, LEFT)
 FACING = {TOP: BOTTOM, RIGHT: LEFT, BOTTOM: TOP, LEFT: RIGHT}
 
 ACE_POWER = 10
+FALLEN_ACE_POWER = 0
 WIDTH = 3
 CENTRE = 4
 
@@ -58,6 +66,21 @@ def neighbour(position, side):
     if side == LEFT:
         return None if column == 0 else position - 1
     return None if column == WIDTH - 1 else position + 1
+
+
+def effective(card, side, rules):
+    """`effectivePower` with no TypeRule: Fallen Ace turns a printed 10 into 0."""
+    printed = card[side]
+    if rules.get("fallen_ace") and printed == ACE_POWER:
+        return FALLEN_ACE_POWER
+    return printed
+
+
+def beats(card, side, other, rules):
+    """`RulesEngine.beats` — Reverse is not a negation, it swaps which side must be greater."""
+    attack = effective(card, side, rules)
+    defence = effective(other, FACING[side], rules)
+    return defence > attack if rules.get("reverse") else defence < attack
 
 
 def neighbours(board, position):
@@ -80,7 +103,7 @@ def resolve(board, position, card, player, rules):
     basic = [
         (at, "BASIC")
         for side, at, other, owner in adjacent
-        if owner != player and other[FACING[side]] < card[side]
+        if owner != player and beats(card, side, other, rules)
     ]
 
     special = []
@@ -97,7 +120,10 @@ def resolve(board, position, card, player, rules):
                 special += [(n[1], "PLUS") for n in group if n[3] != player]
     if rules.get("same_wall") and adjacent:
         # `touchesAceWall`: some side faces a wall and shows an ace there.
-        if any(neighbour(position, s) is None and card[s] == ACE_POWER for s in SIDES):
+        if any(
+            neighbour(position, s) is None and effective(card, s, rules) == ACE_POWER
+            for s in SIDES
+        ):
             special += [
                 (n[1], "SAME_WALL")
                 for n in adjacent
@@ -123,7 +149,7 @@ def resolve(board, position, card, player, rules):
                 for side, at, other, owner in neighbours(placed, source):
                     if at in visited or owner == player:
                         continue
-                    if other[FACING[side]] < source_card[side]:
+                    if beats(source_card, side, other, rules):
                         visited.add(at)
                         combos.append((at, "COMBO"))
                         placed[at] = (other, player)
@@ -136,16 +162,23 @@ def kinds_of(captures):
     return sorted({kind for _, kind in captures})
 
 
-def search(pool, rule, wanted, enemies, count, cells):
-    """Positions firing exactly `wanted` where **raw power captures nothing**.
+def search(pool, active, wanted, enemies, count, cells, baselines=((),)):
+    """Positions firing exactly `wanted`, and firing **nothing** under `baselines`.
 
     The second condition is the whole point: a placement that would have won
     anyway cannot demonstrate the rule that also applies to it.
 
+    `baselines` is what "would have won anyway" means, and it is not always the
+    empty rule set. For a lesson on one rule it is — raw power must take nothing.
+    For a lesson on a *pair* of rules it cannot be: the claim there is that each
+    rule alone leaves the placement dead and only the two together capture, so
+    the baselines are the rules taken one at a time. See [LESSONS].
+
     @param cells where the taught card may be placed. Same Wall needs a wall, so
-      it cannot be taught from the centre — see [LESSONS].
+      it cannot be taught from the centre.
     """
-    rules = {rule: True} if rule else {}
+    rules = {name: True for name in active}
+    baseline_rules = [{name: True for name in names} for names in baselines]
     found = []
     for cards in permutations(pool, enemies + 1):
         played, rest = cards[0], cards[1:]
@@ -153,7 +186,7 @@ def search(pool, rule, wanted, enemies, count, cells):
             others = [s for s in range(WIDTH * WIDTH) if s != into]
             for spots in combinations(others, enemies):
                 board = {spot: (card, "RED") for spot, card in zip(spots, rest)}
-                if resolve(board, into, played, "BLUE", {})[1]:
+                if any(resolve(board, into, played, "BLUE", b)[1] for b in baseline_rules):
                     continue
                 captures = resolve(board, into, played, "BLUE", rules)[1]
                 if kinds_of(captures) == wanted and len(captures) >= enemies:
@@ -182,10 +215,32 @@ def describe(card):
 # and must not be**: it needs a side facing a wall, so the centre — the one cell
 # with no wall at all — can never produce it. Taught from cell 1, a top-edge cell.
 LESSONS = {
-    "same": ("same", ["SAME"], 2, [CENTRE]),
-    "plus": ("plus", ["PLUS"], 2, [CENTRE]),
-    "combo": ("same", ["COMBO", "SAME"], 3, [CENTRE]),
-    "same_wall": ("same_wall", ["SAME_WALL"], 1, [1]),
+    "same": (("same",), ["SAME"], 2, [CENTRE]),
+    "plus": (("plus",), ["PLUS"], 2, [CENTRE]),
+    "combo": (("same",), ["COMBO", "SAME"], 3, [CENTRE]),
+    "same_wall": (("same_wall",), ["SAME_WALL"], 1, [1]),
+    # Reverse and Fallen Ace both work through the *basic* comparison, so what a
+    # position proves is that raw power alone captures nothing and the rule turns
+    # the same placement into a capture. One enemy is enough and reads clearest.
+    "reverse": (("reverse",), ["BASIC"], 1, [CENTRE]),
+    "fallen_ace": (("fallen_ace",), ["BASIC"], 1, [CENTRE]),
+    # The pair that makes an ace the strongest card again: Fallen Ace drops a 10
+    # to 0, and under Reverse 0 is unbeatable.
+    #
+    # Its baselines are the two rules **one at a time**, not the empty set. An ace
+    # captures plenty on raw power, so "raw power takes nothing" is unsatisfiable
+    # here and would only ever return positions where the ace is irrelevant — the
+    # tool's first answer before this existed was a plain Reverse capture with no
+    # ace in it at all. What the lesson claims is the interaction: Reverse alone
+    # makes the ace worthless, Fallen Ace alone does nothing for it, and together
+    # they make it unbeatable.
+    "reverse_fallen_ace": (
+        ("reverse", "fallen_ace"),
+        ["BASIC"],
+        1,
+        [CENTRE],
+        (("reverse",), ("fallen_ace",)),
+    ),
 }
 
 
@@ -202,9 +257,10 @@ def main():
         raise SystemExit(f"no cards in block {args.block}")
 
     for lesson in [args.rule] if args.rule else sorted(LESSONS):
-        rule, wanted, enemies, cells = LESSONS[lesson]
-        results = search(pool, rule, wanted, enemies, args.count, cells)
-        print(f"\n=== {lesson} (under {rule}) — {len(results)} position(s) ===")
+        active, wanted, enemies, cells, *rest = LESSONS[lesson]
+        baselines = rest[0] if rest else ((),)
+        results = search(pool, active, wanted, enemies, args.count, cells, baselines)
+        print(f"\n=== {lesson} (under {', '.join(active)}) — {len(results)} position(s) ===")
         if not results:
             print("  none in this block")
         for played, into, board, captures in results:

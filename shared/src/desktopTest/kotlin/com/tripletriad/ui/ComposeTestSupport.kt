@@ -141,6 +141,18 @@ internal fun ComposeUiTest.awaitOpponents() {
 }
 
 /** The dashboard's Play, which is the only way to the opponent list. */
+/**
+ * The dashboard's Lessons card, which is the only way to the course.
+ *
+ * It used to be a row on the opponent list; see `LessonsScreen` for why it moved and why there is
+ * one entry rather than two.
+ */
+@OptIn(ExperimentalTestApi::class)
+internal fun ComposeUiTest.openLessons() {
+    onNodeWithTag(DASHBOARD_LESSONS_TEST_TAG).performClick()
+    waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(LESSONS_LIST_TEST_TAG) }
+}
+
 @OptIn(ExperimentalTestApi::class)
 internal fun ComposeUiTest.openOpponents() {
     onNodeWithTag(DASHBOARD_PLAY_TEST_TAG).performClick()

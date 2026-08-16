@@ -1,8 +1,8 @@
 # Teaching the game: the academy and the sandbox
 
-**Status: an accepted design, not yet implemented.** Options B and C of the first draft were
-chosen together — a curriculum of short lessons *and* a rules sandbox. This document is what the
-spike turned that choice into.
+**Status: part built.** Options B and C of the first draft were chosen together — a curriculum of
+short lessons *and* a rules sandbox. Steps 1 to 3 of §8 are done: eight lessons, a list screen with
+progress, and a dashboard entry. The rest of §8 is not.
 
 **What is verified, and how.** The claims about `tto-core`'s API are read from the `tto-core`
 sources at `eb6b213` (v0.7.3, the version `gradle/libs.versions.toml` pins). The lesson positions in
@@ -72,8 +72,9 @@ protocol version, or a `tto-server` deployment. The whole of it is `:shared`.
 
 ## 2. What the academy is
 
-Ten to twelve named lessons, played in order, each unlocked by the one before it, each teaching one
-rule and ending in a sentence that names it. Most are **puzzles**: a board already filled to one
+Ten to twelve named lessons in a recommended order — **not** gated behind one another; see
+`LessonsScreen` for why nothing is locked — each teaching one rule and ending in a sentence that
+names it. Eight are built. Most are **puzzles**: a board already filled to one
 move from the rule firing, the right card in hand, one cell to find. A nine-placement match to teach
 Plus takes four minutes and can be derailed at every step; a puzzle takes fifteen seconds and cannot
 fail to teach it.
@@ -93,10 +94,10 @@ fail to teach it.
 | 11 | Before the first card | `RULE_ROULETTE`, `RULE_THREE_OPEN`, `RULE_SUDDEN_DEATH` | short match, drawn on purpose |
 | 12 | The exam | three random rules, a real opponent | full match |
 
-Lessons are free and pay nothing; the exam pays once. That removes the question the current
-tutorial's KDoc has to argue about — it charges the tt-master's fee and pays a full reward
-(`TutorialScreen.kt:24-35`) — and twelve lessons paying twelve rewards would be a much louder version
-of the same problem.
+Lessons are free and pay nothing, and **none of them goes on the player's record** — see
+`MatchScript.counted`. The exam is meant to pay, once. That settles the question the tutorial's KDoc
+used to argue about: it charged the tt-master's fee and paid a full reward, which was defensible for
+one match and is not for eight.
 
 ---
 
@@ -120,8 +121,9 @@ unchanged.
 Two consequences worth stating, because both look like defects otherwise:
 
 - **A one-move puzzle's score is meaningless.** The score counts unplayed cards for their owner, so
-  a lesson board stacked with red cards opens at a heavy loss and the win banner will say so. Either
-  compose the board to be roughly even, or suppress the outcome banner for lessons.
+  a lesson board stacked with red cards would open at a heavy loss and the banner would say so. The
+  boards are composed blue-heavy instead, so every lesson ends 9-1 and the banner is a
+  congratulation; `TutorialPuzzleTest.everyLessonIsWon` is what holds that.
 - **`MatchScreen` re-deals on `remember(matchIndex, npc.iconId)`.** A curriculum whose lessons share
   one tutor would keep the previous board when moving between two of them, exactly as
   `CampaignMatchScreen` documents at `CampaignScreen.kt:235`. The same fix applies: `key(lesson)`.
@@ -289,19 +291,41 @@ again.
    This changes the first lesson, which used to pay the tt-master's full reward — a choice
    `TutorialScreen`'s KDoc argued for at five MGP a match, and which does not survive the
    requirement that a tutorial not touch the record.
-3. **The academy list, progress in `SettingsStore`, the remaining lessons, the exam and its reward.**
-4. **`RuleDemo` for Same, Plus, Combo, Same Wall**, sharing the explanation function with the
+3. ~~**The list, and progress in `SettingsStore`.**~~ **Done.** `LessonsScreen`, reached from a
+   dashboard card carrying a `done / total` badge, with `UserSettings.lessonsDone` behind it.
+   Nothing is locked — the order is a recommendation, not a gate — and progress is recorded when a
+   lesson's **result lands**, so it counts however the player leaves the screen and an abandoned
+   lesson counts for nothing.
+
+   The tutorial's row on the opponent list is **gone**. A course of eight with an order and a place
+   you are up to is not a row on a list of opponents, and the alternative — the same screen reached
+   from two places — is precisely the condition `Screen.kt` names as the point to stop using an
+   enum for navigation. One entry point costs nothing.
+
+   Four more lessons with it: **Same Wall, Reverse, Fallen Ace, and the two together.** Eight in
+   total, against the twelve planned. The pair lesson needed something the others did not — see §9.
+
+4. **The remaining lessons: Elemental, Ascension/Descension, the hand-and-order rules, the exam.**
+5. **`RuleDemo` for Same, Plus, Combo, Same Wall**, sharing the explanation function with the
    lessons.
-5. **The sandbox**, on the same explanation layer, plus `MatchAi.evaluate` for hints.
-6. **The remaining demos and the "Try it" link.**
+6. **The sandbox**, on the same explanation layer, plus `MatchAi.evaluate` for hints.
+7. **The remaining demos and the "Try it" link.**
 
 ## 9. What could still go wrong
 
 - **A one-move puzzle cannot be failed, and cannot be explored.** The exam is the mitigation: one
   real match, real AI, three random rules, nothing constrained.
 - **Elemental, Ascension and Descension change effective power**, so a position that is "pure" under
-  printed powers may not be under them. `find_lesson_positions.py` models neither; lessons 8 and 9
-  must be composed against the real engine rather than searched with this tool.
+  printed powers may not be under them. `find_lesson_positions.py` models none of the three — it
+  does now model Reverse and Fallen Ace, which work through the basic comparison — so those lessons
+  must be composed against the real engine rather than searched with this tool. That is why the
+  course stops at eight.
+
+- **"Raw power captures nothing" is the wrong question for a lesson about two rules.** An ace
+  captures plenty on raw power, so the pair lesson can never satisfy it, and asking anyway returned
+  a position with no ace in it at all — a plain Reverse capture dressed up as an interaction. Each
+  puzzle now carries the rule sets it must be dead under (`TutorialPuzzle.baselines`); the pair's
+  are Reverse and Fallen Ace *one at a time*, which is the claim it actually makes.
 - **The `SpecialPowerBasis` default is `PRINTED`** (`RulesEngine.kt:86`) — Same and Plus compare
   printed values, ignoring Elemental. A lesson that combines Elemental with Same would be teaching an
   interaction most players will get wrong, and this port's default is not FF14's. Keep them apart.

@@ -21,14 +21,14 @@ import com.tripletriad.time.Clock
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The course — `TutorialScreen.as`, which is `PVEMatchScreen` with four methods overridden, and
- * three lessons of this port's own behind it.
+ * One lesson of the course — `TutorialScreen.as`, which is `PVEMatchScreen` with four methods
+ * overridden, and the lessons this port added behind it. [LessonsScreen] is the list.
  *
  * The first is the original, unchanged: a scripted match under All Open, on a fixed hand, with the
  * opponent moving first and playing the worst card it can find, while nine lines explain what is
  * happening. It teaches the board, the digits and capture, and it names All Open — **one rule of
- * the seventeen the help screen lists**, which is what the three after it begin to answer. Those
- * are one-move positions under Same, Plus and Same-driven Combo; see [TUTORIAL_PUZZLES].
+ * the seventeen the help screen lists**, which is what the rest answer. Those are one-move
+ * positions, one rule each; see [TUTORIAL_COURSE].
  *
  * Everything that differs from an ordinary match is in the [MatchScript] each lesson builds; the
  * match itself is [MatchScreen], unmodified.
@@ -68,7 +68,12 @@ import kotlin.time.Duration.Companion.seconds
  * @param onHelp where the end panel's first action goes — the rule book, replacing Rematch
  *   (`TutorialRematchPanel.nextLesson` dispatches `NEXT_SCREEN`, which is `HELP_SCREEN`).
  * @param onExit the second action, and the back chevron. `exitBtnHandler` sends both to
- *   `PVE_SCREEN`, which here is the opponent list.
+ *   `PVE_SCREEN`, which here is the course.
+ * @param from which lesson to open at, so the list can start one in the middle. The course then
+ *   runs on from there, as it always did.
+ * @param onFinished how many lessons are now done, once one has been. Called with the count rather
+ *   than the index so the caller stores a number it can compare against the course's length
+ *   without knowing anything about either.
  */
 @Composable
 @Suppress("LongParameterList")
@@ -82,8 +87,10 @@ internal fun TutorialScreen(
     onPersist: suspend (GameSave) -> Unit,
     onHelp: () -> Unit,
     onExit: () -> Unit,
+    from: Int = FIRST_LESSON,
+    onFinished: (Int) -> Unit = {},
 ) {
-    var step by remember(tutor.nameKey, format) { mutableStateOf(FIRST_LESSON) }
+    var step by remember(tutor.nameKey, format, from) { mutableStateOf(from) }
 
     val script = remember(tutor.nameKey, format, step) {
         scriptFor(step, tutor.nameKey, catalog)
@@ -112,6 +119,11 @@ internal fun TutorialScreen(
             onExit = onExit,
             script = script,
             scriptExit = exitFor(step, onHelp) { step += 1 },
+            // Reported when the result lands, not from the control the player happens to leave by:
+            // a lesson played to the end is finished whether they go on to the next one, back to
+            // the list or out to the rule book. Abandoning one mid-way produces no result and so
+            // marks nothing, which is the distinction worth keeping.
+            onResult = { onFinished(step + 1) },
         )
     }
 }
@@ -158,7 +170,7 @@ internal fun scriptFor(step: Int, speakerKey: String, catalog: CardCatalog): Mat
             counted = false,
         )
     }
-    val puzzle = TUTORIAL_PUZZLES.getOrNull(step - 1) ?: return null
+    val puzzle = TUTORIAL_COURSE.getOrNull(step)?.puzzle ?: return null
     val opening = puzzleSetup(puzzle, catalog) ?: return null
 
     return MatchScript(
@@ -183,8 +195,8 @@ internal fun scriptFor(step: Int, speakerKey: String, catalog: CardCatalog): Mat
 /** The nine-line match the course opens with — the lesson this screen used to be, whole. */
 internal const val FIRST_LESSON = 0
 
-/** The last lesson's index: the opening match, then one per puzzle. */
-internal val LAST_LESSON = TUTORIAL_PUZZLES.size
+/** The last lesson's index — the course is [TUTORIAL_COURSE], and this is its end. */
+internal val LAST_LESSON = TUTORIAL_COURSE.size - 1
 
 /**
  * Who teaches the lesson in [collection] — the opponent with the lowest id.

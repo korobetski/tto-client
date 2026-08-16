@@ -137,9 +137,9 @@ class StringsBundleTest {
 
         /**
          * Keys defined by any of the four bundles: `import_locales.py`'s 697 imported strings
-         * across the four, plus the 222 `APP_*` strings this port authored.
+         * across the four, plus the 245 `APP_*` strings this port authored.
          */
-        const val UNION_KEYS = 919
+        const val UNION_KEYS = 942
 
         /**
          * Imported key count plus however many `APP_*` strings that locale translates: 693 + 222,
@@ -152,9 +152,10 @@ class StringsBundleTest {
          * server list and its update notice, and the tutorial's nine lines, which the AS3 held as
          * English string literals inside `TutorialScreen` with no key anywhere.
          *
-         * The ten `APP_LESSON_*` strings are the first that answer to nothing in the original at
-         * all: the AS3 taught one rule, so the three rule lessons behind it have no source wording
-         * to follow. See `TUTORIAL_PUZZLES`.
+         * The `APP_LESSON*` strings are the first that answer to nothing in the original at all:
+         * the AS3 taught one rule, so the seven rule lessons behind it — their titles, their lines
+         * and the list screen around them — have no source wording to follow. See
+         * `TUTORIAL_COURSE`.
          */
         /**
          * ### What the three FFVIII packs added
@@ -167,8 +168,8 @@ class StringsBundleTest {
          * the ordinary rule and are English and French only.
          */
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 915,
-            AppLocale.FR_FR to 916,
+            AppLocale.EN_US to 938,
+            AppLocale.FR_FR to 939,
             AppLocale.DE_DE to 653,
             AppLocale.JA_JA to 686,
         )
@@ -185,9 +186,9 @@ class StringsBundleTest {
         val EXPECTED_GAPS = mapOf(
             AppLocale.EN_US to 4,
             AppLocale.FR_FR to 3,
-            // 44 imported keys short, plus all 222 app-owned; and 11 short, plus the 222.
-            AppLocale.DE_DE to 266,
-            AppLocale.JA_JA to 233,
+            // 44 imported keys short, plus all 245 app-owned; and 11 short, plus the 245.
+            AppLocale.DE_DE to 289,
+            AppLocale.JA_JA to 256,
         )
     }
 }

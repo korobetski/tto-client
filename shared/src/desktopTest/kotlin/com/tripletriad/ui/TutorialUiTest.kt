@@ -24,14 +24,14 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalTestApi::class)
 class TutorialUiTest {
 
-    /** The campaign entry sits above the opponent list and opens a board with no deck to choose. */
+    /** The course opens from the dashboard, onto a board with no deck to choose. */
     @Test
     fun theLessonOpensStraightOntoABoard() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
-        openOpponents()
+        openLessons()
 
-        onNodeWithTag(TUTORIAL_ROW_TEST_TAG).performClick()
+        onNodeWithTag(lessonRowTestTag(0)).performClick()
 
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(BOARD_TEST_TAG) }
         assertFalse(
@@ -198,7 +198,7 @@ class TutorialUiTest {
         openLesson()
 
         playOut()
-        repeat(TUTORIAL_PUZZLES.size) {
+        repeat(LAST_LESSON) {
             onNodeWithTag(NEW_MATCH_TEST_TAG).performClick()
             waitUntil(timeoutMillis = UI_TIMEOUT_MS) { !isFinished() }
             playOut()
@@ -209,11 +209,11 @@ class TutorialUiTest {
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(HELP_LIST_TEST_TAG) }
     }
 
-    /** Creates a character and opens the lesson, waiting for the board. */
-    private fun ComposeUiTest.openLesson() {
+    /** Creates a character and opens one lesson of the course, waiting for its board. */
+    private fun ComposeUiTest.openLesson(lesson: Int = 0) {
         newCharacter()
-        openOpponents()
-        onNodeWithTag(TUTORIAL_ROW_TEST_TAG).performClick()
+        openLessons()
+        onNodeWithTag(lessonRowTestTag(lesson)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(BOARD_TEST_TAG) }
     }
 

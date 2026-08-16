@@ -8,6 +8,7 @@ import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.HAND_SIZE
+import com.tripletriad.storage.InMemoryDocumentStore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -101,6 +102,54 @@ class TutorialUiTest {
             blue > red,
             "the tutor plays its worst move; the lesson should be won, was $blue-$red",
         )
+    }
+
+    /**
+     * **A lesson pays nothing, and does not claim to.**
+     *
+     * The panel's payout line used to be unconditional — "every result pays here" was true while
+     * every match counted — so an uncounted lesson ended on `+0 MGP` in the affirmative colour: a
+     * reward announced, in the place rewards are announced, for a match deliberately paying none.
+     * Asserted on the tag rather than on the text, so it does not depend on the wording or the
+     * language.
+     */
+    @Test
+    fun theLessonAnnouncesNoPayout() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        openLesson()
+
+        playOut()
+
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { isFinished() }
+        assertFalse(exists(MATCH_PAYOUT_TEST_TAG), "a lesson pays nothing and should say nothing")
+        assertFalse(exists(MATCH_REWARDS_TEST_TAG), "and drops nothing")
+    }
+
+    /**
+     * **Finishing a lesson leaves the profile exactly as it found it.**
+     *
+     * The end-to-end half of what `LessonRecordTest` asserts on the extensions: no result, no
+     * counters, no money. `startedMatches` is the one worth reading twice — [MatchScreen] persists
+     * it when the screen *opens*, so a lesson that counted would already have written it before a
+     * card was played, and `forfeits` would carry the difference for the rest of the character's
+     * life.
+     */
+    @Test
+    fun theLessonLeavesTheProfileUntouched() = runComposeUiTest {
+        val documents = InMemoryDocumentStore()
+        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openLesson()
+        val before = storedSave(documents)
+
+        playOut()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { isFinished() }
+
+        val after = storedSave(documents)
+        assertEquals(before.startedMatches, after.startedMatches, "no match was started")
+        assertEquals(before.endedMatches, after.endedMatches, "and none was ended")
+        assertEquals(0, after.forfeits, "so no forfeit is left behind")
+        assertEquals(0, after.stats.played, "no win, defeat or draw goes on the record")
+        assertEquals(before.mgp, after.mgp, "and the lesson pays nothing")
     }
 
     /**

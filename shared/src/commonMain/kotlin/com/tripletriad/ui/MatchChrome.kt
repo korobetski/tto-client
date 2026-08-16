@@ -479,18 +479,28 @@ private fun OutcomeCard(
                 overflow = TextOverflow.Ellipsis,
             )
 
-            // Always shown, and always positive: every result pays here — see `MatchRewards`.
-            Text(
-                text = buildList {
-                    add("+${reward.mgp} ${strings[StringKeys.MGP]}")
-                    if (reward.xp > 0) add("+${reward.xp} ${strings[StringKeys.XP]}")
-                }.joinToString(DOT_SEPARATOR),
-                // The affirmative pair rather than a green literal of this file's own — see
-                // `TtoColors.positive`, which is where `ServersScreen`'s went too.
-                color = LocalTtoColors.current.positive,
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.testTag(MATCH_PAYOUT_TEST_TAG),
-            )
+            // **Shown when something was actually paid**, which used to be unconditional: every
+            // *counted* result pays — win, draw and defeat alike, see `MatchRewards`, and no
+            // opponent in `npcs.json` pays zero for any of the three — so this reads exactly as it
+            // did for every match that goes on the record.
+            //
+            // A lesson does not (`MatchScript.counted`). Left unconditional, the tutorial ended on
+            // `+0 MGP` in the affirmative colour: a line announcing a reward, in the place a reward
+            // is announced, for a match deliberately paying none.
+            val payout = buildList {
+                if (reward.mgp > 0) add("+${reward.mgp} ${strings[StringKeys.MGP]}")
+                if (reward.xp > 0) add("+${reward.xp} ${strings[StringKeys.XP]}")
+            }
+            if (payout.isNotEmpty()) {
+                Text(
+                    text = payout.joinToString(DOT_SEPARATOR),
+                    // The affirmative pair rather than a green literal of this file's own — see
+                    // `TtoColors.positive`, which is where `ServersScreen`'s went too.
+                    color = LocalTtoColors.current.positive,
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.testTag(MATCH_PAYOUT_TEST_TAG),
+                )
+            }
 
             // **Named, not counted.** This said `Rewards: 1` — a line that tells the player
             // something happened and refuses to say what, about the only part of a match whose

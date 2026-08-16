@@ -513,6 +513,8 @@ object StringKeys {
     const val LESSON_TITLE_FALLEN_ACE: String = "APP_LESSON_TITLE_FALLEN_ACE"
     const val LESSON_TITLE_REVERSE_FALLEN_ACE: String = "APP_LESSON_TITLE_REVERSE_FALLEN_ACE"
     const val LESSON_TITLE_ELEMENTAL: String = "APP_LESSON_TITLE_ELEMENTAL"
+    const val LESSON_TITLE_BONUS: String = "APP_LESSON_TITLE_BONUS"
+    const val LESSON_TITLE_ORDER: String = "APP_LESSON_TITLE_ORDER"
     const val LESSON_TITLE_EXAM: String = "APP_LESSON_TITLE_EXAM"
     const val LESSON_SAME_1: String = "APP_LESSON_SAME_1"
     const val LESSON_SAME_2: String = "APP_LESSON_SAME_2"
@@ -538,6 +540,22 @@ object StringKeys {
     const val LESSON_ELEMENTAL_1: String = "APP_LESSON_ELEMENTAL_1"
     const val LESSON_ELEMENTAL_2: String = "APP_LESSON_ELEMENTAL_2"
     const val LESSON_ELEMENTAL_DONE: String = "APP_LESSON_ELEMENTAL_DONE"
+
+    /**
+     * The two drills — a whole match each, so they speak twice rather than once.
+     *
+     * Three lines and not two because a drill has room for one: the third is said on the player's
+     * *third* move, which is the first moment a running tally has anything to point at. See
+     * `TutorialDrill`.
+     */
+    const val LESSON_BONUS_1: String = "APP_LESSON_BONUS_1"
+    const val LESSON_BONUS_2: String = "APP_LESSON_BONUS_2"
+    const val LESSON_BONUS_3: String = "APP_LESSON_BONUS_3"
+    const val LESSON_BONUS_DONE: String = "APP_LESSON_BONUS_DONE"
+    const val LESSON_ORDER_1: String = "APP_LESSON_ORDER_1"
+    const val LESSON_ORDER_2: String = "APP_LESSON_ORDER_2"
+    const val LESSON_ORDER_3: String = "APP_LESSON_ORDER_3"
+    const val LESSON_ORDER_DONE: String = "APP_LESSON_ORDER_DONE"
 
     /** The exam says something different for each of the three results — it can be lost. */
     const val LESSON_EXAM_START: String = "APP_LESSON_EXAM_START"
@@ -790,7 +808,8 @@ object StringKeys {
         LESSONS, LESSONS_BLURB, LESSON_DONE, LESSON_NEXT,
         LESSON_TITLE_BASICS, LESSON_TITLE_SAME, LESSON_TITLE_PLUS, LESSON_TITLE_COMBO,
         LESSON_TITLE_SAME_WALL, LESSON_TITLE_REVERSE, LESSON_TITLE_FALLEN_ACE,
-        LESSON_TITLE_REVERSE_FALLEN_ACE, LESSON_TITLE_ELEMENTAL, LESSON_TITLE_EXAM,
+        LESSON_TITLE_REVERSE_FALLEN_ACE, LESSON_TITLE_ELEMENTAL,
+        LESSON_TITLE_BONUS, LESSON_TITLE_ORDER, LESSON_TITLE_EXAM,
         LESSON_SAME_1, LESSON_SAME_2, LESSON_SAME_DONE,
         LESSON_PLUS_1, LESSON_PLUS_2, LESSON_PLUS_DONE,
         LESSON_COMBO_1, LESSON_COMBO_2, LESSON_COMBO_DONE,
@@ -800,6 +819,8 @@ object StringKeys {
         LESSON_REVERSE_FALLEN_ACE_1, LESSON_REVERSE_FALLEN_ACE_2,
         LESSON_REVERSE_FALLEN_ACE_DONE,
         LESSON_ELEMENTAL_1, LESSON_ELEMENTAL_2, LESSON_ELEMENTAL_DONE,
+        LESSON_BONUS_1, LESSON_BONUS_2, LESSON_BONUS_3, LESSON_BONUS_DONE,
+        LESSON_ORDER_1, LESSON_ORDER_2, LESSON_ORDER_3, LESSON_ORDER_DONE,
         LESSON_EXAM_START, LESSON_EXAM_WIN, LESSON_EXAM_LOSE, LESSON_EXAM_DRAW,
         CAMPAIGNS, CAMPAIGN_STEP,
         SERVERS, CONTINUE, SESSION_RESTORED, SESSION_CONNECTING, SESSION_LAPSED,

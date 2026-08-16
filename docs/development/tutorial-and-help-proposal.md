@@ -1,8 +1,10 @@
 # Teaching the game: the academy and the sandbox
 
 **Status: part built.** Options B and C of the first draft were chosen together — a curriculum of
-short lessons *and* a rules sandbox. Steps 1 to 4 of §8 are done: ten lessons ending in an exam, a
-list screen with progress, and a dashboard entry. The rest of §8 is not.
+short lessons *and* a rules sandbox. Steps 1 to 5 of §8 are done: **the curriculum is complete** at
+twelve lessons — the opening match, eight one-move positions, two rule drills and an exam — with a
+list screen, progress and a dashboard entry. Steps 6 to 8 (the animated demos, the sandbox, and the
+link between them) are not.
 
 **What is verified, and how.** The claims about `tto-core`'s API are read from the `tto-core`
 sources at `eb6b213` (v0.7.3, the version `gradle/libs.versions.toml` pins). The lesson positions in
@@ -332,16 +334,35 @@ again.
    The turn change stays immediate: it is the cue that somebody may move. The PvP board plays no
    sounds at all, so there is nothing to stagger there.
 
-5. **The lessons still missing: Ascension/Descension, and the hand-and-order rules.** Elemental and
-   the exam are in. The two that remain are the two a one-move position cannot show: Ascension's
-   modifier comes from a *running tally* rather than from the board, and Random, Order, Chaos and
-   Swap change the deal and the turn rather than a capture — nothing happens on a single placement
-   for either. Both want a short *match* under forced rules, which is a lesson shape the course does
-   not have yet.
+5. ~~**The lessons still missing: Ascension/Descension, and the hand-and-order rules.**~~ **Done**,
+   as a second lesson shape: `TutorialDrill`, a whole match under forced rules. The two rules left
+   were the two a one-move position cannot show — Ascension's modifier is a *running tally* rather
+   than a property of the board, and Order and Chaos decide which card you may pick up rather than
+   what happens when you put it down. A position with a tally of one is the case where Bonus does
+   nothing, and a hand of one card is not a constraint. So: **Bonus** (five beast-tribe cards
+   against a tutor holding five untyped ones, so the badge appears on the player's side and
+   nowhere else) and **Order** (five cards dealt weakest first, only the front one playable).
 
-   One finding from building Elemental, worth keeping: **the FFXIV tribes are not elements.** Beast,
-   garlean, primals and scions match no tile, so every block-1 card takes −1 on an elemental cell
-   and the rule's +1 cannot be demonstrated with one at all. That lesson is played with block 2.
+   The **exam is now a drill too**, with one flag turned off. That is what removed the last thing
+   the course identified by *index* — it used to be "the row at `LAST_LESSON` with no puzzle", which
+   would silently have become a broken lesson the moment a row was added after it, and adding these
+   two rows was exactly that moment.
+
+   Each row names **two** rules and plays one: Bonus's row names Malus, Order's names Chaos. They
+   are the same mechanic with a sign or a shuffle reversed, a second match to show a minus teaches
+   nothing the closing line does not say in a sentence, and a player looking for either in the list
+   should find it somewhere. `TutorialDrillTest` holds the two spellings together in the direction
+   that matters: a match may impose *fewer* rules than its row names, never more.
+
+   Five rules are still untaught and are now a deliberate stop rather than a gap: Random (a script
+   deck defeats it — the lesson would be lying), Swap, Roulette, Three Open and Sudden Death.
+
+   Two findings worth keeping. **The FFXIV tribes are not elements** — beast, garlean, primals and
+   scions match no tile, so every block-1 card takes −1 on an elemental cell and Elemental's +1
+   cannot be shown with one; that lesson is played with block 2. And **a card counts itself under
+   Bonus from the moment it lands**, which is this port's deviation from the AS3 (`AscensionTally`,
+   carried by `protocol.CURRENT_VERSION`) — the drill's third line is written for it, so the test
+   pins the number rather than the direction.
 6. **`RuleDemo` for Same, Plus, Combo, Same Wall**, sharing the explanation function with the
    lessons — `captureHighlights` is the beginning of it.
 7. **The sandbox**, on the same explanation layer, plus `MatchAi.evaluate` for hints.
@@ -354,8 +375,9 @@ again.
 - **Elemental, Ascension and Descension change effective power**, so a position that is "pure" under
   printed powers may not be under them. `find_lesson_positions.py` models none of the three — it
   does now model Reverse and Fallen Ace, which work through the basic comparison — so those lessons
-  must be composed against the real engine rather than searched with this tool. That is why the
-  course stops at eight.
+  are composed against the real engine rather than searched with this tool. That is why the
+  positions stop at eight, and why the two rules past them are drills instead: a match needs no
+  position to be pure, because it has no single placement the lesson turns on.
 
 - **"Raw power captures nothing" is the wrong question for a lesson about two rules.** An ace
   captures plenty on raw power, so the pair lesson can never satisfy it, and asking anyway returned

@@ -54,7 +54,7 @@ fun lessonDoneTestTag(lesson: Int): String = "lesson-done-$lesson"
  * teaches — Combo is played under Same, the pair lesson after each of its halves — but a player who
  * already knows Plus and wants only the Combo lesson is not somebody to argue with, and a locked
  * row would be arguing. What [done] buys is a course you can put down and pick up, which is the
- * thing eight lessons need and one did not.
+ * thing twelve lessons need and one did not.
  *
  * @param done how many lessons have been finished, so lesson [done] is the one to resume at.
  */

@@ -5,7 +5,7 @@ import com.tripletriad.model.Card
 import com.tripletriad.model.CardType
 
 /**
- * The twenty-four cards the lessons name, built here rather than loaded.
+ * The twenty-eight cards the lessons name, built here rather than loaded.
  *
  * `commonTest` has no filesystem on Kotlin/Native, and what the lesson tests are about is the
  * *positions* rather than the loader — which `CardCatalogTest` covers. The powers are transcribed
@@ -27,7 +27,14 @@ internal val LESSON_CATALOG: CardCatalog = CardCatalog(
         lessonCard(id = 267, top = 5, right = 5, bottom = 2, left = 2, name = "Ahriman"),
         lessonCard(id = 268, top = 2, right = 5, bottom = 5, left = 2, name = "Goobbue"),
         lessonCard(id = 269, top = 3, right = 7, bottom = 2, left = 1, name = "Chocobo"),
-        lessonCard(id = 270, top = 1, right = 4, bottom = 7, left = 1, name = "Amalj'aa"),
+        // The five beast-tribe cards the Bonus drill is dealt. `Amalj'aa` also carries the Fallen
+        // Ace position, which is why it is the one that was here first — and why its tribe was
+        // missing until a lesson needed to read it.
+        lessonCard(270, 1, 4, 7, 1, "Amalj'aa", CardType.BEAST),
+        lessonCard(271, 6, 1, 3, 4, "Ixal", CardType.BEAST),
+        lessonCard(272, 2, 4, 5, 4, "Sylph", CardType.BEAST),
+        lessonCard(273, 2, 2, 4, 6, "Kobold", CardType.BEAST),
+        lessonCard(274, 4, 5, 3, 3, "Sahuagin", CardType.BEAST),
         lessonCard(id = 318, top = 1, right = 8, bottom = 10, left = 8, name = "Hildibrand"),
         lessonCard(id = 319, top = 10, right = 6, bottom = 4, left = 8, name = "Nanamo Ul Namo"),
         // Block 2 — the FF8 set, whose types really are elements. Only the Elemental lesson needs

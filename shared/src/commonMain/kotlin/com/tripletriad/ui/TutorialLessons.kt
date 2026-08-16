@@ -8,8 +8,10 @@ import com.tripletriad.model.CardType
 import com.tripletriad.model.GameRules
 import com.tripletriad.model.HandVisibility
 import com.tripletriad.model.MatchPreparation
+import com.tripletriad.model.MatchResult
 import com.tripletriad.model.MatchSetup
 import com.tripletriad.model.MatchState
+import com.tripletriad.model.OrderRule
 import com.tripletriad.model.PlacedCard
 import com.tripletriad.model.TurnOrder
 import com.tripletriad.model.TypeRule
@@ -144,20 +146,84 @@ internal fun puzzleSetup(puzzle: TutorialPuzzle, catalog: CardCatalog): MatchSet
 }
 
 /**
+ * A whole match played under a rule, for the rules a single placement cannot show.
+ *
+ * ### Why two lessons needed a shape the other eight did not
+ *
+ * A [TutorialPuzzle] teaches by making one move be the rule. That works for every rule that decides
+ * **a capture** — the position is composed so the capture happens for one reason and no other, and
+ * the whole lesson is over in fifteen seconds.
+ *
+ * Two of the rules left decide something else entirely:
+ *
+ * - **Bonus and Malus** read a *running tally*. Their modifier is not a property of the position;
+ *   it is a count of what has been played, and a count of one is the count a puzzle could show.
+ *   The rule only becomes visible over several turns, as the number climbs.
+ * - **Order and Chaos** do not touch capture at all. They decide *which card you may pick up*, and
+ *   on a board with one card in hand that is not a constraint, it is a description.
+ *
+ * So these are matches — and the concession is real: a drill can be **lost**, and it takes as long
+ * as a game does. It is still the honest shape. A one-move position claiming to teach Bonus would
+ * be a position with a tally of one, which is the case where the rule does nothing.
+ *
+ * The exam is the same shape with [tutoring] off, and expressing it here rather than as its own
+ * function is what removed the last thing the course identified by *index*: it used to be "the
+ * lesson at [LAST_LESSON] with no puzzle", which would silently have become a broken lesson the
+ * moment a row was added after it. Adding these two rows is exactly that moment.
+ *
+ * @property rules what it is played under — the whole of what makes it a drill rather than an
+ *   ordinary match against a tutor who declares nothing.
+ * @property deck the five cards the player is dealt. Fixed, because both drills are about the hand:
+ *   one deals five cards of one tribe, the other deals five in an order it then tells you to read.
+ * @property lines what is said before each placement, by placement index. The player opens while
+ *   [tutoring], so the even keys are their own turns.
+ * @property outcomes said over the outcome panel, per result. A drill can be **lost** — that is the
+ *   price of it being a match — so the three are asked for rather than assumed. A lesson whose
+ *   sentence is about the rule and not about the score says the same thing three times, which is
+ *   what [whateverHappens] is for; the exam, which is a test, says three different ones.
+ * @property tutoring whether this is being **taught** or **examined**, which is one idea and
+ *   therefore one flag: taught means the opponent plays to lose (`MatchAiOptions.TUTOR`), the
+ *   player opens, the digits that decided a capture are ringed, and the clock is the doubled one
+ *   a lesson's own sentences need. Examined means none of those — a real match, a real toss, and
+ *   thirty seconds a turn.
+ */
+internal data class TutorialDrill(
+    val rules: GameRules,
+    val deck: List<Int>,
+    val lines: Map<Int, List<String>> = emptyMap(),
+    val outcomes: Map<MatchResult, String>,
+    val tutoring: Boolean = true,
+)
+
+/** One sentence for all three results: a lesson's closing line is about the rule, not the score. */
+internal fun whateverHappens(key: String): Map<MatchResult, String> =
+    MatchResult.entries.associateWith { key }
+
+/**
  * One lesson of the course, as the list screen and the player meet it.
  *
  * @property titleKey what it is called.
  * @property ruleKeys the rules it teaches, as AS3 rule constants — which are also i18n keys, so the
  *   list row's subtitle needs no table of its own and reads in all four languages rather than the
  *   two this port authors.
- * @property puzzle the position, or **null for the opening match**, which is the ported
- *   `TutorialScreen` and is a whole nine-placement game rather than one move.
+ * @property puzzle the position it teaches from, for a rule one move can show.
+ * @property drill the match it teaches from, for a rule one move cannot — see [TutorialDrill].
+ *
+ * **At most one of the two**, and the opening match has neither: it is the ported `TutorialScreen`,
+ * whose nine lines and rigged flip are written into `openingScript` rather than described as data.
+ * A row carrying both would be a row where the dispatch in [scriptFor] silently picks one, so it is
+ * rejected here instead.
  */
 internal data class TutorialLesson(
     val titleKey: String,
     val ruleKeys: List<String>,
-    val puzzle: TutorialPuzzle?,
-)
+    val puzzle: TutorialPuzzle? = null,
+    val drill: TutorialDrill? = null,
+) {
+    init {
+        require(puzzle == null || drill == null) { "$titleKey is both a position and a match" }
+    }
+}
 
 /**
  * What the exam is played under — three rules the course has taught, named for its row.
@@ -403,14 +469,78 @@ internal val TUTORIAL_COURSE: List<TutorialLesson> = listOf(
             closing = StringKeys.LESSON_ELEMENTAL_DONE,
         ),
     ),
-    // The exam, and the only lesson with no position: a whole match under three of the rules the
-    // course taught, against an opponent playing to win rather than to lose. Nothing is ringed and
-    // nothing is constrained — a puzzle cannot be failed, which is exactly why the course needs
-    // something that can be. See `examScript`.
+    // Bonus, and Malus behind it — the first lesson that is a match rather than a position, for the
+    // reason on `TutorialDrill`: the modifier is a count of what has been played, so there is
+    // nothing to see until several cards are down.
+    //
+    // **The hand is five cards of one tribe and the tutor's is five of none.** `npcs.json` gives
+    // the Triple Triad Master 258, 260, 261, 263 and 269, every one of them untyped, so the tally
+    // climbs on the player's side alone and the badge appears on their cards and nowhere else.
+    // Ids 270-274 are the five rarity-1 beast cards of block 1 and the only run of five in the
+    // block that shares a tribe at that rarity.
+    //
+    // The row names Malus although the match plays Bonus. They are one mechanic with a sign, and a
+    // second match to demonstrate a minus would teach nothing the closing line does not say in a
+    // sentence — but a player looking for Malus in the list should find it here, not nowhere.
+    TutorialLesson(
+        titleKey = StringKeys.LESSON_TITLE_BONUS,
+        ruleKeys = listOf("RULE_ASCENSION", "RULE_DESCENSION"),
+        drill = TutorialDrill(
+            rules = GameRules(typeRule = TypeRule.ASCENSION),
+            deck = listOf(AMALJAA, IXAL, SYLPH, KOBOLD, SAHUAGIN),
+            lines = mapOf(
+                FIRST_MOVE to listOf(StringKeys.LESSON_BONUS_1, StringKeys.LESSON_BONUS_2),
+                THIRD_MOVE to listOf(StringKeys.LESSON_BONUS_3),
+            ),
+            outcomes = whateverHappens(StringKeys.LESSON_BONUS_DONE),
+        ),
+    ),
+    // Order, and Chaos behind it on the same argument as Malus above: the two rules that decide
+    // which card you may pick up rather than what happens when you put it down.
+    //
+    // Order is the `order` slot of `GameRules` and the row's `RULE_ORDER` is the key `:core`'s own
+    // table maps onto it (`RuleKeys.slots`). Two spellings of one rule, and
+    // `TutorialDrillTest.everyDrillPlaysTheRulesItsRowNames` is what holds them together: it reads
+    // `activeRuleKeys()` back off the rules each drill plays and checks its row named them. A row
+    // that advertised a rule the match did not impose is the defect it exists against.
+    //
+    // The hand is five ordinary block-1 cards, none of them the tutor's own, dealt weakest first so
+    // that the constraint is felt rather than merely stated.
+    TutorialLesson(
+        titleKey = StringKeys.LESSON_TITLE_ORDER,
+        ruleKeys = listOf("RULE_ORDER", "RULE_CHAOS"),
+        drill = TutorialDrill(
+            rules = GameRules(order = OrderRule.ORDER),
+            deck = listOf(BOMB, COBLYN, MORBOL, GOOBBUE, AHRIMAN),
+            lines = mapOf(
+                FIRST_MOVE to listOf(StringKeys.LESSON_ORDER_1, StringKeys.LESSON_ORDER_2),
+                THIRD_MOVE to listOf(StringKeys.LESSON_ORDER_3),
+            ),
+            outcomes = whateverHappens(StringKeys.LESSON_ORDER_DONE),
+        ),
+    ),
+    // The exam: everything the drills hold still, let go of. `tutoring = false` is the whole of
+    // it — a real toss, a real opponent, thirty seconds a turn and no rings — and it is the
+    // first match in the course that can be **lost**, which is exactly why a course of puzzles
+    // needs one.
+    //
+    // A fixed hand all the same: the exam is about the rules, not about whether the player has
+    // built a deck yet, and a course ending in the deck selector would be asking a question it
+    // never taught the answer to.
     TutorialLesson(
         titleKey = StringKeys.LESSON_TITLE_EXAM,
         ruleKeys = EXAM_RULE_KEYS,
-        puzzle = null,
+        drill = TutorialDrill(
+            rules = EXAM_RULES,
+            deck = tutorialDeck(),
+            lines = mapOf(FIRST_MOVE to listOf(StringKeys.LESSON_EXAM_START)),
+            outcomes = mapOf(
+                MatchResult.WIN to StringKeys.LESSON_EXAM_WIN,
+                MatchResult.LOSE to StringKeys.LESSON_EXAM_LOSE,
+                MatchResult.DRAW to StringKeys.LESSON_EXAM_DRAW,
+            ),
+            tutoring = false,
+        ),
     ),
 )
 
@@ -422,11 +552,25 @@ internal val TUTORIAL_COURSE: List<TutorialLesson> = listOf(
  */
 internal val TUTORIAL_PUZZLES: List<TutorialPuzzle> = TUTORIAL_COURSE.mapNotNull { it.puzzle }
 
+/** The matches alone, in course order — derived for the same reason [TUTORIAL_PUZZLES] is. */
+internal val TUTORIAL_DRILLS: List<TutorialDrill> = TUTORIAL_COURSE.mapNotNull { it.drill }
+
 /** The cell with four neighbours, where a rule has the most room to fire. */
 internal const val CENTRE: Int = 4
 
 /** Cell 1 — a top-edge cell, and therefore one that has a wall. See the Same Wall lesson. */
 internal const val TOP_CENTRE: Int = 1
+
+/**
+ * The two placements a drill speaks on — the player's first move and their third.
+ *
+ * A tutoring drill forces the player to open ([TutorialDrill.tutoring]), so they hold the even
+ * placements and these are turns 1 and 3 of their own five. The third is where the lines can point
+ * at something that has *accumulated*: two of the player's cards are down by then, which is the
+ * whole of what a running tally needs to have become visible.
+ */
+private const val FIRST_MOVE: Int = 0
+private const val THIRD_MOVE: Int = 4
 
 /*
  * The block-1 cards the positions are built from, by id (`cards.json`).
@@ -462,6 +606,17 @@ private const val ANACONDAUR = 530
 private const val CREEPS = 531
 private const val GRENDEL = 532
 private const val ARMADODO = 536
+
+/*
+ * The five beast-tribe cards the Bonus drill is dealt — numbers 14 to 18 of block 1, and the only
+ * run of five cards in the block that share a tribe at rarity 1. `Amalj'aa` is also the Fallen Ace
+ * position's card, which is why it was already named here.
+ */
 private const val AMALJAA = 270
+private const val IXAL = 271
+private const val SYLPH = 272
+private const val KOBOLD = 273
+private const val SAHUAGIN = 274
+
 private const val HILDIBRAND = 318
 private const val NANAMO = 319

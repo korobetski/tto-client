@@ -15,7 +15,6 @@ import com.tripletriad.model.Card
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.MatchAiOptions
-import com.tripletriad.model.MatchResult
 import com.tripletriad.model.Npc
 import com.tripletriad.time.Clock
 import kotlin.time.Duration.Companion.seconds
@@ -143,9 +142,11 @@ private fun exitFor(step: Int, onHelp: () -> Unit, onNext: () -> Unit): ScriptEx
     }
 
 /**
- * The script for one lesson: the opening match, a rule puzzle, or the exam.
+ * The script for one lesson: the opening match, a rule position, or a rule match.
  *
- * Null when a puzzle cannot be built from [catalog]; see [puzzleSetup].
+ * Null when a puzzle cannot be built from [catalog] (see [puzzleSetup]) or when [step] is not a
+ * lesson at all. **Nothing but the opening is identified by its index** — which row is which is the
+ * row's own business, so a lesson added anywhere in [TUTORIAL_COURSE] needs no change here.
  *
  * `counted = false` on every one of them, first lesson and exam included; see this file's header.
  *
@@ -154,14 +155,12 @@ private fun exitFor(step: Int, onHelp: () -> Unit, onNext: () -> Unit): ScriptEx
  *   course without a catalogue of opponents; see `LessonRecordTest`.
  */
 internal fun scriptFor(step: Int, speakerKey: String, catalog: CardCatalog): MatchScript? {
-    val puzzle = TUTORIAL_COURSE.getOrNull(step)?.puzzle
+    val lesson = TUTORIAL_COURSE.getOrNull(step) ?: return null
 
     return when {
         step == FIRST_LESSON -> openingScript(speakerKey)
-        puzzle != null -> puzzleScript(puzzle, speakerKey, catalog)
-        // No position and not the opening match: the exam is the only lesson that answers to
-        // neither, and the course ends on it.
-        step == LAST_LESSON -> examScript(speakerKey)
+        lesson.puzzle != null -> puzzleScript(lesson.puzzle, speakerKey, catalog)
+        lesson.drill != null -> drillScript(lesson.drill, speakerKey)
         else -> null
     }
 }
@@ -209,7 +208,7 @@ private fun puzzleScript(
         opening = opening,
         // Said over the outcome panel, whatever the panel says: the position is composed so the
         // player wins, but a lesson's closing sentence is about the rule and not about the score.
-        outcomeLines = MatchResult.entries.associateWith { puzzle.closing },
+        outcomeLines = whateverHappens(puzzle.closing),
         counted = false,
         // The ringed digits are most of what a rule lesson has to say: the two numbers that
         // decided it, on the two cards that met. See `captureHighlights`.
@@ -218,32 +217,28 @@ private fun puzzleScript(
 }
 
 /**
- * The exam — a whole match under [EXAM_RULES], against an opponent playing to win.
+ * One rule, a whole match — [TutorialDrill], which is where the reasoning for the shape lives.
  *
- * Everything the lessons hold still is let go of here, and each omission is the point. No board of
- * its own, so the deal is a real one. `MatchAiOptions()` rather than [MatchAiOptions.TUTOR], so the
- * opponent is not trying to lose. No rings (`explains = false`), so the digits are read rather than
- * pointed at. The ordinary thirty-second turn rather than the lesson's sixty, because there is
- * nothing being explained while the clock runs.
+ * No `opening`, so the deal is a real one: that is the difference from a puzzle and the reason
+ * these two rules can be shown at all. Everything else the script fixes is [TutorialDrill.tutoring]
+ * spelled out — the opponent that plays to lose, the player opening so the lines land on the
+ * placements they were written for, the ringed digits, and the doubled clock the lesson's own
+ * sentences need. The exam turns all four off in one word.
  *
- * A fixed hand all the same: the exam is about the rules, not about whether the player has built a
- * deck yet, and a course that ended in the deck selector would be asking a question it never taught
- * the answer to.
- *
- * It still does not count — see this file's header. What it is, is the first match in the course
- * that can be **lost**, which is what the three outcome lines are for.
+ * `counted = false` here as everywhere else in the course — the exam included, and *especially* the
+ * exam: a real match that paid would make the course a repeatable source of MGP.
  */
-private fun examScript(speakerKey: String): MatchScript = MatchScript(
+private fun drillScript(drill: TutorialDrill, speakerKey: String): MatchScript = MatchScript(
     speakerKey = speakerKey,
-    deck = tutorialDeck(),
-    lesson = Lesson.opening(StringKeys.LESSON_EXAM_START),
-    rules = EXAM_RULES,
-    outcomeLines = mapOf(
-        MatchResult.WIN to StringKeys.LESSON_EXAM_WIN,
-        MatchResult.LOSE to StringKeys.LESSON_EXAM_LOSE,
-        MatchResult.DRAW to StringKeys.LESSON_EXAM_DRAW,
-    ),
+    deck = drill.deck,
+    firstPlayer = CardColor.BLUE.takeIf { drill.tutoring },
+    turnLimit = TUTORIAL_TURN_LIMIT.takeIf { drill.tutoring },
+    aiOptions = if (drill.tutoring) MatchAiOptions.TUTOR else MatchAiOptions(),
+    lesson = Lesson { placement, _ -> drill.lines[placement].orEmpty() },
+    outcomeLines = drill.outcomes,
+    rules = drill.rules,
     counted = false,
+    explains = drill.tutoring,
 )
 
 /** The nine-line match the course opens with — the lesson this screen used to be, whole. */
@@ -326,7 +321,7 @@ private val TUTORIAL_NUMBERS = listOf(1, 3, 6, 7, 10)
  * tutorial deals its own hand — the script fixes the deal — so these are not cards the player owns
  * and never were; what matters is that the nine written lines describe them.
  */
-private fun tutorialDeck(): List<Int> =
+internal fun tutorialDeck(): List<Int> =
     TUTORIAL_NUMBERS.map { Card.idFor(block = TUTORIAL_BLOCK, number = it) }
 
 /** The block the lesson's five cards come from. See [tutorialDeck]. */

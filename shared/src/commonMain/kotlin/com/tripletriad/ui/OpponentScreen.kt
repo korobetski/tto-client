@@ -40,7 +40,7 @@ const val OPPONENT_LOCKED_TEST_TAG: String = "opponent-locked"
  * `TUTORIAL_ROW_TEST_TAG` used to be here, over a row this panel drew above the ladders —
  * `PVEScreen.as:79` draws the tutorial as a bare `tt_tuto` texture in exactly that place.
  *
- * It is gone because the tutorial is no longer one thing: it is a course of eight lessons with an
+ * It is gone because the tutorial is no longer one thing: it is a course of twelve lessons with an
  * order and a place you are up to, none of which a row on a list of *opponents* can say. It has a
  * screen and a dashboard entry of its own — see `LessonsScreen`, which explains the move and why
  * there is only one way in.

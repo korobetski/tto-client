@@ -312,9 +312,19 @@ again.
    "your 2 met my 2" is visible on the cards rather than only stated in a bubble.
 
    The rings are lesson-only (`MatchScript.explains`) — a player who knows the rules is reading the
-   board, not being taught it. The pause is for every match. Direct captures only: a card taken by
-   the chain lost to *another captured card*, and finding which one means re-deriving the engine's
-   propagation inside a composable.
+   board, not being taught it. The pause is for every match.
+
+   **The chain is ringed too**, against the card that actually took it rather than against the
+   placement. Its attacker is found from two facts the engine already states — `Capture.wave`
+   numbers the generations, and combo never chains off a basic capture — so it is a lookup, not a
+   re-derivation. Where more than one candidate is adjacent the pair is genuinely ambiguous without
+   re-running the comparison, and that card is left dark rather than guessed at.
+
+   **And a combo now turns a generation late** (`COMBO_WAVE_MS`), so a chain reads as a wave rather
+   than as one big capture. One constant for every mode, PvP included: `MatchView.lastPlay` carries
+   the same captures with the same waves, so a combo the referee resolved animates exactly as one
+   this client did. The opponent's thinking time and the outcome pause both wait for the cascade,
+   or the stagger would be undone by the next thing that moves.
 
 5. **The remaining lessons: Elemental, Ascension/Descension, the hand-and-order rules, the exam.**
 6. **`RuleDemo` for Same, Plus, Combo, Same Wall**, sharing the explanation function with the

@@ -415,7 +415,12 @@ internal fun MatchScreen(
         // to compute it from the line count, which stopped being true when a line became
         // dismissible; see the note where it was removed, in `MatchScript`.
         snapshotFlow { speech.isSpeaking }.first { !it }
-        delay(OPPONENT_PAUSE_MS + animationsFor(state, setup).sumOf { it.totalMillis })
+        delay(
+            OPPONENT_PAUSE_MS + animationsFor(state, setup).sumOf { it.totalMillis } +
+                // A chain takes longer to finish turning than a single capture, and the opponent
+                // moving over the top of it would undo what the stagger is for.
+                waveDelayMillis(state.lastPlay),
+        )
         val next = ai.play(state, random)
         if (next.placement > state.placement) {
             visibility = visibility.reindexedFor(next)
@@ -481,7 +486,10 @@ internal fun MatchScreen(
         // in a lesson it is the *only* one — and the panel is a scrim over the whole board. It used
         // to arrive on the same frame as the result, so what the rule had done was covered before
         // it could be looked at. Held for as long as the placement's own captions run, plus a beat.
-        delay(animationsFor(state, setup).sumOf { it.totalMillis } + OUTCOME_PAUSE_MS)
+        delay(
+            animationsFor(state, setup).sumOf { it.totalMillis } + OUTCOME_PAUSE_MS +
+                waveDelayMillis(state.lastPlay),
+        )
         reward = credit.reward
     }
 
@@ -566,6 +574,10 @@ internal fun MatchScreen(
                 // with the state rather than remembered: it *is* a projection of the state, and
                 // one that changes on every placement.
                 highlights = script.highlights(state),
+                // The chain, staggered. Not gated on the script: a combo looks the same in a
+                // lesson, an ordinary match and a refereed one, and it is the *rule* being shown
+                // rather than an explanation laid over it. See `captureWaves`.
+                waves = captureWaves(state.lastPlay),
                 onSelect = { if (it in playable(state)) selected = it },
                 onPlace = { position -> selected?.let { place(it, position) } },
                 onDrop = place,

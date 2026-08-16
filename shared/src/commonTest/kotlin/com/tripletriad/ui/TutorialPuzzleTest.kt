@@ -190,33 +190,65 @@ class TutorialPuzzleTest {
                 SAME_RIGHT_CELL to setOf(Side.LEFT),
                 SAME_BELOW_CELL to setOf(Side.TOP),
             ),
-            captureHighlights(played),
+            captureHighlights(played.board, played.lastPlay),
             "the placed card lights what it attacked with, each captured card what lost",
         )
     }
 
     /**
-     * A card taken by the chain is **not** ringed, and the placed card is not credited with it.
+     * **The chain is ringed against the card that took it**, not against the placement.
      *
-     * Its pair does not involve the placed card at all — it lost to another captured card — so
-     * ringing anything on it would be pointing at the wrong comparison. See [captureHighlights],
-     * where the reason for stopping at the direct captures is that finding the right one means
-     * re-deriving the engine's propagation inside a composable.
+     * The third card did not lose to the card the player put down — it lost to one of the two that
+     * had just turned. So the pair to light is that one and this one, and the placed card is *not*
+     * credited with a capture it never made. This is the assertion that would catch
+     * [captureHighlights] falling back to "everything belongs to the placement", which looks
+     * plausible on a board and is the wrong lesson.
      */
     @Test
-    fun theComboCardIsNotRinged() {
+    fun theChainIsRingedAgainstTheCardThatTookIt() {
         val played = play(COMBO_LESSON)
-        val lit = captureHighlights(played)
+        val lit = captureHighlights(played.board, played.lastPlay)
 
-        assertEquals(
-            setOf(CENTRE, SAME_RIGHT_CELL, SAME_BELOW_CELL),
-            lit.keys,
-            "only the placement and its two direct captures are ringed",
-        )
         assertEquals(
             setOf(Side.RIGHT, Side.BOTTOM),
             lit[CENTRE],
-            "and the placed card lights two sides, not three",
+            "the placed card lights the two sides it attacked with, and no third",
+        )
+        assertEquals(
+            setOf(Side.RIGHT),
+            lit[COMBO_CHAINED_CELL],
+            "the chained card lights the side facing the card that took it",
+        )
+        assertEquals(
+            setOf(Side.TOP, Side.LEFT),
+            lit[SAME_BELOW_CELL],
+            "and that card lights twice: the side it lost on, and the side it then won with",
+        )
+    }
+
+    /**
+     * The chain turns **a generation later**, which is what makes a combo visible as a wave.
+     *
+     * Read off the engine's own `wave` rather than measured on screen: what the board does with the
+     * number is a delay per generation ([COMBO_WAVE_MS]), and what this pins is that the number
+     * separates the two events at all. A position where everything came back wave 0 would animate
+     * as one flash and teach that a combo is simply a big capture.
+     */
+    @Test
+    fun theChainIsALaterGenerationThanThePlacement() {
+        val waves = captureWaves(play(COMBO_LESSON).lastPlay)
+
+        assertEquals(0, waves[SAME_RIGHT_CELL], "the placement's own captures are the first wave")
+        assertEquals(0, waves[SAME_BELOW_CELL])
+        assertEquals(1, waves[COMBO_CHAINED_CELL], "and the chain is the one behind it")
+        assertTrue(
+            waveDelayMillis(play(COMBO_LESSON).lastPlay) > 0,
+            "so the callers that have to wait for the cascade actually wait",
+        )
+        assertEquals(
+            0L,
+            waveDelayMillis(play(SAME_LESSON).lastPlay),
+            "while an ordinary capture is paced exactly as it was",
         )
     }
 
@@ -225,7 +257,8 @@ class TutorialPuzzleTest {
     fun anUntouchedBoardRingsNothing() {
         val setup = assertNotNull(puzzleSetup(TUTORIAL_PUZZLES[SAME_LESSON], catalog))
 
-        assertEquals(emptyMap(), captureHighlights(setup.state))
+        assertEquals(emptyMap(), captureHighlights(setup.state.board, setup.state.lastPlay))
+        assertEquals(emptyMap(), captureWaves(setup.state.lastPlay))
     }
 
     /**
@@ -327,6 +360,9 @@ class TutorialPuzzleTest {
         const val PLUS_LEFT_CELL = 3
 
         const val EXPECTED_COMBO_CAPTURES = 3
+
+        /** Bottom-left: the card the chain reaches, one generation after the placement. */
+        const val COMBO_CHAINED_CELL = 6
 
         /** The centre, seen from cell 1: the card Same Wall takes. */
         const val SAME_WALL_BELOW_CELL = 4

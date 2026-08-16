@@ -368,6 +368,10 @@ private fun PvpPlayArea(
                 // out of it. Passed rather than defaulted so a board that *could* explain has to
                 // say it is choosing not to.
                 highlights = emptyMap(),
+                // The stagger *is* passed: `MatchView.lastPlay` carries the same captures with the
+                // same waves, so a combo the referee resolved turns exactly as one this client did.
+                // That is the whole of "the same delay in every mode".
+                waves = captureWaves(view.lastPlay),
                 onPlace = onPlace,
             )
             OwnRow(

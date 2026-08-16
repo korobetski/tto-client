@@ -218,7 +218,7 @@ internal fun MatchScript?.creditFor(
 
 /** Which digits to ring, if any. Empty for an ordinary match — see [MatchScript.explains]. */
 internal fun MatchScript?.highlights(state: MatchState): Map<Int, Set<Side>> =
-    if (this?.explains == true) captureHighlights(state) else emptyMap()
+    if (this?.explains == true) captureHighlights(state.board, state.lastPlay) else emptyMap()
 
 /** How the opponent plays: the script's strategy, or the ordinary one. */
 internal fun MatchScript?.aiOptions(): MatchAiOptions = this?.aiOptions ?: MatchAiOptions()

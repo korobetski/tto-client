@@ -370,6 +370,20 @@ again.
 
 ## 9. What could still go wrong
 
+- **The course is data in one file and a screen in another, and the two can deadlock on start-up.**
+  Kotlin makes each file's top-level `val`s one class initialiser, run in declaration order, so if
+  the course's data reaches into the screen's file while the screen's file is reaching back for the
+  course, whichever runs second sees `null` for everything the first has not got to yet — declared
+  non-null, no compiler complaint, and a `NullPointerException` in whatever consumes it rather than
+  at the cycle. That is what putting the exam's hand in `TUTORIAL_COURSE` did: the row called
+  `tutorialDeck()` in `TutorialScreen.kt`, whose own `LAST_LESSON = TUTORIAL_COURSE.size - 1` had
+  already begun pulling the course in.
+
+  Fixed in both directions — the deck is course data and now lives with the course, and
+  `LAST_LESSON` is a getter, so reading it is the only thing that touches the course.
+  `tools/find_init_cycles.py` reports the shape; it finds this one at the commit that crashed and
+  nothing in the module as it stands.
+
 - **A one-move puzzle cannot be failed, and cannot be explored.** The exam is the mitigation: one
   real match, real AI, three random rules, nothing constrained.
 - **Elemental, Ascension and Descension change effective power**, so a position that is "pure" under

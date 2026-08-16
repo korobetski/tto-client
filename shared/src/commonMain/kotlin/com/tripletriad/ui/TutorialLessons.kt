@@ -1,6 +1,7 @@
 package com.tripletriad.ui
 
 import com.tripletriad.data.CardCatalog
+import com.tripletriad.model.Card
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.Board
 import com.tripletriad.model.CardColor
@@ -241,6 +242,41 @@ internal val EXAM_RULES: GameRules = GameRules(same = true, plus = true, reverse
 
 /** The same three, as the keys the list row prints. */
 internal val EXAM_RULE_KEYS: List<String> = listOf("RULE_SAME", "RULE_PLUS", "RULE_REVERSE")
+
+/**
+ * `BLUE_CARDS = [1, 3, 6, 7, 10]` (`TutorialScreen.as:54`) — the hand the lesson is written around.
+ *
+ * Fixed rather than chosen, and it has to be: line 5 tells the player to pick a card with a bigger
+ * number on the touching side, which is only sound advice if the hand is known to contain one.
+ *
+ * These are card **numbers**, resolved against the set the character plays — so an `ff8_` character
+ * is dealt the first, third, sixth, seventh and tenth FF8 cards, exactly as before. That used to
+ * happen for free, because an id meant nothing without `MODE` to read it through; ids are global
+ * now, so the indirection the lesson depends on has to be spelled out. Left implicit, the tutorial
+ * would deal five FFXIV cards to an FFVIII character and then fail to resolve them.
+ *
+ * The lesson holds either way, because it never names a card.
+ *
+ * **Here rather than beside the screen that speaks the lines**, because [TUTORIAL_COURSE]'s
+ * exam row is dealt the same hand and a course's data has to be initialisable without the
+ * screen: as a `private val` in `TutorialScreen.kt` this was read from that file's own
+ * initialiser chain before it had been assigned, and `.map` on it threw.
+ */
+@Suppress("MagicNumber") // Transcribed card numbers: naming each one would say nothing it does not.
+private val TUTORIAL_NUMBERS = listOf(1, 3, 6, 7, 10)
+
+/**
+ * The five cards the lesson deals the player.
+ *
+ * Fixed to the first block rather than to the character's collection, which no longer exists. The
+ * tutorial deals its own hand — the script fixes the deal — so these are not cards the player owns
+ * and never were; what matters is that the nine written lines describe them.
+ */
+internal fun tutorialDeck(): List<Int> =
+    TUTORIAL_NUMBERS.map { Card.idFor(block = TUTORIAL_BLOCK, number = it) }
+
+/** The block the lesson's five cards come from. See [tutorialDeck]. */
+private const val TUTORIAL_BLOCK = 1
 
 /**
  * The course, in the order it is taught.

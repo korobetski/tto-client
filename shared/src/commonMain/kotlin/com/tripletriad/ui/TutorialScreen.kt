@@ -11,7 +11,6 @@ import com.tripletriad.data.CardCatalog
 import com.tripletriad.data.Format
 import com.tripletriad.data.NpcCatalog
 import com.tripletriad.i18n.StringKeys
-import com.tripletriad.model.Card
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.MatchAiOptions
@@ -244,8 +243,17 @@ private fun drillScript(drill: TutorialDrill, speakerKey: String): MatchScript =
 /** The nine-line match the course opens with — the lesson this screen used to be, whole. */
 internal const val FIRST_LESSON = 0
 
-/** The last lesson's index — the course is [TUTORIAL_COURSE], and this is its end. */
-internal val LAST_LESSON = TUTORIAL_COURSE.size - 1
+/**
+ * The last lesson's index — the course is [TUTORIAL_COURSE], and this is its end.
+ *
+ * A **getter**, so reading it is the only thing that touches the course. As a stored `val` it was
+ * evaluated while this file's own top-level properties were still being initialised, which is one
+ * half of a cycle: the course's exam row calls [tutorialDeck], and if that lived here it would be
+ * read before its own numbers had been assigned. It does not live here any more — see
+ * `TutorialLessons.kt` — and this closes the other half, so neither file can start the other's
+ * initialisation.
+ */
+internal val LAST_LESSON: Int get() = TUTORIAL_COURSE.size - 1
 
 /**
  * Who teaches the lesson in [collection] — the opponent with the lowest id.
@@ -295,37 +303,6 @@ private const val TUTOR_OPENS = 0
 private const val PLAYER_OPENS = 1
 private const val TUTOR_REPLIES = 2
 private const val PLAYER_REPLIES = 3
-
-/**
- * `BLUE_CARDS = [1, 3, 6, 7, 10]` (`TutorialScreen.as:54`) — the hand the lesson is written around.
- *
- * Fixed rather than chosen, and it has to be: line 5 tells the player to pick a card with a bigger
- * number on the touching side, which is only sound advice if the hand is known to contain one.
- *
- * These are card **numbers**, resolved against the set the character plays — so an `ff8_` character
- * is dealt the first, third, sixth, seventh and tenth FF8 cards, exactly as before. That used to
- * happen for free, because an id meant nothing without `MODE` to read it through; ids are global
- * now, so the indirection the lesson depends on has to be spelled out. Left implicit, the tutorial
- * would deal five FFXIV cards to an FFVIII character and then fail to resolve them.
- *
- * The lesson holds either way, because it never names a card.
- */
-@Suppress("MagicNumber") // Transcribed card numbers: naming each one would say nothing it does not.
-private val TUTORIAL_NUMBERS = listOf(1, 3, 6, 7, 10)
-
-/** [TUTORIAL_NUMBERS] as ids in [collection]'s own set. */
-/**
- * The five cards the lesson deals the player.
- *
- * Fixed to the first block rather than to the character's collection, which no longer exists. The
- * tutorial deals its own hand — the script fixes the deal — so these are not cards the player owns
- * and never were; what matters is that the nine written lines describe them.
- */
-internal fun tutorialDeck(): List<Int> =
-    TUTORIAL_NUMBERS.map { Card.idFor(block = TUTORIAL_BLOCK, number = it) }
-
-/** The block the lesson's five cards come from. See [tutorialDeck]. */
-private const val TUTORIAL_BLOCK = 1
 
 /** `bluePlayer.timer = 60` — see [MatchScript.turnLimit] for why it is double. */
 private val TUTORIAL_TURN_LIMIT = 60.seconds

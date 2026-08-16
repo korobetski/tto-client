@@ -264,8 +264,11 @@ internal fun MatchScreen(
      * already had `startingMatch` applied and apply it a second time — one match counted as two
      * started. Capturing it here is also what makes the two effects agree on which profile they are
      * amending.
+     *
+     * A lesson is not counted at all and this is where that begins — see [MatchScript.counted],
+     * and [MatchScript.creditFor] for the other end of it.
      */
-    val playing = remember(matchIndex, npc.iconId) { profile.startingMatch(againstNpc = true) }
+    val playing = remember(matchIndex, npc.iconId) { script.startingMatch(profile) }
 
     // `PVEScreen.as:244` — the match is counted as started when it is launched, not when it ends,
     // which is what makes `STATS.FORFEITS` (`STARTED_MATCHES - ENDED_MATCHES`) mean anything. That

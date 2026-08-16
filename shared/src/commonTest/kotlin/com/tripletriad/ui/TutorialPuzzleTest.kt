@@ -1,8 +1,6 @@
 package com.tripletriad.ui
 
-import com.tripletriad.data.CardCatalog
 import com.tripletriad.model.CaptureKind
-import com.tripletriad.model.Card
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.GameRules
 import com.tripletriad.model.MatchState
@@ -185,43 +183,8 @@ class TutorialPuzzleTest {
         Side.entries.mapNotNullTo(mutableSetOf()) { board.neighbour(PUZZLE_CELL, it) }
 
     private companion object {
-        /**
-         * A catalogue holding the twelve cards the lessons name, built here rather than loaded.
-         *
-         * `commonTest` has no filesystem on Kotlin/Native, and what these tests are about is the
-         * *positions* rather than the loader — which `CardCatalogTest` covers. The powers are
-         * transcribed from `cards.json`, and [theNumbersTheLinesNameAreStillOnTheCard] is what
-         * holds the transcription to the shipped data.
-         */
-        val catalog = CardCatalog(
-            sets = emptyList(),
-            cards = listOf(
-                card(id = 257, top = 4, right = 2, bottom = 3, left = 4, name = "Dodo"),
-                card(id = 258, top = 2, right = 2, bottom = 7, left = 2, name = "Tonberry"),
-                card(id = 259, top = 4, right = 3, bottom = 3, left = 3, name = "Sabotender"),
-                card(id = 261, top = 2, right = 4, bottom = 3, left = 5, name = "Pudding"),
-                card(id = 262, top = 3, right = 4, bottom = 3, left = 3, name = "Bomb"),
-                card(id = 263, top = 4, right = 2, bottom = 5, left = 3, name = "Mandragora"),
-                card(id = 264, top = 3, right = 3, bottom = 3, left = 4, name = "Coblyn"),
-                card(id = 265, top = 5, right = 2, bottom = 5, left = 2, name = "Morbol"),
-                card(id = 266, top = 2, right = 5, bottom = 2, left = 5, name = "Coeurl"),
-                card(id = 267, top = 5, right = 5, bottom = 2, left = 2, name = "Ahriman"),
-                card(id = 268, top = 2, right = 5, bottom = 5, left = 2, name = "Goobbue"),
-                card(id = 269, top = 3, right = 7, bottom = 2, left = 1, name = "Chocobo"),
-            ),
-        )
-
-        @Suppress("LongParameterList") // Four edges, an id and a name: a card is what it is.
-        fun card(id: Int, top: Int, right: Int, bottom: Int, left: Int, name: String): Card = Card(
-            id = id,
-            nameKey = "STR_FF14_CARD_$id",
-            name = name,
-            top = top,
-            right = right,
-            bottom = bottom,
-            left = left,
-            rarity = 1,
-        )
+        /** The lessons resolve their card ids through this; see [LESSON_CATALOG]. */
+        val catalog = LESSON_CATALOG
 
         const val SAME_LESSON = 0
         const val PLUS_LESSON = 1

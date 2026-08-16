@@ -33,17 +33,23 @@ import kotlin.time.Duration.Companion.seconds
  * Everything that differs from an ordinary match is in the [MatchScript] each lesson builds; the
  * match itself is [MatchScreen], unmodified.
  *
- * ### Why it uses the shipped opponent rather than the AS3's inline one
- * `TutorialScreen.as:37-49` declares its own `NPC` inline — the same id, name, icon, rule and
- * fetish cards as the tt-master already in `npcs.json`, but with `matchFee: 0`, a smaller
- * `MGPReward` and item drop rates a third of the catalogue's. That is the shape `shopScreen` had
- * before Phase 2 pulled its price table out into `ShopCatalog`: data written into a screen.
- * This port reads the catalogue entry instead, and so **charges the tutorial's entry fee and pays
- * its full reward**. Both differences are deliberate and small — five MGP against a starting
- * balance of several hundred — and the alternative is a second tt-master record whose only purpose
- * is to be slightly different from the first, which is exactly the duplication the phase has been
- * removing. The lesson is not repeatable-for-profit either way: [MatchScreen]'s Rematch is replaced
- * with a route to the rule book, below.
+ * ### The course leaves no mark on the record
+ *
+ * **No lesson counts**: not the win, not the defeat, not a draw, not the match counters behind
+ * `STATS.FORFEITS`, and nothing is paid for finishing one. A tutorial is practice, and practice
+ * that moved the record would make a player's win rate partly a record of being taught the rules —
+ * a course of four would open every character on four wins. It is [MatchScript.counted], applied at
+ * both ends: the match is never counted as started, and never credited when it ends.
+ *
+ * This **changes the first lesson**, which used to pay. `TutorialScreen.as:37-49` declares its own
+ * `NPC` inline — the same id, name, icon, rule and fetish cards as the tt-master already in
+ * `npcs.json`, but with `matchFee: 0`, a smaller `MGPReward` and item drop rates a third of the
+ * catalogue's. That is the shape `shopScreen` had before Phase 2 pulled its price table out into
+ * `ShopCatalog`: data written into a screen. Reading the catalogue entry instead meant the lesson
+ * charged the tt-master's fee and paid its full reward, which was defensible at five MGP for one
+ * match and is not the behaviour wanted now. The duplicate NPC record is still not the answer —
+ * the payout is a property of *this* match, not of who is teaching it, and that is where the flag
+ * lives.
  *
  * ### Three lines the original never showed
  * `opponentPhase` is called from **one** place — the red branch of `BaseMatchScreen.nextTurn`
@@ -80,7 +86,7 @@ internal fun TutorialScreen(
     var step by remember(tutor.nameKey, format) { mutableStateOf(FIRST_LESSON) }
 
     val script = remember(tutor.nameKey, format, step) {
-        scriptFor(step, tutor, catalog)
+        scriptFor(step, tutor.nameKey, catalog)
     }
     // Only reachable if a puzzle's card ids do not resolve in this catalogue, which
     // `TutorialPuzzleTest` rules out for the shipped one. Ending the course early is a better
@@ -132,24 +138,31 @@ private fun exitFor(step: Int, onHelp: () -> Unit, onNext: () -> Unit): ScriptEx
  * The first lesson keeps everything it had: the fixed hand, the rigged flip, the doubled turn and
  * the opponent that plays its worst move. A puzzle needs none of those — there is one card to play
  * and the opponent never moves again — but it does need the two things the first lesson never
- * asked for, its own rules and its own board, and it pays nothing.
+ * asked for, its own rules and its own board.
+ *
+ * `counted = false` on every one of them, first lesson included; see this file's header.
+ *
+ * @param speakerKey whose name goes on the bubbles — the tutor's, and the only thing about them a
+ *   lesson reads. Taken as the key rather than as the [Npc] so a test can build every lesson in the
+ *   course without a catalogue of opponents; see `LessonRecordTest`.
  */
-private fun scriptFor(step: Int, tutor: Npc, catalog: CardCatalog): MatchScript? {
+internal fun scriptFor(step: Int, speakerKey: String, catalog: CardCatalog): MatchScript? {
     if (step == FIRST_LESSON) {
         return MatchScript(
-            speakerKey = tutor.nameKey,
+            speakerKey = speakerKey,
             deck = tutorialDeck(),
             firstPlayer = CardColor.RED,
             turnLimit = TUTORIAL_TURN_LIMIT,
             aiOptions = MatchAiOptions.TUTOR,
             lesson = ::tutorialLines,
+            counted = false,
         )
     }
     val puzzle = TUTORIAL_PUZZLES.getOrNull(step - 1) ?: return null
     val opening = puzzleSetup(puzzle, catalog) ?: return null
 
     return MatchScript(
-        speakerKey = tutor.nameKey,
+        speakerKey = speakerKey,
         // The hand is inside the opening; this is what stops the deck selector opening, and it is
         // the same list, so the two cannot disagree about what the player is holding.
         deck = puzzle.hand,
@@ -163,15 +176,15 @@ private fun scriptFor(step: Int, tutor: Npc, catalog: CardCatalog): MatchScript?
         // Said over the outcome panel, whatever the panel says: the position is composed so the
         // player wins, but a lesson's closing sentence is about the rule and not about the score.
         outcomeLines = MatchResult.entries.associateWith { puzzle.closing },
-        rewarded = false,
+        counted = false,
     )
 }
 
 /** The nine-line match the course opens with — the lesson this screen used to be, whole. */
-private const val FIRST_LESSON = 0
+internal const val FIRST_LESSON = 0
 
 /** The last lesson's index: the opening match, then one per puzzle. */
-private val LAST_LESSON = TUTORIAL_PUZZLES.size
+internal val LAST_LESSON = TUTORIAL_PUZZLES.size
 
 /**
  * Who teaches the lesson in [collection] — the opponent with the lowest id.

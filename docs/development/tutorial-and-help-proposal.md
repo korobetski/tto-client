@@ -272,11 +272,23 @@ again.
    now waits on `LessonSpeech.isSpeaking` rather than on the line count times 6.1 seconds, because
    arithmetic over a fixed cadence stops being true the moment a line can be dismissed early.
 2. ~~**`MatchScript.rules` + `MatchScript.opening`, and the three verified puzzles.**~~ **Done.**
-   Behind the existing `TUTORIAL` row as a straight sequence — no list screen, no persistence. Also
-   `MatchScript.rewarded`, which was not in the plan and turned out to be needed: three more
-   scripted matches the player cannot lose would be three more repeatable sources of MGP. An
-   unrewarded lesson is still *ended*, or the record would show a forfeit for each one.
+   Behind the existing `TUTORIAL` row as a straight sequence — no list screen, no persistence.
    `TutorialPuzzleTest` pins all three positions through the real engine.
+
+   Also `MatchScript.counted`, which was not in the plan: **no lesson goes on the player's record**
+   — not the win, the defeat or the draw, not the counters behind `forfeits`, not the rule and
+   opponent tallies, not achievements or quests, and nothing is paid. A course of four that counted
+   would open every character on four wins. It is one flag rather than two because
+   `MatchRewards.credit` computes the payout and writes the stats in the same pass, so "pays nothing
+   but still counts" is not a state that could be asked for without reimplementing it.
+
+   It has to be applied at **both ends** — never counted as started, never credited when it ends —
+   or the lesson leaves exactly the mark it was avoiding: counted as started and never ended is a
+   forfeit. `LessonRecordTest` walks the pair across the whole course.
+
+   This changes the first lesson, which used to pay the tt-master's full reward — a choice
+   `TutorialScreen`'s KDoc argued for at five MGP a match, and which does not survive the
+   requirement that a tutorial not touch the record.
 3. **The academy list, progress in `SettingsStore`, the remaining lessons, the exam and its reward.**
 4. **`RuleDemo` for Same, Plus, Combo, Same Wall**, sharing the explanation function with the
    lessons.

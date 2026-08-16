@@ -73,10 +73,17 @@ import kotlin.time.Duration
  * @property opening the position to start from, or null to deal one. **This is what makes a
  *   one-move puzzle possible** — [MatchSetup] is a plain value, so a board eight cards deep is as
  *   constructible as an empty one. See [puzzleSetup] for the invariants it has to keep.
- * @property rewarded whether finishing pays. False for a lesson, and the reason is the one
- *   [TutorialScreen] has always had to argue about: a scripted match the player cannot lose would
- *   otherwise be a repeatable source of MGP, and three of them is three times the argument. The
- *   match is still *counted* — see [creditFor].
+ * @property counted whether this match goes on the player's record at all — the win or defeat, the
+ *   match counters behind [GameSave.forfeits], the rule and opponent tallies, the achievements and
+ *   quests it would finish, and the MGP and XP it would pay. **False for every lesson**: a tutorial
+ *   is practice, and practice that moved the record would mean a player's win rate was partly a
+ *   record of being taught the rules. It would also make a scripted match the player cannot lose a
+ *   repeatable source of MGP.
+ *
+ *   One flag rather than two, because the two cannot come apart: [MatchRewards.credit] computes the
+ *   payout and writes the stats in the same pass, so "pays nothing but still counts" is not a state
+ *   this could ask for without reimplementing it. See [startingMatch] and [creditFor], which are
+ *   the two ends it has to be applied at.
  */
 internal data class MatchScript(
     val speakerKey: String,
@@ -88,7 +95,7 @@ internal data class MatchScript(
     val outcomeLines: Map<MatchResult, String> = emptyMap(),
     val rules: GameRules? = null,
     val opening: MatchSetup? = null,
-    val rewarded: Boolean = true,
+    val counted: Boolean = true,
 )
 
 /**
@@ -170,27 +177,37 @@ internal fun MatchScript?.matchOr(npc: Npc, rules: GameRules, otherwise: () -> P
     this?.opening?.let { PveMatch(setup = it, npc = npc, rules = rules) } ?: otherwise()
 
 /**
- * What a finished match pays — [earn], unless the script says it pays nothing.
+ * The profile a match begins against — one more match started, unless it is a lesson.
  *
- * An unrewarded match is still **ended**, which is not a detail: `STATS.FORFEITS` is
- * `startedMatches - endedMatches`, and [MatchScreen] counts every match as started the moment it
- * opens. A lesson that paid nothing and closed nothing would leave a forfeit behind it, so the
- * player's record would show three abandoned matches for finishing the tutorial.
+ * `PVEScreen.as:244` counts a match as started when it is *launched* rather than when it ends,
+ * which is what makes `STATS.FORFEITS` — `startedMatches - endedMatches` — mean anything.
  *
- * The reward is built rather than omitted because the outcome panel is what says the lesson is
- * over: zero MGP and zero XP is the honest version of it, and the panel already renders that.
+ * An uncounted match must therefore be skipped at **both** ends or it leaves exactly the mark it
+ * was trying not to leave: counted as started and never ended is a forfeit, and counted at neither
+ * end is nothing at all. This is the first end; [creditFor] is the second.
+ */
+internal fun MatchScript?.startingMatch(profile: GameSave): GameSave =
+    if (this?.counted != false) profile.startingMatch(againstNpc = true) else profile
+
+/**
+ * What a finished match pays and records — [earn], unless it is a lesson, which records nothing.
+ *
+ * The save handed back is the one the match began with, untouched: no result, no counters, no rule
+ * or opponent tally, no achievement, no quest, no MGP. [MatchRewards.credit] writes all of those in
+ * one pass, so *not calling it* is the whole of the implementation — and that is also why
+ * [MatchScript.counted] is one flag and not two.
+ *
+ * A reward is still built, because the outcome panel is what tells the player the lesson is over.
+ * Zero MGP and zero XP is the honest version of it, and the panel already renders that.
  */
 internal fun MatchScript?.creditFor(
     result: MatchResult,
     playing: GameSave,
     earn: () -> MatchCredit,
-): MatchCredit = if (this?.rewarded != false) {
+): MatchCredit = if (this?.counted != false) {
     earn()
 } else {
-    MatchCredit(
-        save = playing.endingMatch(),
-        reward = MatchReward(result = result, mgp = 0, xp = 0),
-    )
+    MatchCredit(save = playing, reward = MatchReward(result = result, mgp = 0, xp = 0))
 }
 
 /** How the opponent plays: the script's strategy, or the ordinary one. */

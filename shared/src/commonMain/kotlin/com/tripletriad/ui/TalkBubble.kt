@@ -4,6 +4,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -30,6 +32,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -38,7 +41,10 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
+import com.tripletriad.i18n.LocalStrings
+import com.tripletriad.i18n.StringKeys
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** The bubble while it is on screen. */
 const val TALK_BUBBLE_TEST_TAG: String = "talk-bubble"
@@ -68,6 +74,17 @@ const val TALK_FRAME_TEST_TAG: String = "talk-frame"
  * readable while its bubble is still flying in would be readable at 1.5x and moving, which is
  * where the original's structure is making an argument rather than an accident.
  *
+ * ### Tapping it moves it on
+ *
+ * The original has no such control: every bubble is up for its five seconds and the next is
+ * scheduled behind it. That is fine for the nine lines it had and wrong for a curriculum — a fast
+ * reader waits out four seconds of nothing, on every line, and there are sixty of them. The timer
+ * stays as the fallback, so a bubble nobody touches behaves exactly as it always did.
+ *
+ * The tap target is the **bubble**, not the screen. The composable fills its parent so the bubble
+ * can be placed against the top of it, and making that box clickable would swallow every tap meant
+ * for the board underneath — a player who wanted to place a card while a line was up could not.
+ *
  * @param message the line, already translated. Wrapped rather than clipped: the AS3 sizes its
  *   field 450x75 with `autoSize = VERTICAL`, so a long line grows downward instead of vanishing.
  * @param speaker who is talking. `RED_PLAYER_NAME` in a ladder match, `STR_NPC_TT_Master` in the
@@ -78,9 +95,11 @@ const val TALK_FRAME_TEST_TAG: String = "talk-frame"
 @Composable
 internal fun TalkBubble(message: String, speaker: String, onFinished: () -> Unit) {
     val art = LocalCardArt.current
+    val strings = LocalStrings.current
     val scale = remember(message) { Animatable(ENTER_SCALE) }
     val alpha = remember(message) { Animatable(0f) }
     var textUp by remember(message) { mutableStateOf(false) }
+    var dismissed by remember(message) { mutableStateOf(false) }
 
     LaunchedEffect(message) {
         val entering = tween<Float>(ENTER_MILLIS, easing = LinearEasing)
@@ -88,7 +107,9 @@ internal fun TalkBubble(message: String, speaker: String, onFinished: () -> Unit
         scale.animateTo(1f, entering)
 
         textUp = true // predispose(): the two TextFields are built here, not before.
-        delay(HOLD_MILLIS.toLong())
+        // Whichever comes first: the five seconds, or a tap. `withTimeoutOrNull` returning null is
+        // the ordinary case and carries no meaning beyond "nobody touched it".
+        withTimeoutOrNull(HOLD_MILLIS.toLong()) { snapshotFlow { dismissed }.first { it } }
         textUp = false // setTimeout(… visible = false, 5000)
 
         val leaving = tween<Float>(EXIT_MILLIS, easing = LinearEasing)
@@ -111,6 +132,12 @@ internal fun TalkBubble(message: String, speaker: String, onFinished: () -> Unit
                     scaleX = scale.value
                     scaleY = scale.value
                     this.alpha = alpha.value
+                }
+                // Not `ttoClickable`: that grows a target to 48 dp, and this one is already 272 dp
+                // wide. What it does need is the role and a label, so a screen reader announces the
+                // bubble as something that can be dismissed rather than as loose text.
+                .clickable(role = Role.Button, onClickLabel = strings[StringKeys.CONTINUE]) {
+                    dismissed = true
                 },
             contentAlignment = Alignment.Center,
         ) {

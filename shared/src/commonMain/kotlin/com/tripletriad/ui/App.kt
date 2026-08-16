@@ -562,6 +562,7 @@ private fun Destination(
         Screen.QUESTS, Screen.PVP, Screen.PVP_MATCH, Screen.PVP_TABLE, Screen.PVP_CLAIM,
         Screen.CAMPAIGN, Screen.CAMPAIGN_MATCH, Screen.AVATAR, Screen.COLLECTION_CHOICE,
         Screen.CARDS, Screen.DECKS, Screen.INVENTORY, Screen.SHOP, Screen.HELP,
+        Screen.LESSONS,
         -> gate.profile?.let { profile ->
             // The navigation bar, for the screens that have one. Provided here rather than passed
             // down because eleven screens would otherwise carry two parameters that four of them
@@ -584,6 +585,7 @@ private fun Destination(
                     choice = choice,
                     clock = clock,
                     reporter = reporter,
+                    settings = settings,
                     onNavigate = onNavigate,
                 )
             }
@@ -656,9 +658,14 @@ private fun CharacterDestination(
     choice: Choice,
     clock: Clock,
     reporter: MatchReporter,
+    settings: SettingsHolder?,
     onNavigate: (Screen) -> Unit,
 ) {
     val toDashboard = { onNavigate(Screen.DASHBOARD) }
+    // Null only before the settings file has been read, which is behind the splash — so this is
+    // unreachable rather than a degraded mode, and "no lesson finished" is the right answer for a
+    // player whose progress is not known yet either way.
+    val lessonsDone = settings?.value?.lessonsDone ?: 0
     val scope = rememberCoroutineScope()
     // Loaded in the same startup phase as the card table, and this whole function is behind the
     // splash — so the empty fallback is unreachable rather than a degraded mode. It is here so the
@@ -682,6 +689,8 @@ private fun CharacterDestination(
             onDecks = { onNavigate(Screen.DECKS) },
             onInventory = { onNavigate(Screen.INVENTORY) },
             onHelp = { onNavigate(Screen.HELP) },
+            onLessons = { onNavigate(Screen.LESSONS) },
+            lessonsBadge = "${lessonsDone.coerceAtMost(LAST_LESSON + 1)} / ${LAST_LESSON + 1}",
             // With a server, Logout means *sign out*: the token is dropped and the session ended,
             // not merely the screen changed. That is the distinction the original never made — its
             // Logout navigated away and left `Game.PROFILE_DATAS` loaded — and here it matters,
@@ -690,6 +699,18 @@ private fun CharacterDestination(
                 if (account != null) scope.launch { account.signOut() }
                 onNavigate(chooser)
             },
+        )
+
+        // The course. Its lessons are a match screen and so live with the matches below; this is
+        // only the list in front of them.
+        Screen.LESSONS -> LessonsScreen(
+            profile = profile,
+            done = lessonsDone,
+            onPlay = { lesson ->
+                choice.lesson = lesson
+                onNavigate(Screen.TUTORIAL)
+            },
+            onBack = toDashboard,
         )
 
         Screen.OPPONENTS -> startup.opponents?.let { opponents ->
@@ -711,7 +732,6 @@ private fun CharacterDestination(
                     choice.opponent = it
                     onNavigate(Screen.MATCH)
                 },
-                onTutorial = { onNavigate(Screen.TUTORIAL) },
                 // **Every** ladder, not the ones playing this format. A ladder *is* a format plus
                 // a list of opponents — the FFXIV Cup is played with FFXIV cards under the FFXIV
                 // pool — so filtering them by the format the free matches use would hide all of
@@ -742,6 +762,7 @@ private fun CharacterDestination(
             pvp = pvp,
             clock = clock,
             reporter = reporter,
+            settings = settings,
             onNavigate = onNavigate,
         )
 
@@ -888,6 +909,7 @@ private fun MatchDestinations(
     pvp: PvpSession?,
     clock: Clock,
     reporter: MatchReporter,
+    settings: SettingsHolder?,
     onNavigate: (Screen) -> Unit,
 ) {
     when (destination) {
@@ -948,6 +970,12 @@ private fun MatchDestinations(
             clock = clock,
             nextSeed = gate.nextSeed,
             onPersist = gate.persist,
+            from = choice.lesson,
+            // `maxOf`, not an assignment: the list can start any lesson, so finishing lesson two
+            // after lesson five would otherwise take the course backwards.
+            onFinished = { done ->
+                settings?.update { it.copy(lessonsDone = maxOf(it.lessonsDone, done)) }
+            },
             onNavigate = onNavigate,
         )
 
@@ -1181,6 +1209,9 @@ internal class Choice {
      * reads it is only reachable by having just made one.
      */
     var invitee: String? by mutableStateOf(null)
+
+    /** Which lesson the course list opened, for the same reason [invitee] is here. */
+    var lesson: Int by mutableStateOf(0)
 }
 
 /**
@@ -1212,12 +1243,15 @@ internal val PLAYING_SCREENS =
  * ordinary match would find it.
  */
 @Composable
+@Suppress("LongParameterList")
 private fun TutorialDestination(
     profile: GameSave,
     startup: StartupState,
     clock: Clock,
     nextSeed: () -> Int?,
     onPersist: suspend (GameSave) -> Unit,
+    from: Int,
+    onFinished: (Int) -> Unit,
     onNavigate: (Screen) -> Unit,
 ) {
     val catalog = startup.catalog ?: return
@@ -1234,7 +1268,9 @@ private fun TutorialDestination(
             nextSeed = nextSeed,
             onPersist = onPersist,
             onHelp = { onNavigate(Screen.HELP) },
-            onExit = { onNavigate(Screen.OPPONENTS) },
+            onExit = { onNavigate(Screen.LESSONS) },
+            from = from,
+            onFinished = onFinished,
         )
     }
 }

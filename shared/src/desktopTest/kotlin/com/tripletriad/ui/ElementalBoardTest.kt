@@ -150,6 +150,11 @@ class ElementalBoardTest {
                     visibility = HandVisibility.HIDDEN,
                     layout = matchLayout(FIXTURE_SIDE, FIXTURE_SIDE),
                     playable = state.hands[CardColor.BLUE].orEmpty(),
+                    // These fixtures are about what a *cell* draws — the element, the modifier
+                    // badge, the digits under it. The capture rings are a lesson's, and lighting
+                    // them here would put a second mark on the same cards.
+                    highlights = emptyMap(),
+                    waves = emptyMap(),
                     onSelect = { selected = it },
                     onPlace = {},
                     onDrop = { _, _ -> },

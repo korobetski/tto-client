@@ -8,6 +8,7 @@ import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.HAND_SIZE
+import com.tripletriad.storage.InMemoryDocumentStore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -23,14 +24,14 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalTestApi::class)
 class TutorialUiTest {
 
-    /** The campaign entry sits above the opponent list and opens a board with no deck to choose. */
+    /** The course opens from the dashboard, onto a board with no deck to choose. */
     @Test
     fun theLessonOpensStraightOntoABoard() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
-        openOpponents()
+        openLessons()
 
-        onNodeWithTag(TUTORIAL_ROW_TEST_TAG).performClick()
+        onNodeWithTag(lessonRowTestTag(0)).performClick()
 
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(BOARD_TEST_TAG) }
         assertFalse(
@@ -63,10 +64,10 @@ class TutorialUiTest {
 
     /**
      * The first line is spoken before the opponent moves.
-     * The whole of the pacing in one assertion: the lines play after the pre-match captions and the
-     * opponent waits behind them ([lessonPause]), which is `setTimeout(AI, 18300)` behind three
-     * lines at 6.1s. If the AI were not held back, the lesson would be explaining a board that had
-     * already changed twice.
+     * The whole of the pacing in one assertion: the lines play after the pre-match captions, and
+     * the opponent waits behind them — on [LessonSpeech.isSpeaking] now rather than on the line
+     * count times 6.1 seconds, since a line can be tapped away. If the AI were not held back, the
+     * lesson would be explaining a board that had already changed twice.
      */
     @Test
     fun theTutorSpeaksBeforePlaying() = runComposeUiTest {
@@ -104,30 +105,143 @@ class TutorialUiTest {
     }
 
     /**
-     * The end panel offers the rule book where a match offers a rematch.
+     * **A lesson pays nothing, and does not claim to.**
      *
-     * `TutorialRematchPanel.rematchFooter` overrides the footer with Help and Quit
-     * (`:19-33`), and `nextLesson` dispatches `NEXT_SCREEN`, which `TutorialScreen.endGame` sets to
-     * `HELP_SCREEN` on all three results. Replacing the control rather than adding one is also what
-     * keeps the lesson from being a repeatable source of MGP.
+     * The panel's payout line used to be unconditional — "every result pays here" was true while
+     * every match counted — so an uncounted lesson ended on `+0 MGP` in the affirmative colour: a
+     * reward announced, in the place rewards are announced, for a match deliberately paying none.
+     * Asserted on the tag rather than on the text, so it does not depend on the wording or the
+     * language.
      */
     @Test
-    fun theEndOfTheLessonLeadsToTheRuleBook() = runComposeUiTest {
+    fun theLessonAnnouncesNoPayout() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
         openLesson()
 
         playOut()
 
-        assertTrue(isVisible("Help"), "the first action should be the rule book, not a rematch")
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { isFinished() }
+        assertFalse(exists(MATCH_PAYOUT_TEST_TAG), "a lesson pays nothing and should say nothing")
+        assertFalse(exists(MATCH_REWARDS_TEST_TAG), "and drops nothing")
+    }
+
+    /**
+     * **Finishing a lesson leaves the profile exactly as it found it.**
+     *
+     * The end-to-end half of what `LessonRecordTest` asserts on the extensions: no result, no
+     * counters, no money. `startedMatches` is the one worth reading twice — [MatchScreen] persists
+     * it when the screen *opens*, so a lesson that counted would already have written it before a
+     * card was played, and `forfeits` would carry the difference for the rest of the character's
+     * life.
+     */
+    @Test
+    fun theLessonLeavesTheProfileUntouched() = runComposeUiTest {
+        val documents = InMemoryDocumentStore()
+        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openLesson()
+        val before = storedSave(documents)
+
+        playOut()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { isFinished() }
+
+        val after = storedSave(documents)
+        assertEquals(before.startedMatches, after.startedMatches, "no match was started")
+        assertEquals(before.endedMatches, after.endedMatches, "and none was ended")
+        assertEquals(0, after.forfeits, "so no forfeit is left behind")
+        assertEquals(0, after.stats.played, "no win, defeat or draw goes on the record")
+        assertEquals(before.mgp, after.mgp, "and the lesson pays nothing")
+    }
+
+    /**
+     * The end panel leads on to the next lesson, where a match offers a rematch.
+     *
+     * `TutorialRematchPanel.rematchFooter` overrides the footer with Help and Quit (`:19-33`), and
+     * `nextLesson` dispatches `NEXT_SCREEN`, which `TutorialScreen.endGame` sets to `HELP_SCREEN`
+     * on all three results — so in the original this control ended the course, because the course
+     * was one match. It now advances through [TUTORIAL_PUZZLES] and only the last of them leads to
+     * the rule book; see [theCourseEndsAtTheRuleBook]. Replacing the control rather than adding one
+     * is unchanged, and is still what keeps a lesson from being a repeatable source of MGP.
+     */
+    @Test
+    fun theEndOfTheFirstLessonLeadsToTheNext() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        openLesson()
+
+        playOut()
+
+        assertTrue(isVisible("Next lesson"), "the first action should lead on, not rematch")
+        onNodeWithTag(NEW_MATCH_TEST_TAG).performClick()
+
+        // The panel going away is what says the next lesson has opened — the board tag is up
+        // throughout, so waiting on it would wait for something that never stopped being true.
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { !isFinished() }
+
+        // The Same lesson: a board already eight cards deep, with one card left to place.
+        assertEquals(1, handSize(CardColor.BLUE), "one card, and one cell for it")
+        assertEquals(
+            0,
+            handSize(CardColor.RED),
+            "the opponent has nothing left to play; the lesson ends on the player's move",
+        )
+    }
+
+    /**
+     * **A lesson ends "Lesson complete", not "You win !"**.
+     *
+     * The panel is the ordinary one and it announced the ordinary thing, which over a position
+     * composed so the player cannot fail is flattery for doing as they were told — and it spent the
+     * word on the one lesson in the course with a use for it. Asserted as an absence as well as a
+     * presence: a panel that showed both would be twice as wrong as one that showed the old line.
+     */
+    @Test
+    fun aLessonEndsByNamingItselfRatherThanClaimingAVictory() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        openLesson()
+
+        playOut()
+
+        assertTrue(isVisible("Lesson complete"), "the panel should name what was finished")
+        assertFalse(isVisible("You win"), "a lesson that cannot be lost should not claim a win")
+    }
+
+    /**
+     * The last lesson is the one that leads to the rule book — the original's own ending, moved.
+     *
+     * Played by walking the course rather than by jumping to the end: what is being asserted is
+     * that the sequence *terminates*, and a test that opened the last lesson directly could not
+     * tell the difference between a course of four and a course that loops.
+     */
+    @Test
+    fun theCourseEndsAtTheRuleBook() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        openLesson()
+
+        playOut()
+        repeat(LAST_LESSON) {
+            onNodeWithTag(NEW_MATCH_TEST_TAG).performClick()
+            waitUntil(timeoutMillis = UI_TIMEOUT_MS) { !isFinished() }
+            playOut()
+        }
+
+        assertTrue(isVisible("To the rule book"), "the course should end at the rule book")
+        // **The exam keeps the real result.** It is the one lesson that can be lost, against an
+        // opponent playing to win, and being told plainly which of the two happened is what the
+        // course ends on. `MatchAiOptions.TUTOR` is off here, so which line it is cannot be
+        // predicted — that it is one of the three, and not the lesson wording, is the claim.
+        assertFalse(isVisible("Lesson complete"), "the exam is a test, and reports its result")
+        assertTrue(
+            isVisible("You win") || isVisible("You lose") || isVisible("Draw"),
+            "the exam should say how it actually went",
+        )
         onNodeWithTag(NEW_MATCH_TEST_TAG).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(HELP_LIST_TEST_TAG) }
     }
 
-    /** Creates a character and opens the lesson, waiting for the board. */
-    private fun ComposeUiTest.openLesson() {
+    /** Creates a character and opens one lesson of the course, waiting for its board. */
+    private fun ComposeUiTest.openLesson(lesson: Int = 0) {
         newCharacter()
-        openOpponents()
-        onNodeWithTag(TUTORIAL_ROW_TEST_TAG).performClick()
+        openLessons()
+        onNodeWithTag(lessonRowTestTag(lesson)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(BOARD_TEST_TAG) }
     }
 

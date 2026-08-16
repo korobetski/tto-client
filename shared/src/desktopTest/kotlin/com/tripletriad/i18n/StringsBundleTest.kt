@@ -137,13 +137,13 @@ class StringsBundleTest {
 
         /**
          * Keys defined by any of the four bundles: `import_locales.py`'s 697 imported strings
-         * across the four, plus the 212 `APP_*` strings this port authored.
+         * across the four, plus the 270 `APP_*` strings this port authored.
          */
-        const val UNION_KEYS = 909
+        const val UNION_KEYS = 967
 
         /**
-         * Imported key count plus however many `APP_*` strings that locale translates: 693 + 212,
-         * 694 + 212, then 653 and 686 with no app-owned strings at all.
+         * Imported key count plus however many `APP_*` strings that locale translates: 693 + 270,
+         * 694 + 270, then 653 and 686 with no app-owned strings at all.
          *
          * Almost everything the ported screens show was already translated in four languages by
          * the AS3 bundles. The `APP_*` strings are the ones the original never needed a sentence
@@ -151,6 +151,11 @@ class StringsBundleTest {
          * labels — plus three groups it could not have had: the sign-in form and its refusals, the
          * server list and its update notice, and the tutorial's nine lines, which the AS3 held as
          * English string literals inside `TutorialScreen` with no key anywhere.
+         *
+         * The `APP_LESSON*` strings are the first that answer to nothing in the original at all:
+         * the AS3 taught one rule, so the eleven lessons behind it — their titles, their lines
+         * and the list screen around them — have no source wording to follow. See
+         * `TUTORIAL_COURSE`.
          */
         /**
          * ### What the three FFVIII packs added
@@ -163,8 +168,8 @@ class StringsBundleTest {
          * the ordinary rule and are English and French only.
          */
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 905,
-            AppLocale.FR_FR to 906,
+            AppLocale.EN_US to 963,
+            AppLocale.FR_FR to 964,
             AppLocale.DE_DE to 653,
             AppLocale.JA_JA to 686,
         )
@@ -181,9 +186,9 @@ class StringsBundleTest {
         val EXPECTED_GAPS = mapOf(
             AppLocale.EN_US to 4,
             AppLocale.FR_FR to 3,
-            // 44 imported keys short, plus all 212 app-owned; and 11 short, plus the 212.
-            AppLocale.DE_DE to 256,
-            AppLocale.JA_JA to 223,
+            // 44 imported keys short, plus all 270 app-owned; and 11 short, plus the 270.
+            AppLocale.DE_DE to 314,
+            AppLocale.JA_JA to 281,
         )
     }
 }

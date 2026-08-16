@@ -20,7 +20,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,7 +59,10 @@ import com.tripletriad.protocol.MatchTranscript
 import com.tripletriad.protocol.TranscriptMove
 import com.tripletriad.time.Clock
 import com.tripletriad.ui.theme.LocalTtoColors
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -203,6 +208,9 @@ internal fun MatchScreen(
 ) {
     val audio = LocalAudio.current
     val strings = LocalStrings.current
+    // For the chain's audio, which has to outlive the placement that started it — see
+    // [cascadeSounds].
+    val scope = rememberCoroutineScope()
     var matchIndex by remember(npc.iconId) { mutableStateOf(0) }
 
     // The seed, kept rather than thrown away, because it is the *whole* of a transcript's
@@ -252,7 +260,7 @@ internal fun MatchScreen(
     // (`BaseMatchScreen.as:120-135`). Drawn once and passed into `assemble`, which would otherwise
     // roll the roulette a second time and play under rules the player was never shown.
     val rules = remember(matchIndex, npc.iconId) {
-        PveMatches.rulesFor(npc, format, random)
+        script.rulesOr { PveMatches.rulesFor(npc, format, random) }
     }
 
     /*
@@ -262,8 +270,11 @@ internal fun MatchScreen(
      * already had `startingMatch` applied and apply it a second time — one match counted as two
      * started. Capturing it here is also what makes the two effects agree on which profile they are
      * amending.
+     *
+     * A lesson is not counted at all and this is where that begins — see [MatchScript.counted],
+     * and [MatchScript.creditFor] for the other end of it.
      */
-    val playing = remember(matchIndex, npc.iconId) { profile.startingMatch(againstNpc = true) }
+    val playing = remember(matchIndex, npc.iconId) { script.startingMatch(profile) }
 
     // `PVEScreen.as:244` — the match is counted as started when it is launched, not when it ends,
     // which is what makes `STATS.FORFEITS` (`STARTED_MATCHES - ENDED_MATCHES`) mean anything. That
@@ -300,15 +311,17 @@ internal fun MatchScreen(
     }
 
     val match = remember(matchIndex, npc.iconId, chosen) {
-        PveMatches.assemble(
-            profile = profile,
-            npc = npc,
-            catalog = catalog,
-            format = format,
-            random = random,
-            plan = MatchPlan(rules, chosen),
-            forcedFlip = script.flip(),
-        )
+        script.matchOr(npc, rules) {
+            PveMatches.assemble(
+                profile = profile,
+                npc = npc,
+                catalog = catalog,
+                format = format,
+                random = random,
+                plan = MatchPlan(rules, chosen),
+                forcedFlip = script.flip(),
+            )
+        }
     }
     val ai = remember(script) { MatchAi(script.aiOptions()) }
 
@@ -326,6 +339,16 @@ internal fun MatchScreen(
     var setup by remember(match) { mutableStateOf(match.setup) }
     var selected by remember(match) { mutableStateOf<Card?>(null) }
     var reward by remember(match) { mutableStateOf<MatchReward?>(null) }
+
+    /*
+     * Whether the result has been settled — credited, persisted and reported.
+     *
+     * Separate from [reward], which used to be the guard, because the two no longer happen at the
+     * same moment: the panel is held back for a beat so the last placement can be *seen* (see
+     * `OUTCOME_PAUSE_MS`), and a guard that waited with it would be open for the length of that
+     * pause. Crediting happens immediately, so leaving during the pause costs nothing.
+     */
+    var settled by remember(match) { mutableStateOf(false) }
 
     /*
      * What the player did, in order — the only part of the match the server cannot derive for
@@ -388,20 +411,27 @@ internal fun MatchScreen(
      * board as it stands *before* the move being announced.
      */
     val lesson = remember(match, state.placement) { script.linesBefore(state) }
+    val speech = rememberLessonSpeech(state.placement, lesson)
 
     // The opponent's turn. Keyed on the placement count, so it fires once per turn and again
     // after a sudden-death rematch resets it — and never while the player is to move.
     LaunchedEffect(match, state.placement, state.isFinished) {
         if (state.isFinished || state.currentPlayer != CardColor.RED) return@LaunchedEffect
+        // Held until the lesson has stopped talking — however long that took. `lessonPause` used
+        // to compute it from the line count, which stopped being true when a line became
+        // dismissible; see the note where it was removed, in `MatchScript`.
+        snapshotFlow { speech.isSpeaking }.first { !it }
         delay(
             OPPONENT_PAUSE_MS + animationsFor(state, setup).sumOf { it.totalMillis } +
-                lessonPause(lesson),
+                // A chain takes longer to finish turning than a single capture, and the opponent
+                // moving over the top of it would undo what the stagger is for.
+                waveDelayMillis(state.lastPlay),
         )
         val next = ai.play(state, random)
         if (next.placement > state.placement) {
             visibility = visibility.reindexedFor(next)
             state = next
-            sound(audio, next)
+            playMatchSounds(audio, scope, next)
         }
     }
 
@@ -409,7 +439,7 @@ internal fun MatchScreen(
     // (`PVEMatchScreen.as:63-68`), so the same effect handles both by branching on the outcome.
     LaunchedEffect(match, state.isFinished, state.placement) {
         val outcome = state.outcome() ?: return@LaunchedEffect
-        if (reward != null) return@LaunchedEffect
+        if (settled) return@LaunchedEffect
         val result = MatchResult.of(outcome, CardColor.BLUE)
         if (result == null) {
             val rematch = MatchPreparation.prepareRematch(state, random)
@@ -420,15 +450,17 @@ internal fun MatchScreen(
             suddenDeath = true
             return@LaunchedEffect
         }
-        val credit = MatchRewards.credit(
-            save = playing,
-            npc = npc,
-            result = result,
-            rules = match.rules,
-            at = clock.nowMillis(),
-            random = random,
-        )
-        reward = credit.reward
+        val credit = script.creditFor(result, playing) {
+            MatchRewards.credit(
+                save = playing,
+                npc = npc,
+                result = result,
+                rules = match.rules,
+                at = clock.nowMillis(),
+                random = random,
+            )
+        }
+        settled = true
         onPersist(credit.save)
 
         // Told after the credit and after the persist, so a caller acting on it — a ladder
@@ -453,6 +485,18 @@ internal fun MatchScreen(
             deck = chosen,
             moves = moves.toList(),
         )
+
+        // **Then** the panel, once the board has had a moment to be read.
+        //
+        // The last placement is the one worth watching — it is the one that just flipped cards, and
+        // in a lesson it is the *only* one — and the panel is a scrim over the whole board. It used
+        // to arrive on the same frame as the result, so what the rule had done was covered before
+        // it could be looked at. Held for as long as the placement's own captions run, plus a beat.
+        delay(
+            animationsFor(state, setup).sumOf { it.totalMillis } + OUTCOME_PAUSE_MS +
+                waveDelayMillis(state.lastPlay),
+        )
+        reward = credit.reward
     }
 
     // Rematch, or whatever a script says instead — see `nextAction`.
@@ -473,14 +517,18 @@ internal fun MatchScreen(
             moves += TranscriptMove(cardId = card.id, position = position)
             state = next
             selected = null
-            sound(audio, next)
+            playMatchSounds(audio, scope, next)
         }
     }
 
-    val turnFraction = turnClock(match, state, script.turnLimitOr(turnLimit), underway) {
-        // `sideRandom`: this is the player's turn, and the match generator is off limits there.
-        autoPlay(state, sideRandom)?.let { (card, position) -> place(card, position) }
-    }
+    // The clock is held while a lesson line is up, as well as behind the intro — see
+    // `LessonBubbles`. Resuming restarts the turn rather than continuing it, which is
+    // `turnClock`'s own behaviour on any key change and is the generous direction to be wrong in.
+    val turnFraction =
+        turnClock(match, state, script.turnLimitOr(turnLimit), underway && !speech.isSpeaking) {
+            // `sideRandom`: this is the player's turn, and the match generator is off limits.
+            autoPlay(state, sideRandom)?.let { (card, position) -> place(card, position) }
+        }
 
     val wide = LocalWideLayout.current
 
@@ -528,6 +576,14 @@ internal fun MatchScreen(
                 // the cards actually get rather than from the space before the margin.
                 layout = matchLayout(maxWidth - PlayAreaInset * 2, maxHeight - PlayAreaInset * 2),
                 playable = playable(state),
+                // The two facing digits that decided the last capture, in a lesson. Recomputed
+                // with the state rather than remembered: it *is* a projection of the state, and
+                // one that changes on every placement.
+                highlights = script.highlights(state),
+                // The chain, staggered. Not gated on the script: a combo looks the same in a
+                // lesson, an ordinary match and a refereed one, and it is the *rule* being shown
+                // rather than an explanation laid over it. See `captureWaves`.
+                waves = captureWaves(state.lastPlay),
                 onSelect = { if (it in playable(state)) selected = it },
                 onPlace = { position -> selected?.let { place(it, position) } },
                 onDrop = place,
@@ -540,6 +596,7 @@ internal fun MatchScreen(
                     cards = catalog.byId,
                     next = next,
                     onDone = onExit,
+                    title = script?.outcomeTitle,
                 )
             }
             // Over the board and under the outcome panel: a caption is allowed to cover
@@ -549,12 +606,7 @@ internal fun MatchScreen(
             // Held behind the pre-match announcements, which is where the original puts it:
             // `opponentPhase` is reached from `nextTurn`, and `nextTurn` runs after the whole
             // cascade. A lesson talking over the Start banner would also be two things at once.
-            LessonBubbles(
-                key = state.placement,
-                lines = lesson,
-                script = script,
-                enabled = underway,
-            )
+            LessonBubbles(speech = speech, script = script, enabled = underway)
 
             // And what the opponent says about how it went, over the panel as in `endGame`.
             OutcomeBubble(script = script, result = reward?.result)
@@ -625,34 +677,27 @@ private fun playable(state: MatchState): List<Card> =
     }
 
 /**
- * The sounds one placement makes, in the order the AS3 made them.
+ * Both halves of a placement's audio, for a match this client is running.
  *
- * The mapping is the part with decisions in it, so it is a function rather than four `if`s inside a
- * click handler, and `MatchAudioTest` asserts it through the real UI with a recording player.
+ * The cascade is **launched rather than awaited**, and that is load-bearing: the opponent's effect
+ * is keyed on the placement count, so the assignment that publishes its move cancels it, and
+ * anything suspending after that point would never resume — the chain would simply go silent
+ * whenever the AI was the one that made it. [scope] is the composition's, which outlives a
+ * placement and dies with the screen.
  *
- * * **nothing captured** → [Sound.CARD_PLACED]. `TTOCore.as:87` plays `se_ttriad.scd_1` in exactly
- *   the branch that returns a power of 0, i.e. the placement that flips nothing.
- * * **something captured** → [Sound.CARD_CAPTURED], **once**. `Card.as:229` plays it per flipped
- *   card, inside `flipTo`; four cards flipping at once would fire it four times, which on
- *   `SoundPool` is the same sample four times in the same millisecond — a volume spike, not a
- *   richer sound. One is the faithful *result*.
- * * **a combo** → [Sound.COMBO] over the top, from `TTOCore.as:125`'s `flipData.waveEffect`. A
- *   capture with `wave >= 1` is by definition a combo generation.
- * * **the match continues** → [Sound.TURN_CHANGE], `BaseMatchScreen.as:374`, which plays it for
- *   either side.
- * * **the match ends** → the winner's sound instead, `PVEMatchScreen.as:95`/`:139`. A draw is
- *   silent, matching the original: its draw branch plays nothing.
+ * `PvpMatchScreen` needs no such care: its effect reacts to a view it does not itself assign, so it
+ * can wait for the cascade in place.
  */
-private fun sound(audio: AudioPlayer, state: MatchState) {
+private fun playMatchSounds(audio: AudioPlayer, scope: CoroutineScope, state: MatchState) {
     val captures = state.lastPlay?.captures.orEmpty()
-    audio.play(if (captures.isEmpty()) Sound.CARD_PLACED else Sound.CARD_CAPTURED)
-    if (captures.any { it.wave >= 1 }) audio.play(Sound.COMBO)
 
-    when (val outcome = state.outcome()) {
-        null -> audio.play(Sound.TURN_CHANGE)
-        is MatchOutcome.Win ->
-            audio.play(if (outcome.winner == CardColor.BLUE) Sound.BLUE_WINS else Sound.RED_WINS)
-        else -> Unit
+    placementSound(audio, captures, finished = state.isFinished)
+    scope.launch {
+        cascadeSounds(
+            audio = audio,
+            captures = captures,
+            won = (state.outcome() as? MatchOutcome.Win)?.let { it.winner == CardColor.BLUE },
+        )
     }
 }
 
@@ -965,6 +1010,20 @@ private fun autoPlay(state: MatchState, random: Random): Pair<Card, Int>? {
  * takes, which lands inside the original's own range without any of its randomness.
  */
 private const val OPPONENT_PAUSE_MS = 700L
+
+/**
+ * How long the finished board is left uncovered before the outcome panel arrives.
+ *
+ * **On top of** the last placement's own captions, for the same reason [OPPONENT_PAUSE_MS] is on
+ * top of them: what is being waited for is the moment *after* the animation, not the animation.
+ *
+ * The AS3 has no equivalent — `endGame` opens `rematch` behind a fixed `intervalDuration` with the
+ * captions still running, so the panel and the flips overlap. That reads as a panel interrupting
+ * the board, and in a lesson it means the one placement the whole lesson is about is covered
+ * before it can be looked at. Longer than [OPPONENT_PAUSE_MS] because nothing is waiting on it:
+ * the match is over, the profile is already credited, and the only thing this delays is a control.
+ */
+private const val OUTCOME_PAUSE_MS = 1_400L
 
 /**
  * `playerPanel._timer = 30` — the turn limit, and the AS3's own default.

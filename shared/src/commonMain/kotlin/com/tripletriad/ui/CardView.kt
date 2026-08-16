@@ -2,9 +2,11 @@ package com.tripletriad.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
@@ -20,6 +22,9 @@ import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.Card
 import com.tripletriad.model.CardColor
+import com.tripletriad.model.Side
+import com.tripletriad.model.power
+import com.tripletriad.ui.theme.LocalTtoColors
 
 /**
  * The face of a card, at [scale] times its authored size.
@@ -101,6 +106,7 @@ internal fun CardFace(
     card: Card,
     scale: Float = 1f,
     showBack: Boolean = false,
+    highlight: Set<Side> = emptySet(),
     modifier: Modifier = Modifier,
 ) {
     val art = LocalCardArt.current
@@ -130,6 +136,7 @@ internal fun CardFace(
             card = card,
             art = art,
             scale = scale,
+            highlight = highlight,
             modifier = Modifier.offset(x = DigitsOriginX * scale, y = DigitsOriginY * scale),
         )
         if (showBack) {
@@ -188,16 +195,69 @@ private fun CardDigits(
     card: Card,
     art: CardArt?,
     scale: Float,
+    highlight: Set<Side>,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier.size(DigitsClusterWidth * scale, DigitsClusterHeight * scale)) {
         Glyph(art?.digitPlate, DigitsPlateOffsetX, DigitsPlateOffsetY, DigitsPlateSize, scale)
-        Glyph(art?.digit(card.top), x = 14.dp, y = 0.dp, size = DigitSize, scale = scale)
-        Glyph(art?.digit(card.right), x = 26.dp, y = 6.dp, size = DigitSize, scale = scale)
-        Glyph(art?.digit(card.bottom), x = 14.dp, y = 12.dp, size = DigitSize, scale = scale)
-        Glyph(art?.digit(card.left), x = 2.dp, y = 6.dp, size = DigitSize, scale = scale)
+        for (side in Side.entries) {
+            val (x, y) = DIGIT_POSITIONS.getValue(side)
+            // Behind the glyph, so the number stays readable and the ring reads as being *around*
+            // it. Drawn per side rather than as one overlay because which sides are lit is the
+            // whole message — see [captureHighlights].
+            if (side in highlight) DigitHalo(x, y, scale)
+            Glyph(art?.digit(card.power(side)), x = x, y = y, size = DigitSize, scale = scale)
+        }
     }
 }
+
+/**
+ * A ring behind one digit: *this* number is why the card turned.
+ *
+ * ### Why it is a shape and not a tint
+ *
+ * The digits are 18x18 textures from the AS3 atlas, one per value — there is no glyph to recolour,
+ * and tinting the bitmap would repaint the number itself rather than mark it. A ring behind it
+ * leaves the artwork exactly as the original drew it and still says which of the four to read.
+ *
+ * ### Why it does not pulse
+ *
+ * A `rememberInfiniteTransition` would be the obvious way to draw the eye, and it would hang every
+ * Compose UI test in the suite: `waitForIdle` waits for the composition to settle, and an animation
+ * that never ends never lets it. The ring is static and sized well clear of the digit instead.
+ */
+@Composable
+private fun DigitHalo(x: Dp, y: Dp, scale: Float) {
+    val ring = LocalTtoColors.current.selectionRing
+
+    Box(
+        modifier = Modifier
+            .offset(x = (x - HaloInset) * scale, y = (y - HaloInset) * scale)
+            .size((DigitSize + HaloInset * 2) * scale)
+            .background(ring.copy(alpha = HALO_FILL), CircleShape)
+            .border(HaloWidth * scale, ring, CircleShape),
+    )
+}
+
+/**
+ * `CardDigits.positions` — the top-left corner of each digit, by side.
+ *
+ * The same four pairs the KDoc above transcribes, as a table so the halo and the glyph cannot
+ * disagree about where a digit is.
+ */
+private val DIGIT_POSITIONS: Map<Side, Pair<Dp, Dp>> = mapOf(
+    Side.TOP to (14.dp to 0.dp),
+    Side.RIGHT to (26.dp to 6.dp),
+    Side.BOTTOM to (14.dp to 12.dp),
+    Side.LEFT to (2.dp to 6.dp),
+)
+
+/** How far the ring stands off the digit, and how heavy its edge is. */
+private val HaloInset = 3.dp
+private val HaloWidth = 1.5.dp
+
+/** Enough to read as a disc behind the number without swallowing it. */
+private const val HALO_FILL = 0.35f
 
 /**
  * One absolutely-positioned layer: a `Starling.Image` at a fixed offset and size.

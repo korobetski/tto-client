@@ -413,12 +413,14 @@ private fun RuleChip(name: String) {
  * hand-mixed `0xFF11141C`, and the leave action as the quiet one of the two.
  */
 @Composable
+@Suppress("LongParameterList")
 internal fun OutcomePanel(
     reward: MatchReward,
     opponentName: String,
     cards: Map<Int, Card>,
     next: ScriptExit?,
     onDone: () -> Unit,
+    title: String? = null,
 ) {
     val strings = LocalStrings.current
 
@@ -428,7 +430,7 @@ internal fun OutcomePanel(
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.scrim),
         contentAlignment = Alignment.Center,
     ) {
-        OutcomeCard(reward, opponentName, cards, next, onDone, strings)
+        OutcomeCard(reward, opponentName, cards, next, onDone, strings, title)
     }
 }
 
@@ -441,6 +443,7 @@ private fun OutcomeCard(
     next: ScriptExit?,
     onDone: () -> Unit,
     strings: Strings,
+    title: String?,
 ) {
     // `surfaceContainerHigh` and `extraLarge`, which are what Material dresses a dialog in — and
     // this panel stands in for one deliberately, as the note above `OutcomePanel` explains. It was
@@ -461,7 +464,10 @@ private fun OutcomeCard(
             verticalArrangement = Arrangement.spacedBy(SpaceMd),
         ) {
             Text(
-                text = when (reward.result) {
+                // A lesson names itself here instead — see [MatchScript.outcomeTitle]. Everything
+                // below is unchanged by it: the tutor is still named, the score is still on the
+                // board behind, and the closing bubble still says what the rule did.
+                text = title?.let { strings[it] } ?: when (reward.result) {
                     MatchResult.WIN -> strings[StringKeys.YOU_WIN]
                     MatchResult.LOSE -> strings[StringKeys.YOU_LOSE]
                     MatchResult.DRAW -> strings[StringKeys.DRAW]
@@ -479,18 +485,28 @@ private fun OutcomeCard(
                 overflow = TextOverflow.Ellipsis,
             )
 
-            // Always shown, and always positive: every result pays here — see `MatchRewards`.
-            Text(
-                text = buildList {
-                    add("+${reward.mgp} ${strings[StringKeys.MGP]}")
-                    if (reward.xp > 0) add("+${reward.xp} ${strings[StringKeys.XP]}")
-                }.joinToString(DOT_SEPARATOR),
-                // The affirmative pair rather than a green literal of this file's own — see
-                // `TtoColors.positive`, which is where `ServersScreen`'s went too.
-                color = LocalTtoColors.current.positive,
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.testTag(MATCH_PAYOUT_TEST_TAG),
-            )
+            // **Shown when something was actually paid**, which used to be unconditional: every
+            // *counted* result pays — win, draw and defeat alike, see `MatchRewards`, and no
+            // opponent in `npcs.json` pays zero for any of the three — so this reads exactly as it
+            // did for every match that goes on the record.
+            //
+            // A lesson does not (`MatchScript.counted`). Left unconditional, the tutorial ended on
+            // `+0 MGP` in the affirmative colour: a line announcing a reward, in the place a reward
+            // is announced, for a match deliberately paying none.
+            val payout = buildList {
+                if (reward.mgp > 0) add("+${reward.mgp} ${strings[StringKeys.MGP]}")
+                if (reward.xp > 0) add("+${reward.xp} ${strings[StringKeys.XP]}")
+            }
+            if (payout.isNotEmpty()) {
+                Text(
+                    text = payout.joinToString(DOT_SEPARATOR),
+                    // The affirmative pair rather than a green literal of this file's own — see
+                    // `TtoColors.positive`, which is where `ServersScreen`'s went too.
+                    color = LocalTtoColors.current.positive,
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.testTag(MATCH_PAYOUT_TEST_TAG),
+                )
+            }
 
             // **Named, not counted.** This said `Rewards: 1` — a line that tells the player
             // something happened and refuses to say what, about the only part of a match whose

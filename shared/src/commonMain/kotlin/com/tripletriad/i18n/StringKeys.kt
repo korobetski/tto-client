@@ -489,6 +489,111 @@ object StringKeys {
     /** The campaign entry `PVEScreen.as:79` draws as a bare `tt_tuto` texture with no label. */
     const val TUTORIAL: String = "APP_TUTORIAL"
 
+    /**
+     * The three rule lessons behind the original's, which the AS3 has nothing to say for.
+     *
+     * It taught one rule — All Open, and only by naming it — so there is no source wording to
+     * follow here and none is pretended: these are written for this port, in the tutor's voice, and
+     * every one of them describes a position that `TutorialPuzzleTest` pins. A line that named the
+     * wrong numbers would be the worst kind of defect this screen can have, which is why the
+     * numbers are asserted rather than proof-read.
+     */
+    const val LESSONS: String = "APP_LESSONS"
+    const val LESSONS_BLURB: String = "APP_LESSONS_BLURB"
+    const val LESSON_DONE: String = "APP_LESSON_DONE"
+    const val LESSON_NEXT: String = "APP_LESSON_NEXT"
+
+    /**
+     * What the end panel announces after a lesson, in place of `You win !`.
+     *
+     * Seven of the twelve are positions composed so the player cannot fail, so a victory is not
+     * what happened. The exam keeps the real result — see [MatchScript.outcomeTitle].
+     */
+    const val LESSON_COMPLETE: String = "APP_LESSON_COMPLETE"
+
+    /** The list's standing blurb, replaced once every lesson has been finished. */
+    const val LESSONS_ALL_DONE: String = "APP_LESSONS_ALL_DONE"
+
+    /**
+     * Where the last lesson leads, on the control that leads there.
+     *
+     * `STR_HELP` is the word the navigation uses for that screen and it was this button's label
+     * too, which made the course end on `Aide` — a menu item, in the place a course says goodbye.
+     * The destination is unchanged: `TutorialRematchPanel.nextLesson` dispatches `NEXT_SCREEN`,
+     * and `NEXT_SCREEN` is the rule book.
+     */
+    const val LESSON_TO_RULES: String = "APP_LESSON_TO_RULES"
+
+    /** One per lesson, for the course list. */
+    const val LESSON_TITLE_BASICS: String = "APP_LESSON_TITLE_BASICS"
+    const val LESSON_TITLE_SAME: String = "APP_LESSON_TITLE_SAME"
+    const val LESSON_TITLE_PLUS: String = "APP_LESSON_TITLE_PLUS"
+    const val LESSON_TITLE_COMBO: String = "APP_LESSON_TITLE_COMBO"
+    const val LESSON_TITLE_SAME_WALL: String = "APP_LESSON_TITLE_SAME_WALL"
+    const val LESSON_TITLE_REVERSE: String = "APP_LESSON_TITLE_REVERSE"
+    const val LESSON_TITLE_FALLEN_ACE: String = "APP_LESSON_TITLE_FALLEN_ACE"
+    const val LESSON_TITLE_REVERSE_FALLEN_ACE: String = "APP_LESSON_TITLE_REVERSE_FALLEN_ACE"
+    const val LESSON_TITLE_ELEMENTAL: String = "APP_LESSON_TITLE_ELEMENTAL"
+    const val LESSON_TITLE_BONUS: String = "APP_LESSON_TITLE_BONUS"
+    const val LESSON_TITLE_ORDER: String = "APP_LESSON_TITLE_ORDER"
+    const val LESSON_TITLE_EXAM: String = "APP_LESSON_TITLE_EXAM"
+    /**
+     * The opening match's closing lines — **three**, where a position lesson has one.
+     *
+     * It is a whole nine-placement game and the tutor watched it, so what it ends on can react to
+     * how it went. The positions cannot be lost, so their one sentence is about the rule instead;
+     * see [LESSON_SAME_DONE] and its siblings.
+     */
+    const val LESSON_BASICS_WIN: String = "APP_LESSON_BASICS_WIN"
+    const val LESSON_BASICS_LOSE: String = "APP_LESSON_BASICS_LOSE"
+    const val LESSON_BASICS_DRAW: String = "APP_LESSON_BASICS_DRAW"
+    const val LESSON_SAME_1: String = "APP_LESSON_SAME_1"
+    const val LESSON_SAME_2: String = "APP_LESSON_SAME_2"
+    const val LESSON_SAME_DONE: String = "APP_LESSON_SAME_DONE"
+    const val LESSON_PLUS_1: String = "APP_LESSON_PLUS_1"
+    const val LESSON_PLUS_2: String = "APP_LESSON_PLUS_2"
+    const val LESSON_PLUS_DONE: String = "APP_LESSON_PLUS_DONE"
+    const val LESSON_COMBO_1: String = "APP_LESSON_COMBO_1"
+    const val LESSON_COMBO_2: String = "APP_LESSON_COMBO_2"
+    const val LESSON_COMBO_DONE: String = "APP_LESSON_COMBO_DONE"
+    const val LESSON_SAME_WALL_1: String = "APP_LESSON_SAME_WALL_1"
+    const val LESSON_SAME_WALL_2: String = "APP_LESSON_SAME_WALL_2"
+    const val LESSON_SAME_WALL_DONE: String = "APP_LESSON_SAME_WALL_DONE"
+    const val LESSON_REVERSE_1: String = "APP_LESSON_REVERSE_1"
+    const val LESSON_REVERSE_2: String = "APP_LESSON_REVERSE_2"
+    const val LESSON_REVERSE_DONE: String = "APP_LESSON_REVERSE_DONE"
+    const val LESSON_FALLEN_ACE_1: String = "APP_LESSON_FALLEN_ACE_1"
+    const val LESSON_FALLEN_ACE_2: String = "APP_LESSON_FALLEN_ACE_2"
+    const val LESSON_FALLEN_ACE_DONE: String = "APP_LESSON_FALLEN_ACE_DONE"
+    const val LESSON_REVERSE_FALLEN_ACE_1: String = "APP_LESSON_REVERSE_FALLEN_ACE_1"
+    const val LESSON_REVERSE_FALLEN_ACE_2: String = "APP_LESSON_REVERSE_FALLEN_ACE_2"
+    const val LESSON_REVERSE_FALLEN_ACE_DONE: String = "APP_LESSON_REVERSE_FALLEN_ACE_DONE"
+    const val LESSON_ELEMENTAL_1: String = "APP_LESSON_ELEMENTAL_1"
+    const val LESSON_ELEMENTAL_2: String = "APP_LESSON_ELEMENTAL_2"
+    const val LESSON_ELEMENTAL_DONE: String = "APP_LESSON_ELEMENTAL_DONE"
+
+    /**
+     * The two drills — a whole match each, so they speak twice rather than once.
+     *
+     * Three lines and not two because a drill has room for one: the third is said on the player's
+     * *third* move, which is the first moment a running tally has anything to point at. See
+     * `TutorialDrill`.
+     */
+    const val LESSON_BONUS_1: String = "APP_LESSON_BONUS_1"
+    const val LESSON_BONUS_2: String = "APP_LESSON_BONUS_2"
+    const val LESSON_BONUS_3: String = "APP_LESSON_BONUS_3"
+    const val LESSON_BONUS_DONE: String = "APP_LESSON_BONUS_DONE"
+    const val LESSON_ORDER_1: String = "APP_LESSON_ORDER_1"
+    const val LESSON_ORDER_2: String = "APP_LESSON_ORDER_2"
+    const val LESSON_ORDER_3: String = "APP_LESSON_ORDER_3"
+    const val LESSON_ORDER_DONE: String = "APP_LESSON_ORDER_DONE"
+
+    /** The exam says something different for each of the three results — it can be lost. */
+    const val LESSON_EXAM_START: String = "APP_LESSON_EXAM_START"
+    const val LESSON_EXAM_WIN: String = "APP_LESSON_EXAM_WIN"
+    const val LESSON_EXAM_LOSE: String = "APP_LESSON_EXAM_LOSE"
+    const val LESSON_EXAM_DRAW: String = "APP_LESSON_EXAM_DRAW"
+
     // ---- The two tournament ladders.
     /** `Campaigns` — the panel `PVEScreen.as:73` puts above the opponent list. */
     const val CAMPAIGNS: String = "STR_CAMPAIGNS"
@@ -731,6 +836,25 @@ object StringKeys {
         PVP_FORFEIT, PVP_YOU_LEFT, PVP_THEY_LEFT, PVP_OVER, PVP_NO_MATCH,
         TUTORIAL, TUTORIAL_1, TUTORIAL_2, TUTORIAL_3, TUTORIAL_4, TUTORIAL_5,
         TUTORIAL_6, TUTORIAL_7, TUTORIAL_8, TUTORIAL_9,
+        LESSONS, LESSONS_BLURB, LESSONS_ALL_DONE, LESSON_DONE, LESSON_NEXT,
+        LESSON_COMPLETE, LESSON_TO_RULES,
+        LESSON_TITLE_BASICS, LESSON_TITLE_SAME, LESSON_TITLE_PLUS, LESSON_TITLE_COMBO,
+        LESSON_TITLE_SAME_WALL, LESSON_TITLE_REVERSE, LESSON_TITLE_FALLEN_ACE,
+        LESSON_TITLE_REVERSE_FALLEN_ACE, LESSON_TITLE_ELEMENTAL,
+        LESSON_TITLE_BONUS, LESSON_TITLE_ORDER, LESSON_TITLE_EXAM,
+        LESSON_BASICS_WIN, LESSON_BASICS_LOSE, LESSON_BASICS_DRAW,
+        LESSON_SAME_1, LESSON_SAME_2, LESSON_SAME_DONE,
+        LESSON_PLUS_1, LESSON_PLUS_2, LESSON_PLUS_DONE,
+        LESSON_COMBO_1, LESSON_COMBO_2, LESSON_COMBO_DONE,
+        LESSON_SAME_WALL_1, LESSON_SAME_WALL_2, LESSON_SAME_WALL_DONE,
+        LESSON_REVERSE_1, LESSON_REVERSE_2, LESSON_REVERSE_DONE,
+        LESSON_FALLEN_ACE_1, LESSON_FALLEN_ACE_2, LESSON_FALLEN_ACE_DONE,
+        LESSON_REVERSE_FALLEN_ACE_1, LESSON_REVERSE_FALLEN_ACE_2,
+        LESSON_REVERSE_FALLEN_ACE_DONE,
+        LESSON_ELEMENTAL_1, LESSON_ELEMENTAL_2, LESSON_ELEMENTAL_DONE,
+        LESSON_BONUS_1, LESSON_BONUS_2, LESSON_BONUS_3, LESSON_BONUS_DONE,
+        LESSON_ORDER_1, LESSON_ORDER_2, LESSON_ORDER_3, LESSON_ORDER_DONE,
+        LESSON_EXAM_START, LESSON_EXAM_WIN, LESSON_EXAM_LOSE, LESSON_EXAM_DRAW,
         CAMPAIGNS, CAMPAIGN_STEP,
         SERVERS, CONTINUE, SESSION_RESTORED, SESSION_CONNECTING, SESSION_LAPSED,
         SIGN_IN_AGAIN, SWITCH_ACCOUNT,

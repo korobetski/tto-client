@@ -1,37 +1,54 @@
 package com.tripletriad.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.tripletriad.data.CardCatalog
 import com.tripletriad.data.Format
 import com.tripletriad.data.NpcCatalog
 import com.tripletriad.i18n.StringKeys
-import com.tripletriad.model.Card
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.MatchAiOptions
+import com.tripletriad.model.MatchResult
 import com.tripletriad.model.Npc
 import com.tripletriad.time.Clock
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The lesson — `TutorialScreen.as`, which is `PVEMatchScreen` with four methods overridden.
- * A scripted match under All Open, on a fixed hand, with the opponent moving first and playing the
- * worst card it can find, while nine lines explain what is happening. Everything that differs from
- * an ordinary match is in the [MatchScript] this builds; the match itself is [MatchScreen],
- * unmodified.
+ * One lesson of the course — `TutorialScreen.as`, which is `PVEMatchScreen` with four methods
+ * overridden, and the lessons this port added behind it. [LessonsScreen] is the list.
  *
- * ### Why it uses the shipped opponent rather than the AS3's inline one
- * `TutorialScreen.as:37-49` declares its own `NPC` inline — the same id, name, icon, rule and
- * fetish cards as the tt-master already in `npcs.json`, but with `matchFee: 0`, a smaller
- * `MGPReward` and item drop rates a third of the catalogue's. That is the shape `shopScreen` had
- * before Phase 2 pulled its price table out into `ShopCatalog`: data written into a screen.
- * This port reads the catalogue entry instead, and so **charges the tutorial's entry fee and pays
- * its full reward**. Both differences are deliberate and small — five MGP against a starting
- * balance of several hundred — and the alternative is a second tt-master record whose only purpose
- * is to be slightly different from the first, which is exactly the duplication the phase has been
- * removing. The lesson is not repeatable-for-profit either way: [MatchScreen]'s Rematch is replaced
- * with a route to the rule book, below.
+ * The first is the original, unchanged: a scripted match under All Open, on a fixed hand, with the
+ * opponent moving first and playing the worst card it can find, while nine lines explain what is
+ * happening. It teaches the board, the digits and capture, and it names All Open — **one rule of
+ * the seventeen the help screen lists**, which is what the rest answer. Those are one-move
+ * positions, one rule each; see [TUTORIAL_COURSE].
+ *
+ * Everything that differs from an ordinary match is in the [MatchScript] each lesson builds; the
+ * match itself is [MatchScreen], unmodified.
+ *
+ * ### The course leaves no mark on the record
+ *
+ * **No lesson counts**: not the win, not the defeat, not a draw, not the match counters behind
+ * `STATS.FORFEITS`, and nothing is paid for finishing one. A tutorial is practice, and practice
+ * that moved the record would make a player's win rate partly a record of being taught the rules —
+ * a course of four would open every character on four wins. It is [MatchScript.counted], applied at
+ * both ends: the match is never counted as started, and never credited when it ends.
+ *
+ * This **changes the first lesson**, which used to pay. `TutorialScreen.as:37-49` declares its own
+ * `NPC` inline — the same id, name, icon, rule and fetish cards as the tt-master already in
+ * `npcs.json`, but with `matchFee: 0`, a smaller `MGPReward` and item drop rates a third of the
+ * catalogue's. That is the shape `shopScreen` had before Phase 2 pulled its price table out into
+ * `ShopCatalog`: data written into a screen. Reading the catalogue entry instead meant the lesson
+ * charged the tt-master's fee and paid its full reward, which was defensible at five MGP for one
+ * match and is not the behaviour wanted now. The duplicate NPC record is still not the answer —
+ * the payout is a property of *this* match, not of who is teaching it, and that is where the flag
+ * lives.
  *
  * ### Three lines the original never showed
  * `opponentPhase` is called from **one** place — the red branch of `BaseMatchScreen.nextTurn`
@@ -50,7 +67,12 @@ import kotlin.time.Duration.Companion.seconds
  * @param onHelp where the end panel's first action goes — the rule book, replacing Rematch
  *   (`TutorialRematchPanel.nextLesson` dispatches `NEXT_SCREEN`, which is `HELP_SCREEN`).
  * @param onExit the second action, and the back chevron. `exitBtnHandler` sends both to
- *   `PVE_SCREEN`, which here is the opponent list.
+ *   `PVE_SCREEN`, which here is the course.
+ * @param from which lesson to open at, so the list can start one in the middle. The course then
+ *   runs on from there, as it always did.
+ * @param onFinished how many lessons are now done, once one has been. Called with the count rather
+ *   than the index so the caller stores a number it can compare against the course's length
+ *   without knowing anything about either.
  */
 @Composable
 @Suppress("LongParameterList")
@@ -64,30 +86,204 @@ internal fun TutorialScreen(
     onPersist: suspend (GameSave) -> Unit,
     onHelp: () -> Unit,
     onExit: () -> Unit,
+    from: Int = FIRST_LESSON,
+    onFinished: (Int) -> Unit = {},
 ) {
-    val script = remember(tutor.nameKey, format) {
-        MatchScript(
-            speakerKey = tutor.nameKey,
-            deck = tutorialDeck(),
-            firstPlayer = CardColor.RED,
-            turnLimit = TUTORIAL_TURN_LIMIT,
-            aiOptions = MatchAiOptions.TUTOR,
-            lesson = ::tutorialLines,
+    var step by remember(tutor.nameKey, format, from) { mutableStateOf(from) }
+
+    val script = remember(tutor.nameKey, format, step) {
+        scriptFor(step, tutor.nameKey, catalog)
+    }
+    // Only reachable if a puzzle's card ids do not resolve in this catalogue, which
+    // `TutorialPuzzleTest` rules out for the shipped one. Ending the course early is a better
+    // answer than a blank screen, and the rule book is where it was going to end anyway.
+    if (script == null) {
+        LaunchedEffect(step) { onHelp() }
+        return
+    }
+
+    // Keyed on the lesson rather than trusting the tutor to differ: `MatchScreen` re-deals on
+    // `npc.iconId`, and every lesson here is taught by the same tutor — so without this the second
+    // one would open on the first one's board. `CampaignMatchScreen` keys its rungs for the same
+    // reason.
+    key(step) {
+        MatchScreen(
+            catalog = catalog,
+            profile = profile,
+            npc = tutor,
+            format = format,
+            clock = clock,
+            nextSeed = nextSeed,
+            onPersist = onPersist,
+            onExit = onExit,
+            script = script,
+            scriptExit = exitFor(step, onHelp) { step += 1 },
+            // Reported when the result lands, not from the control the player happens to leave by:
+            // a lesson played to the end is finished whether they go on to the next one, back to
+            // the list or out to the rule book. Abandoning one mid-way produces no result and so
+            // marks nothing, which is the distinction worth keeping.
+            onResult = { onFinished(step + 1) },
         )
     }
-    MatchScreen(
-        catalog = catalog,
-        profile = profile,
-        npc = tutor,
-        format = format,
-        clock = clock,
-        nextSeed = nextSeed,
-        onPersist = onPersist,
-        onExit = onExit,
-        script = script,
-        scriptExit = ScriptExit(StringKeys.HELP, onHelp),
+}
+
+/**
+ * What the end panel offers: the next lesson, or — after the last — the rule book.
+ *
+ * The rule book stays the course's destination, which is what the original ends on
+ * (`TutorialRematchPanel.nextLesson` dispatches `NEXT_SCREEN`, which is `HELP_SCREEN`). It has
+ * simply stopped being where the *first* lesson leads, because there is now something between them.
+ *
+ * It is **named** for what it is now rather than for the screen it opens: the label was
+ * `StringKeys.HELP`, the navigation bar's own word, so twelve lessons and an exam ended on a button
+ * saying `Help`. See [StringKeys.LESSON_TO_RULES].
+ */
+private fun exitFor(step: Int, onHelp: () -> Unit, onNext: () -> Unit): ScriptExit =
+    if (step < LAST_LESSON) {
+        ScriptExit(StringKeys.LESSON_NEXT, onNext)
+    } else {
+        ScriptExit(StringKeys.LESSON_TO_RULES, onHelp)
+    }
+
+/**
+ * The script for one lesson: the opening match, a rule position, or a rule match.
+ *
+ * Null when a puzzle cannot be built from [catalog] (see [puzzleSetup]) or when [step] is not a
+ * lesson at all. **Nothing but the opening is identified by its index** — which row is which is the
+ * row's own business, so a lesson added anywhere in [TUTORIAL_COURSE] needs no change here.
+ *
+ * `counted = false` on every one of them, first lesson and exam included; see this file's header.
+ *
+ * @param speakerKey whose name goes on the bubbles — the tutor's, and the only thing about them a
+ *   lesson reads. Taken as the key rather than as the [Npc] so a test can build every lesson in the
+ *   course without a catalogue of opponents; see `LessonRecordTest`.
+ */
+internal fun scriptFor(step: Int, speakerKey: String, catalog: CardCatalog): MatchScript? {
+    val lesson = TUTORIAL_COURSE.getOrNull(step) ?: return null
+
+    return when {
+        step == FIRST_LESSON -> openingScript(speakerKey)
+        lesson.puzzle != null -> puzzleScript(lesson.puzzle, speakerKey, catalog)
+        lesson.drill != null -> drillScript(lesson.drill, speakerKey)
+        else -> null
+    }
+}
+
+/**
+ * The ported `TutorialScreen`, whole: the fixed hand, the rigged flip, the doubled turn and the
+ * opponent that plays its worst move.
+ *
+ * ### And a closing line, which it never had
+ *
+ * The AS3 ends `TutorialScreen` on `TutorialRematchPanel` and says nothing over it, so the longest
+ * lesson in the course — nine placements, nine spoken lines — was the one that finished in silence
+ * while every one-move position after it closed with a sentence. `LessonScriptTest` is what now
+ * fails if a lesson is added without one.
+ *
+ * **Three lines rather than one**, unlike the positions. A position is composed so it cannot be
+ * lost, so its single sentence is about the rule and the score is beside the point; this is a whole
+ * game that the tutor watched, and it can go three ways even against an opponent playing its worst
+ * move. A congratulation printed over a defeat is exactly the kind of thing a scripted match gets
+ * wrong.
+ */
+private fun openingScript(speakerKey: String): MatchScript = MatchScript(
+    speakerKey = speakerKey,
+    deck = tutorialDeck(),
+    firstPlayer = CardColor.RED,
+    turnLimit = TUTORIAL_TURN_LIMIT,
+    aiOptions = MatchAiOptions.TUTOR,
+    lesson = ::tutorialLines,
+    outcomeLines = mapOf(
+        MatchResult.WIN to StringKeys.LESSON_BASICS_WIN,
+        MatchResult.LOSE to StringKeys.LESSON_BASICS_LOSE,
+        MatchResult.DRAW to StringKeys.LESSON_BASICS_DRAW,
+    ),
+    counted = false,
+    explains = true,
+    outcomeTitle = StringKeys.LESSON_COMPLETE,
+)
+
+/**
+ * One rule, one move.
+ *
+ * A puzzle needs none of what the opening match fixes — there is one card to play and the opponent
+ * never moves again — but it does need the two things that lesson never asked for: its own rules and
+ * its own board.
+ */
+private fun puzzleScript(
+    puzzle: TutorialPuzzle,
+    speakerKey: String,
+    catalog: CardCatalog,
+): MatchScript? {
+    val opening = puzzleSetup(puzzle, catalog) ?: return null
+
+    return MatchScript(
+        speakerKey = speakerKey,
+        // The hand is inside the opening; this is what stops the deck selector opening, and it is
+        // the same list, so the two cannot disagree about what the player is holding.
+        deck = puzzle.hand,
+        turnLimit = TUTORIAL_TURN_LIMIT,
+        // Every line is spoken before the one move there is to make.
+        lesson = Lesson { placement, _ ->
+            puzzle.lines.takeIf { placement == puzzle.board.size }.orEmpty()
+        },
+        rules = puzzle.rules,
+        opening = opening,
+        // Said over the outcome panel, whatever the panel says: the position is composed so the
+        // player wins, but a lesson's closing sentence is about the rule and not about the score.
+        outcomeLines = whateverHappens(puzzle.closing),
+        counted = false,
+        // The ringed digits are most of what a rule lesson has to say: the two numbers that
+        // decided it, on the two cards that met. See `captureHighlights`.
+        explains = true,
+        // Not `You win !`: the position is composed so this cannot be lost. See
+        // [MatchScript.outcomeTitle].
+        outcomeTitle = StringKeys.LESSON_COMPLETE,
     )
 }
+
+/**
+ * One rule, a whole match — [TutorialDrill], which is where the reasoning for the shape lives.
+ *
+ * No `opening`, so the deal is a real one: that is the difference from a puzzle and the reason
+ * these two rules can be shown at all. Everything else the script fixes is [TutorialDrill.tutoring]
+ * spelled out — the opponent that plays to lose, the player opening so the lines land on the
+ * placements they were written for, the ringed digits, and the doubled clock the lesson's own
+ * sentences need. The exam turns all four off in one word.
+ *
+ * `counted = false` here as everywhere else in the course — the exam included, and *especially* the
+ * exam: a real match that paid would make the course a repeatable source of MGP.
+ */
+private fun drillScript(drill: TutorialDrill, speakerKey: String): MatchScript = MatchScript(
+    speakerKey = speakerKey,
+    deck = drill.deck,
+    firstPlayer = CardColor.BLUE.takeIf { drill.tutoring },
+    turnLimit = TUTORIAL_TURN_LIMIT.takeIf { drill.tutoring },
+    aiOptions = if (drill.tutoring) MatchAiOptions.TUTOR else MatchAiOptions(),
+    lesson = Lesson { placement, _ -> drill.lines[placement].orEmpty() },
+    outcomeLines = drill.outcomes,
+    rules = drill.rules,
+    counted = false,
+    explains = drill.tutoring,
+    // The exam is the one lesson whose result is worth announcing as a result, which is the same
+    // flag every other difference answers to.
+    outcomeTitle = StringKeys.LESSON_COMPLETE.takeIf { drill.tutoring },
+)
+
+/** The nine-line match the course opens with — the lesson this screen used to be, whole. */
+internal const val FIRST_LESSON = 0
+
+/**
+ * The last lesson's index — the course is [TUTORIAL_COURSE], and this is its end.
+ *
+ * A **getter**, so reading it is the only thing that touches the course. As a stored `val` it was
+ * evaluated while this file's own top-level properties were still being initialised, which is one
+ * half of a cycle: the course's exam row calls [tutorialDeck], and if that lived here it would be
+ * read before its own numbers had been assigned. It does not live here any more — see
+ * `TutorialLessons.kt` — and this closes the other half, so neither file can start the other's
+ * initialisation.
+ */
+internal val LAST_LESSON: Int get() = TUTORIAL_COURSE.size - 1
 
 /**
  * Who teaches the lesson in [collection] — the opponent with the lowest id.
@@ -137,37 +333,6 @@ private const val TUTOR_OPENS = 0
 private const val PLAYER_OPENS = 1
 private const val TUTOR_REPLIES = 2
 private const val PLAYER_REPLIES = 3
-
-/**
- * `BLUE_CARDS = [1, 3, 6, 7, 10]` (`TutorialScreen.as:54`) — the hand the lesson is written around.
- *
- * Fixed rather than chosen, and it has to be: line 5 tells the player to pick a card with a bigger
- * number on the touching side, which is only sound advice if the hand is known to contain one.
- *
- * These are card **numbers**, resolved against the set the character plays — so an `ff8_` character
- * is dealt the first, third, sixth, seventh and tenth FF8 cards, exactly as before. That used to
- * happen for free, because an id meant nothing without `MODE` to read it through; ids are global
- * now, so the indirection the lesson depends on has to be spelled out. Left implicit, the tutorial
- * would deal five FFXIV cards to an FFVIII character and then fail to resolve them.
- *
- * The lesson holds either way, because it never names a card.
- */
-@Suppress("MagicNumber") // Transcribed card numbers: naming each one would say nothing it does not.
-private val TUTORIAL_NUMBERS = listOf(1, 3, 6, 7, 10)
-
-/** [TUTORIAL_NUMBERS] as ids in [collection]'s own set. */
-/**
- * The five cards the lesson deals the player.
- *
- * Fixed to the first block rather than to the character's collection, which no longer exists. The
- * tutorial deals its own hand — the script fixes the deal — so these are not cards the player owns
- * and never were; what matters is that the nine written lines describe them.
- */
-private fun tutorialDeck(): List<Int> =
-    TUTORIAL_NUMBERS.map { Card.idFor(block = TUTORIAL_BLOCK, number = it) }
-
-/** The block the lesson's five cards come from. See [tutorialDeck]. */
-private const val TUTORIAL_BLOCK = 1
 
 /** `bluePlayer.timer = 60` — see [MatchScript.turnLimit] for why it is double. */
 private val TUTORIAL_TURN_LIMIT = 60.seconds

@@ -33,6 +33,19 @@ data class UserSettings(
     @SerialName("language") val language: String = AppLocale.Default.tag,
     @SerialName("background_volume") val backgroundVolume: Float = FULL_VOLUME,
     @SerialName("noise_volume") val noiseVolume: Float = FULL_VOLUME,
+    /**
+     * How many tutorial lessons have been finished — see [com.tripletriad.ui.LessonsScreen].
+     *
+     * Here rather than in `GameSave` deliberately. A save is the *character*: what it owns, what it
+     * has won, what the server holds a copy of. Knowing the rules is none of those — it belongs to
+     * the person, who does not have to be taught Plus again for making a second character — and
+     * putting it in the save would mean a `tto-core` release and a protocol version for a number
+     * no match is ever played against.
+     *
+     * The cost is honest and worth stating: this file is per-device, so signing in elsewhere
+     * starts the course over. Moving it into the save later is a migration of a local file.
+     */
+    @SerialName("lessons_done") val lessonsDone: Int = 0,
 ) {
     /**
      * [language] as a locale, [AppLocale.Default] if the file names one this build does not have.
@@ -52,6 +65,10 @@ data class UserSettings(
     fun sane(): UserSettings = copy(
         backgroundVolume = backgroundVolume.coerceIn(0f, FULL_VOLUME),
         noiseVolume = noiseVolume.coerceIn(0f, FULL_VOLUME),
+        // Only the floor is enforced. A count above the course length is what a *downgrade* looks
+        // like — a file written by a build with more lessons in it — and clamping it here would
+        // quietly reopen lessons the player has finished if they went back to that build.
+        lessonsDone = lessonsDone.coerceAtLeast(0),
     )
 
     companion object {

@@ -61,9 +61,14 @@ internal fun ComposeUiTest.existsUnmerged(tag: String): Boolean =
  * Going through the settings *file* rather than a parameter is strictly better: it is the path the
  * app really takes, so these tests also cover `UserSettingsRepository` reading a language and the
  * whole tree rendering in it.
+ *
+ * @param lessonsDone how much of the course this device has already finished, for the two states a
+ *   test cannot otherwise reach without playing twelve lessons through the UI. Written as the same
+ *   field the app persists, so a test asking for a finished course is asking for the state a
+ *   finished course actually leaves behind rather than for a flag of its own.
  */
-internal fun settingsFor(locale: AppLocale): SettingsStore =
-    InMemorySettingsStore("""{"language":"${locale.tag}"}""")
+internal fun settingsFor(locale: AppLocale, lessonsDone: Int = 0): SettingsStore =
+    InMemorySettingsStore("""{"language":"${locale.tag}","lessonsDone":$lessonsDone}""")
 
 /**
  * Blocks until the splash finishes and the main menu is up.
@@ -141,6 +146,18 @@ internal fun ComposeUiTest.awaitOpponents() {
 }
 
 /** The dashboard's Play, which is the only way to the opponent list. */
+/**
+ * The dashboard's Lessons card, which is the only way to the course.
+ *
+ * It used to be a row on the opponent list; see `LessonsScreen` for why it moved and why there is
+ * one entry rather than two.
+ */
+@OptIn(ExperimentalTestApi::class)
+internal fun ComposeUiTest.openLessons() {
+    onNodeWithTag(DASHBOARD_LESSONS_TEST_TAG).performClick()
+    waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(LESSONS_LIST_TEST_TAG) }
+}
+
 @OptIn(ExperimentalTestApi::class)
 internal fun ComposeUiTest.openOpponents() {
     onNodeWithTag(DASHBOARD_PLAY_TEST_TAG).performClick()

@@ -36,7 +36,15 @@ const val OPPONENT_EMPTY_TEST_TAG: String = "opponent-empty"
 const val OPPONENT_LOCKED_TEST_TAG: String = "opponent-locked"
 
 /** The campaign entry that opens the lesson. */
-const val TUTORIAL_ROW_TEST_TAG: String = "tutorial-row"
+/*
+ * `TUTORIAL_ROW_TEST_TAG` used to be here, over a row this panel drew above the ladders —
+ * `PVEScreen.as:79` draws the tutorial as a bare `tt_tuto` texture in exactly that place.
+ *
+ * It is gone because the tutorial is no longer one thing: it is a course of twelve lessons with an
+ * order and a place you are up to, none of which a row on a list of *opponents* can say. It has a
+ * screen and a dashboard entry of its own — see `LessonsScreen`, which explains the move and why
+ * there is only one way in.
+ */
 
 /** `opponent-row-<iconId>` — unique across both tables, which the NPC `id` is not. */
 fun opponentRowTestTag(iconId: String): String = "opponent-row-$iconId"
@@ -84,7 +92,6 @@ internal fun OpponentScreen(
     hour: Int,
     formatId: String,
     onChallenge: (Npc) -> Unit,
-    onTutorial: () -> Unit,
     campaigns: List<Campaign>,
     onCampaign: (Campaign) -> Unit,
     onBack: () -> Unit,
@@ -106,7 +113,6 @@ internal fun OpponentScreen(
     ) {
         CampaignPanel(
             campaigns = campaigns,
-            onTutorial = onTutorial,
             onCampaign = onCampaign,
         )
 
@@ -163,17 +169,11 @@ private const val LOCKED_KEY = "locked-note"
 @Composable
 private fun CampaignPanel(
     campaigns: List<Campaign>,
-    onTutorial: () -> Unit,
     onCampaign: (Campaign) -> Unit,
 ) {
     val strings = LocalStrings.current
 
     SectionHeader(text = strings[StringKeys.CAMPAIGNS], modifier = Modifier.fillMaxWidth())
-    CampaignRow(
-        label = strings[StringKeys.TUTORIAL],
-        tag = TUTORIAL_ROW_TEST_TAG,
-        onClick = onTutorial,
-    )
     for (campaign in campaigns) {
         CampaignRow(
             label = campaignTitle(strings, campaign),

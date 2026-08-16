@@ -39,6 +39,8 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.tripletriad.audio.LocalAudio
+import com.tripletriad.audio.Sound
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.Card
@@ -71,6 +73,50 @@ fun pvpHandTestTag(slot: Int): String = "pvp-card-$slot"
 
 /** `pvp-back-<slot>` — a card the opponent holds that this player may not see. */
 fun pvpBackTestTag(slot: Int): String = "pvp-back-$slot"
+
+/**
+ * What each placement sounds like, for a board a referee is running.
+ *
+ * The mapping itself is shared with the PvE match — see [placementSound] and [cascadeSounds], and
+ * the reason it is shared: a capture is the same event whoever resolved it. What is different here
+ * is only *when* to play it, which is the same problem [pvpBannerQueue] solves and is solved the
+ * same way: a client that joins a match in progress must not replay everything it missed as it
+ * arrives, so anything at or below the placement it first saw is history rather than news.
+ *
+ * The cascade is awaited in place rather than launched, unlike the PvE screen's. Nothing in this
+ * effect assigns the state it is keyed on — the view comes from the session — so a suspend here
+ * survives to the end, and a *new* placement arriving cancels it, which is what should happen: the
+ * board has moved on.
+ *
+ * The deal is announced too, on the first view of a match. `MatchScreen` plays it when the cards are
+ * dealt; here they were dealt somewhere else, and the first sight of them is the nearest moment.
+ */
+@Composable
+private fun PvpMatchSounds(matchId: String?, view: MatchView?) {
+    val audio = LocalAudio.current
+    val joinedAt = remember(matchId) { view?.placement ?: 0 }
+
+    LaunchedEffect(matchId, view?.placement) {
+        if (matchId == null || view == null) return@LaunchedEffect
+
+        if (view.placement <= joinedAt) {
+            // Nothing has been played since this client arrived. The one thing worth saying is
+            // that there is a match at all, and only for a board still at its opening.
+            if (view.placement == 0) audio.play(Sound.MATCH_OPEN)
+            return@LaunchedEffect
+        }
+
+        val captures = view.lastPlay?.captures.orEmpty()
+        placementSound(audio, captures, finished = view.isFinished)
+        cascadeSounds(
+            audio = audio,
+            captures = captures,
+            // From this player's side, which against a person is not always blue — see
+            // [cascadeSounds]. A draw answers null and stays silent, as the original's does.
+            won = if (view.isFinished) view.score.winner()?.let { it == view.side } else null,
+        )
+    }
+}
 
 /**
  * A match against another person.
@@ -128,6 +174,10 @@ internal fun PvpMatchScreen(
     // the server says" and the announcements are not something the server says — they are derived
     // from the rules, which it does. See `serverIntroAnimations`.
     val banners = pvpBannerQueue(wire?.matchId, view)
+
+    // And the sounds, which were absent for the same reason and are worth more: a capture the
+    // player did not initiate is a thing that happens while they are looking elsewhere.
+    PvpMatchSounds(wire?.matchId, view)
 
     // The opponent's move can make a selected card unplayable — Order and Chaos both move on. Kept
     // only while the server still lists it, so a stale highlight cannot survive a turn.
@@ -362,6 +412,16 @@ private fun PvpPlayArea(
                 scale = layout.boardScale,
                 drag = drag,
                 held = selected ?: drag.card.takeIf { drag.isDragging },
+                // Nothing ringed, and not merely because this is not a lesson: `captureHighlights`
+                // reads `MatchState.lastPlay`, and a refereed match has no `MatchState` on this
+                // side at all — the referee resolved the placement and sent the board that came
+                // out of it. Passed rather than defaulted so a board that *could* explain has to
+                // say it is choosing not to.
+                highlights = emptyMap(),
+                // The stagger *is* passed: `MatchView.lastPlay` carries the same captures with the
+                // same waves, so a combo the referee resolved turns exactly as one this client did.
+                // That is the whole of "the same delay in every mode".
+                waves = captureWaves(view.lastPlay),
                 onPlace = onPlace,
             )
             OwnRow(
@@ -413,6 +473,12 @@ private fun OpponentRow(view: MatchView, layout: MatchLayout) {
  * Both gestures, as in a PvE match: tap to select then tap a cell, or drag the card onto one.
  * `Card._draggable` gates the second the same way the first is gated — dragging a card the rules
  * forbid and watching the drop do nothing is worse feedback than a card that cannot be lifted.
+ *
+ * Under Order and Chaos the one card left also **wears a ring**, and the dimming is now asked of
+ * [handIsNarrowed] rather than read straight off the index list. Both changes matter for the same
+ * reason: `MatchView.playableHandIndices` is documented as **empty while it is not this side's
+ * turn**, so the old `playable -> 1f` dimmed the whole hand a second time on top of the row's own
+ * inactive alpha, and would have ringed nothing at the moment there was nothing to ring anyway.
  */
 @Composable
 @Suppress("LongParameterList")
@@ -424,6 +490,12 @@ private fun OwnRow(
     onSelect: (Card) -> Unit,
     onDrop: (Card, Int) -> Unit,
 ) {
+    val narrowed = handIsNarrowed(
+        held = view.ownHand.size,
+        playable = view.playableHandIndices.size,
+        isMyTurn = view.isMyTurn,
+    )
+
     Row(
         horizontalArrangement = Arrangement.spacedBy(HandGap * layout.scale),
         modifier = Modifier.graphicsLayer {
@@ -477,12 +549,14 @@ private fun OwnRow(
                             // Dimmed rather than removed while in the air: taking it out of the row
                             // would re-lay-out the cards beside it mid-gesture.
                             lifted -> DRAG_SOURCE_ALPHA
-                            playable -> 1f
-                            else -> INACTIVE_HAND_ALPHA
+                            narrowed && !playable -> INACTIVE_HAND_ALPHA
+                            else -> 1f
                         }
                     },
             ) {
                 CardFace(card = card, scale = layout.scale)
+                // Never both, as in the PvE hand: a chosen card that has been picked up is simply
+                // the selected one.
                 if (selected?.id == card.id) {
                     Spacer(
                         modifier = Modifier
@@ -493,6 +567,8 @@ private fun OwnRow(
                                 TileShape,
                             ),
                     )
+                } else if (narrowed && playable) {
+                    PlayableRing(scale = layout.scale)
                 }
             }
         }

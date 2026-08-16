@@ -237,7 +237,50 @@ class MatchAudioTest {
         assertEquals(0f, audio.volumes?.second)
     }
 
+    /**
+     * **A chain sounds once per generation, behind the capture that started it.**
+     *
+     * Played through the Combo lesson rather than an ordinary match, because an ordinary match does
+     * not promise a chain: the position is composed so that exactly one card falls to the wave, so
+     * "exactly one COMBO" is a claim about the mapping rather than about the deal.
+     *
+     * Two things asserted, and the second is the one with teeth. The count says a generation is one
+     * event and not a per-card volume spike. The **order** says the sound belongs to the flip: it is
+     * recorded after the capture that started the chain, which it cannot be if it is still fired on
+     * the placement's own frame. See `comboSounds`.
+     */
+    @Test
+    fun aChainSoundsOncePerGenerationAndAfterTheCaptureThatStartedIt() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US), audio = audio) }
+        newCharacter()
+        openLessons()
+        onNodeWithTag(lessonRowTestTag(COMBO_LESSON_ROW)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(BOARD_TEST_TAG) }
+
+        audio.clear()
+        playOneCard()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { Sound.COMBO in audio }
+
+        assertEquals(
+            1,
+            audio.played.count { it == Sound.COMBO },
+            "one generation, one combo: ${audio.played}",
+        )
+        assertTrue(Sound.CARD_CAPTURED in audio, "the placement captured: ${audio.played}")
+        assertTrue(
+            audio.played.indexOf(Sound.CARD_CAPTURED) < audio.played.indexOf(Sound.COMBO),
+            "the chain sounds after the capture it came from: ${audio.played}",
+        )
+        assertTrue(
+            audio.played.indexOf(Sound.COMBO) < audio.played.indexOf(Sound.BLUE_WINS),
+            "and the result is announced after the last card turns: ${audio.played}",
+        )
+    }
+
     private companion object {
+        /** The Combo lesson's row: the opening match, Same, Plus, then this. */
+        const val COMBO_LESSON_ROW = 3
+
         /**
          * The fewest placements the player makes in a match.
          *

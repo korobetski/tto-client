@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.sp
 import com.tripletriad.model.AscensionTally
 import com.tripletriad.model.Board
 import com.tripletriad.model.Card
+import com.tripletriad.model.CaptureKind
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.CardType
 import com.tripletriad.model.GameRules
@@ -59,11 +60,14 @@ import com.tripletriad.model.HAND_SIZE
 import com.tripletriad.model.HandVisibility
 import com.tripletriad.model.MatchState
 import com.tripletriad.model.PlacedCard
+import com.tripletriad.model.PlayResult
+import com.tripletriad.model.Side
 import com.tripletriad.model.TypeRule
 import com.tripletriad.model.elementalModifier
 import com.tripletriad.model.powerModifier
 import com.tripletriad.ui.theme.LocalTtoColors
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -85,6 +89,8 @@ internal fun PlayArea(
     visibility: HandVisibility,
     layout: MatchLayout,
     playable: List<Card>,
+    highlights: Map<Int, Set<Side>>,
+    waves: Map<Int, Int>,
     onSelect: (Card) -> Unit,
     onPlace: (Int) -> Unit,
     onDrop: (Card, Int) -> Unit,
@@ -115,6 +121,8 @@ internal fun PlayArea(
             // Elemental rule the cells are not interchangeable: which of them helps depends on
             // *this* card's own element. See [TileCell].
             held = selected ?: drag.card.takeIf { drag.isDragging },
+            highlights = highlights,
+            waves = waves,
             onPlace = onPlace,
         )
     }
@@ -203,6 +211,103 @@ internal fun DragGhost(drag: BoardDragState, scale: Float) {
 }
 
 /**
+ * Which digits decided the last placement, by cell.
+ *
+ * A capture is always a comparison between **two facing sides**, and the pair is derivable from what
+ * the engine already says: which cell fell, which cell the attack came from, and adjacency. So the
+ * card that fell lights the side that lost, and the card that took it lights the side it won with.
+ *
+ * ### The chain is included, and how its attacker is found
+ *
+ * A combo capture did not lose to the placed card — it lost to a card that had *just turned*. Its
+ * attacker is therefore one of the previous wave's captures, and the one adjacent to it. Two facts
+ * from the engine make that a lookup rather than a re-derivation:
+ *
+ * - `Capture.wave` numbers the generations, so the candidates for a wave-*n* capture are the
+ *   wave-*(n−1)* ones;
+ * - **combo never chains off a basic capture** (`RulesEngine.propagate`, and
+ *   [com.tripletriad.model.GameRules.comboEnabled]), so a first-generation combo's attacker is one
+ *   of the *special* captures.
+ *
+ * Where more than one candidate is adjacent, the pair is genuinely ambiguous without re-running the
+ * comparison — which is rules logic, and would not belong in a composable. That card is left dark
+ * rather than guessed at. On the boards the lessons use it never happens.
+ *
+ * Empty when nothing was captured, when the board has not been played on, or when the caller does
+ * not want it — an ordinary match lights nothing. See [MatchScript.explains].
+ */
+internal fun captureHighlights(board: Board, play: PlayResult?): Map<Int, Set<Side>> {
+    if (play == null) return emptyMap()
+    val lit = mutableMapOf<Int, MutableSet<Side>>()
+
+    for (capture in play.captures) {
+        val from = attackers(play, capture.wave)
+        // The side of the *captured* card that faces its attacker. One code path for the placement
+        // and for the chain, because "which neighbour took me" is the same question either way.
+        val side = Side.entries.singleOrNull { board.neighbour(capture.position, it) in from }
+            ?: continue
+        val attacker = board.neighbour(capture.position, side) ?: continue
+
+        lit.getOrPut(capture.position) { mutableSetOf() } += side
+        lit.getOrPut(attacker) { mutableSetOf() } += side.facing()
+    }
+    return lit
+}
+
+/** Where a capture at [wave] could have come from — see [captureHighlights]. */
+private fun attackers(play: PlayResult, wave: Int): Set<Int> = when (wave) {
+    FIRST_WAVE -> setOf(play.position)
+    // The generation before, and at the first remove only the special captures: a basic one never
+    // starts a chain.
+    FIRST_WAVE + 1 -> play.captures
+        .filter { it.wave == FIRST_WAVE && it.kind != CaptureKind.BASIC }
+        .mapTo(mutableSetOf()) { it.position }
+    else -> play.captures.filter { it.wave == wave - 1 }.mapTo(mutableSetOf()) { it.position }
+}
+
+/**
+ * Which generation each captured card belongs to — 0 for the placement's own, 1 and up for the
+ * chain behind it.
+ *
+ * What it is for: **letting a combo be seen happening**. Every captured card used to turn on the
+ * same frame, so a chain of three looked like one placement taking three cards, and the rule that
+ * makes the third fall — a card captured by Same, Plus or Same Wall attacking its own neighbours in
+ * turn — was invisible. Staggered by generation it reads as what it is, a wave.
+ *
+ * A property of the *result*, not of the mode: the same map is built for a match this client ran
+ * and for one a referee sent back, and both pass it to the same board. See [COMBO_WAVE_MS].
+ */
+internal fun captureWaves(play: PlayResult?): Map<Int, Int> =
+    play?.captures.orEmpty().associate { it.position to it.wave }
+
+/**
+ * How long a card waits per generation before it turns.
+ *
+ * Long enough to read as "and then that one took the next", short enough that a three-card chain
+ * does not become a cutscene. **One constant for every mode**: a combo is the same event whoever
+ * resolved it, and a rule that looked different against the referee than against the AI would be
+ * teaching two things.
+ *
+ * The AS3 has no equivalent — `TTOCore.animate` walks its `cardToFlip` array and calls `flipTo` on
+ * each in the same frame, and its own `waveEffect` grouping is the array it is still mutating (see
+ * `RulesEngine.propagate`, which rewrote that). So the wave existed in the data and never on screen.
+ */
+internal const val COMBO_WAVE_MS: Long = 450L
+
+/**
+ * How much longer the whole cascade takes than a single flip.
+ *
+ * What the callers who have to *wait* for it need: the opponent, which must not move while cards
+ * are still turning, and the outcome panel, which must not cover them. Zero when nothing chained,
+ * so an ordinary capture is paced exactly as it was.
+ */
+internal fun waveDelayMillis(play: PlayResult?): Long =
+    (play?.captures.orEmpty().maxOfOrNull { it.wave } ?: FIRST_WAVE) * COMBO_WAVE_MS
+
+/** The placement's own captures. Anything above this fell to the chain. */
+private const val FIRST_WAVE = 0
+
+/**
  * The 3×3 board. Empty cells show their element, if the board has one.
  *
  * Every cell is also a drop target: it registers its own bounds with [drag] and lights up while the
@@ -228,6 +333,8 @@ internal fun BoardGrid(
     scale: Float,
     drag: BoardDragState,
     held: Card?,
+    highlights: Map<Int, Set<Side>>,
+    waves: Map<Int, Int>,
     onPlace: (Int) -> Unit,
 ) {
     val hovered = drag.hovered()
@@ -256,6 +363,8 @@ internal fun BoardGrid(
                         isTarget = hovered == position && free,
                         isOpen = held != null && free,
                         held = held,
+                        highlight = highlights[position].orEmpty(),
+                        wave = waves[position] ?: 0,
                         modifier = Modifier
                             .testTag(tileTestTag(position))
                             .onGloballyPositioned { coordinates ->
@@ -337,6 +446,8 @@ private fun TileCell(
     isTarget: Boolean,
     isOpen: Boolean,
     held: Card?,
+    highlight: Set<Side>,
+    wave: Int,
     modifier: Modifier,
 ) {
     val game = LocalTtoColors.current
@@ -360,7 +471,7 @@ private fun TileCell(
         if (placed == null) {
             element?.let { ElementBadge(position = position, element = it, scale = scale) }
         } else {
-            BoardCard(placed, scale)
+            BoardCard(placed, scale, highlight, wave)
         }
 
         // The card's own modifier once it is down, under whichever rule is up; the held card's
@@ -482,7 +593,7 @@ private fun PowerModifierBadge(position: Int, value: Int, scale: Float, modifier
  * for the basic comparison, which is the only comparison it applies to.
  */
 @Composable
-private fun BoardCard(placed: PlacedCard, scale: Float) {
+private fun BoardCard(placed: PlacedCard, scale: Float, highlight: Set<Side>, wave: Int) {
     val squashY = remember { Animatable(1f) }
     val stretchX = remember { Animatable(1f) }
     val landing = remember { Animatable(0f) }
@@ -498,6 +609,10 @@ private fun BoardCard(placed: PlacedCard, scale: Float) {
 
     LaunchedEffect(placed.owner) {
         if (shown == placed.owner) return@LaunchedEffect
+        // A card that fell to the chain waits for the one that took it — see [captureWaves]. Held
+        // *before* the flip and not inside it, so what the player sees is the card sitting there
+        // unchanged while the previous generation turns, which is what makes it read as a wave.
+        delay(wave * COMBO_WAVE_MS)
         // `horizon = false` is the default and the only value the match screens pass, so the
         // squash is vertical and the widening horizontal.
         coroutineScope {
@@ -518,6 +633,7 @@ private fun BoardCard(placed: PlacedCard, scale: Float) {
     CardFace(
         card = placed.card.copy(owner = shown),
         scale = scale,
+        highlight = highlight,
         showBack = showBack,
         modifier = Modifier.graphicsLayer {
             // The landing and the flip multiply rather than override: a card captured while it
@@ -558,6 +674,11 @@ private fun HandArea(
     val cards = state.hands[owner].orEmpty()
     val active = state.currentPlayer == owner
     val gap = HandGap * layout.scale
+    // Only the player's own hand can be narrowed on screen: `playable` is what *they* may play, and
+    // it is empty while the opponent is thinking, so asking this of the red hand would report every
+    // red card as forbidden on red's own turn. See `handIsNarrowed`.
+    val narrowed = owner == CardColor.BLUE &&
+        handIsNarrowed(held = cards.size, playable = playable.size, isMyTurn = active)
 
     Box(
         modifier = Modifier
@@ -598,6 +719,15 @@ private fun HandArea(
                                     slot = slot,
                                     isSelected = active && selected?.id == card.id,
                                     active = active,
+                                    // Forbidden by Order or Chaos, and said so rather than merely
+                                    // enforced. The tap used to reach `onSelect`, which dropped it
+                                    // — see `MatchScreen`, where the guard is — so the card simply
+                                    // did not respond. That is the feedback the drag gate below
+                                    // already refuses to give, and the two now agree.
+                                    allowed = !narrowed || card in playable,
+                                    // Ringed when the rules have left exactly this one. Not when
+                                    // the whole hand is playable: five rings state nothing.
+                                    chosen = narrowed && card in playable,
                                     // Only the player's own playable cards are draggable.
                                     // `Card._draggable` is the same gate (`Card.as:137`), and it
                                     // matters more here than it looks: dragging a card that
@@ -642,6 +772,13 @@ private fun HandArea(
  *
  * @param drag the board's drag state, or **null** when this card may not be dragged. Null rather
  *   than a boolean beside it, so a card that cannot be dragged cannot reach the state at all.
+ * @param allowed whether the rules let this card be picked up at all — false only under Order and
+ *   Chaos, which leave one card of the five. Dimmed *and* unclickable, because a card that looks
+ *   ordinary and ignores a tap is the reading a player takes as a broken screen. See [PlayableRing]
+ *   for why this is said twice over.
+ * @param chosen this is the one card the rules leave, and it wears the ring that says so. Distinct
+ *   from `allowed` rather than its negation across the hand: with no rule narrowing anything every
+ *   card is allowed and none is chosen.
  */
 @Composable
 @Suppress("LongParameterList")
@@ -651,6 +788,8 @@ private fun HandCard(
     slot: Int,
     isSelected: Boolean,
     active: Boolean,
+    allowed: Boolean,
+    chosen: Boolean,
     faceUp: Boolean,
     scale: Float,
     drag: BoardDragState?,
@@ -691,23 +830,33 @@ private fun HandCard(
             // `ttoClickable`. `selected` is the ring the card wears when it is the one in hand,
             // and without it that ring is visible and unannounced.
             .semantics { selected = isSelected }
-            .clickable(enabled = active, role = Role.Button) { onSelect(card) },
+            .clickable(enabled = active && allowed, role = Role.Button) { onSelect(card) },
     ) {
         // Dimmed rather than removed while it is in the air: taking it out of the hand would
-        // re-lay-out the four cards beside it in the middle of the gesture.
+        // re-lay-out the four cards beside it in the middle of the gesture. The same dimming
+        // carries "the rules forbid this one", which is the value the whole hand already wears
+        // when it is not its turn — one meaning, "you cannot play this now", at one weight.
         Box(
             modifier = Modifier.graphicsLayer {
-                alpha = if (isBeingDragged) DRAG_SOURCE_ALPHA else 1f
+                alpha = when {
+                    isBeingDragged -> DRAG_SOURCE_ALPHA
+                    allowed -> 1f
+                    else -> INACTIVE_HAND_ALPHA
+                }
             },
         ) {
             CardFace(card = card, scale = scale, showBack = !faceUp)
         }
+        // Never both: a chosen card that has been picked up is simply the selected one, and two
+        // rings on one card at two weights would read as a rendering fault.
         if (isSelected) {
             Box(
                 modifier = Modifier
                     .size(CardSpriteWidth * scale, CardSpriteHeight * scale)
                     .border(SelectionRingWidth, LocalTtoColors.current.selectionRing, TileShape),
             )
+        } else if (chosen) {
+            PlayableRing(scale = scale)
         }
     }
 }

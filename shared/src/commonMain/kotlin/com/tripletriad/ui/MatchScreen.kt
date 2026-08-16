@@ -21,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,6 +59,7 @@ import com.tripletriad.protocol.TranscriptMove
 import com.tripletriad.time.Clock
 import com.tripletriad.ui.theme.LocalTtoColors
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -252,7 +254,7 @@ internal fun MatchScreen(
     // (`BaseMatchScreen.as:120-135`). Drawn once and passed into `assemble`, which would otherwise
     // roll the roulette a second time and play under rules the player was never shown.
     val rules = remember(matchIndex, npc.iconId) {
-        PveMatches.rulesFor(npc, format, random)
+        script.rulesOr { PveMatches.rulesFor(npc, format, random) }
     }
 
     /*
@@ -300,15 +302,17 @@ internal fun MatchScreen(
     }
 
     val match = remember(matchIndex, npc.iconId, chosen) {
-        PveMatches.assemble(
-            profile = profile,
-            npc = npc,
-            catalog = catalog,
-            format = format,
-            random = random,
-            plan = MatchPlan(rules, chosen),
-            forcedFlip = script.flip(),
-        )
+        script.matchOr(npc, rules) {
+            PveMatches.assemble(
+                profile = profile,
+                npc = npc,
+                catalog = catalog,
+                format = format,
+                random = random,
+                plan = MatchPlan(rules, chosen),
+                forcedFlip = script.flip(),
+            )
+        }
     }
     val ai = remember(script) { MatchAi(script.aiOptions()) }
 
@@ -388,15 +392,17 @@ internal fun MatchScreen(
      * board as it stands *before* the move being announced.
      */
     val lesson = remember(match, state.placement) { script.linesBefore(state) }
+    val speech = rememberLessonSpeech(state.placement, lesson)
 
     // The opponent's turn. Keyed on the placement count, so it fires once per turn and again
     // after a sudden-death rematch resets it — and never while the player is to move.
     LaunchedEffect(match, state.placement, state.isFinished) {
         if (state.isFinished || state.currentPlayer != CardColor.RED) return@LaunchedEffect
-        delay(
-            OPPONENT_PAUSE_MS + animationsFor(state, setup).sumOf { it.totalMillis } +
-                lessonPause(lesson),
-        )
+        // Held until the lesson has stopped talking — however long that took. `lessonPause` used
+        // to compute it from the line count, which stopped being true when a line became
+        // dismissible; see the note where it was removed, in `MatchScript`.
+        snapshotFlow { speech.isSpeaking }.first { !it }
+        delay(OPPONENT_PAUSE_MS + animationsFor(state, setup).sumOf { it.totalMillis })
         val next = ai.play(state, random)
         if (next.placement > state.placement) {
             visibility = visibility.reindexedFor(next)
@@ -420,14 +426,16 @@ internal fun MatchScreen(
             suddenDeath = true
             return@LaunchedEffect
         }
-        val credit = MatchRewards.credit(
-            save = playing,
-            npc = npc,
-            result = result,
-            rules = match.rules,
-            at = clock.nowMillis(),
-            random = random,
-        )
+        val credit = script.creditFor(result, playing) {
+            MatchRewards.credit(
+                save = playing,
+                npc = npc,
+                result = result,
+                rules = match.rules,
+                at = clock.nowMillis(),
+                random = random,
+            )
+        }
         reward = credit.reward
         onPersist(credit.save)
 
@@ -477,10 +485,14 @@ internal fun MatchScreen(
         }
     }
 
-    val turnFraction = turnClock(match, state, script.turnLimitOr(turnLimit), underway) {
-        // `sideRandom`: this is the player's turn, and the match generator is off limits there.
-        autoPlay(state, sideRandom)?.let { (card, position) -> place(card, position) }
-    }
+    // The clock is held while a lesson line is up, as well as behind the intro — see
+    // `LessonBubbles`. Resuming restarts the turn rather than continuing it, which is
+    // `turnClock`'s own behaviour on any key change and is the generous direction to be wrong in.
+    val turnFraction =
+        turnClock(match, state, script.turnLimitOr(turnLimit), underway && !speech.isSpeaking) {
+            // `sideRandom`: this is the player's turn, and the match generator is off limits.
+            autoPlay(state, sideRandom)?.let { (card, position) -> place(card, position) }
+        }
 
     val wide = LocalWideLayout.current
 
@@ -549,12 +561,7 @@ internal fun MatchScreen(
             // Held behind the pre-match announcements, which is where the original puts it:
             // `opponentPhase` is reached from `nextTurn`, and `nextTurn` runs after the whole
             // cascade. A lesson talking over the Start banner would also be two things at once.
-            LessonBubbles(
-                key = state.placement,
-                lines = lesson,
-                script = script,
-                enabled = underway,
-            )
+            LessonBubbles(speech = speech, script = script, enabled = underway)
 
             // And what the opponent says about how it went, over the panel as in `endGame`.
             OutcomeBubble(script = script, result = reward?.result)

@@ -63,10 +63,10 @@ class TutorialUiTest {
 
     /**
      * The first line is spoken before the opponent moves.
-     * The whole of the pacing in one assertion: the lines play after the pre-match captions and the
-     * opponent waits behind them ([lessonPause]), which is `setTimeout(AI, 18300)` behind three
-     * lines at 6.1s. If the AI were not held back, the lesson would be explaining a board that had
-     * already changed twice.
+     * The whole of the pacing in one assertion: the lines play after the pre-match captions, and
+     * the opponent waits behind them — on [LessonSpeech.isSpeaking] now rather than on the line
+     * count times 6.1 seconds, since a line can be tapped away. If the AI were not held back, the
+     * lesson would be explaining a board that had already changed twice.
      */
     @Test
     fun theTutorSpeaksBeforePlaying() = runComposeUiTest {
@@ -104,21 +104,58 @@ class TutorialUiTest {
     }
 
     /**
-     * The end panel offers the rule book where a match offers a rematch.
+     * The end panel leads on to the next lesson, where a match offers a rematch.
      *
-     * `TutorialRematchPanel.rematchFooter` overrides the footer with Help and Quit
-     * (`:19-33`), and `nextLesson` dispatches `NEXT_SCREEN`, which `TutorialScreen.endGame` sets to
-     * `HELP_SCREEN` on all three results. Replacing the control rather than adding one is also what
-     * keeps the lesson from being a repeatable source of MGP.
+     * `TutorialRematchPanel.rematchFooter` overrides the footer with Help and Quit (`:19-33`), and
+     * `nextLesson` dispatches `NEXT_SCREEN`, which `TutorialScreen.endGame` sets to `HELP_SCREEN`
+     * on all three results — so in the original this control ended the course, because the course
+     * was one match. It now advances through [TUTORIAL_PUZZLES] and only the last of them leads to
+     * the rule book; see [theCourseEndsAtTheRuleBook]. Replacing the control rather than adding one
+     * is unchanged, and is still what keeps a lesson from being a repeatable source of MGP.
      */
     @Test
-    fun theEndOfTheLessonLeadsToTheRuleBook() = runComposeUiTest {
+    fun theEndOfTheFirstLessonLeadsToTheNext() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
         openLesson()
 
         playOut()
 
-        assertTrue(isVisible("Help"), "the first action should be the rule book, not a rematch")
+        assertTrue(isVisible("Next lesson"), "the first action should lead on, not rematch")
+        onNodeWithTag(NEW_MATCH_TEST_TAG).performClick()
+
+        // The panel going away is what says the next lesson has opened — the board tag is up
+        // throughout, so waiting on it would wait for something that never stopped being true.
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { !isFinished() }
+
+        // The Same lesson: a board already eight cards deep, with one card left to place.
+        assertEquals(1, handSize(CardColor.BLUE), "one card, and one cell for it")
+        assertEquals(
+            0,
+            handSize(CardColor.RED),
+            "the opponent has nothing left to play; the lesson ends on the player's move",
+        )
+    }
+
+    /**
+     * The last lesson is the one that leads to the rule book — the original's own ending, moved.
+     *
+     * Played by walking the course rather than by jumping to the end: what is being asserted is
+     * that the sequence *terminates*, and a test that opened the last lesson directly could not
+     * tell the difference between a course of four and a course that loops.
+     */
+    @Test
+    fun theCourseEndsAtTheRuleBook() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        openLesson()
+
+        playOut()
+        repeat(TUTORIAL_PUZZLES.size) {
+            onNodeWithTag(NEW_MATCH_TEST_TAG).performClick()
+            waitUntil(timeoutMillis = UI_TIMEOUT_MS) { !isFinished() }
+            playOut()
+        }
+
+        assertTrue(isVisible("Help"), "the course should end at the rule book")
         onNodeWithTag(NEW_MATCH_TEST_TAG).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(HELP_LIST_TEST_TAG) }
     }

@@ -1,11 +1,15 @@
 package com.tripletriad.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.tripletriad.data.CampaignMessages
+import com.tripletriad.data.MatchCredit
+import com.tripletriad.data.MatchReward
+import com.tripletriad.data.PveMatch
 import com.tripletriad.data.PveMatches
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
@@ -16,7 +20,9 @@ import com.tripletriad.model.GameRules
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.MatchAiOptions
 import com.tripletriad.model.MatchResult
+import com.tripletriad.model.MatchSetup
 import com.tripletriad.model.MatchState
+import com.tripletriad.model.Npc
 import kotlin.time.Duration
 
 /**
@@ -61,6 +67,16 @@ import kotlin.time.Duration
  * @property outcomeLines what is said once the result is known — `talk(_messages.win)` and its two
  *   siblings, which the ladders play from `endGame` just before the panel opens. A map rather than
  *   a function so the whole type stays comparable.
+ * @property rules what the match is played under, or null to ask the opponent as usual. A rule
+ *   lesson is the only thing that needs this: which rules a match has are otherwise a property of
+ *   who is being played, and a lesson is played against a tutor who declares none of them.
+ * @property opening the position to start from, or null to deal one. **This is what makes a
+ *   one-move puzzle possible** — [MatchSetup] is a plain value, so a board eight cards deep is as
+ *   constructible as an empty one. See [puzzleSetup] for the invariants it has to keep.
+ * @property rewarded whether finishing pays. False for a lesson, and the reason is the one
+ *   [TutorialScreen] has always had to argue about: a scripted match the player cannot lose would
+ *   otherwise be a repeatable source of MGP, and three of them is three times the argument. The
+ *   match is still *counted* — see [creditFor].
  */
 internal data class MatchScript(
     val speakerKey: String,
@@ -70,6 +86,9 @@ internal data class MatchScript(
     val aiOptions: MatchAiOptions = MatchAiOptions(),
     val lesson: Lesson = Lesson.Silent,
     val outcomeLines: Map<MatchResult, String> = emptyMap(),
+    val rules: GameRules? = null,
+    val opening: MatchSetup? = null,
+    val rewarded: Boolean = true,
 )
 
 /**
@@ -130,6 +149,50 @@ internal fun MatchScript?.deckFor(rules: GameRules, profile: GameSave): List<Int
 /** The rigged flip a script needs, or null for a real toss. */
 internal fun MatchScript?.flip(): CoinFlip? = this?.firstPlayer?.let(CoinFlip::forced)
 
+/**
+ * What the match is played under: the script's rules, or [otherwise].
+ *
+ * [otherwise] is a lambda rather than a value because the ordinary answer **draws** — a roulette
+ * opponent's rules are rolled from the match generator, and rolling them for a lesson that then
+ * discards them would shift every later value the server expects. See [PveMatches.rulesFor].
+ */
+internal fun MatchScript?.rulesOr(otherwise: () -> GameRules): GameRules =
+    this?.rules ?: otherwise()
+
+/**
+ * The position to play: the script's opening, or a freshly dealt [otherwise].
+ *
+ * The rules and the opponent are passed in rather than read off the opening, because [PveMatch]
+ * carries all three and the other two are already settled by the time this is asked. Same reason
+ * [otherwise] is a lambda as above: dealing draws.
+ */
+internal fun MatchScript?.matchOr(npc: Npc, rules: GameRules, otherwise: () -> PveMatch): PveMatch =
+    this?.opening?.let { PveMatch(setup = it, npc = npc, rules = rules) } ?: otherwise()
+
+/**
+ * What a finished match pays — [earn], unless the script says it pays nothing.
+ *
+ * An unrewarded match is still **ended**, which is not a detail: `STATS.FORFEITS` is
+ * `startedMatches - endedMatches`, and [MatchScreen] counts every match as started the moment it
+ * opens. A lesson that paid nothing and closed nothing would leave a forfeit behind it, so the
+ * player's record would show three abandoned matches for finishing the tutorial.
+ *
+ * The reward is built rather than omitted because the outcome panel is what says the lesson is
+ * over: zero MGP and zero XP is the honest version of it, and the panel already renders that.
+ */
+internal fun MatchScript?.creditFor(
+    result: MatchResult,
+    playing: GameSave,
+    earn: () -> MatchCredit,
+): MatchCredit = if (this?.rewarded != false) {
+    earn()
+} else {
+    MatchCredit(
+        save = playing.endingMatch(),
+        reward = MatchReward(result = result, mgp = 0, xp = 0),
+    )
+}
+
 /** How the opponent plays: the script's strategy, or the ordinary one. */
 internal fun MatchScript?.aiOptions(): MatchAiOptions = this?.aiOptions ?: MatchAiOptions()
 
@@ -153,38 +216,71 @@ internal fun MatchScript?.linesBefore(state: MatchState): List<String> =
     this?.lesson?.linesBefore(state.placement, state.score.blue).orEmpty()
 
 /**
+ * How far through a turn's lines the lesson has got.
+ *
+ * Hoisted out of [LessonBubbles] because two other things have to know: the turn clock, which is
+ * held while a line is up, and the opponent, which waits for the lesson to finish before it moves.
+ * Both used to be answered by arithmetic over a fixed 6.1-second cadence — see [LessonBubbles] —
+ * and arithmetic stops being an answer the moment a line can be dismissed early.
+ */
+@Stable
+internal class LessonSpeech(private val lines: List<String>) {
+    private var spoken by mutableStateOf(0)
+
+    /** The line on screen, or null once they have all been said. */
+    val current: String? get() = lines.getOrNull(spoken)
+
+    /** Whether a line is still to be read. */
+    val isSpeaking: Boolean get() = current != null
+
+    /** This line is done; the next one, if any, follows. */
+    fun advance() {
+        spoken += 1
+    }
+}
+
+/**
+ * The lines for one placement, played once.
+ *
+ * @param key restarts the queue. The placement, so each turn's lines play once.
+ */
+@Composable
+internal fun rememberLessonSpeech(key: Any, lines: List<String>): LessonSpeech =
+    remember(key, lines) { LessonSpeech(lines) }
+
+/**
  * Plays a lesson's lines one after another, as bubbles.
  *
  * Sequential and gapped, matching the original's `setTimeout(talk, 6100, n)` cascade: a bubble
- * lives 5.8s — 0.4s in, 5s up, 0.4s out — and the next is scheduled at 6.1s, so there are 300ms of
- * quiet between two lines. Reproduced rather than run back-to-back because the pause is what makes
- * two paragraphs read as two paragraphs.
+ * lives 5.8s — 0.4s in, 5s up, 0.4s out — and the next follows. Reproduced rather than run
+ * back-to-back because the pause is what makes two paragraphs read as two paragraphs. A line may
+ * now also be **tapped away** before its five seconds are up; see [TalkBubble].
  *
- * ### The clock is deliberately not stopped
+ * ### The clock is held now, which it was not
  *
- * Unlike the pre-match captions — which [MatchScreen] does hold the turn timer behind — a lesson
- * line plays *during* the turn it is explaining, and the original's answer is to double the turn to
- * sixty seconds rather than to pause it ([MatchScript.turnLimit]). Pausing would be the larger
- * change and would also stop the bar moving for a minute at a time, which reads as a freeze.
+ * The original does not stop the turn timer for a lesson line — it doubles the turn to sixty
+ * seconds instead (`TutorialScreen.as:58`, [MatchScript.turnLimit]) — and this port followed it.
+ * That is a sound trade for nine lines and a bad one for a curriculum: the lines are the lesson,
+ * and a player who reads them is spending their turn on it. So [MatchScreen] holds the clock while
+ * a line is up, which is a deliberate deviation from the original and is recorded as one. The
+ * doubled turn stays, because it is what the first lesson was written around.
  *
- * @param key restarts the queue. The placement, so each turn's lines play once.
  * @param enabled whether the match has actually begun — false while the pre-match captions are
  *   still playing. The gate lives here rather than at the call site for the reason given on
  *   [MatchScript]: one branch fewer in a composable that has no room for another.
  */
 @Composable
-internal fun LessonBubbles(key: Any, lines: List<String>, script: MatchScript?, enabled: Boolean) {
-    if (!enabled || lines.isEmpty() || script == null) return
+internal fun LessonBubbles(speech: LessonSpeech, script: MatchScript?, enabled: Boolean) {
+    if (!enabled || script == null) return
     val strings = LocalStrings.current
-    var spoken by remember(key) { mutableStateOf(0) }
 
-    lines.getOrNull(spoken)?.let { line ->
+    speech.current?.let { line ->
         TalkBubble(
             message = strings[line],
             speaker = strings[script.speakerKey],
-            // Keyed on the line as well as the queue: two consecutive lines are two bubbles, and
-            // `TalkBubble` is keyed on its own message, so this only has to advance the index.
-            onFinished = { spoken++ },
+            // `TalkBubble` is keyed on its own message, so two consecutive lines are two bubbles
+            // and this only has to advance the index.
+            onFinished = speech::advance,
         )
     }
 }
@@ -215,14 +311,13 @@ internal fun OutcomeBubble(script: MatchScript?, result: MatchResult?) {
     }
 }
 
-/**
- * How much time a turn's lines add before the opponent may move.
+/*
+ * `lessonPause` used to live here: the line count times 6.1 seconds, which is how long the AI was
+ * held back before it moved — `setTimeout(AI, 18300)` after three lines, `setTimeout(AI, 12200)`
+ * after two (`TutorialScreen.opponentPhase`).
  *
- * `TutorialScreen.opponentPhase` schedules its AI behind its own talk cascade — `setTimeout(AI,
- * 18300)` after three lines at 6.1s apart, `setTimeout(AI, 12200)` after two. Both are the line
- * count times [TALK_STEP_MILLIS], so the rule is stated once here instead of as four magic numbers.
+ * It is gone because a line can now be dismissed with a tap, and a computed duration cannot know
+ * that: a player who read three lines in six seconds would have watched the opponent sit still for
+ * another twelve. [MatchScreen] waits on [LessonSpeech.isSpeaking] instead, which is the same claim
+ * — "the lesson has finished talking" — stated as a fact rather than as arithmetic about one.
  */
-internal fun lessonPause(lines: List<String>): Long = lines.size * TALK_STEP_MILLIS
-
-/** `setTimeout(talk, 6100, …)` — one bubble's life, plus a breath. */
-private const val TALK_STEP_MILLIS = 6_100L

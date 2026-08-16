@@ -1,7 +1,12 @@
 package com.tripletriad.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.tripletriad.data.CardCatalog
 import com.tripletriad.data.Format
 import com.tripletriad.data.NpcCatalog
@@ -10,16 +15,23 @@ import com.tripletriad.model.Card
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.MatchAiOptions
+import com.tripletriad.model.MatchResult
 import com.tripletriad.model.Npc
 import com.tripletriad.time.Clock
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The lesson — `TutorialScreen.as`, which is `PVEMatchScreen` with four methods overridden.
- * A scripted match under All Open, on a fixed hand, with the opponent moving first and playing the
- * worst card it can find, while nine lines explain what is happening. Everything that differs from
- * an ordinary match is in the [MatchScript] this builds; the match itself is [MatchScreen],
- * unmodified.
+ * The course — `TutorialScreen.as`, which is `PVEMatchScreen` with four methods overridden, and
+ * three lessons of this port's own behind it.
+ *
+ * The first is the original, unchanged: a scripted match under All Open, on a fixed hand, with the
+ * opponent moving first and playing the worst card it can find, while nine lines explain what is
+ * happening. It teaches the board, the digits and capture, and it names All Open — **one rule of
+ * the seventeen the help screen lists**, which is what the three after it begin to answer. Those
+ * are one-move positions under Same, Plus and Same-driven Combo; see [TUTORIAL_PUZZLES].
+ *
+ * Everything that differs from an ordinary match is in the [MatchScript] each lesson builds; the
+ * match itself is [MatchScreen], unmodified.
  *
  * ### Why it uses the shipped opponent rather than the AS3's inline one
  * `TutorialScreen.as:37-49` declares its own `NPC` inline — the same id, name, icon, rule and
@@ -65,8 +77,66 @@ internal fun TutorialScreen(
     onHelp: () -> Unit,
     onExit: () -> Unit,
 ) {
-    val script = remember(tutor.nameKey, format) {
-        MatchScript(
+    var step by remember(tutor.nameKey, format) { mutableStateOf(FIRST_LESSON) }
+
+    val script = remember(tutor.nameKey, format, step) {
+        scriptFor(step, tutor, catalog)
+    }
+    // Only reachable if a puzzle's card ids do not resolve in this catalogue, which
+    // `TutorialPuzzleTest` rules out for the shipped one. Ending the course early is a better
+    // answer than a blank screen, and the rule book is where it was going to end anyway.
+    if (script == null) {
+        LaunchedEffect(step) { onHelp() }
+        return
+    }
+
+    // Keyed on the lesson rather than trusting the tutor to differ: `MatchScreen` re-deals on
+    // `npc.iconId`, and every lesson here is taught by the same tutor — so without this the second
+    // one would open on the first one's board. `CampaignMatchScreen` keys its rungs for the same
+    // reason.
+    key(step) {
+        MatchScreen(
+            catalog = catalog,
+            profile = profile,
+            npc = tutor,
+            format = format,
+            clock = clock,
+            nextSeed = nextSeed,
+            onPersist = onPersist,
+            onExit = onExit,
+            script = script,
+            scriptExit = exitFor(step, onHelp) { step += 1 },
+        )
+    }
+}
+
+/**
+ * What the end panel offers: the next lesson, or — after the last — the rule book.
+ *
+ * The rule book stays the course's destination, which is what the original ends on
+ * (`TutorialRematchPanel.nextLesson` dispatches `NEXT_SCREEN`, which is `HELP_SCREEN`). It has
+ * simply stopped being where the *first* lesson leads, because there is now something between them.
+ */
+private fun exitFor(step: Int, onHelp: () -> Unit, onNext: () -> Unit): ScriptExit =
+    if (step < LAST_LESSON) {
+        ScriptExit(StringKeys.LESSON_NEXT, onNext)
+    } else {
+        ScriptExit(StringKeys.HELP, onHelp)
+    }
+
+/**
+ * The script for one lesson — the opening match, or one of the rule puzzles behind it.
+ *
+ * Null when a puzzle cannot be built from [catalog]; see [puzzleSetup].
+ *
+ * The first lesson keeps everything it had: the fixed hand, the rigged flip, the doubled turn and
+ * the opponent that plays its worst move. A puzzle needs none of those — there is one card to play
+ * and the opponent never moves again — but it does need the two things the first lesson never
+ * asked for, its own rules and its own board, and it pays nothing.
+ */
+private fun scriptFor(step: Int, tutor: Npc, catalog: CardCatalog): MatchScript? {
+    if (step == FIRST_LESSON) {
+        return MatchScript(
             speakerKey = tutor.nameKey,
             deck = tutorialDeck(),
             firstPlayer = CardColor.RED,
@@ -75,19 +145,33 @@ internal fun TutorialScreen(
             lesson = ::tutorialLines,
         )
     }
-    MatchScreen(
-        catalog = catalog,
-        profile = profile,
-        npc = tutor,
-        format = format,
-        clock = clock,
-        nextSeed = nextSeed,
-        onPersist = onPersist,
-        onExit = onExit,
-        script = script,
-        scriptExit = ScriptExit(StringKeys.HELP, onHelp),
+    val puzzle = TUTORIAL_PUZZLES.getOrNull(step - 1) ?: return null
+    val opening = puzzleSetup(puzzle, catalog) ?: return null
+
+    return MatchScript(
+        speakerKey = tutor.nameKey,
+        // The hand is inside the opening; this is what stops the deck selector opening, and it is
+        // the same list, so the two cannot disagree about what the player is holding.
+        deck = puzzle.hand,
+        turnLimit = TUTORIAL_TURN_LIMIT,
+        // Every line is spoken before the one move there is to make.
+        lesson = Lesson { placement, _ ->
+            puzzle.lines.takeIf { placement == puzzle.board.size }.orEmpty()
+        },
+        rules = puzzle.rules,
+        opening = opening,
+        // Said over the outcome panel, whatever the panel says: the position is composed so the
+        // player wins, but a lesson's closing sentence is about the rule and not about the score.
+        outcomeLines = MatchResult.entries.associateWith { puzzle.closing },
+        rewarded = false,
     )
 }
+
+/** The nine-line match the course opens with — the lesson this screen used to be, whole. */
+private const val FIRST_LESSON = 0
+
+/** The last lesson's index: the opening match, then one per puzzle. */
+private val LAST_LESSON = TUTORIAL_PUZZLES.size
 
 /**
  * Who teaches the lesson in [collection] — the opponent with the lowest id.

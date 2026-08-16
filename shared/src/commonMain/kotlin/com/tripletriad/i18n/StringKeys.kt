@@ -489,6 +489,26 @@ object StringKeys {
     /** The campaign entry `PVEScreen.as:79` draws as a bare `tt_tuto` texture with no label. */
     const val TUTORIAL: String = "APP_TUTORIAL"
 
+    /**
+     * The three rule lessons behind the original's, which the AS3 has nothing to say for.
+     *
+     * It taught one rule — All Open, and only by naming it — so there is no source wording to
+     * follow here and none is pretended: these are written for this port, in the tutor's voice, and
+     * every one of them describes a position that `TutorialPuzzleTest` pins. A line that named the
+     * wrong numbers would be the worst kind of defect this screen can have, which is why the
+     * numbers are asserted rather than proof-read.
+     */
+    const val LESSON_NEXT: String = "APP_LESSON_NEXT"
+    const val LESSON_SAME_1: String = "APP_LESSON_SAME_1"
+    const val LESSON_SAME_2: String = "APP_LESSON_SAME_2"
+    const val LESSON_SAME_DONE: String = "APP_LESSON_SAME_DONE"
+    const val LESSON_PLUS_1: String = "APP_LESSON_PLUS_1"
+    const val LESSON_PLUS_2: String = "APP_LESSON_PLUS_2"
+    const val LESSON_PLUS_DONE: String = "APP_LESSON_PLUS_DONE"
+    const val LESSON_COMBO_1: String = "APP_LESSON_COMBO_1"
+    const val LESSON_COMBO_2: String = "APP_LESSON_COMBO_2"
+    const val LESSON_COMBO_DONE: String = "APP_LESSON_COMBO_DONE"
+
     // ---- The two tournament ladders.
     /** `Campaigns` — the panel `PVEScreen.as:73` puts above the opponent list. */
     const val CAMPAIGNS: String = "STR_CAMPAIGNS"
@@ -731,6 +751,10 @@ object StringKeys {
         PVP_FORFEIT, PVP_YOU_LEFT, PVP_THEY_LEFT, PVP_OVER, PVP_NO_MATCH,
         TUTORIAL, TUTORIAL_1, TUTORIAL_2, TUTORIAL_3, TUTORIAL_4, TUTORIAL_5,
         TUTORIAL_6, TUTORIAL_7, TUTORIAL_8, TUTORIAL_9,
+        LESSON_NEXT,
+        LESSON_SAME_1, LESSON_SAME_2, LESSON_SAME_DONE,
+        LESSON_PLUS_1, LESSON_PLUS_2, LESSON_PLUS_DONE,
+        LESSON_COMBO_1, LESSON_COMBO_2, LESSON_COMBO_DONE,
         CAMPAIGNS, CAMPAIGN_STEP,
         SERVERS, CONTINUE, SESSION_RESTORED, SESSION_CONNECTING, SESSION_LAPSED,
         SIGN_IN_AGAIN, SWITCH_ACCOUNT,

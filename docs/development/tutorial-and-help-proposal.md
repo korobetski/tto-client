@@ -7,9 +7,12 @@ spike turned that choice into.
 **What is verified, and how.** The claims about `tto-core`'s API are read from the `tto-core`
 sources at `eb6b213` (v0.7.3, the version `gradle/libs.versions.toml` pins). The lesson positions in
 §4 are computed by `tools/find_lesson_positions.py` against the shipped `cards.json` and hand-checked
-in this document. **Nothing here has been compiled**: the environment this was written in cannot
-reach GitHub Packages or the Google Maven repo, so neither `com.tripletriad:core` nor Compose
-resolves and no Gradle task can run. Every effort estimate is therefore a reading estimate.
+in this document. **Nothing here has been compiled or run**: the environment this was written in
+cannot reach GitHub Packages or the Google Maven repo, so neither `com.tripletriad:core` nor Compose
+resolves and no Gradle task runs at all. That applies to the code committed against steps 1 and 2 of
+§8 as much as to the document — it is written against the sources cited and reviewed by reading, and
+`./gradlew :shared:desktopTest` has never been run on it. Every effort estimate is a reading
+estimate.
 
 ---
 
@@ -263,12 +266,17 @@ again.
 
 ## 8. Order of work
 
-1. **The bubble pacing fix.** Independent, improves what ships today, prerequisite for anything
-   longer than nine lines.
-2. **`MatchScript.rules` + `MatchScript.opening` (a pre-built `MatchSetup`)**, and the three verified
-   puzzles — Same, Plus, Combo — behind the existing `TUTORIAL` row as a straight sequence, with no
-   list screen and no persistence. This is where the idea proves itself, and each puzzle is pinned by
-   an engine test from the start.
+1. ~~**The bubble pacing fix.**~~ **Done.** A lesson bubble advances on a tap, with the five-second
+   timer as the fallback, and the turn clock is held while a line is up — a deliberate deviation
+   from the original, which doubles the turn instead. `lessonPause` is gone with it: the opponent
+   now waits on `LessonSpeech.isSpeaking` rather than on the line count times 6.1 seconds, because
+   arithmetic over a fixed cadence stops being true the moment a line can be dismissed early.
+2. ~~**`MatchScript.rules` + `MatchScript.opening`, and the three verified puzzles.**~~ **Done.**
+   Behind the existing `TUTORIAL` row as a straight sequence — no list screen, no persistence. Also
+   `MatchScript.rewarded`, which was not in the plan and turned out to be needed: three more
+   scripted matches the player cannot lose would be three more repeatable sources of MGP. An
+   unrewarded lesson is still *ended*, or the record would show a forfeit for each one.
+   `TutorialPuzzleTest` pins all three positions through the real engine.
 3. **The academy list, progress in `SettingsStore`, the remaining lessons, the exam and its reward.**
 4. **`RuleDemo` for Same, Plus, Combo, Same Wall**, sharing the explanation function with the
    lessons.

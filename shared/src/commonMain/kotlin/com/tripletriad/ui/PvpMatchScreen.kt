@@ -362,6 +362,12 @@ private fun PvpPlayArea(
                 scale = layout.boardScale,
                 drag = drag,
                 held = selected ?: drag.card.takeIf { drag.isDragging },
+                // Nothing ringed, and not merely because this is not a lesson: `captureHighlights`
+                // reads `MatchState.lastPlay`, and a refereed match has no `MatchState` on this
+                // side at all — the referee resolved the placement and sent the board that came
+                // out of it. Passed rather than defaulted so a board that *could* explain has to
+                // say it is choosing not to.
+                highlights = emptyMap(),
                 onPlace = onPlace,
             )
             OwnRow(

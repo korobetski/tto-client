@@ -168,6 +168,7 @@ internal fun scriptFor(step: Int, speakerKey: String, catalog: CardCatalog): Mat
             aiOptions = MatchAiOptions.TUTOR,
             lesson = ::tutorialLines,
             counted = false,
+            explains = true,
         )
     }
     val puzzle = TUTORIAL_COURSE.getOrNull(step)?.puzzle ?: return null
@@ -189,6 +190,9 @@ internal fun scriptFor(step: Int, speakerKey: String, catalog: CardCatalog): Mat
         // player wins, but a lesson's closing sentence is about the rule and not about the score.
         outcomeLines = MatchResult.entries.associateWith { puzzle.closing },
         counted = false,
+        // The ringed digits are most of what a rule lesson has to say: the two numbers that
+        // decided it, on the two cards that met. See `captureHighlights`.
+        explains = true,
     )
 }
 

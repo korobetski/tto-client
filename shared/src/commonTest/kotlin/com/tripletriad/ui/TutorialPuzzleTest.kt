@@ -174,6 +174,61 @@ class TutorialPuzzleTest {
     }
 
     /**
+     * The board rings **both** digits of each pair that decided a capture.
+     *
+     * A capture is a comparison between two facing sides, so lighting one of them would be half an
+     * explanation — the point is that this 2 met that 2. Checked on Same, where the two pairs are
+     * the two the lines name.
+     */
+    @Test
+    fun theDecidingDigitsAreRingedOnBothCards() {
+        val played = play(SAME_LESSON)
+
+        assertEquals(
+            mapOf(
+                CENTRE to setOf(Side.RIGHT, Side.BOTTOM),
+                SAME_RIGHT_CELL to setOf(Side.LEFT),
+                SAME_BELOW_CELL to setOf(Side.TOP),
+            ),
+            captureHighlights(played),
+            "the placed card lights what it attacked with, each captured card what lost",
+        )
+    }
+
+    /**
+     * A card taken by the chain is **not** ringed, and the placed card is not credited with it.
+     *
+     * Its pair does not involve the placed card at all — it lost to another captured card — so
+     * ringing anything on it would be pointing at the wrong comparison. See [captureHighlights],
+     * where the reason for stopping at the direct captures is that finding the right one means
+     * re-deriving the engine's propagation inside a composable.
+     */
+    @Test
+    fun theComboCardIsNotRinged() {
+        val played = play(COMBO_LESSON)
+        val lit = captureHighlights(played)
+
+        assertEquals(
+            setOf(CENTRE, SAME_RIGHT_CELL, SAME_BELOW_CELL),
+            lit.keys,
+            "only the placement and its two direct captures are ringed",
+        )
+        assertEquals(
+            setOf(Side.RIGHT, Side.BOTTOM),
+            lit[CENTRE],
+            "and the placed card lights two sides, not three",
+        )
+    }
+
+    /** Nothing is ringed before a card has been played. */
+    @Test
+    fun anUntouchedBoardRingsNothing() {
+        val setup = assertNotNull(puzzleSetup(TUTORIAL_PUZZLES[SAME_LESSON], catalog))
+
+        assertEquals(emptyMap(), captureHighlights(setup.state))
+    }
+
+    /**
      * **The rule being taught is the only explanation** — every lesson, every baseline.
      *
      * Each position is replayed under the rule sets it claims to be dead under

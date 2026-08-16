@@ -23,6 +23,7 @@ import com.tripletriad.model.MatchResult
 import com.tripletriad.model.MatchSetup
 import com.tripletriad.model.MatchState
 import com.tripletriad.model.Npc
+import com.tripletriad.model.Side
 import kotlin.time.Duration
 
 /**
@@ -84,6 +85,10 @@ import kotlin.time.Duration
  *   payout and writes the stats in the same pass, so "pays nothing but still counts" is not a state
  *   this could ask for without reimplementing it. See [startingMatch] and [creditFor], which are
  *   the two ends it has to be applied at.
+ * @property explains whether the board rings the digits that decided a capture — see
+ *   [captureHighlights]. True for a lesson, and **false everywhere else**: a player who knows the
+ *   rules is reading the board, not being taught it, and four rings a turn for the rest of a
+ *   career would be an explanation nobody asked for a second time.
  */
 internal data class MatchScript(
     val speakerKey: String,
@@ -96,6 +101,7 @@ internal data class MatchScript(
     val rules: GameRules? = null,
     val opening: MatchSetup? = null,
     val counted: Boolean = true,
+    val explains: Boolean = false,
 )
 
 /**
@@ -209,6 +215,10 @@ internal fun MatchScript?.creditFor(
 } else {
     MatchCredit(save = playing, reward = MatchReward(result = result, mgp = 0, xp = 0))
 }
+
+/** Which digits to ring, if any. Empty for an ordinary match — see [MatchScript.explains]. */
+internal fun MatchScript?.highlights(state: MatchState): Map<Int, Set<Side>> =
+    if (this?.explains == true) captureHighlights(state) else emptyMap()
 
 /** How the opponent plays: the script's strategy, or the ordinary one. */
 internal fun MatchScript?.aiOptions(): MatchAiOptions = this?.aiOptions ?: MatchAiOptions()

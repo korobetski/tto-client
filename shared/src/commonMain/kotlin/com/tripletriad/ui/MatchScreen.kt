@@ -335,6 +335,16 @@ internal fun MatchScreen(
     var reward by remember(match) { mutableStateOf<MatchReward?>(null) }
 
     /*
+     * Whether the result has been settled — credited, persisted and reported.
+     *
+     * Separate from [reward], which used to be the guard, because the two no longer happen at the
+     * same moment: the panel is held back for a beat so the last placement can be *seen* (see
+     * `OUTCOME_PAUSE_MS`), and a guard that waited with it would be open for the length of that
+     * pause. Crediting happens immediately, so leaving during the pause costs nothing.
+     */
+    var settled by remember(match) { mutableStateOf(false) }
+
+    /*
      * What the player did, in order — the only part of the match the server cannot derive for
      * itself, and therefore the only part a transcript has to carry.
      *
@@ -418,7 +428,7 @@ internal fun MatchScreen(
     // (`PVEMatchScreen.as:63-68`), so the same effect handles both by branching on the outcome.
     LaunchedEffect(match, state.isFinished, state.placement) {
         val outcome = state.outcome() ?: return@LaunchedEffect
-        if (reward != null) return@LaunchedEffect
+        if (settled) return@LaunchedEffect
         val result = MatchResult.of(outcome, CardColor.BLUE)
         if (result == null) {
             val rematch = MatchPreparation.prepareRematch(state, random)
@@ -439,7 +449,7 @@ internal fun MatchScreen(
                 random = random,
             )
         }
-        reward = credit.reward
+        settled = true
         onPersist(credit.save)
 
         // Told after the credit and after the persist, so a caller acting on it — a ladder
@@ -464,6 +474,15 @@ internal fun MatchScreen(
             deck = chosen,
             moves = moves.toList(),
         )
+
+        // **Then** the panel, once the board has had a moment to be read.
+        //
+        // The last placement is the one worth watching — it is the one that just flipped cards, and
+        // in a lesson it is the *only* one — and the panel is a scrim over the whole board. It used
+        // to arrive on the same frame as the result, so what the rule had done was covered before
+        // it could be looked at. Held for as long as the placement's own captions run, plus a beat.
+        delay(animationsFor(state, setup).sumOf { it.totalMillis } + OUTCOME_PAUSE_MS)
+        reward = credit.reward
     }
 
     // Rematch, or whatever a script says instead — see `nextAction`.
@@ -543,6 +562,10 @@ internal fun MatchScreen(
                 // the cards actually get rather than from the space before the margin.
                 layout = matchLayout(maxWidth - PlayAreaInset * 2, maxHeight - PlayAreaInset * 2),
                 playable = playable(state),
+                // The two facing digits that decided the last capture, in a lesson. Recomputed
+                // with the state rather than remembered: it *is* a projection of the state, and
+                // one that changes on every placement.
+                highlights = script.highlights(state),
                 onSelect = { if (it in playable(state)) selected = it },
                 onPlace = { position -> selected?.let { place(it, position) } },
                 onDrop = place,
@@ -975,6 +998,20 @@ private fun autoPlay(state: MatchState, random: Random): Pair<Card, Int>? {
  * takes, which lands inside the original's own range without any of its randomness.
  */
 private const val OPPONENT_PAUSE_MS = 700L
+
+/**
+ * How long the finished board is left uncovered before the outcome panel arrives.
+ *
+ * **On top of** the last placement's own captions, for the same reason [OPPONENT_PAUSE_MS] is on
+ * top of them: what is being waited for is the moment *after* the animation, not the animation.
+ *
+ * The AS3 has no equivalent — `endGame` opens `rematch` behind a fixed `intervalDuration` with the
+ * captions still running, so the panel and the flips overlap. That reads as a panel interrupting
+ * the board, and in a lesson it means the one placement the whole lesson is about is covered
+ * before it can be looked at. Longer than [OPPONENT_PAUSE_MS] because nothing is waiting on it:
+ * the match is over, the profile is already credited, and the only thing this delays is a control.
+ */
+private const val OUTCOME_PAUSE_MS = 1_400L
 
 /**
  * `playerPanel._timer = 30` — the turn limit, and the AS3's own default.

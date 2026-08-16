@@ -305,11 +305,22 @@ again.
    Four more lessons with it: **Same Wall, Reverse, Fallen Ace, and the two together.** Eight in
    total, against the twelve planned. The pair lesson needed something the others did not — see §9.
 
-4. **The remaining lessons: Elemental, Ascension/Descension, the hand-and-order rules, the exam.**
-5. **`RuleDemo` for Same, Plus, Combo, Same Wall**, sharing the explanation function with the
-   lessons.
-6. **The sandbox**, on the same explanation layer, plus `MatchAi.evaluate` for hints.
-7. **The remaining demos and the "Try it" link.**
+4. ~~**Showing the working.**~~ **Done.** Two changes from playing the Same lesson: the outcome
+   panel is held back until the last placement's captions have run plus a beat, because it is a
+   scrim over the whole board and in a lesson it was covering the one move the lesson is about; and
+   the board **rings the two facing digits that decided each capture** (`captureHighlights`), so
+   "your 2 met my 2" is visible on the cards rather than only stated in a bubble.
+
+   The rings are lesson-only (`MatchScript.explains`) — a player who knows the rules is reading the
+   board, not being taught it. The pause is for every match. Direct captures only: a card taken by
+   the chain lost to *another captured card*, and finding which one means re-deriving the engine's
+   propagation inside a composable.
+
+5. **The remaining lessons: Elemental, Ascension/Descension, the hand-and-order rules, the exam.**
+6. **`RuleDemo` for Same, Plus, Combo, Same Wall**, sharing the explanation function with the
+   lessons — `captureHighlights` is the beginning of it.
+7. **The sandbox**, on the same explanation layer, plus `MatchAi.evaluate` for hints.
+8. **The remaining demos and the "Try it" link.**
 
 ## 9. What could still go wrong
 

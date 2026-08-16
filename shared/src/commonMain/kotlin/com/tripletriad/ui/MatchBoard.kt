@@ -59,6 +59,7 @@ import com.tripletriad.model.HAND_SIZE
 import com.tripletriad.model.HandVisibility
 import com.tripletriad.model.MatchState
 import com.tripletriad.model.PlacedCard
+import com.tripletriad.model.Side
 import com.tripletriad.model.TypeRule
 import com.tripletriad.model.elementalModifier
 import com.tripletriad.model.powerModifier
@@ -85,6 +86,7 @@ internal fun PlayArea(
     visibility: HandVisibility,
     layout: MatchLayout,
     playable: List<Card>,
+    highlights: Map<Int, Set<Side>>,
     onSelect: (Card) -> Unit,
     onPlace: (Int) -> Unit,
     onDrop: (Card, Int) -> Unit,
@@ -115,6 +117,7 @@ internal fun PlayArea(
             // Elemental rule the cells are not interchangeable: which of them helps depends on
             // *this* card's own element. See [TileCell].
             held = selected ?: drag.card.takeIf { drag.isDragging },
+            highlights = highlights,
             onPlace = onPlace,
         )
     }
@@ -203,6 +206,38 @@ internal fun DragGhost(drag: BoardDragState, scale: Float) {
 }
 
 /**
+ * Which digits decided the last placement, by cell.
+ *
+ * A capture is always a comparison between **two facing sides**, and the pair is derivable without
+ * asking the engine anything it does not already say: [PlayResult.position] is where the card went,
+ * each [Capture] says which cell fell, and adjacency gives the side. So the placed card lights the
+ * side it attacked with, and each captured card lights the side that lost.
+ *
+ * ### Only the direct captures
+ *
+ * Combo captures — `wave >= 1` — are left dark, and the reason is that their pair does not involve
+ * the placed card at all: a card taken by the chain lost to *another captured card*, and working out
+ * which one means re-deriving the propagation the engine already did. That is rules logic, and it
+ * would live in a composable. What a combo lesson needs said is said by its lines instead.
+ *
+ * Empty when nothing was captured, when the board has not been played on, or when the caller does
+ * not want it — an ordinary match lights nothing. See [MatchScript.explains].
+ */
+internal fun captureHighlights(state: MatchState): Map<Int, Set<Side>> {
+    val play = state.lastPlay ?: return emptyMap()
+    val lit = mutableMapOf<Int, MutableSet<Side>>()
+
+    for (capture in play.captures.filter { it.wave == 0 }) {
+        val side = Side.entries.firstOrNull {
+            state.board.neighbour(play.position, it) == capture.position
+        } ?: continue
+        lit.getOrPut(play.position) { mutableSetOf() } += side
+        lit.getOrPut(capture.position) { mutableSetOf() } += side.facing()
+    }
+    return lit
+}
+
+/**
  * The 3×3 board. Empty cells show their element, if the board has one.
  *
  * Every cell is also a drop target: it registers its own bounds with [drag] and lights up while the
@@ -228,6 +263,7 @@ internal fun BoardGrid(
     scale: Float,
     drag: BoardDragState,
     held: Card?,
+    highlights: Map<Int, Set<Side>>,
     onPlace: (Int) -> Unit,
 ) {
     val hovered = drag.hovered()
@@ -256,6 +292,7 @@ internal fun BoardGrid(
                         isTarget = hovered == position && free,
                         isOpen = held != null && free,
                         held = held,
+                        highlight = highlights[position].orEmpty(),
                         modifier = Modifier
                             .testTag(tileTestTag(position))
                             .onGloballyPositioned { coordinates ->
@@ -337,6 +374,7 @@ private fun TileCell(
     isTarget: Boolean,
     isOpen: Boolean,
     held: Card?,
+    highlight: Set<Side>,
     modifier: Modifier,
 ) {
     val game = LocalTtoColors.current
@@ -360,7 +398,7 @@ private fun TileCell(
         if (placed == null) {
             element?.let { ElementBadge(position = position, element = it, scale = scale) }
         } else {
-            BoardCard(placed, scale)
+            BoardCard(placed, scale, highlight)
         }
 
         // The card's own modifier once it is down, under whichever rule is up; the held card's
@@ -482,7 +520,7 @@ private fun PowerModifierBadge(position: Int, value: Int, scale: Float, modifier
  * for the basic comparison, which is the only comparison it applies to.
  */
 @Composable
-private fun BoardCard(placed: PlacedCard, scale: Float) {
+private fun BoardCard(placed: PlacedCard, scale: Float, highlight: Set<Side>) {
     val squashY = remember { Animatable(1f) }
     val stretchX = remember { Animatable(1f) }
     val landing = remember { Animatable(0f) }
@@ -518,6 +556,7 @@ private fun BoardCard(placed: PlacedCard, scale: Float) {
     CardFace(
         card = placed.card.copy(owner = shown),
         scale = scale,
+        highlight = highlight,
         showBack = showBack,
         modifier = Modifier.graphicsLayer {
             // The landing and the flip multiply rather than override: a card captured while it

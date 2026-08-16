@@ -206,9 +206,9 @@ private fun openingScript(speakerKey: String): MatchScript = MatchScript(
 /**
  * One rule, one move.
  *
- * A puzzle needs none of what the opening match fixes — there is one card to play and the opponent
- * never moves again — but it does need the two things that lesson never asked for: its own rules and
- * its own board.
+ * A puzzle needs none of what the opening match fixes — there is one card to play and the
+ * opponent never moves again — but it does need the two things that lesson never asked for: its
+ * own rules and its own board.
  */
 private fun puzzleScript(
     puzzle: TutorialPuzzle,

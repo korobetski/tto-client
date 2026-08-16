@@ -51,8 +51,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tripletriad.model.AscensionTally
 import com.tripletriad.model.Board
-import com.tripletriad.model.Card
 import com.tripletriad.model.CaptureKind
+import com.tripletriad.model.Card
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.CardType
 import com.tripletriad.model.GameRules
@@ -213,9 +213,10 @@ internal fun DragGhost(drag: BoardDragState, scale: Float) {
 /**
  * Which digits decided the last placement, by cell.
  *
- * A capture is always a comparison between **two facing sides**, and the pair is derivable from what
- * the engine already says: which cell fell, which cell the attack came from, and adjacency. So the
- * card that fell lights the side that lost, and the card that took it lights the side it won with.
+ * A capture is always a comparison between **two facing sides**, and the pair is derivable from
+ * what the engine already says: which cell fell, which cell the attack came from, and adjacency.
+ * So the card that fell lights the side that lost, and the card that took it lights the side it
+ * won with.
  *
  * ### The chain is included, and how its attacker is found
  *
@@ -245,8 +246,8 @@ internal fun captureHighlights(board: Board, play: PlayResult?): Map<Int, Set<Si
         // The side of the *captured* card that faces its attacker. One code path for the placement
         // and for the chain, because "which neighbour took me" is the same question either way.
         val side = Side.entries.singleOrNull { board.neighbour(capture.position, it) in from }
-            ?: continue
-        val attacker = board.neighbour(capture.position, side) ?: continue
+        val attacker = side?.let { board.neighbour(capture.position, it) }
+        if (side == null || attacker == null) continue
 
         lit.getOrPut(capture.position) { mutableSetOf() } += side
         lit.getOrPut(attacker) { mutableSetOf() } += side.facing()
@@ -259,9 +260,10 @@ private fun attackers(play: PlayResult, wave: Int): Set<Int> = when (wave) {
     FIRST_WAVE -> setOf(play.position)
     // The generation before, and at the first remove only the special captures: a basic one never
     // starts a chain.
-    FIRST_WAVE + 1 -> play.captures
-        .filter { it.wave == FIRST_WAVE && it.kind != CaptureKind.BASIC }
-        .mapTo(mutableSetOf()) { it.position }
+    FIRST_WAVE + 1 ->
+        play.captures
+            .filter { it.wave == FIRST_WAVE && it.kind != CaptureKind.BASIC }
+            .mapTo(mutableSetOf()) { it.position }
     else -> play.captures.filter { it.wave == wave - 1 }.mapTo(mutableSetOf()) { it.position }
 }
 
@@ -289,8 +291,9 @@ internal fun captureWaves(play: PlayResult?): Map<Int, Int> =
  * teaching two things.
  *
  * The AS3 has no equivalent — `TTOCore.animate` walks its `cardToFlip` array and calls `flipTo` on
- * each in the same frame, and its own `waveEffect` grouping is the array it is still mutating (see
- * `RulesEngine.propagate`, which rewrote that). So the wave existed in the data and never on screen.
+ * each in the same frame, and its own `waveEffect` grouping is the array it is still mutating
+ * (see `RulesEngine.propagate`, which rewrote that). So the wave existed in the data and never on
+ * screen.
  */
 internal const val COMBO_WAVE_MS: Long = 450L
 

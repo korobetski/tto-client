@@ -353,7 +353,11 @@ class TutorialPuzzleTest {
         val gayla = assertNotNull(catalog[GAYLA_ID], "the Elemental lesson's card")
 
         assertEquals(DODO_POWERS, listOf(dodo.top, dodo.right, dodo.bottom, dodo.left), "Dodo")
-        assertEquals(GAYLA_POWERS, listOf(gayla.top, gayla.right, gayla.bottom, gayla.left), "Gayla")
+        assertEquals(
+            GAYLA_POWERS,
+            listOf(gayla.top, gayla.right, gayla.bottom, gayla.left),
+            "Gayla",
+        )
         assertEquals(
             CardType.LIGHTNING,
             gayla.type,

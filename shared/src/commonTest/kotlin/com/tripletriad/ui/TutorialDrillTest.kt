@@ -191,8 +191,8 @@ class TutorialDrillTest {
     @Test
     fun everyLineIsSpokenOnATurnThePlayerHolds() {
         for (lesson in TUTORIAL_COURSE) {
-            val drill = lesson.drill ?: continue
-            if (!drill.tutoring) continue
+            val drill = lesson.drill
+            if (drill == null || !drill.tutoring) continue
 
             for (placement in drill.lines.keys) {
                 assertEquals(

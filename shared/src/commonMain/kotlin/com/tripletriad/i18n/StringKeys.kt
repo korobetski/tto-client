@@ -537,6 +537,7 @@ object StringKeys {
     const val LESSON_TITLE_BONUS: String = "APP_LESSON_TITLE_BONUS"
     const val LESSON_TITLE_ORDER: String = "APP_LESSON_TITLE_ORDER"
     const val LESSON_TITLE_EXAM: String = "APP_LESSON_TITLE_EXAM"
+
     /**
      * The opening match's closing lines — **three**, where a position lesson has one.
      *

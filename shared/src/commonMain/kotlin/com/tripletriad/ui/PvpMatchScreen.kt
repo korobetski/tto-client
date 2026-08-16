@@ -88,8 +88,9 @@ fun pvpBackTestTag(slot: Int): String = "pvp-back-$slot"
  * survives to the end, and a *new* placement arriving cancels it, which is what should happen: the
  * board has moved on.
  *
- * The deal is announced too, on the first view of a match. `MatchScreen` plays it when the cards are
- * dealt; here they were dealt somewhere else, and the first sight of them is the nearest moment.
+ * The deal is announced too, on the first view of a match. `MatchScreen` plays it when the cards
+ * are dealt; here they were dealt somewhere else, and the first sight of them is the nearest
+ * moment.
  */
 @Composable
 private fun PvpMatchSounds(matchId: String?, view: MatchView?) {

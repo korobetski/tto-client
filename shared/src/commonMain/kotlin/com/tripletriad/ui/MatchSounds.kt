@@ -43,9 +43,9 @@ internal fun placementSound(audio: AudioPlayer, captures: List<Capture>, finishe
  * One [Sound.COMBO] **per generation, on that generation's beat**. It used to be one COMBO fired
  * with the capture whatever the chain's length, which was right while every card turned on the same
  * frame and is wrong now that they do not — the sound arrived a beat before the flip it was
- * announcing, which is exactly the join the stagger exists to make. So it waits with the cards, on
- * the same [COMBO_WAVE_MS], and a chain of three is three events. The AS3's own `flipData.waveEffect`
- * (`TTOCore.as:125`) counts them the same way.
+ * announcing, which is exactly the join the stagger exists to make. So it waits with the cards,
+ * on the same [COMBO_WAVE_MS], and a chain of three is three events. The AS3's own
+ * `flipData.waveEffect` (`TTOCore.as:125`) counts them the same way.
  *
  * ### And then the result
  *

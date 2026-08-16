@@ -1,9 +1,9 @@
 package com.tripletriad.ui
 
 import com.tripletriad.data.CardCatalog
-import com.tripletriad.model.Card
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.Board
+import com.tripletriad.model.Card
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.CardType
 import com.tripletriad.model.GameRules
@@ -112,14 +112,15 @@ internal fun puzzleSetup(puzzle: TutorialPuzzle, catalog: CardCatalog): MatchSet
             }
         }
     }
-    if (cells.count { it != null } != puzzle.board.size) return null
 
     val hand = puzzle.hand.mapNotNull { catalog[it] }
-    if (hand.size != puzzle.hand.size) return null
-    if (puzzle.board.size + hand.size != Board.SIZE) return null
-    // The cell the lines name has to be the one that is free. Nothing downstream would notice:
-    // the position would simply be a different one from the sentences describing it.
-    if (cells[puzzle.cell] != null) return null
+    // Validate all preconditions before returning
+    val valid = cells.count { it != null } == puzzle.board.size &&
+        hand.size == puzzle.hand.size &&
+        puzzle.board.size + hand.size == Board.SIZE &&
+        cells[puzzle.cell] == null
+
+    if (!valid) return null
 
     return MatchSetup(
         state = MatchState(

@@ -244,10 +244,10 @@ class MatchAudioTest {
      * not promise a chain: the position is composed so that exactly one card falls to the wave, so
      * "exactly one COMBO" is a claim about the mapping rather than about the deal.
      *
-     * Two things asserted, and the second is the one with teeth. The count says a generation is one
-     * event and not a per-card volume spike. The **order** says the sound belongs to the flip: it is
-     * recorded after the capture that started the chain, which it cannot be if it is still fired on
-     * the placement's own frame. See `comboSounds`.
+     * Two things asserted, and the second is the one with teeth. The count says a generation is
+     * one event and not a per-card volume spike. The **order** says the sound belongs to the
+     * flip: it is recorded after the capture that started the chain, which it cannot be if it is
+     * still fired on the placement's own frame. See `comboSounds`.
      */
     @Test
     fun aChainSoundsOncePerGenerationAndAfterTheCaptureThatStartedIt() = runComposeUiTest {

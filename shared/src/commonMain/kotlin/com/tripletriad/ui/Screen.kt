@@ -71,12 +71,12 @@ internal enum class Screen {
             // has — so skipping it is a decision the player is allowed to make silently.
             COLLECTION_CHOICE -> DASHBOARD
             OPPONENTS, STATS, QUESTS, PVP, CARDS, DECKS, INVENTORY, SHOP, HELP -> DASHBOARD
-        // The course sits beside the rule book it ends at, and is reached from one place —
-        // see `LessonsScreen`, which explains why it left the opponent list.
-        LESSONS -> DASHBOARD
+            // The course sits beside the rule book it ends at, and is reached from one place —
+            // see `LessonsScreen`, which explains why it left the opponent list.
+            LESSONS -> DASHBOARD
             AVATAR -> STATS
             MATCH, CAMPAIGN -> OPPONENTS
-        TUTORIAL -> LESSONS
+            TUTORIAL -> LESSONS
             PVP_MATCH, PVP_TABLE, PVP_CLAIM -> PVP
             CAMPAIGN_MATCH -> CAMPAIGN
         }

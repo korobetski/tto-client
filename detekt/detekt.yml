@@ -21,6 +21,10 @@ complexity:
     # Composable functions are declarative trees; splitting one at 60 lines to satisfy
     # a counter usually makes the layout harder to read, not easier.
     ignoreAnnotated: ['Composable']
+  CyclomaticComplexMethod:
+    # Composable functions often contain complex when expressions for navigation and rendering.
+    # The complexity score does not reflect actual maintainability for declarative UI code.
+    ignoreAnnotated: ['Composable']
   TooManyFunctions:
     thresholdInFiles: 20
     thresholdInClasses: 20

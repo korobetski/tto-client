@@ -326,6 +326,12 @@ again.
    this client did. The opponent's thinking time and the outcome pause both wait for the cascade,
    or the stagger would be undone by the next thing that moves.
 
+   **The sound follows it** — one `Sound.COMBO` per generation on that generation's beat, rather
+   than one fired with the placement. The winner's sound moved behind the cascade with it, because
+   a final placement that chains would otherwise announce the result before the last card turned.
+   The turn change stays immediate: it is the cue that somebody may move. The PvP board plays no
+   sounds at all, so there is nothing to stagger there.
+
 5. **The remaining lessons: Elemental, Ascension/Descension, the hand-and-order rules, the exam.**
 6. **`RuleDemo` for Same, Plus, Combo, Same Wall**, sharing the explanation function with the
    lessons — `captureHighlights` is the beginning of it.

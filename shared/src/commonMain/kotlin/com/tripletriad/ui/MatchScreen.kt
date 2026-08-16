@@ -20,6 +20,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -60,6 +61,7 @@ import com.tripletriad.time.Clock
 import com.tripletriad.ui.theme.LocalTtoColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -205,6 +207,9 @@ internal fun MatchScreen(
 ) {
     val audio = LocalAudio.current
     val strings = LocalStrings.current
+    // For the chain's audio, which has to outlive the placement that started it — see
+    // [cascadeSounds].
+    val scope = rememberCoroutineScope()
     var matchIndex by remember(npc.iconId) { mutableStateOf(0) }
 
     // The seed, kept rather than thrown away, because it is the *whole* of a transcript's
@@ -426,6 +431,7 @@ internal fun MatchScreen(
             visibility = visibility.reindexedFor(next)
             state = next
             sound(audio, next)
+            scope.launch { cascadeSounds(audio, next) }
         }
     }
 
@@ -512,6 +518,7 @@ internal fun MatchScreen(
             state = next
             selected = null
             sound(audio, next)
+            scope.launch { cascadeSounds(audio, next) }
         }
     }
 
@@ -681,24 +688,19 @@ private fun playable(state: MatchState): List<Card> =
  *   card, inside `flipTo`; four cards flipping at once would fire it four times, which on
  *   `SoundPool` is the same sample four times in the same millisecond — a volume spike, not a
  *   richer sound. One is the faithful *result*.
- * * **a combo** → [Sound.COMBO] over the top, from `TTOCore.as:125`'s `flipData.waveEffect`. A
- *   capture with `wave >= 1` is by definition a combo generation.
+ * * **a combo** → [Sound.COMBO], **once per generation and on that generation's beat** — see
+ *   [cascadeSounds], which is where it moved to and why it is no longer here.
  * * **the match continues** → [Sound.TURN_CHANGE], `BaseMatchScreen.as:374`, which plays it for
- *   either side.
- * * **the match ends** → the winner's sound instead, `PVEMatchScreen.as:95`/`:139`. A draw is
- *   silent, matching the original: its draw branch plays nothing.
+ *   either side. Immediate: it is the cue that it is somebody's move again, and holding it behind
+ *   a cascade would hold *that* back too.
+ * * **the match ends** → the winner's sound instead, `PVEMatchScreen.as:95`/`:139`, and it is in
+ *   [cascadeSounds] rather than here — see there. A draw is silent, matching the original: its draw
+ *   branch plays nothing.
  */
 private fun sound(audio: AudioPlayer, state: MatchState) {
     val captures = state.lastPlay?.captures.orEmpty()
     audio.play(if (captures.isEmpty()) Sound.CARD_PLACED else Sound.CARD_CAPTURED)
-    if (captures.any { it.wave >= 1 }) audio.play(Sound.COMBO)
-
-    when (val outcome = state.outcome()) {
-        null -> audio.play(Sound.TURN_CHANGE)
-        is MatchOutcome.Win ->
-            audio.play(if (outcome.winner == CardColor.BLUE) Sound.BLUE_WINS else Sound.RED_WINS)
-        else -> Unit
-    }
+    if (state.outcome() == null) audio.play(Sound.TURN_CHANGE)
 }
 
 /**
@@ -1009,6 +1011,49 @@ private fun autoPlay(state: MatchState, random: Random): Pair<Card, Int>? {
  * Short, because it is now additive. A red turn costs this plus the 1.2s [MatchBanner.RED_TURN]
  * takes, which lands inside the original's own range without any of its randomness.
  */
+/**
+ * Everything that has to wait for the cards to stop turning: the chain, and then the winner.
+ *
+ * ### The chain
+ *
+ * One [Sound.COMBO] **per generation, on that generation's beat**. It used to be one COMBO fired
+ * with the capture whatever the chain's length, which was right while every card turned on the same
+ * frame and is wrong now that they do not — the sound arrived a beat before the flip it was
+ * announcing, which is exactly the join the stagger exists to make. So it waits with the cards, on
+ * the same [COMBO_WAVE_MS], and a chain of three is three events. The AS3's own `flipData.waveEffect`
+ * (`TTOCore.as:125`) counts them the same way.
+ *
+ * ### And then the winner
+ *
+ * Here rather than in [sound] because of the order it would otherwise come out in: a final placement
+ * that chains would announce the result *before* the last card had turned, which on the combo lesson
+ * means hearing "you win" and then hearing the thing that won it. The turn change stays immediate —
+ * it is the cue that somebody may move, and nothing is waiting on the board for that.
+ *
+ * With no chain the loop does not run and both sound exactly when they always did.
+ *
+ * ### Why the caller has to launch it independently
+ *
+ * The opponent's effect is keyed on the placement count, so the assignment that publishes its move
+ * cancels it — anything suspending after that point never resumes. This runs on the composition's
+ * own scope instead, which outlives a placement and dies with the screen.
+ */
+private suspend fun cascadeSounds(audio: AudioPlayer, state: MatchState) {
+    val generations = state.lastPlay?.captures.orEmpty().maxOfOrNull { it.wave } ?: 0
+
+    repeat(generations) {
+        delay(COMBO_WAVE_MS)
+        audio.play(Sound.COMBO)
+    }
+
+    when (val outcome = state.outcome()) {
+        is MatchOutcome.Win ->
+            audio.play(if (outcome.winner == CardColor.BLUE) Sound.BLUE_WINS else Sound.RED_WINS)
+        // A draw, a sudden-death draw, or a match still running: all silent here.
+        else -> Unit
+    }
+}
+
 private const val OPPONENT_PAUSE_MS = 700L
 
 /**

@@ -6,8 +6,6 @@ plugins {
     alias(libs.plugins.composeCompiler) apply false
     alias(libs.plugins.composeMultiplatform) apply false
     alias(libs.plugins.kotlinSerialization) apply false
-    // Resolved here, applied to every module below, so a new module cannot be added
-    // without static analysis.
     alias(libs.plugins.ktlint) apply false
     alias(libs.plugins.detekt) apply false
 }

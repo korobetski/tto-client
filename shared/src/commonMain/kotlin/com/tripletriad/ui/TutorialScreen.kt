@@ -132,12 +132,16 @@ internal fun TutorialScreen(
  * The rule book stays the course's destination, which is what the original ends on
  * (`TutorialRematchPanel.nextLesson` dispatches `NEXT_SCREEN`, which is `HELP_SCREEN`). It has
  * simply stopped being where the *first* lesson leads, because there is now something between them.
+ *
+ * It is **named** for what it is now rather than for the screen it opens: the label was
+ * `StringKeys.HELP`, the navigation bar's own word, so twelve lessons and an exam ended on a button
+ * saying `Help`. See [StringKeys.LESSON_TO_RULES].
  */
 private fun exitFor(step: Int, onHelp: () -> Unit, onNext: () -> Unit): ScriptExit =
     if (step < LAST_LESSON) {
         ScriptExit(StringKeys.LESSON_NEXT, onNext)
     } else {
-        ScriptExit(StringKeys.HELP, onHelp)
+        ScriptExit(StringKeys.LESSON_TO_RULES, onHelp)
     }
 
 /**
@@ -177,6 +181,7 @@ private fun openingScript(speakerKey: String): MatchScript = MatchScript(
     lesson = ::tutorialLines,
     counted = false,
     explains = true,
+    outcomeTitle = StringKeys.LESSON_COMPLETE,
 )
 
 /**
@@ -212,6 +217,9 @@ private fun puzzleScript(
         // The ringed digits are most of what a rule lesson has to say: the two numbers that
         // decided it, on the two cards that met. See `captureHighlights`.
         explains = true,
+        // Not `You win !`: the position is composed so this cannot be lost. See
+        // [MatchScript.outcomeTitle].
+        outcomeTitle = StringKeys.LESSON_COMPLETE,
     )
 }
 
@@ -238,6 +246,9 @@ private fun drillScript(drill: TutorialDrill, speakerKey: String): MatchScript =
     rules = drill.rules,
     counted = false,
     explains = drill.tutoring,
+    // The exam is the one lesson whose result is worth announcing as a result, which is the same
+    // flag every other difference answers to.
+    outcomeTitle = StringKeys.LESSON_COMPLETE.takeIf { drill.tutoring },
 )
 
 /** The nine-line match the course opens with — the lesson this screen used to be, whole. */

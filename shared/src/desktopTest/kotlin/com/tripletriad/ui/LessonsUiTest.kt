@@ -92,8 +92,50 @@ class LessonsUiTest {
         assertFalse(exists(lessonDoneTestTag(1)), "and the second was never opened")
     }
 
+    /**
+     * A course with nothing left in it says so, in place of the blurb telling you how to start.
+     *
+     * Seeded through the settings file rather than played twelve times: the state under test is
+     * "every lesson finished", and reaching it honestly would be a fifteen-minute test asserting
+     * one paragraph. What it *does* go through honestly is the field the app persists —
+     * `UserSettings.lessonsDone` — so a rename of that field fails here rather than leaving a
+     * screen that congratulates nobody.
+     */
+    @Test
+    fun aFinishedCourseSaysSoInsteadOfExplainingItself() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US, lessonsDone = TUTORIAL_COURSE.size)) }
+        newCharacter()
+
+        openLessons()
+
+        assertTrue(exists(LESSONS_ALL_DONE_TEST_TAG), "a finished course should say so")
+        assertFalse(
+            exists(LESSONS_BLURB_TEST_TAG),
+            "and should not still be explaining how to begin",
+        )
+        assertTrue(
+            exists(lessonDoneTestTag(TUTORIAL_COURSE.size - 1)),
+            "the last row should be ticked, or the two halves disagree about the same number",
+        )
+    }
+
+    /** And a course part-way through still explains itself. */
+    @Test
+    fun anUnfinishedCourseKeepsTheBlurb() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US, lessonsDone = PART_WAY)) }
+        newCharacter()
+
+        openLessons()
+
+        assertTrue(exists(LESSONS_BLURB_TEST_TAG), "an unfinished course still explains itself")
+        assertFalse(exists(LESSONS_ALL_DONE_TEST_TAG), "and has nothing to congratulate yet")
+    }
+
     private companion object {
         /** The third row: the opening match, then Same, then Plus. */
         const val PLUS_LESSON = 2
+
+        /** Enough lessons to have started and not enough to have finished. */
+        const val PART_WAY = 3
     }
 }

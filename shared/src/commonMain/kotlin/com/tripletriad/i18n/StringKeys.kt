@@ -503,6 +503,27 @@ object StringKeys {
     const val LESSON_DONE: String = "APP_LESSON_DONE"
     const val LESSON_NEXT: String = "APP_LESSON_NEXT"
 
+    /**
+     * What the end panel announces after a lesson, in place of `You win !`.
+     *
+     * Seven of the twelve are positions composed so the player cannot fail, so a victory is not
+     * what happened. The exam keeps the real result — see [MatchScript.outcomeTitle].
+     */
+    const val LESSON_COMPLETE: String = "APP_LESSON_COMPLETE"
+
+    /** The list's standing blurb, replaced once every lesson has been finished. */
+    const val LESSONS_ALL_DONE: String = "APP_LESSONS_ALL_DONE"
+
+    /**
+     * Where the last lesson leads, on the control that leads there.
+     *
+     * `STR_HELP` is the word the navigation uses for that screen and it was this button's label
+     * too, which made the course end on `Aide` — a menu item, in the place a course says goodbye.
+     * The destination is unchanged: `TutorialRematchPanel.nextLesson` dispatches `NEXT_SCREEN`,
+     * and `NEXT_SCREEN` is the rule book.
+     */
+    const val LESSON_TO_RULES: String = "APP_LESSON_TO_RULES"
+
     /** One per lesson, for the course list. */
     const val LESSON_TITLE_BASICS: String = "APP_LESSON_TITLE_BASICS"
     const val LESSON_TITLE_SAME: String = "APP_LESSON_TITLE_SAME"
@@ -805,7 +826,8 @@ object StringKeys {
         PVP_FORFEIT, PVP_YOU_LEFT, PVP_THEY_LEFT, PVP_OVER, PVP_NO_MATCH,
         TUTORIAL, TUTORIAL_1, TUTORIAL_2, TUTORIAL_3, TUTORIAL_4, TUTORIAL_5,
         TUTORIAL_6, TUTORIAL_7, TUTORIAL_8, TUTORIAL_9,
-        LESSONS, LESSONS_BLURB, LESSON_DONE, LESSON_NEXT,
+        LESSONS, LESSONS_BLURB, LESSONS_ALL_DONE, LESSON_DONE, LESSON_NEXT,
+        LESSON_COMPLETE, LESSON_TO_RULES,
         LESSON_TITLE_BASICS, LESSON_TITLE_SAME, LESSON_TITLE_PLUS, LESSON_TITLE_COMBO,
         LESSON_TITLE_SAME_WALL, LESSON_TITLE_REVERSE, LESSON_TITLE_FALLEN_ACE,
         LESSON_TITLE_REVERSE_FALLEN_ACE, LESSON_TITLE_ELEMENTAL,

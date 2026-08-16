@@ -85,6 +85,15 @@ import kotlin.time.Duration
  *   payout and writes the stats in the same pass, so "pays nothing but still counts" is not a state
  *   this could ask for without reimplementing it. See [startingMatch] and [creditFor], which are
  *   the two ends it has to be applied at.
+ * @property outcomeTitle what the end panel announces **instead of the result** — set by a lesson,
+ *   null everywhere else, which is what leaves an ordinary match saying `You win !` exactly as it
+ *   always has.
+ *
+ *   A taught lesson should not claim a victory. Seven of the twelve are one-move positions composed
+ *   so the player cannot fail, so "You win !" over them is flattery for doing as they were told,
+ *   and it spends the word on the one lesson that has no use for it. The **exam** leaves this null
+ *   on purpose: it is a real match against an opponent playing to win, it can be lost, and being
+ *   told plainly which of the two happened is the whole point of ending the course on it.
  * @property explains whether the board rings the digits that decided a capture — see
  *   [captureHighlights]. True for a lesson, and **false everywhere else**: a player who knows the
  *   rules is reading the board, not being taught it, and four rings a turn for the rest of a
@@ -102,6 +111,7 @@ internal data class MatchScript(
     val opening: MatchSetup? = null,
     val counted: Boolean = true,
     val explains: Boolean = false,
+    val outcomeTitle: String? = null,
 )
 
 /**

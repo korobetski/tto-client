@@ -33,6 +33,15 @@ fun lessonRowTestTag(lesson: Int): String = "lesson-row-$lesson"
 fun lessonDoneTestTag(lesson: Int): String = "lesson-done-$lesson"
 
 /**
+ * The line above the list, under whichever of its two readings applies.
+ *
+ * Two tags on one `Text` rather than one, because what a test needs to know is *which* sentence is
+ * up: a single tag would be present either way and would assert only that a paragraph exists.
+ */
+const val LESSONS_BLURB_TEST_TAG: String = "lessons-blurb"
+const val LESSONS_ALL_DONE_TEST_TAG: String = "lessons-all-done"
+
+/**
  * The course — every lesson, in order, with what each one teaches and how far the player has got.
  *
  * ### Why the course needed a screen of its own
@@ -67,12 +76,28 @@ internal fun LessonsScreen(
 ) {
     val strings = LocalStrings.current
 
+    val finished = done >= TUTORIAL_COURSE.size
+
     CharacterScaffold(profile = profile, title = strings[StringKeys.LESSONS], onBack = onBack) {
+        // The standing blurb explains what the course is and what it costs; once there is nothing
+        // left to explain it gives way to a send-off. A player who has finished twelve lessons is
+        // still being told "play them in any order, as often as you like", which is an instruction
+        // for somebody about to start.
+        //
+        // In the blurb's own place rather than added above it: this is the same sentence at a
+        // different point in the course, and a screen that grew a second paragraph on completion
+        // would push the first row off a phone as a reward for finishing.
         Text(
-            text = strings[StringKeys.LESSONS_BLURB],
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
+            text = strings[if (finished) StringKeys.LESSONS_ALL_DONE else StringKeys.LESSONS_BLURB],
+            color = if (finished) {
+                LocalTtoColors.current.positive
+            } else {
+                MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED)
+            },
             style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.padding(bottom = SpaceMd),
+            modifier = Modifier
+                .testTag(if (finished) LESSONS_ALL_DONE_TEST_TAG else LESSONS_BLURB_TEST_TAG)
+                .padding(bottom = SpaceMd),
         )
 
         LazyColumn(

@@ -413,12 +413,14 @@ private fun RuleChip(name: String) {
  * hand-mixed `0xFF11141C`, and the leave action as the quiet one of the two.
  */
 @Composable
+@Suppress("LongParameterList")
 internal fun OutcomePanel(
     reward: MatchReward,
     opponentName: String,
     cards: Map<Int, Card>,
     next: ScriptExit?,
     onDone: () -> Unit,
+    title: String? = null,
 ) {
     val strings = LocalStrings.current
 
@@ -428,7 +430,7 @@ internal fun OutcomePanel(
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.scrim),
         contentAlignment = Alignment.Center,
     ) {
-        OutcomeCard(reward, opponentName, cards, next, onDone, strings)
+        OutcomeCard(reward, opponentName, cards, next, onDone, strings, title)
     }
 }
 
@@ -441,6 +443,7 @@ private fun OutcomeCard(
     next: ScriptExit?,
     onDone: () -> Unit,
     strings: Strings,
+    title: String?,
 ) {
     // `surfaceContainerHigh` and `extraLarge`, which are what Material dresses a dialog in — and
     // this panel stands in for one deliberately, as the note above `OutcomePanel` explains. It was
@@ -461,7 +464,10 @@ private fun OutcomeCard(
             verticalArrangement = Arrangement.spacedBy(SpaceMd),
         ) {
             Text(
-                text = when (reward.result) {
+                // A lesson names itself here instead — see [MatchScript.outcomeTitle]. Everything
+                // below is unchanged by it: the tutor is still named, the score is still on the
+                // board behind, and the closing bubble still says what the rule did.
+                text = title?.let { strings[it] } ?: when (reward.result) {
                     MatchResult.WIN -> strings[StringKeys.YOU_WIN]
                     MatchResult.LOSE -> strings[StringKeys.YOU_LOSE]
                     MatchResult.DRAW -> strings[StringKeys.DRAW]

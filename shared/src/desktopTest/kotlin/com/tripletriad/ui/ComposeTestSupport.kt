@@ -61,9 +61,14 @@ internal fun ComposeUiTest.existsUnmerged(tag: String): Boolean =
  * Going through the settings *file* rather than a parameter is strictly better: it is the path the
  * app really takes, so these tests also cover `UserSettingsRepository` reading a language and the
  * whole tree rendering in it.
+ *
+ * @param lessonsDone how much of the course this device has already finished, for the two states a
+ *   test cannot otherwise reach without playing twelve lessons through the UI. Written as the same
+ *   field the app persists, so a test asking for a finished course is asking for the state a
+ *   finished course actually leaves behind rather than for a flag of its own.
  */
-internal fun settingsFor(locale: AppLocale): SettingsStore =
-    InMemorySettingsStore("""{"language":"${locale.tag}"}""")
+internal fun settingsFor(locale: AppLocale, lessonsDone: Int = 0): SettingsStore =
+    InMemorySettingsStore("""{"language":"${locale.tag}","lessonsDone":$lessonsDone}""")
 
 /**
  * Blocks until the splash finishes and the main menu is up.

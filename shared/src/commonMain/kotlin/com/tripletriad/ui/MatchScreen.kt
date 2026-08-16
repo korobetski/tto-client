@@ -596,6 +596,7 @@ internal fun MatchScreen(
                     cards = catalog.byId,
                     next = next,
                     onDone = onExit,
+                    title = script?.outcomeTitle,
                 )
             }
             // Over the board and under the outcome panel: a caption is allowed to cover

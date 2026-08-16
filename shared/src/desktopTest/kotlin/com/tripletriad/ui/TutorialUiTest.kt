@@ -186,6 +186,25 @@ class TutorialUiTest {
     }
 
     /**
+     * **A lesson ends "Lesson complete", not "You win !"**.
+     *
+     * The panel is the ordinary one and it announced the ordinary thing, which over a position
+     * composed so the player cannot fail is flattery for doing as they were told — and it spent the
+     * word on the one lesson in the course with a use for it. Asserted as an absence as well as a
+     * presence: a panel that showed both would be twice as wrong as one that showed the old line.
+     */
+    @Test
+    fun aLessonEndsByNamingItselfRatherThanClaimingAVictory() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        openLesson()
+
+        playOut()
+
+        assertTrue(isVisible("Lesson complete"), "the panel should name what was finished")
+        assertFalse(isVisible("You win"), "a lesson that cannot be lost should not claim a win")
+    }
+
+    /**
      * The last lesson is the one that leads to the rule book — the original's own ending, moved.
      *
      * Played by walking the course rather than by jumping to the end: what is being asserted is
@@ -204,7 +223,16 @@ class TutorialUiTest {
             playOut()
         }
 
-        assertTrue(isVisible("Help"), "the course should end at the rule book")
+        assertTrue(isVisible("To the rule book"), "the course should end at the rule book")
+        // **The exam keeps the real result.** It is the one lesson that can be lost, against an
+        // opponent playing to win, and being told plainly which of the two happened is what the
+        // course ends on. `MatchAiOptions.TUTOR` is off here, so which line it is cannot be
+        // predicted — that it is one of the three, and not the lesson wording, is the claim.
+        assertFalse(isVisible("Lesson complete"), "the exam is a test, and reports its result")
+        assertTrue(
+            isVisible("You win") || isVisible("You lose") || isVisible("Draw"),
+            "the exam should say how it actually went",
+        )
         onNodeWithTag(NEW_MATCH_TEST_TAG).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(HELP_LIST_TEST_TAG) }
     }

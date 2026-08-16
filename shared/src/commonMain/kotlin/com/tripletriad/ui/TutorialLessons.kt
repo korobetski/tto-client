@@ -160,6 +160,23 @@ internal data class TutorialLesson(
 )
 
 /**
+ * What the exam is played under — three rules the course has taught, named for its row.
+ *
+ * **Above the course rather than beside its row**, because the exam's row reads these and
+ * top-level properties in one file initialise in the order they are written: declared after
+ * [TUTORIAL_COURSE] they are still null when it builds, which is what
+ * `Variable 'EXAM_RULE_KEYS' must be initialized` was saying.
+ *
+ * Same and Plus because they are the two that change how a hand is read, and Reverse because it
+ * changes which hand is good. Not Combo: it is not a rule to switch on, and it comes along with
+ * Same anyway ([com.tripletriad.model.GameRules.comboEnabled]).
+ */
+internal val EXAM_RULES: GameRules = GameRules(same = true, plus = true, reverse = true)
+
+/** The same three, as the keys the list row prints. */
+internal val EXAM_RULE_KEYS: List<String> = listOf("RULE_SAME", "RULE_PLUS", "RULE_REVERSE")
+
+/**
  * The course, in the order it is taught.
  *
  * Ordered so no lesson uses anything an earlier one has not shown. Same before Plus because Same is
@@ -396,18 +413,6 @@ internal val TUTORIAL_COURSE: List<TutorialLesson> = listOf(
         puzzle = null,
     ),
 )
-
-/**
- * What the exam is played under — three rules the course has taught, named for its row.
- *
- * Same and Plus because they are the two that change how a hand is read, and Reverse because it
- * changes which hand is good. Not Combo: it is not a rule to switch on, and it comes along with
- * Same anyway ([com.tripletriad.model.GameRules.comboEnabled]).
- */
-internal val EXAM_RULES: GameRules = GameRules(same = true, plus = true, reverse = true)
-
-/** The same three, as the keys the list row prints. */
-internal val EXAM_RULE_KEYS: List<String> = listOf("RULE_SAME", "RULE_PLUS", "RULE_REVERSE")
 
 /**
  * The positions alone, in course order.

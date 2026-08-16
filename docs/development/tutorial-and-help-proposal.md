@@ -1,290 +1,287 @@
-# Teaching the game: a proposal for the tutorial and the help screen
+# Teaching the game: the academy and the sandbox
 
-**Status: proposal. Nothing here is implemented, and nothing here has been verified against a
-build** — this repository's `core` artifact could not be resolved in the environment the document
-was written in, so every claim below about *current* behaviour comes from reading the sources cited,
-not from running them. File and line citations are to this checkout at `1291b08`.
+**Status: an accepted design, not yet implemented.** Options B and C of the first draft were
+chosen together — a curriculum of short lessons *and* a rules sandbox. This document is what the
+spike turned that choice into.
 
-The question this answers: the tutorial teaches one rule out of seventeen, and the help screen is
-seventeen paragraphs of text — three of which explain nothing at all. What should replace them.
-
----
-
-## 1. What exists today
-
-### The lesson
-
-`TutorialScreen` (`shared/src/commonMain/kotlin/com/tripletriad/ui/TutorialScreen.kt`) is a single
-scripted match: a fixed five-card hand (`TUTORIAL_NUMBERS`, cards 1/3/6/7/10 of block 1), the
-opponent forced to move first, a 60-second turn, `MatchAiOptions.TUTOR` so the tutor plays badly on
-purpose, and nine lines of dialogue placed on placements 0, 1, 2, 3 and 8 (`tutorialLines`). It is
-built as data — a `MatchScript` handed to the ordinary `MatchScreen` — which is the part of the
-design worth keeping; everything proposed below extends that shape rather than replacing it.
-
-What the nine lines actually cover, read off `app-fr_FR.json`:
-
-| Concept | Line |
-|---|---|
-| 3×3 grid, random first player | `APP_TUTORIAL_1` |
-| All Open exists, other rules exist (unnamed) | `APP_TUTORIAL_2` |
-| The tutor demonstrates a placement | `APP_TUTORIAL_3` |
-| Place adjacent to a card | `APP_TUTORIAL_4` |
-| The four digits are the four sides | `APP_TUTORIAL_5` |
-| A captured card changes colour | `APP_TUTORIAL_6` |
-| Your own cards are safe on your turn | `APP_TUTORIAL_7` |
-| Win condition, end condition | `APP_TUTORIAL_8`, `APP_TUTORIAL_9` |
-
-So: the board, turn order, the digits, basic capture, and the win condition. **One named rule, All
-Open, and it is named rather than taught.** The other sixteen rules in `HELP_FAMILIES`
-(`HelpScreen.kt:206`) — Same, Same Wall, Plus, Combo, Reverse, Fallen Ace, Elemental, Ascension,
-Descension, Sudden Death, Random, Order, Chaos, Swap, Roulette, Three Open — are never demonstrated
-anywhere. A player meets Plus for the first time in a real match, against an opponent playing to
-win, with money on the table.
-
-### The help screen
-
-`HelpScreen` is an accordion over `HELP_FAMILIES`: tap a rule, read `"${ruleKey}_HELP"`. Its own
-KDoc (`HelpScreen.kt:62-71`) records that `RULE_SAME_WALL_HELP`, `RULE_COMBO_HELP` and
-`RULE_ELEMENTAL_HELP` resolve to the rule's *own name* in all four imported bundles — the screen
-shows the title twice and explains nothing — and that `RULE_ORDER`'s English label is an
-untranslated French leftover. That is a defect in Square Enix's data, correctly reported rather than
-papered over (convention 6). **An animated demonstration is the one repair that fills those three
-gaps without inventing source text**, which is what makes the second half of this proposal more than
-a nice-to-have.
-
-### What the lesson machinery can and cannot express
-
-`MatchScript` (`MatchScript.kt:65`) carries `speakerKey`, `deck`, `firstPlayer`, `turnLimit`,
-`aiOptions`, `lesson`, `outcomeLines`. Everything a curriculum needs beyond the existing lesson is
-missing from it:
-
-| Needed for | Missing today |
-|---|---|
-| A lesson on Plus, Same, Elemental… | **forced rules.** Rules come from `PveMatches.rulesFor(npc, format, random)` (`MatchScreen.kt:254`); a script cannot say "this lesson is played under Plus". |
-| Guaranteeing the rule fires | **the opponent's hand.** `deck` is the player's only. |
-| Short lessons | **a pre-filled board.** Every lesson is nine placements from empty. |
-| Demonstrating a rule | **scripted opponent moves.** `MatchAiOptions.TUTOR` loses on purpose; it cannot be told to play a specific card in a specific cell. |
-| Reacting to what happened | **post-placement lines.** `Lesson.linesBefore(placement, blueScore)` fires *before* a placement and sees only the score, so "that was a Combo!" cannot be said. |
-| Guided practice | **move constraints.** Nothing can restrict or highlight the legal move. |
-| A curriculum at all | **progress.** No record of which lessons a player has finished. |
-
-These seven are the real work. Which of them you need depends on which option below you pick.
+**What is verified, and how.** The claims about `tto-core`'s API are read from the `tto-core`
+sources at `eb6b213` (v0.7.3, the version `gradle/libs.versions.toml` pins). The lesson positions in
+§4 are computed by `tools/find_lesson_positions.py` against the shipped `cards.json` and hand-checked
+in this document. **Nothing here has been compiled**: the environment this was written in cannot
+reach GitHub Packages or the Google Maven repo, so neither `com.tripletriad:core` nor Compose
+resolves and no Gradle task can run. Every effort estimate is therefore a reading estimate.
 
 ---
 
-## 2. Three options
+## 1. The spike, and its answer
 
-### Option A — Extend the one lesson (small)
+The first draft said the design hinged on one question — *can a `MatchState` be built from a
+pre-filled board in `:core`?* — and listed seven things `MatchScript` cannot express, most of them
+guessed to need a core release.
 
-Keep a single match, lengthen the script: add lines for Same and Plus and let them fire if they
-happen to occur. Cost: a handful of string keys, no structural change.
+**The answer is yes, and the wider answer is that the whole academy needs no core change at all.**
+`MatchState`, `Board` and `MatchSetup` are plain data classes with public constructors:
 
-**Recommend against.** "If they happen to occur" is the whole problem — with an unforced ruleset
-and a fixed hand, Same fires or it doesn't, and a lesson that sometimes teaches nothing is worse
-than one that teaches one thing. It also does not touch the help screen, where the actual textual
-gap is.
+```kotlin
+data class Board(cells: List<PlacedCard?>, elements: List<CardType?>)          // Board.kt:50
+data class MatchState(rules, options, board, hands, order, placement, tally, lastPlay)
+                                                                               // MatchState.kt:55
+data class MatchSetup(state, opponentVisibility, coinFlip, intro)              // MatchSetup.kt:184
+data class GameRules(open, order, typeRule, suddenDeath, random, reverse,
+                     fallenAce, same, sameWall, plus, swap, roulette)          // GameRules.kt:56
+```
 
-### Option B — An initiation campaign of short lessons *(recommended)*
+`MatchState.start()` is a *convenience* that requires two five-card hands; the constructor imposes
+nothing. A puzzle is therefore an ordinary `MatchState` with cards already on the board and a
+`placement` count to match. So the seven gaps resolve like this:
 
-An "Academy" — a list of ten to twelve named lessons, each a short scripted match under exactly one
-rule, played in order, each unlocked by finishing the one before it, each ending in a sentence that
-names what was just learned. This is what you described, and it fits the existing architecture
-better than it has any right to: a ladder of scripted matches driven by a step counter is
-`CampaignMatchScreen` (`CampaignScreen.kt:183`), already written and already tested.
+| Gap | Answer | Where |
+|---|---|---|
+| Forced rules | `GameRules(same = true)` — build the value | client |
+| The opponent's hand | construct `MatchSetup` directly instead of `PveMatches.assemble` | client |
+| Pre-filled board | `MatchState(board = Board(cells = …), placement = n, …)` | client |
+| Scripted opponent moves | `state.play(card, position)` — the AI is not compulsory | client |
+| Lines that react | **the engine already reports why** — see below | client |
+| Move constraints | a `Set<Int>` of allowed cells, enforced in the UI | client |
+| Progress | `SettingsStore` | client |
 
-**The key design decision: most lessons should be puzzles, not matches.** A nine-placement match to
-teach Plus takes four minutes and can be derailed by the player at every step. A board pre-filled to
-one move from a Plus, with the winning card in hand and the sentence "place the 5 here — two sides
-add up on both neighbours at once", takes fifteen seconds and *cannot* fail to teach it. Reserve
-full matches for the first lesson (which already is one) and the last (the exam).
+The one that matters most: `RulesEngine.resolve` returns
 
-A curriculum, ordered so each lesson only uses what the previous ones taught:
+```kotlin
+data class Capture(val position: Int, val kind: CaptureKind, val wave: Int)    // RulesEngine.kt:115
+enum class CaptureKind { BASIC, SAME, SAME_WALL, PLUS, COMBO }                 // RulesEngine.kt:7
+```
 
-| # | Lesson | Rule taught | Shape |
+and every `MatchState` carries the last one in `lastPlay.captures`. The first draft's largest risk —
+"the engine may not report *why* a capture happened, so both the lesson lines and the demo captions
+degrade to scripted text" — **does not exist**. A lesson can say "that was a Plus" because the
+engine said so, and `wave` distinguishes the direct captures from the combo that followed them.
+
+`MatchAi` is equally usable as a teaching aid rather than an opponent: `evaluate(state, card,
+position)` scores a hypothetical placement without touching the state, and `candidates(state)`
+returns every legal move ranked. That is a hint engine already written, and it is what makes the
+sandbox (§5) cheap.
+
+**Consequence for sequencing:** nothing in this document is blocked on a `tto-core` release, a
+protocol version, or a `tto-server` deployment. The whole of it is `:shared`.
+
+---
+
+## 2. What the academy is
+
+Ten to twelve named lessons, played in order, each unlocked by the one before it, each teaching one
+rule and ending in a sentence that names it. Most are **puzzles**: a board already filled to one
+move from the rule firing, the right card in hand, one cell to find. A nine-placement match to teach
+Plus takes four minutes and can be derailed at every step; a puzzle takes fifteen seconds and cannot
+fail to teach it.
+
+| # | Lesson | Teaches | Shape |
 |---|---|---|---|
-| 1 | The board | — (the existing nine lines) | full match, All Open |
-| 2 | Where to place | corners and edges: a card on an edge exposes fewer sides | puzzle, 2 moves |
+| 1 | The board | the existing nine lines | full match, All Open |
+| 2 | Where to place | edges expose fewer sides | puzzle, 2 moves |
 | 3 | Same | `RULE_SAME` | puzzle, 1 move |
 | 4 | Plus | `RULE_PLUS` | puzzle, 1 move |
-| 5 | Chains | `RULE_COMBO` (needs Same or Plus to fire) | puzzle, 1 move |
+| 5 | Chains | combo — which is not a rule; see §4 | puzzle, 1 move |
 | 6 | The walls | `RULE_SAME_WALL` | puzzle, 1 move |
-| 7 | Upside down | `RULE_REVERSE`, then `RULE_FALLEN_ACE`, then both at once | 3 puzzles, 1 move each |
+| 7 | Upside down | `RULE_REVERSE`, `RULE_FALLEN_ACE`, then both | 3 puzzles |
 | 8 | The elements | `RULE_ELEMENTAL` | puzzle, 2 moves |
-| 9 | Rising and falling | `RULE_ASCENSION`, `RULE_DESCENSION` | short match, 5 placements |
-| 10 | Whose hand is it | `RULE_RANDOM`, `RULE_SWAP`, `RULE_CHAOS`, `RULE_ORDER` | short match, the rules announced by the pre-match banners that already exist |
-| 11 | Before the first card | `RULE_ROULETTE`, `RULE_THREE_OPEN`, `RULE_SUDDEN_DEATH` | short match, ends in a draw on purpose so Sudden Death fires |
-| 12 | The exam | three random rules, `MatchAiOptions()` — an opponent playing to win | full match |
+| 9 | Rising and falling | `RULE_ASCENSION`, `RULE_DESCENSION` | short match |
+| 10 | Whose hand is it | `RULE_RANDOM`, `RULE_SWAP`, `RULE_CHAOS`, `RULE_ORDER` | short match |
+| 11 | Before the first card | `RULE_ROULETTE`, `RULE_THREE_OPEN`, `RULE_SUDDEN_DEATH` | short match, drawn on purpose |
+| 12 | The exam | three random rules, a real opponent | full match |
 
-Lessons 3 to 8 are one move each. The whole curriculum is fifteen to twenty minutes, and a player
-who quits after lesson 5 has still learned Same, Plus and Combo.
-
-**Rewards.** The existing tutorial charges the tt-master's entry fee and pays a full reward
-(`TutorialScreen.kt:24-35`, deliberately). A curriculum should not pay twelve rewards — make the
-lessons free and unpaid, and pay one lump at the end of the exam (MGP, or a card the player keeps).
-That also removes the "repeatable for profit" question the current KDoc has to argue about.
-
-**Where it goes.** A new `Screen.ACADEMY` (list) plus `Screen.ACADEMY_LESSON` (the running lesson),
-both with `up` pointing at `OPPONENTS` — one line each in `Screen.kt:64`, and `depth` follows for
-free. The existing `TUTORIAL` row on the opponent list becomes the entry to the list rather than to
-a match; `Screen.TUTORIAL` either disappears or becomes lesson 1's id.
-
-### Option C — A rules sandbox (the full refactor)
-
-Drop the scripted-lesson idea entirely and ship a *laboratory*: a board the player composes by hand
-— place any card anywhere, toggle any rule, step forward and backward — with the engine narrating
-what each placement resolved to and why. This is the most powerful teaching tool of the three and by
-far the most work: it needs an editor UI, an undo stack, and an explanation layer that can say *why*
-a capture happened, which the engine does not currently expose (`RulesEngine` returns the resulting
-state, not a justification).
-
-**Recommend as a later addition, not instead of B.** A sandbox teaches a player who already knows
-what to ask; a curriculum teaches one who doesn't. But the explanation layer it needs is worth
-building anyway — see §4, where the same "why did this capture" data drives the help animations.
+Lessons are free and pay nothing; the exam pays once. That removes the question the current
+tutorial's KDoc has to argue about — it charges the tt-master's fee and pays a full reward
+(`TutorialScreen.kt:24-35`) — and twelve lessons paying twelve rewards would be a much louder version
+of the same problem.
 
 ---
 
-## 3. What Option B needs, and where each piece lives
+## 3. How a puzzle is built
 
-Ordered by dependency. Items marked **core** cannot be done in this repository alone: they mean an
-edit in `tto-core`, a `publishToMavenLocal`, a version bump in `gradle/libs.versions.toml`, and — if
-they touch `MatchTranscript`, `GameSave` or the protocol — a matching release of `tto-server`.
+A puzzle is a `MatchState` whose board is already filled, whose hands hold what the lesson needs, and
+whose `placement` equals the number of cards on the board. Two invariants follow from
+`MatchState` and must be respected or the lesson wedges:
 
-1. **`MatchScript.rules: GameRules?`** — client-only. `MatchScreen.kt:254` becomes
-   `script?.rules ?: PveMatches.rulesFor(...)`, following the existing `deckFor`/`flip`/`aiOptions`
-   extension pattern so no branch is added to `MatchScreen` (which is already at detekt's complexity
-   limit — see `MatchScript.kt:39-41`). `GameRules` is constructible and toggleable from the client
-   already: `PvpTableScreen.kt:87` does `GameRules()` and `rules.toggling(key, on)`.
-2. **`MatchScript.opponentDeck: List<Int>?`** — needs whatever `PveMatches.assemble` uses to build
-   the red hand; likely **core**, unless `MatchPlan` can already carry it.
-3. **`MatchScript.opening: Board?` (a pre-filled board)** — **core**. This is the one that unlocks
-   puzzles, and the one to scope first, because if `MatchState` cannot be constructed mid-game
-   cheaply, the whole puzzle idea collapses back to short matches and the curriculum above needs
-   re-timing. **Check this before committing to anything else here.**
-4. **Scripted opponent moves** — `MatchAiOptions` already selects a strategy; a `Scripted(moves)`
-   variant is **core**, but a client-side alternative exists: since a puzzle is one player move
-   long, the opponent may simply never move.
-5. **`Lesson.linesAfter(placement, outcome)`** — client-only, and the shape matters: it should
-   receive what the placement *did* (captures, and by which rule) rather than just a score, so a
-   lesson can say "that was a Plus" instead of "well done". If the engine does not report the
-   capture reason, this degrades to "lines after placement N" — still enough for the curriculum
-   above, since each puzzle has exactly one intended move.
-6. **Move constraints and highlighting** — client-only. A puzzle wants `allowed: Set<Int>` (cells)
-   and optionally a required card, with the disallowed cells rendered inert. `BoardGrid` already
-   distinguishes three cell states (`isTarget`, `isOpen`, plain — `MatchBoard.kt:224`); a fourth,
-   "not this one", is a border colour and a `clickable` guard.
-7. **Progress.** Two honest choices, and they differ in whether progress follows the account:
-   - **`SettingsStore`** (client-only): a JSON blob keyed by profile. Zero core churn, works with
-     `server == null`, but a player who signs in on a second device starts over.
-   - **`GameSave`** (**core** + server): progress syncs. `GameSave` already carries `achievements`
-     and `hasAchievement`, so the cheapest version of this is one achievement per lesson and no new
-     field at all — worth checking whether the achievement table is open enough to take twelve
-     entries.
+- **`isFinished` is `placement >= 9`**, and `currentPlayer` is `order.colorAt(placement)`. So
+  `placement` must equal `board.placedCount` or the wrong side moves.
+- **The hands must fill the remaining cells exactly**: `blue.size + red.size == 9 - placedCount`.
+  Fewer, and the match reaches a placement with an empty hand and `play` throws; more, and it ends
+  with cards still held.
 
-   **Recommend `SettingsStore` first.** Lesson progress is not worth a protocol version, and moving
-   it into the save later is a migration of a local file, not of a schema.
+A one-move puzzle is therefore eight cards on the board, one card in the player's hand, none in the
+opponent's, `placement = 8`, `order` set so blue moves. It ends by the ordinary route — the ninth
+placement finishes the match — so the outcome panel, the banners and the crediting path all work
+unchanged.
 
-8. **Curriculum data.** `campaigns.json` is generated by `tools/extract_campaigns.py` from the AS3
-   tree, and convention 5 forbids hand-editing it. **The academy is not in the AS3 original, so it
-   must be authored, not generated** — put it in Kotlin, as a `TutorialCurriculum` value in the
-   client's `data/` package (which already holds hand-written code such as
-   `MatchHistoryRepository`), not in a new JSON file that would look generated. Card ids, board
-   layouts and rule keys are all compile-time constants there, and a wrong id becomes a test failure
-   rather than a runtime `null`.
-9. **Strings.** New `APP_ACADEMY_*` keys: add to `StringKeys`, to its `appOwned` list
-   (`StringKeys.kt:732`), and to `app-en_US.json` and `app-fr_FR.json` only — `StringsBundleTest`
-   asserts that app-owned keys are translated in exactly those two and fall through to English in
-   `de_DE`/`ja_JA` (`StringsBundleTest.kt:92`), and it pins the total key counts, so
-   `TRANSLATED_KEYS`/`UNION_KEYS` must be updated in the same commit. Budget four to six lines per
-   lesson: roughly 60 new keys.
+Two consequences worth stating, because both look like defects otherwise:
 
-### One UX fix worth doing regardless of the option chosen
-
-`LessonBubbles` (`MatchScript.kt:176`) advances on a **6.1-second timer** and the turn clock keeps
-running behind it (`MatchScript.kt:160-168`, deliberately, following the AS3). That is tolerable for
-nine lines. For sixty it is not: a fast reader waits, a slow reader loses the sentence, and neither
-can go back. **Make a lesson bubble advance on tap, with the timer as a fallback, and pause the turn
-clock while a lesson line is up.** This is a small change to `TalkBubble`/`LessonBubbles` and it
-deviates from the original — which convention 3 asks be documented, with the reason: the original
-had nine lines and a lesson has sixty.
+- **A one-move puzzle's score is meaningless.** The score counts unplayed cards for their owner, so
+  a lesson board stacked with red cards opens at a heavy loss and the win banner will say so. Either
+  compose the board to be roughly even, or suppress the outcome banner for lessons.
+- **`MatchScreen` re-deals on `remember(matchIndex, npc.iconId)`.** A curriculum whose lessons share
+  one tutor would keep the previous board when moving between two of them, exactly as
+  `CampaignMatchScreen` documents at `CampaignScreen.kt:235`. The same fix applies: `key(lesson)`.
 
 ---
 
-## 4. The help screen: animated examples
+## 4. The positions, and how they were chosen
 
-The proposal is a `RuleDemo` composable — a small, non-interactive 3×3 board that plays a two-or
-three-placement scene on a loop, shown inside the accordion row under the rule's text.
+**A lesson is only honest if the rule it teaches is the only explanation for the capture.** If the
+placement would have won on raw power too, the player learns nothing about Plus and is told
+something false. `tools/find_lesson_positions.py` searches `cards.json` for positions that fire the
+wanted rule *and* capture nothing with every special rule switched off.
 
-**Why it is the right fix here specifically:** three of the seventeen `_HELP` texts explain nothing
-(`HelpScreen.kt:62-71`), and the repository's own rule is not to invent Square Enix source text to
-fill them. An animation is *this port's* content rather than a forged translation, so it fills the
-gap without touching the imported bundles at all.
+Its output for block 1 — the block the current tutorial already deals — hand-checked below. Cells are
+0..8 row-major; powers are top/right/bottom/left.
 
-Design:
+**Same** — play Dodo (4/2/3/4) into the centre:
 
-- **Driven by the real engine, not by hand-drawn frames.** A demo is a tiny fixed scenario — a
-  ruleset, two hands, a list of placements — replayed through `RulesEngine`, one placement per
-  beat, with the resulting `MatchState` rendered. That way a demo cannot drift from the rules: if
-  Plus ever changes, the Plus demo changes with it. It also means each demo is ~6 lines of data.
-- **Reuse the card and cell visuals, not `BoardGrid` itself.** `BoardGrid` takes a
-  `BoardDragState` and an `onPlace` and registers drop targets; a demo wants none of that. A
-  separate `DemoBoard` over `CardFace`/`BoardCard` at a small `scale` is less code than making
-  `BoardGrid` optional-everything.
-- **Captions per beat**, one short sentence — "the 6 meets a 6 and the 3 meets a 3: both are taken"
-  — which is also what makes the demo readable with the sound off and by a screen reader. The whole
-  demo should carry a text alternative for exactly that reason.
-- **Respect reduced motion.** `rememberReducedMotion()` exists (`platform/ReducedMotion.kt:32`);
-  with it on, the demo shows its final state and its captions as a static sequence, no loop.
-- **Loop with a pause**, and a play/replay control. An animation that loops forever under a
-  paragraph of text is a distraction while the paragraph is being read.
-- **Test tags** per demo (`help-demo-<ruleKey>`) so `HelpUiTest` can assert that every rule with a
-  demo shows one, and — per convention 2 — a test that fails if a demo's scenario stops producing
-  the capture it claims to show. That last one is the test worth writing: it is the one that would
-  catch a demo silently teaching the wrong thing after an engine change.
+| Cell | Card | Why |
+|---|---|---|
+| 5 | Tonberry (2/2/7/2) | Dodo's right 2 meets Tonberry's left 2 — equal |
+| 7 | Bomb (3/4/3/3) | Dodo's bottom 3 meets Bomb's top 3 — equal |
 
-Which rules get a demo, in priority order: **Same, Plus, Combo, Same Wall** (the three placeholder
-texts are in this set), then **Reverse, Fallen Ace, Elemental**, then **Ascension/Descension**. The
-hand-and-order rules (Random, Order, Chaos, Swap, Roulette, Three Open) are poorly served by a board
-animation — they are about what happens *before* a placement — and are better left as text, or
-shown as a hand rather than a board.
+Two matches fire Same; neither would fall to raw power, since both are ties.
 
-**Connect the two halves:** a rule row whose lesson exists in the academy gets a "Try it" action
-that opens that lesson directly. That is the point at which the help screen stops being a glossary.
-Note that it makes a lesson reachable from two places with different back destinations, which is
-precisely the condition `Screen.kt:12-15` names as the moment to reconsider the enum-based
-navigation — so either pass the origin into the lesson screen (a `remember`ed field, the cheap
-answer) or take it as the trigger to look at Compose Navigation again.
+**Plus** — play Dodo into the centre:
+
+| Cell | Card | Sum |
+|---|---|---|
+| 1 | Tonberry (2/2/7/2) | Dodo's top 4 + Tonberry's bottom 7 = 11 |
+| 3 | Chocobo (3/7/2/1) | Dodo's left 4 + Chocobo's right 7 = 11 |
+
+Equal sums fire Plus. Dodo loses both sides on power — 4 against 7 twice — so this is the position
+that teaches what Plus is *for*: a weak card taking two strong ones.
+
+**Combo** — play Dodo into the centre, under **Same**:
+
+| Cell | Card | Why |
+|---|---|---|
+| 5 | Tonberry (2/2/7/2) | right 2 = left 2 → Same |
+| 7 | Coblyn (3/3/3/4) | bottom 3 = top 3 → Same |
+| 6 | Sabotender (4/3/3/3) | Coblyn, now blue, beats it: Coblyn's left 4 > Sabotender's right 3 → Combo |
+
+Note what this lesson has to say out loud: **combo is not a rule.** `GameRules.comboEnabled` is
+always true and `RULE_COMBO` is a dead constant everywhere but the help screen
+(`HelpScreen.kt:50-57`). The lesson is played under Same, and the third card falls to the chain.
+
+**Same Wall** — play Nanamo Ul Namo (10/6/4/8) into cell 1, the top edge:
+
+| Cell | Card | Why |
+|---|---|---|
+| — | the wall above | the ace on top counts as a matching card |
+| 4 | Dodo (4/2/3/4) | Nanamo's bottom 4 meets Dodo's top 4 — equal |
+
+Same Wall **cannot be taught from the centre**, which is the one cell with no wall at all — the tool
+encodes that, and it is the sort of thing a hand-written lesson would get wrong once and never
+notice.
+
+### The tool is a search, not an oracle
+
+`find_lesson_positions.py` is a second implementation of rules that live in `tto-core`, and it will
+drift from them. It exists to *find* candidates cheaply; **each lesson must then be pinned by a test
+that replays its position through the real `RulesEngine`** and asserts the captures and their kinds.
+That test is also the one that earns its place under convention 2: change the engine's Same and it
+fails, which is exactly when a lesson has started teaching something untrue.
 
 ---
 
-## 5. Suggested order of work
+## 5. The sandbox
 
-Each step is shippable on its own, and each one leaves the game better than it found it.
+The spike makes this far cheaper than the first draft assumed. A sandbox needs three things, and the
+engine supplies all three:
 
-1. **Spike, half a day: can a `MatchState` be built from a pre-filled board in `:core`?** Everything
-   else in Option B is timed off the answer. If it is cheap, the curriculum above stands; if it is
-   not, lessons 3 to 8 become five-placement matches and the academy grows to ~30 minutes.
-2. **The bubble UX fix** (§3, tap-to-advance, clock paused). Independent, improves the tutorial that
-   ships today, and is the prerequisite for any lesson longer than nine lines.
-3. **`MatchScript.rules`** + the first three puzzles (Same, Plus, Combo) behind the existing
-   `TUTORIAL` row, with no list screen and no persistence — a straight sequence. This is the point
-   at which the idea is either obviously good or obviously wrong, and it is reached with roughly
-   one screen of new code.
-4. **The academy list, progress in `SettingsStore`, the remaining lessons, the exam and its reward.**
-5. **`RuleDemo` for Same, Plus, Combo and Same Wall**, which are the four where the existing text is
-   weakest.
-6. **The remaining demos, and the "Try it" link from a rule to its lesson.**
-7. *Later, if it still looks worth it:* the sandbox (Option C).
+- **place anything anywhere** — `Board.place`, `MatchState.play`;
+- **explain what happened** — `lastPlay.captures`, each with its `CaptureKind` and `wave`, so the
+  sandbox can say "two cards fell to Plus, a third to the combo behind it" rather than "3 captures";
+- **say what would have happened** — `MatchAi.evaluate(state, card, position)` scores a hypothetical
+  placement without mutating anything, and `candidates(state)` ranks every legal move. So "why was
+  that a bad move" is answerable: show the move the AI would have played and what it captures.
 
-## 6. What could go wrong
+What is left to build is UI and a history stack: a rule panel (`GameRules` toggles, the same shape
+`PvpTableScreen.kt:135` already draws), a card picker, a board that accepts placements for either
+colour, step-back, and a running explanation of each resolution. `MatchState` being immutable makes
+undo a list of states rather than an inverse operation.
 
-- **The engine may not report *why* a capture happened.** Both the "that was a Plus!" lines and the
-  demo captions want it. If it doesn't, both degrade to scripted text that asserts what the scenario
-  was designed to produce — which is fine as long as a test proves the scenario still produces it.
-- **A puzzle with one legal move is a lesson the player cannot fail, and also one they cannot
-  explore.** The mitigation is the exam: one real match, real AI, three random rules, where nothing
-  is constrained.
-- **Twelve lessons is a lot of copy in two languages**, and copy is the part that cannot be
-  refactored later. Write lesson 1's four lines first and read them aloud before writing the other
-  eleven.
-- **`MatchScreen` has no complexity budget left** (`MatchScript.kt:39-41`). Every item in §3 must
-  arrive as data on `MatchScript` read through an extension, never as a branch in the composable.
+**Order it after the academy.** A sandbox teaches a player who already knows what to ask; a
+curriculum teaches one who does not. But the explanation layer they share is the academy's too — a
+lesson that says "that was a Plus" and a sandbox that says it are the same function over
+`lastPlay.captures`, and it should be written once, in `:shared`, for both.
+
+---
+
+## 6. The help screen
+
+`RuleDemo`: a small non-interactive board that replays a two-or-three-placement scene on a loop,
+inside the accordion row. Same principle as the lessons and the same source of truth — the scene is a
+ruleset, a board and a list of placements, replayed through `RulesEngine`, so a demo cannot drift
+from the rule it claims to show.
+
+This is the one repair available for a real defect in the data: `RULE_SAME_WALL_HELP`,
+`RULE_COMBO_HELP` and `RULE_ELEMENTAL_HELP` resolve to the rule's own name in all four imported
+bundles (`HelpScreen.kt:62-71`), so those three rows explain nothing today, and convention 6 rules
+out writing replacement text into Square Enix data. A demo is this port's own content, so it fills
+the gap without forging a translation.
+
+- Reuse `CardFace`/`BoardCard` at a small `scale`, not `BoardGrid` — that one registers drop targets
+  and takes a `BoardDragState`, none of which a demo wants.
+- One caption per beat, which is also the screen-reader text.
+- `rememberReducedMotion()` (`platform/ReducedMotion.kt:32`): with it on, show the final state and
+  the captions as static text, no loop.
+- A replay control; a demo looping under a paragraph is a distraction while the paragraph is read.
+- Tag each `help-demo-<ruleKey>`, and pin each scene the same way the lessons are pinned.
+
+Priority: Same, Plus, Combo, Same Wall (the three empty texts are in that set), then Reverse, Fallen
+Ace, Elemental, then Ascension/Descension. The hand-and-order rules are about what happens *before* a
+placement and are poorly served by a board animation — leave them as text.
+
+**"Try it"** on a rule row opens its lesson. That is what stops the help screen being a glossary, and
+it is also the moment `Screen.kt:12-15` names as the reason to reconsider the navigation enum: a
+lesson would then be reachable from two places with different back destinations. Cheapest answer is
+to carry the origin into the lesson screen; the honest alternative is to look at Compose Navigation
+again.
+
+---
+
+## 7. Costs that are not code
+
+- **Strings.** New `APP_ACADEMY_*` keys go in `StringKeys`, in its `appOwned` list
+  (`StringKeys.kt:732`), and in `app-en_US.json` and `app-fr_FR.json` **only** — `StringsBundleTest`
+  asserts app-owned keys are translated in exactly those two and fall through to English in `de_DE`
+  and `ja_JA` (`StringsBundleTest.kt:92`), and it pins total key counts, so `TRANSLATED_KEYS` and
+  `UNION_KEYS` must move in the same commit. Four to six lines a lesson is roughly 60 keys.
+- **Copy is the part that cannot be refactored.** Write lesson 1's four lines and read them aloud
+  before writing the other eleven.
+- **Bubble pacing.** `LessonBubbles` advances on a 6.1-second timer and the turn clock runs behind it
+  (`MatchScript.kt:160-168`, deliberately, following the AS3). Fine for nine lines, wrong for sixty:
+  make a lesson bubble advance on tap with the timer as a fallback, and pause the turn clock while a
+  line is up. A deliberate deviation, so it is documented as one — the original had nine lines.
+- **`MatchScreen` has no complexity budget left** (`MatchScript.kt:39-41`). Everything in §1 arrives
+  as data on `MatchScript`, read through a nullable extension like `deckFor`/`flip`/`aiOptions`
+  already are. No new branch in the composable.
+
+## 8. Order of work
+
+1. **The bubble pacing fix.** Independent, improves what ships today, prerequisite for anything
+   longer than nine lines.
+2. **`MatchScript.rules` + `MatchScript.opening` (a pre-built `MatchSetup`)**, and the three verified
+   puzzles — Same, Plus, Combo — behind the existing `TUTORIAL` row as a straight sequence, with no
+   list screen and no persistence. This is where the idea proves itself, and each puzzle is pinned by
+   an engine test from the start.
+3. **The academy list, progress in `SettingsStore`, the remaining lessons, the exam and its reward.**
+4. **`RuleDemo` for Same, Plus, Combo, Same Wall**, sharing the explanation function with the
+   lessons.
+5. **The sandbox**, on the same explanation layer, plus `MatchAi.evaluate` for hints.
+6. **The remaining demos and the "Try it" link.**
+
+## 9. What could still go wrong
+
+- **A one-move puzzle cannot be failed, and cannot be explored.** The exam is the mitigation: one
+  real match, real AI, three random rules, nothing constrained.
+- **Elemental, Ascension and Descension change effective power**, so a position that is "pure" under
+  printed powers may not be under them. `find_lesson_positions.py` models neither; lessons 8 and 9
+  must be composed against the real engine rather than searched with this tool.
+- **The `SpecialPowerBasis` default is `PRINTED`** (`RulesEngine.kt:86`) — Same and Plus compare
+  printed values, ignoring Elemental. A lesson that combines Elemental with Same would be teaching an
+  interaction most players will get wrong, and this port's default is not FF14's. Keep them apart.

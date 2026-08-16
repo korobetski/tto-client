@@ -12,7 +12,7 @@ Phase 0, Task 1.6 deliverables. How this project is written, tested, reviewed an
 | [git-workflow.md](./git-workflow.md) | branches, commits, PRs, merge strategy, branch protection |
 | [testing-strategy.md](./testing-strategy.md) | what is tested today, what is not, and how to know a test can fail |
 | [performance-guidelines.md](./performance-guidelines.md) | targets, how to measure them, Compose specifics, the app-size decision |
-| [tutorial-and-help-proposal.md](./tutorial-and-help-proposal.md) | **a proposal, not a standard** — options for turning the one-rule tutorial into a curriculum and the help screen into animated examples |
+| [tutorial-and-help-proposal.md](./tutorial-and-help-proposal.md) | **a design, not a standard** — the lesson academy and the rules sandbox that replace the one-rule tutorial, and the animated examples for the help screen |
 
 The first three are the Phase 1 Task 1.13 deliverables, together with
 [CONTRIBUTING.md](../../CONTRIBUTING.md) at the repository root, which is the front door for

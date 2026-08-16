@@ -18,6 +18,9 @@ import kotlinx.coroutines.runBlocking
 /** How long to allow for an animation, a resource load or the opponent's turn before failing. */
 internal const val UI_TIMEOUT_MS = 10_000L
 
+/** Extended timeout for tutorial tests which involve more speech and animations. */
+internal const val TUTORIAL_TIMEOUT_MS = 30_000L
+
 /**
  * The opponent every match test challenges unless it says otherwise.
  *

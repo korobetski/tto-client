@@ -103,6 +103,7 @@ internal data class PuzzlePiece(val position: Int, val cardId: Int, val owner: C
  * The opponent's hand is empty — a one-move puzzle ends on the player's move — so
  * [HandVisibility.HIDDEN] describes it exactly and the Open rules have nothing to reveal.
  */
+@Suppress("ReturnCount")
 internal fun puzzleSetup(puzzle: TutorialPuzzle, catalog: CardCatalog): MatchSetup? {
     val pieces = puzzle.board.associateBy { it.position }
     val cells = List(Board.SIZE) { position ->
@@ -113,14 +114,14 @@ internal fun puzzleSetup(puzzle: TutorialPuzzle, catalog: CardCatalog): MatchSet
         }
     }
 
-    val hand = puzzle.hand.mapNotNull { catalog[it] }
-    // Validate all preconditions before returning
-    val valid = cells.count { it != null } == puzzle.board.size &&
-        hand.size == puzzle.hand.size &&
-        puzzle.board.size + hand.size == Board.SIZE &&
-        cells[puzzle.cell] == null
+    if (cells.count { it != null } != puzzle.board.size) return null
 
-    if (!valid) return null
+    val hand = puzzle.hand.mapNotNull { catalog[it] }
+    if (hand.size != puzzle.hand.size) return null
+    if (puzzle.board.size + hand.size != Board.SIZE) return null
+    // The cell the lines name has to be the one that is free. Nothing downstream would notice:
+    // the position would simply be a different one from the sentences describing it.
+    if (cells[puzzle.cell] != null) return null
 
     return MatchSetup(
         state = MatchState(

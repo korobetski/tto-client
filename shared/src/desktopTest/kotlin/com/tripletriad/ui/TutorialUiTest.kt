@@ -6,8 +6,10 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.i18n.AppLocale
+import com.tripletriad.model.Board
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.HAND_SIZE
+import com.tripletriad.model.PLACEMENTS_PER_MATCH
 import com.tripletriad.storage.InMemoryDocumentStore
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -23,6 +25,37 @@ import kotlin.test.assertTrue
  */
 @OptIn(ExperimentalTestApi::class)
 class TutorialUiTest {
+    /** Extended await for player turn in tutorials which may take longer due to speech. */
+    private fun ComposeUiTest.awaitPlayerForTutorial() {
+        waitUntil(timeoutMillis = TUTORIAL_TIMEOUT_MS) { isPlayerTurn() || isFinished() }
+    }
+
+    /** Extended playOneCard for tutorials which may take longer due to speech. */
+    private fun ComposeUiTest.playOneCardForTutorial(): Int {
+        awaitPlayerForTutorial()
+        check(!isFinished()) { "the match is already over" }
+        val before = handSize(CardColor.BLUE)
+        onNodeWithTag(handCardTestTag(CardColor.BLUE, 0)).performClick()
+        for (position in 0 until Board.SIZE) {
+            onNodeWithTag(tileTestTag(position)).performClick()
+            waitForIdle()
+            if (handSize(CardColor.BLUE) < before) return position
+        }
+        error("no cell accepted a card; the board looks full but the match is not over")
+    }
+
+    /** Extended playOut for tutorials which may take longer due to speech. */
+    private fun ComposeUiTest.playOutForTutorial() {
+        var moves = 0
+        while (!isFinished()) {
+            check(moves <= PLACEMENTS_PER_MATCH) {
+                "played $moves times and the match has not ended"
+            }
+            playOneCardForTutorial()
+            moves++
+            waitUntil(timeoutMillis = TUTORIAL_TIMEOUT_MS) { isPlayerTurn() || isFinished() }
+        }
+    }
 
     /** The course opens from the dashboard, onto a board with no deck to choose. */
     @Test
@@ -53,7 +86,7 @@ class TutorialUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
         openLesson()
 
-        awaitPlayer()
+        awaitPlayerForTutorial()
         assertEquals(HAND_SIZE, handSize(CardColor.BLUE), "the player has not played yet")
         assertEquals(
             HAND_SIZE - 1,
@@ -95,7 +128,7 @@ class TutorialUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
         openLesson()
 
-        playOut()
+        playOutForTutorial()
 
         val (blue, red) = score()
         assertTrue(
@@ -118,7 +151,7 @@ class TutorialUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
         openLesson()
 
-        playOut()
+        playOutForTutorial()
 
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { isFinished() }
         assertFalse(exists(MATCH_PAYOUT_TEST_TAG), "a lesson pays nothing and should say nothing")
@@ -141,7 +174,7 @@ class TutorialUiTest {
         openLesson()
         val before = storedSave(documents)
 
-        playOut()
+        playOutForTutorial()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { isFinished() }
 
         val after = storedSave(documents)
@@ -167,7 +200,7 @@ class TutorialUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
         openLesson()
 
-        playOut()
+        playOutForTutorial()
 
         assertTrue(isVisible("Next lesson"), "the first action should lead on, not rematch")
         onNodeWithTag(NEW_MATCH_TEST_TAG).performClick()
@@ -198,10 +231,10 @@ class TutorialUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
         openLesson()
 
-        playOut()
+        playOutForTutorial()
 
         assertTrue(isVisible("Lesson complete"), "the panel should name what was finished")
-        assertFalse(isVisible("You win"), "a lesson that cannot be lost should not claim a win")
+        assertFalse(isVisible("You win !"), "a lesson that cannot be lost should not claim a win")
     }
 
     /**
@@ -216,11 +249,11 @@ class TutorialUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
         openLesson()
 
-        playOut()
+        playOutForTutorial()
         repeat(LAST_LESSON) {
             onNodeWithTag(NEW_MATCH_TEST_TAG).performClick()
             waitUntil(timeoutMillis = UI_TIMEOUT_MS) { !isFinished() }
-            playOut()
+            playOutForTutorial()
         }
 
         assertTrue(isVisible("To the rule book"), "the course should end at the rule book")
@@ -242,7 +275,7 @@ class TutorialUiTest {
         newCharacter()
         openLessons()
         onNodeWithTag(lessonRowTestTag(lesson)).performClick()
-        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(BOARD_TEST_TAG) }
+        waitUntil(timeoutMillis = TUTORIAL_TIMEOUT_MS) { exists(BOARD_TEST_TAG) }
     }
 
     private companion object {

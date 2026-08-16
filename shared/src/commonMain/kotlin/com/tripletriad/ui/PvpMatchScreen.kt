@@ -473,6 +473,12 @@ private fun OpponentRow(view: MatchView, layout: MatchLayout) {
  * Both gestures, as in a PvE match: tap to select then tap a cell, or drag the card onto one.
  * `Card._draggable` gates the second the same way the first is gated — dragging a card the rules
  * forbid and watching the drop do nothing is worse feedback than a card that cannot be lifted.
+ *
+ * Under Order and Chaos the one card left also **wears a ring**, and the dimming is now asked of
+ * [handIsNarrowed] rather than read straight off the index list. Both changes matter for the same
+ * reason: `MatchView.playableHandIndices` is documented as **empty while it is not this side's
+ * turn**, so the old `playable -> 1f` dimmed the whole hand a second time on top of the row's own
+ * inactive alpha, and would have ringed nothing at the moment there was nothing to ring anyway.
  */
 @Composable
 @Suppress("LongParameterList")
@@ -484,6 +490,12 @@ private fun OwnRow(
     onSelect: (Card) -> Unit,
     onDrop: (Card, Int) -> Unit,
 ) {
+    val narrowed = handIsNarrowed(
+        held = view.ownHand.size,
+        playable = view.playableHandIndices.size,
+        isMyTurn = view.isMyTurn,
+    )
+
     Row(
         horizontalArrangement = Arrangement.spacedBy(HandGap * layout.scale),
         modifier = Modifier.graphicsLayer {
@@ -537,12 +549,14 @@ private fun OwnRow(
                             // Dimmed rather than removed while in the air: taking it out of the row
                             // would re-lay-out the cards beside it mid-gesture.
                             lifted -> DRAG_SOURCE_ALPHA
-                            playable -> 1f
-                            else -> INACTIVE_HAND_ALPHA
+                            narrowed && !playable -> INACTIVE_HAND_ALPHA
+                            else -> 1f
                         }
                     },
             ) {
                 CardFace(card = card, scale = layout.scale)
+                // Never both, as in the PvE hand: a chosen card that has been picked up is simply
+                // the selected one.
                 if (selected?.id == card.id) {
                     Spacer(
                         modifier = Modifier
@@ -553,6 +567,8 @@ private fun OwnRow(
                                 TileShape,
                             ),
                     )
+                } else if (narrowed && playable) {
+                    PlayableRing(scale = layout.scale)
                 }
             }
         }

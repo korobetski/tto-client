@@ -674,6 +674,11 @@ private fun HandArea(
     val cards = state.hands[owner].orEmpty()
     val active = state.currentPlayer == owner
     val gap = HandGap * layout.scale
+    // Only the player's own hand can be narrowed on screen: `playable` is what *they* may play, and
+    // it is empty while the opponent is thinking, so asking this of the red hand would report every
+    // red card as forbidden on red's own turn. See `handIsNarrowed`.
+    val narrowed = owner == CardColor.BLUE &&
+        handIsNarrowed(held = cards.size, playable = playable.size, isMyTurn = active)
 
     Box(
         modifier = Modifier
@@ -714,6 +719,15 @@ private fun HandArea(
                                     slot = slot,
                                     isSelected = active && selected?.id == card.id,
                                     active = active,
+                                    // Forbidden by Order or Chaos, and said so rather than merely
+                                    // enforced. The tap used to reach `onSelect`, which dropped it
+                                    // — see `MatchScreen`, where the guard is — so the card simply
+                                    // did not respond. That is the feedback the drag gate below
+                                    // already refuses to give, and the two now agree.
+                                    allowed = !narrowed || card in playable,
+                                    // Ringed when the rules have left exactly this one. Not when
+                                    // the whole hand is playable: five rings state nothing.
+                                    chosen = narrowed && card in playable,
                                     // Only the player's own playable cards are draggable.
                                     // `Card._draggable` is the same gate (`Card.as:137`), and it
                                     // matters more here than it looks: dragging a card that
@@ -758,6 +772,13 @@ private fun HandArea(
  *
  * @param drag the board's drag state, or **null** when this card may not be dragged. Null rather
  *   than a boolean beside it, so a card that cannot be dragged cannot reach the state at all.
+ * @param allowed whether the rules let this card be picked up at all — false only under Order and
+ *   Chaos, which leave one card of the five. Dimmed *and* unclickable, because a card that looks
+ *   ordinary and ignores a tap is the reading a player takes as a broken screen. See [PlayableRing]
+ *   for why this is said twice over.
+ * @param chosen this is the one card the rules leave, and it wears the ring that says so. Distinct
+ *   from `allowed` rather than its negation across the hand: with no rule narrowing anything every
+ *   card is allowed and none is chosen.
  */
 @Composable
 @Suppress("LongParameterList")
@@ -767,6 +788,8 @@ private fun HandCard(
     slot: Int,
     isSelected: Boolean,
     active: Boolean,
+    allowed: Boolean,
+    chosen: Boolean,
     faceUp: Boolean,
     scale: Float,
     drag: BoardDragState?,
@@ -807,23 +830,33 @@ private fun HandCard(
             // `ttoClickable`. `selected` is the ring the card wears when it is the one in hand,
             // and without it that ring is visible and unannounced.
             .semantics { selected = isSelected }
-            .clickable(enabled = active, role = Role.Button) { onSelect(card) },
+            .clickable(enabled = active && allowed, role = Role.Button) { onSelect(card) },
     ) {
         // Dimmed rather than removed while it is in the air: taking it out of the hand would
-        // re-lay-out the four cards beside it in the middle of the gesture.
+        // re-lay-out the four cards beside it in the middle of the gesture. The same dimming
+        // carries "the rules forbid this one", which is the value the whole hand already wears
+        // when it is not its turn — one meaning, "you cannot play this now", at one weight.
         Box(
             modifier = Modifier.graphicsLayer {
-                alpha = if (isBeingDragged) DRAG_SOURCE_ALPHA else 1f
+                alpha = when {
+                    isBeingDragged -> DRAG_SOURCE_ALPHA
+                    allowed -> 1f
+                    else -> INACTIVE_HAND_ALPHA
+                }
             },
         ) {
             CardFace(card = card, scale = scale, showBack = !faceUp)
         }
+        // Never both: a chosen card that has been picked up is simply the selected one, and two
+        // rings on one card at two weights would read as a rendering fault.
         if (isSelected) {
             Box(
                 modifier = Modifier
                     .size(CardSpriteWidth * scale, CardSpriteHeight * scale)
                     .border(SelectionRingWidth, LocalTtoColors.current.selectionRing, TileShape),
             )
+        } else if (chosen) {
+            PlayableRing(scale = scale)
         }
     }
 }

@@ -357,6 +357,15 @@ again.
    Five rules are still untaught and are now a deliberate stop rather than a gap: Random (a script
    deck defeats it — the lesson would be lying), Swap, Roulette, Three Open and Sudden Death.
 
+   **Writing the Order lesson found a defect in the board itself.** Order and Chaos narrow the hand
+   to one card, and both boards enforced that without ever saying it: the drag was gated and a tap
+   on any other card was dropped by the screen, so four of five cards looked ordinary and quietly
+   did nothing. Survivable under Order, where the card left is always the leftmost; useless under
+   Chaos, which redraws it every turn. The hand now **dims the forbidden four and rings the fifth**,
+   in PvE and PvP alike (`handIsNarrowed`, `PlayableRing`), and the ring is the selection ring at
+   the weight a free cell already wears it — full strength is what you chose, faint is what you may
+   choose. This is a fix for every match played under those rules, not for the lesson.
+
    Two findings worth keeping. **The FFXIV tribes are not elements** — beast, garlean, primals and
    scions match no tile, so every block-1 card takes −1 on an elemental cell and Elemental's +1
    cannot be shown with one; that lesson is played with block 2. And **a card counts itself under

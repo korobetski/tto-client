@@ -4,6 +4,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -124,6 +125,60 @@ class PvpBoardUiTest {
         }
 
         assertTrue(posted.isEmpty(), "an unplayable card posted $posted")
+    }
+
+    /**
+     * **The one card the server left is the only one ringed** — the same mark the PvE board draws.
+     *
+     * A card that ignores a tap is half the story, and under Chaos it is the useless half: the card
+     * left is redrawn every turn, so "not this one" without "that one" is a hand of five cards a
+     * player has to poke at to find the live one. `NarrowedHandTest` is this claim on the board
+     * that rolls Chaos itself; here the answer arrives as `playableHandIndices`, and the two must
+     * not look different — see [PlayableRing].
+     */
+    @Test
+    fun theChosenCardIsTheOnlyOneRinged() = board(view = playing().copy(playable = listOf(0))) {
+        assertEquals(
+            1,
+            onAllNodesWithTag(CHOSEN_CARD_TEST_TAG, useUnmergedTree = true)
+                .fetchSemanticsNodes()
+                .size,
+            "one playable slot should leave exactly one ring",
+        )
+    }
+
+    /**
+     * A hand the rules have not narrowed is not marked at all.
+     *
+     * Five rings would state "you may play any of these", which is the default, and would then be
+     * on screen for every match ever played without Order or Chaos.
+     */
+    @Test
+    fun anOrdinaryHandIsNotMarkedAtAll() = board {
+        assertTrue(
+            onAllNodesWithTag(CHOSEN_CARD_TEST_TAG, useUnmergedTree = true)
+                .fetchSemanticsNodes()
+                .isEmpty(),
+            "an unconstrained hand was marked",
+        )
+    }
+
+    /**
+     * Nor is it marked while the other player moves.
+     *
+     * `MatchView.playableHandIndices` is **empty on the waiting side**, which is the same value a
+     * hand narrowed to nothing would carry — so a screen reading the list alone would ring nothing
+     * and dim everything a second time on top of the row's own inactive alpha. `handIsNarrowed`
+     * takes the turn for exactly this reason.
+     */
+    @Test
+    fun theWaitingSideIsNotMarkedEither() = board(view = playing().copy(playable = emptyList())) {
+        assertTrue(
+            onAllNodesWithTag(CHOSEN_CARD_TEST_TAG, useUnmergedTree = true)
+                .fetchSemanticsNodes()
+                .isEmpty(),
+            "the waiting side's hand was marked",
+        )
     }
 
     /** Nothing is posted while it is the other player's turn. */

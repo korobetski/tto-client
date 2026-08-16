@@ -22,9 +22,15 @@ else. Note Same and Plus keep reading **printed** powers — `SpecialPowerBasis`
 defaults to PRINTED — so Fallen Ace does not reach them, while `touchesAceWall`
 reads the effective power and therefore does.
 
-**Not modelled: Elemental, Ascension and Descension.** All three change effective
-power per cell or per tally, so a position that is "pure" here may not be under
-them; those lessons have to be composed against the real engine instead.
+Elemental is modelled too, as a per-cell element passed alongside the board:
+`elementalModifier` is +1 when the card's type matches the tile, −1 when the tile
+has an element and the types differ (**including an untyped card**, which is
+deliberate in the engine), 0 otherwise. Note the tribes on the FFXIV cards —
+beast, garlean, primals, scions — are not elements and match no tile, so a +1 can
+only be found in block 2.
+
+**Not modelled: Ascension and Descension**, whose modifier comes from a running
+tally rather than from the board.
 
 **This is a second implementation of rules that live in `tto-core`, and it will
 drift.** It is a search tool, not an oracle: what it prints is a candidate, and
@@ -68,18 +74,26 @@ def neighbour(position, side):
     return None if column == WIDTH - 1 else position + 1
 
 
-def effective(card, side, rules):
-    """`effectivePower` with no TypeRule: Fallen Ace turns a printed 10 into 0."""
+def effective(card, side, rules, element=None):
+    """`effectivePower`: Fallen Ace first, then the element, then the clamp."""
     printed = card[side]
-    if rules.get("fallen_ace") and printed == ACE_POWER:
-        return FALLEN_ACE_POWER
-    return printed
+    base = FALLEN_ACE_POWER if rules.get("fallen_ace") and printed == ACE_POWER else printed
+    modifier = elemental_modifier(card["type"], element) if rules.get("elemental") else 0
+    return max(0, min(ACE_POWER, base + modifier))
 
 
-def beats(card, side, other, rules):
+def elemental_modifier(card_type, element):
+    """`elementalModifier` — an untyped card is penalised on any elemental tile."""
+    if element is None:
+        return 0
+    return 1 if card_type == element else -1
+
+
+def beats(card, side, other, rules, elements=None, at=None, other_at=None):
     """`RulesEngine.beats` — Reverse is not a negation, it swaps which side must be greater."""
-    attack = effective(card, side, rules)
-    defence = effective(other, FACING[side], rules)
+    elements = elements or {}
+    attack = effective(card, side, rules, elements.get(at))
+    defence = effective(other, FACING[side], rules, elements.get(other_at))
     return defence > attack if rules.get("reverse") else defence < attack
 
 
@@ -94,8 +108,9 @@ def neighbours(board, position):
     return found
 
 
-def resolve(board, position, card, player, rules):
+def resolve(board, position, card, player, rules, elements=None):
     """`RulesEngine.resolve` — returns (board after, [(position, kind)])."""
+    elements = elements or {}
     placed = dict(board)
     placed[position] = (card, player)
     adjacent = neighbours(placed, position)
@@ -103,7 +118,7 @@ def resolve(board, position, card, player, rules):
     basic = [
         (at, "BASIC")
         for side, at, other, owner in adjacent
-        if owner != player and beats(card, side, other, rules)
+        if owner != player and beats(card, side, other, rules, elements, position, at)
     ]
 
     special = []
@@ -121,7 +136,8 @@ def resolve(board, position, card, player, rules):
     if rules.get("same_wall") and adjacent:
         # `touchesAceWall`: some side faces a wall and shows an ace there.
         if any(
-            neighbour(position, s) is None and effective(card, s, rules) == ACE_POWER
+            neighbour(position, s) is None
+            and effective(card, s, rules, elements.get(position)) == ACE_POWER
             for s in SIDES
         ):
             special += [
@@ -149,7 +165,7 @@ def resolve(board, position, card, player, rules):
                 for side, at, other, owner in neighbours(placed, source):
                     if at in visited or owner == player:
                         continue
-                    if beats(source_card, side, other, rules):
+                    if beats(source_card, side, other, rules, elements, source, at):
                         visited.add(at)
                         combos.append((at, "COMBO"))
                         placed[at] = (other, player)

@@ -39,6 +39,8 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.tripletriad.audio.LocalAudio
+import com.tripletriad.audio.Sound
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.Card
@@ -71,6 +73,50 @@ fun pvpHandTestTag(slot: Int): String = "pvp-card-$slot"
 
 /** `pvp-back-<slot>` — a card the opponent holds that this player may not see. */
 fun pvpBackTestTag(slot: Int): String = "pvp-back-$slot"
+
+/**
+ * What each placement sounds like, for a board a referee is running.
+ *
+ * The mapping itself is shared with the PvE match — see [placementSound] and [cascadeSounds], and
+ * the reason it is shared: a capture is the same event whoever resolved it. What is different here
+ * is only *when* to play it, which is the same problem [pvpBannerQueue] solves and is solved the
+ * same way: a client that joins a match in progress must not replay everything it missed as it
+ * arrives, so anything at or below the placement it first saw is history rather than news.
+ *
+ * The cascade is awaited in place rather than launched, unlike the PvE screen's. Nothing in this
+ * effect assigns the state it is keyed on — the view comes from the session — so a suspend here
+ * survives to the end, and a *new* placement arriving cancels it, which is what should happen: the
+ * board has moved on.
+ *
+ * The deal is announced too, on the first view of a match. `MatchScreen` plays it when the cards are
+ * dealt; here they were dealt somewhere else, and the first sight of them is the nearest moment.
+ */
+@Composable
+private fun PvpMatchSounds(matchId: String?, view: MatchView?) {
+    val audio = LocalAudio.current
+    val joinedAt = remember(matchId) { view?.placement ?: 0 }
+
+    LaunchedEffect(matchId, view?.placement) {
+        if (matchId == null || view == null) return@LaunchedEffect
+
+        if (view.placement <= joinedAt) {
+            // Nothing has been played since this client arrived. The one thing worth saying is
+            // that there is a match at all, and only for a board still at its opening.
+            if (view.placement == 0) audio.play(Sound.MATCH_OPEN)
+            return@LaunchedEffect
+        }
+
+        val captures = view.lastPlay?.captures.orEmpty()
+        placementSound(audio, captures, finished = view.isFinished)
+        cascadeSounds(
+            audio = audio,
+            captures = captures,
+            // From this player's side, which against a person is not always blue — see
+            // [cascadeSounds]. A draw answers null and stays silent, as the original's does.
+            won = if (view.isFinished) view.score.winner()?.let { it == view.side } else null,
+        )
+    }
+}
 
 /**
  * A match against another person.
@@ -128,6 +174,10 @@ internal fun PvpMatchScreen(
     // the server says" and the announcements are not something the server says — they are derived
     // from the rules, which it does. See `serverIntroAnimations`.
     val banners = pvpBannerQueue(wire?.matchId, view)
+
+    // And the sounds, which were absent for the same reason and are worth more: a capture the
+    // player did not initiate is a thing that happens while they are looking elsewhere.
+    PvpMatchSounds(wire?.matchId, view)
 
     // The opponent's move can make a selected card unplayable — Order and Chaos both move on. Kept
     // only while the server still lists it, so a stale highlight cannot survive a turn.

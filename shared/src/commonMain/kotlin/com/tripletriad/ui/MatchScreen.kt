@@ -59,6 +59,7 @@ import com.tripletriad.protocol.MatchTranscript
 import com.tripletriad.protocol.TranscriptMove
 import com.tripletriad.time.Clock
 import com.tripletriad.ui.theme.LocalTtoColors
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -430,8 +431,7 @@ internal fun MatchScreen(
         if (next.placement > state.placement) {
             visibility = visibility.reindexedFor(next)
             state = next
-            sound(audio, next)
-            scope.launch { cascadeSounds(audio, next) }
+            playMatchSounds(audio, scope, next)
         }
     }
 
@@ -517,8 +517,7 @@ internal fun MatchScreen(
             moves += TranscriptMove(cardId = card.id, position = position)
             state = next
             selected = null
-            sound(audio, next)
-            scope.launch { cascadeSounds(audio, next) }
+            playMatchSounds(audio, scope, next)
         }
     }
 
@@ -677,380 +676,27 @@ private fun playable(state: MatchState): List<Card> =
     }
 
 /**
- * The sounds one placement makes, in the order the AS3 made them.
+ * Both halves of a placement's audio, for a match this client is running.
  *
- * The mapping is the part with decisions in it, so it is a function rather than four `if`s inside a
- * click handler, and `MatchAudioTest` asserts it through the real UI with a recording player.
+ * The cascade is **launched rather than awaited**, and that is load-bearing: the opponent's effect
+ * is keyed on the placement count, so the assignment that publishes its move cancels it, and
+ * anything suspending after that point would never resume — the chain would simply go silent
+ * whenever the AI was the one that made it. [scope] is the composition's, which outlives a
+ * placement and dies with the screen.
  *
- * * **nothing captured** → [Sound.CARD_PLACED]. `TTOCore.as:87` plays `se_ttriad.scd_1` in exactly
- *   the branch that returns a power of 0, i.e. the placement that flips nothing.
- * * **something captured** → [Sound.CARD_CAPTURED], **once**. `Card.as:229` plays it per flipped
- *   card, inside `flipTo`; four cards flipping at once would fire it four times, which on
- *   `SoundPool` is the same sample four times in the same millisecond — a volume spike, not a
- *   richer sound. One is the faithful *result*.
- * * **a combo** → [Sound.COMBO], **once per generation and on that generation's beat** — see
- *   [cascadeSounds], which is where it moved to and why it is no longer here.
- * * **the match continues** → [Sound.TURN_CHANGE], `BaseMatchScreen.as:374`, which plays it for
- *   either side. Immediate: it is the cue that it is somebody's move again, and holding it behind
- *   a cascade would hold *that* back too.
- * * **the match ends** → the winner's sound instead, `PVEMatchScreen.as:95`/`:139`, and it is in
- *   [cascadeSounds] rather than here — see there. A draw is silent, matching the original: its draw
- *   branch plays nothing.
+ * `PvpMatchScreen` needs no such care: its effect reacts to a view it does not itself assign, so it
+ * can wait for the cascade in place.
  */
-private fun sound(audio: AudioPlayer, state: MatchState) {
+private fun playMatchSounds(audio: AudioPlayer, scope: CoroutineScope, state: MatchState) {
     val captures = state.lastPlay?.captures.orEmpty()
-    audio.play(if (captures.isEmpty()) Sound.CARD_PLACED else Sound.CARD_CAPTURED)
-    if (state.outcome() == null) audio.play(Sound.TURN_CHANGE)
-}
 
-/**
- * Score, whose turn it is, and a reset. One compact line so the board gets the rest.
- * The score is two numbers and a dash, with each number in its side's colour and no colour *word* —
- * it used to read "blue 5 — 5 red". Nothing in the AS3 bundles names a side, so those two words
- * would have been the only untranslatable text on screen, and the FFXIV board they are modelled on
- * shows the score without them too.
- */
-@Composable
-private fun StatusBar(
-    state: MatchState,
-    selected: Card?,
-    npc: Npc,
-    opponentName: String,
-    turnFraction: Float?,
-    showOpponent: Boolean,
-    onExit: () -> Unit,
-) {
-    Column(modifier = Modifier.fillMaxWidth().padding(top = MatchHeaderTopInset)) {
-        StatusRow(
-            state = state,
-            selected = selected,
-            npc = npc,
-            opponentName = opponentName,
-            showOpponent = showOpponent,
-            onExit = onExit,
+    placementSound(audio, captures, finished = state.isFinished)
+    scope.launch {
+        cascadeSounds(
+            audio = audio,
+            captures = captures,
+            won = (state.outcome() as? MatchOutcome.Win)?.let { it.winner == CardColor.BLUE },
         )
-        TurnTimerBar(fraction = turnFraction)
-    }
-}
-
-/**
- * How much of the turn is left, as `playerPanel`'s `ProgressBar` was.
- *
- * ### One bar, not two
- *
- * The original gives **both** players a timer and starts both (`BaseMatchScreen.as:377-387`) — but
- * only the blue one is listened to: `:93` attaches `TIME_UP_EVENT` to `bluePlayer` and to nothing
- * else, so red's bar runs down and expiring does nothing. Red is driven by `opponentPhase` instead,
- * which in this port answers in [OPPONENT_PAUSE_MS] and could never reach thirty seconds anyway. A
- * bar that cannot expire is decoration, so there is one.
- * It goes under the status line rather than over the hand, which is where `playerPanel` put it: the
- * hand here is sized to the cards by [MatchLayout], and a bar inside it would either shrink them or
- * be drawn across them.
- *
- * @param fraction 1f at the start of the turn, 0f when it is up. Null while it is not the player's
- *   turn, which is when the original calls `razTimer()`.
- */
-@Composable
-private fun TurnTimerBar(fraction: Float?) {
-    Box(
-        modifier = Modifier
-            .testTag(TURN_TIMER_TEST_TAG)
-            .fillMaxWidth()
-            .padding(horizontal = SpaceSm)
-            .height(TurnTimerHeight)
-            .clip(TurnTimerShape)
-            .background(MaterialTheme.colorScheme.outline.copy(alpha = TIMER_TRACK_ALPHA)),
-    ) {
-        if (fraction != null) {
-            Box(
-                modifier = Modifier
-                    .testTag(TURN_TIMER_FILL_TEST_TAG)
-                    .fillMaxWidth(fraction)
-                    .height(TurnTimerHeight)
-                    .clip(TurnTimerShape)
-                    // Amber near the end, which the original does not do — its bar is one colour
-                    // the whole way down. Thirty seconds is long enough that a bar shortening is
-                    // easy to miss, and the penalty for missing it is a card played at random.
-                    .background(
-                        if (fraction <= TIMER_URGENT) {
-                            MaterialTheme.colorScheme.error
-                        } else {
-                            LocalTtoColors.current.transient
-                        },
-                    ),
-            )
-        }
-    }
-}
-
-@Composable
-private fun StatusRow(
-    state: MatchState,
-    selected: Card?,
-    npc: Npc,
-    opponentName: String,
-    showOpponent: Boolean,
-    onExit: () -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = SpaceXs),
-        horizontalArrangement = Arrangement.spacedBy(SpaceSm),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        val strings = LocalStrings.current
-        // The same control every other screen's back is, rather than the bare `‹` glyph this row
-        // carried while it was the one screen outside the shell. An `IconButton` is a 48 dp touch
-        // target where a `Text` was a 20 dp one, and it is the only back on screen that a player
-        // could previously miss — the reason for the glyph was width, and an icon costs the same
-        // in every language too. The Android system gesture still reaches the same place.
-        IconButton(
-            onClick = onExit,
-            modifier = Modifier.testTag(MATCH_EXIT_TEST_TAG).size(ExitButtonSize),
-        ) {
-            Icon(
-                imageVector = TtoIcons.Back,
-                contentDescription = strings[StringKeys.BACK],
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
-            )
-        }
-        Score(state)
-        // The turn line takes whatever the two fixed ends leave, and elides rather than growing.
-        //
-        // It used to be three items in a centred `spacedBy` row, which fitted because every
-        // string was English: French is "au bleu de jouer — choisissez une carte" where English is
-        // "blue to play — pick a card", and the extra 14 characters pushed "Match suivant" onto a
-        // second line on a 1080 px screen. A row sized for one language is the oldest
-        // localisation bug there is, so the *sentence* is the part that gives, not the controls.
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                // Absent once the board is full, which is what makes `turn-blue` mean "the player
-                // may move" rather than "the player moved last".
-                .then(state.currentPlayer?.let { Modifier.testTag(turnTestTag(it)) } ?: Modifier),
-            contentAlignment = Alignment.Center,
-        ) {
-            TurnLine(state = state, selected = selected)
-        }
-        // The opponent's face and name where the "next match" control used to be. Abandoning a
-        // match is the back control; restarting one is the end-of-match panel's business, and a
-        // reset beside a live board is one mis-tap away from discarding a game in progress.
-        //
-        // The portrait is the 50 px art the opponent list already draws — the player chose a face
-        // there, and until now the board did not show it the face they chose.
-        if (showOpponent) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(5.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                NpcPortrait(npc = npc, name = opponentName, size = BannerPortraitSize)
-                Text(
-                    text = opponentName,
-                    color = CardColor.RED.edge,
-                    style = MaterialTheme.typography.labelMedium,
-                    maxLines = 1,
-                    softWrap = false,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.testTag(
-                        MATCH_OPPONENT_TEST_TAG,
-                    ).padding(vertical = SpaceXs),
-                )
-            }
-        }
-    }
-}
-
-/** `5 — 5`, each half in its owner's colour. */
-@Composable
-private fun Score(state: MatchState) {
-    val score = state.score
-    Text(
-        text = buildAnnotatedString {
-            withStyle(SpanStyle(color = CardColor.BLUE.edge)) { append(score.blue.toString()) }
-            append(" — ")
-            withStyle(SpanStyle(color = CardColor.RED.edge)) { append(score.red.toString()) }
-        },
-        color = MaterialTheme.colorScheme.onSurface,
-        style = MaterialTheme.typography.bodyMedium,
-        fontWeight = FontWeight.Bold,
-        modifier = Modifier.testTag(SCORE_TEST_TAG),
-    )
-}
-
-/**
- * Whose turn it is, what is selected, or the result once the board is full.
- *
- * The outcome is phrased from **blue's** side — `You win !` / `You lose...` — because that is what
- * the bundles offer and it matches the original, where the local player is always the blue one
- * (`data-flow.md`, `openPhase`). When there is an AI or a second player this needs revisiting; a
- * neutral "red wins" has no key in any of the four locales.
- */
-@Composable
-private fun TurnLine(state: MatchState, selected: Card?) {
-    val strings = LocalStrings.current
-    val outcome = state.outcome()
-    if (outcome != null) {
-        Text(
-            text = when (outcome) {
-                is MatchOutcome.Win ->
-                    if (outcome.winner == CardColor.BLUE) {
-                        strings[StringKeys.YOU_WIN]
-                    } else {
-                        strings[StringKeys.YOU_LOSE]
-                    }
-                is MatchOutcome.Draw -> strings[StringKeys.DRAW]
-                is MatchOutcome.SuddenDeath ->
-                    "${strings[StringKeys.DRAW]} — ${strings[StringKeys.SUDDEN_DEATH]}"
-            },
-            color = MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.testTag(OUTCOME_TEST_TAG),
-        )
-        return
-    }
-    val player = state.currentPlayer ?: return
-    val side = strings[if (player == CardColor.BLUE) StringKeys.SIDE_BLUE else StringKeys.SIDE_RED]
-    Text(
-        // "red to play — pick a card" was right when a human moved both sides. With an opponent
-        // playing itself, the red turn is something to wait for, not an instruction.
-        text = when {
-            player == CardColor.RED -> strings.format(StringKeys.OPPONENT_TURN, side)
-            selected == null -> strings.format(StringKeys.TURN_PICK_CARD, side)
-            else -> strings.format(StringKeys.TURN_PICK_CELL, side, selected.name)
-        },
-        color = player.edge,
-        style = MaterialTheme.typography.bodySmall,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.testTag(TURN_TEST_TAG),
-    )
-}
-
-/**
- * Whether the player may put [card] on [position] right now.
- *
- * The one guard behind both ways of playing a card — tapping a cell with one selected, and dropping
- * one onto it. They check the same three things, and a pair like that is exactly what drifts apart:
- * the drag would have been the one that forgot `RULE_ORDER`.
- */
-private fun canPlay(state: MatchState, card: Card, position: Int): Boolean =
-    state.currentPlayer == CardColor.BLUE &&
-        state.board.isEmpty(position) &&
-        card in playable(state)
-
-/**
- * Counts the player's turn down, and reports how much of it is left.
- *
- * `playerPanel`'s thirty-second limit, re-armed on every turn: `setTimer()` on the side to move and
- * `razTimer()` on the other (`BaseMatchScreen.as:377-387`). Its own composable rather than an
- * effect inside the match, because the loop and its three guards are the sort of thing that makes a
- * screen function too complex to read — which is what detekt said when they were.
- *
- * @param key restarts the whole clock. The match, so a rematch gets a fresh one.
- * @param running whether the match has actually begun — false while the pre-match announcements
- *   are still playing. The original arms the timer in `nextTurn`, after the whole cascade, so a
- *   turn does not start counting down behind the Start banner.
- * @param onExpired the turn ran out. Called once, from the effect's own coroutine.
- * @return 1f at the start of the turn falling to 0f, or **null** when the clock is not running —
- *   the opponent's turn, or a finished match.
- */
-@Composable
-private fun turnClock(
-    key: Any,
-    state: MatchState,
-    limit: Duration,
-    running: Boolean,
-    onExpired: () -> Unit,
-): Float? {
-    var remaining by remember(key) { mutableStateOf(limit) }
-    val counting = running && !state.isFinished && state.currentPlayer == CardColor.BLUE
-
-    LaunchedEffect(key, state.placement, state.currentPlayer, state.isFinished, running) {
-        remaining = limit
-        if (counting) {
-            while (remaining > Duration.ZERO) {
-                delay(TIMER_TICK)
-                remaining -= TIMER_TICK
-            }
-            onExpired()
-        }
-    }
-
-    return (remaining / limit).toFloat().takeIf { counting }
-}
-
-/**
- * A card and a cell chosen at random, for a turn that ran out of time.
- *
- * `BaseMatchScreen.autoPlay` (`:422-437`), and its randomness is the point: the penalty for letting
- * the clock run out is a move you did not choose. Under `RULE_ORDER` it takes `remainingCards[0]`
- * instead, which [playable] already narrows to — so the rule is honoured without being named here.
- * Null when the board is full or the hand is empty, which the caller cannot reach: [turnClock] does
- * not run once the match is finished.
- */
-private fun autoPlay(state: MatchState, random: Random): Pair<Card, Int>? {
-    val cards = playable(state)
-    val free = (0 until Board.SIZE).filter { state.board.isEmpty(it) }
-    return if (cards.isEmpty() || free.isEmpty()) {
-        null
-    } else {
-        cards.random(random) to free.random(random)
-    }
-}
-
-/**
- * The opponent's thinking time, **on top of** whatever captions are still playing.
- *
- * `PVEMatchScreen` waits `1000 + rand(4) * 1000` before the AI moves, and that range is
- * not thinking time — it is cover for the `setTimeout` cascade that was announcing the
- * turn and the captures. Now that the captions state their own durations, the cover can be
- * computed instead of guessed at: the caller adds up [MatchBanner.totalMillis] for
- * everything the placement earned and this is what is left, the pause that would exist
- * even if nothing were on screen.
- *
- * Short, because it is now additive. A red turn costs this plus the 1.2s [MatchBanner.RED_TURN]
- * takes, which lands inside the original's own range without any of its randomness.
- */
-/**
- * Everything that has to wait for the cards to stop turning: the chain, and then the winner.
- *
- * ### The chain
- *
- * One [Sound.COMBO] **per generation, on that generation's beat**. It used to be one COMBO fired
- * with the capture whatever the chain's length, which was right while every card turned on the same
- * frame and is wrong now that they do not — the sound arrived a beat before the flip it was
- * announcing, which is exactly the join the stagger exists to make. So it waits with the cards, on
- * the same [COMBO_WAVE_MS], and a chain of three is three events. The AS3's own `flipData.waveEffect`
- * (`TTOCore.as:125`) counts them the same way.
- *
- * ### And then the winner
- *
- * Here rather than in [sound] because of the order it would otherwise come out in: a final placement
- * that chains would announce the result *before* the last card had turned, which on the combo lesson
- * means hearing "you win" and then hearing the thing that won it. The turn change stays immediate —
- * it is the cue that somebody may move, and nothing is waiting on the board for that.
- *
- * With no chain the loop does not run and both sound exactly when they always did.
- *
- * ### Why the caller has to launch it independently
- *
- * The opponent's effect is keyed on the placement count, so the assignment that publishes its move
- * cancels it — anything suspending after that point never resumes. This runs on the composition's
- * own scope instead, which outlives a placement and dies with the screen.
- */
-private suspend fun cascadeSounds(audio: AudioPlayer, state: MatchState) {
-    val generations = state.lastPlay?.captures.orEmpty().maxOfOrNull { it.wave } ?: 0
-
-    repeat(generations) {
-        delay(COMBO_WAVE_MS)
-        audio.play(Sound.COMBO)
-    }
-
-    when (val outcome = state.outcome()) {
-        is MatchOutcome.Win ->
-            audio.play(if (outcome.winner == CardColor.BLUE) Sound.BLUE_WINS else Sound.RED_WINS)
-        // A draw, a sudden-death draw, or a match still running: all silent here.
-        else -> Unit
     }
 }
 

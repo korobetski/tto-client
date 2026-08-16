@@ -1,8 +1,8 @@
 # Teaching the game: the academy and the sandbox
 
 **Status: part built.** Options B and C of the first draft were chosen together — a curriculum of
-short lessons *and* a rules sandbox. Steps 1 to 3 of §8 are done: eight lessons, a list screen with
-progress, and a dashboard entry. The rest of §8 is not.
+short lessons *and* a rules sandbox. Steps 1 to 4 of §8 are done: ten lessons ending in an exam, a
+list screen with progress, and a dashboard entry. The rest of §8 is not.
 
 **What is verified, and how.** The claims about `tto-core`'s API are read from the `tto-core`
 sources at `eb6b213` (v0.7.3, the version `gradle/libs.versions.toml` pins). The lesson positions in
@@ -74,7 +74,7 @@ protocol version, or a `tto-server` deployment. The whole of it is `:shared`.
 
 Ten to twelve named lessons in a recommended order — **not** gated behind one another; see
 `LessonsScreen` for why nothing is locked — each teaching one rule and ending in a sentence that
-names it. Eight are built. Most are **puzzles**: a board already filled to one
+names it. Ten are built, the exam included. Most are **puzzles**: a board already filled to one
 move from the rule firing, the right card in hand, one cell to find. A nine-placement match to teach
 Plus takes four minutes and can be derailed at every step; a puzzle takes fifteen seconds and cannot
 fail to teach it.
@@ -332,7 +332,16 @@ again.
    The turn change stays immediate: it is the cue that somebody may move. The PvP board plays no
    sounds at all, so there is nothing to stagger there.
 
-5. **The remaining lessons: Elemental, Ascension/Descension, the hand-and-order rules, the exam.**
+5. **The lessons still missing: Ascension/Descension, and the hand-and-order rules.** Elemental and
+   the exam are in. The two that remain are the two a one-move position cannot show: Ascension's
+   modifier comes from a *running tally* rather than from the board, and Random, Order, Chaos and
+   Swap change the deal and the turn rather than a capture — nothing happens on a single placement
+   for either. Both want a short *match* under forced rules, which is a lesson shape the course does
+   not have yet.
+
+   One finding from building Elemental, worth keeping: **the FFXIV tribes are not elements.** Beast,
+   garlean, primals and scions match no tile, so every block-1 card takes −1 on an elemental cell
+   and the rule's +1 cannot be demonstrated with one at all. That lesson is played with block 2.
 6. **`RuleDemo` for Same, Plus, Combo, Same Wall**, sharing the explanation function with the
    lessons — `captureHighlights` is the beginning of it.
 7. **The sandbox**, on the same explanation layer, plus `MatchAi.evaluate` for hints.

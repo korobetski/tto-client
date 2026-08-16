@@ -143,35 +143,56 @@ private fun exitFor(step: Int, onHelp: () -> Unit, onNext: () -> Unit): ScriptEx
     }
 
 /**
- * The script for one lesson — the opening match, or one of the rule puzzles behind it.
+ * The script for one lesson: the opening match, a rule puzzle, or the exam.
  *
  * Null when a puzzle cannot be built from [catalog]; see [puzzleSetup].
  *
- * The first lesson keeps everything it had: the fixed hand, the rigged flip, the doubled turn and
- * the opponent that plays its worst move. A puzzle needs none of those — there is one card to play
- * and the opponent never moves again — but it does need the two things the first lesson never
- * asked for, its own rules and its own board.
- *
- * `counted = false` on every one of them, first lesson included; see this file's header.
+ * `counted = false` on every one of them, first lesson and exam included; see this file's header.
  *
  * @param speakerKey whose name goes on the bubbles — the tutor's, and the only thing about them a
  *   lesson reads. Taken as the key rather than as the [Npc] so a test can build every lesson in the
  *   course without a catalogue of opponents; see `LessonRecordTest`.
  */
 internal fun scriptFor(step: Int, speakerKey: String, catalog: CardCatalog): MatchScript? {
-    if (step == FIRST_LESSON) {
-        return MatchScript(
-            speakerKey = speakerKey,
-            deck = tutorialDeck(),
-            firstPlayer = CardColor.RED,
-            turnLimit = TUTORIAL_TURN_LIMIT,
-            aiOptions = MatchAiOptions.TUTOR,
-            lesson = ::tutorialLines,
-            counted = false,
-            explains = true,
-        )
+    val puzzle = TUTORIAL_COURSE.getOrNull(step)?.puzzle
+
+    return when {
+        step == FIRST_LESSON -> openingScript(speakerKey)
+        puzzle != null -> puzzleScript(puzzle, speakerKey, catalog)
+        // No position and not the opening match: the exam is the only lesson that answers to
+        // neither, and the course ends on it.
+        step == LAST_LESSON -> examScript(speakerKey)
+        else -> null
     }
-    val puzzle = TUTORIAL_COURSE.getOrNull(step)?.puzzle ?: return null
+}
+
+/**
+ * The ported `TutorialScreen`, whole: the fixed hand, the rigged flip, the doubled turn and the
+ * opponent that plays its worst move.
+ */
+private fun openingScript(speakerKey: String): MatchScript = MatchScript(
+    speakerKey = speakerKey,
+    deck = tutorialDeck(),
+    firstPlayer = CardColor.RED,
+    turnLimit = TUTORIAL_TURN_LIMIT,
+    aiOptions = MatchAiOptions.TUTOR,
+    lesson = ::tutorialLines,
+    counted = false,
+    explains = true,
+)
+
+/**
+ * One rule, one move.
+ *
+ * A puzzle needs none of what the opening match fixes — there is one card to play and the opponent
+ * never moves again — but it does need the two things that lesson never asked for: its own rules and
+ * its own board.
+ */
+private fun puzzleScript(
+    puzzle: TutorialPuzzle,
+    speakerKey: String,
+    catalog: CardCatalog,
+): MatchScript? {
     val opening = puzzleSetup(puzzle, catalog) ?: return null
 
     return MatchScript(
@@ -195,6 +216,35 @@ internal fun scriptFor(step: Int, speakerKey: String, catalog: CardCatalog): Mat
         explains = true,
     )
 }
+
+/**
+ * The exam — a whole match under [EXAM_RULES], against an opponent playing to win.
+ *
+ * Everything the lessons hold still is let go of here, and each omission is the point. No board of
+ * its own, so the deal is a real one. `MatchAiOptions()` rather than [MatchAiOptions.TUTOR], so the
+ * opponent is not trying to lose. No rings (`explains = false`), so the digits are read rather than
+ * pointed at. The ordinary thirty-second turn rather than the lesson's sixty, because there is
+ * nothing being explained while the clock runs.
+ *
+ * A fixed hand all the same: the exam is about the rules, not about whether the player has built a
+ * deck yet, and a course that ended in the deck selector would be asking a question it never taught
+ * the answer to.
+ *
+ * It still does not count — see this file's header. What it is, is the first match in the course
+ * that can be **lost**, which is what the three outcome lines are for.
+ */
+private fun examScript(speakerKey: String): MatchScript = MatchScript(
+    speakerKey = speakerKey,
+    deck = tutorialDeck(),
+    lesson = Lesson.opening(StringKeys.LESSON_EXAM_START),
+    rules = EXAM_RULES,
+    outcomeLines = mapOf(
+        MatchResult.WIN to StringKeys.LESSON_EXAM_WIN,
+        MatchResult.LOSE to StringKeys.LESSON_EXAM_LOSE,
+        MatchResult.DRAW to StringKeys.LESSON_EXAM_DRAW,
+    ),
+    counted = false,
+)
 
 /** The nine-line match the course opens with — the lesson this screen used to be, whole. */
 internal const val FIRST_LESSON = 0

@@ -137,9 +137,9 @@ class StringsBundleTest {
 
         /**
          * Keys defined by any of the four bundles: `import_locales.py`'s 697 imported strings
-         * across the four, plus the 245 `APP_*` strings this port authored.
+         * across the four, plus the 254 `APP_*` strings this port authored.
          */
-        const val UNION_KEYS = 942
+        const val UNION_KEYS = 951
 
         /**
          * Imported key count plus however many `APP_*` strings that locale translates: 693 + 222,
@@ -168,8 +168,8 @@ class StringsBundleTest {
          * the ordinary rule and are English and French only.
          */
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 938,
-            AppLocale.FR_FR to 939,
+            AppLocale.EN_US to 947,
+            AppLocale.FR_FR to 948,
             AppLocale.DE_DE to 653,
             AppLocale.JA_JA to 686,
         )
@@ -186,9 +186,9 @@ class StringsBundleTest {
         val EXPECTED_GAPS = mapOf(
             AppLocale.EN_US to 4,
             AppLocale.FR_FR to 3,
-            // 44 imported keys short, plus all 245 app-owned; and 11 short, plus the 245.
-            AppLocale.DE_DE to 289,
-            AppLocale.JA_JA to 256,
+            // 44 imported keys short, plus all 254 app-owned; and 11 short, plus the 254.
+            AppLocale.DE_DE to 298,
+            AppLocale.JA_JA to 265,
         )
     }
 }

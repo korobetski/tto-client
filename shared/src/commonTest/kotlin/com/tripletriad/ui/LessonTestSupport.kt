@@ -2,9 +2,10 @@ package com.tripletriad.ui
 
 import com.tripletriad.data.CardCatalog
 import com.tripletriad.model.Card
+import com.tripletriad.model.CardType
 
 /**
- * The fifteen block-1 cards the lessons name, built here rather than loaded.
+ * The twenty-four cards the lessons name, built here rather than loaded.
  *
  * `commonTest` has no filesystem on Kotlin/Native, and what the lesson tests are about is the
  * *positions* rather than the loader — which `CardCatalogTest` covers. The powers are transcribed
@@ -29,6 +30,17 @@ internal val LESSON_CATALOG: CardCatalog = CardCatalog(
         lessonCard(id = 270, top = 1, right = 4, bottom = 7, left = 1, name = "Amalj'aa"),
         lessonCard(id = 318, top = 1, right = 8, bottom = 10, left = 8, name = "Hildibrand"),
         lessonCard(id = 319, top = 10, right = 6, bottom = 4, left = 8, name = "Nanamo Ul Namo"),
+        // Block 2 — the FF8 set, whose types really are elements. Only the Elemental lesson needs
+        // them, and it has to: an FFXIV tribe matches no tile. See `TUTORIAL_COURSE`.
+        lessonCard(518, 2, 1, 4, 4, "Gayla", CardType.LIGHTNING),
+        lessonCard(520, 3, 5, 2, 4, "Fastitocalon-F", CardType.EARTH),
+        lessonCard(523, 2, 1, 2, 6, "Cockatrice", CardType.LIGHTNING),
+        lessonCard(527, 6, 1, 4, 3, "Glacial Eye", CardType.ICE),
+        lessonCard(529, 5, 3, 2, 5, "Thrustaevis", CardType.WIND),
+        lessonCard(530, 5, 1, 3, 5, "Anacondaur", CardType.POISON),
+        lessonCard(531, 5, 2, 5, 2, "Creeps", CardType.LIGHTNING),
+        lessonCard(532, 4, 4, 5, 3, "Grendel", CardType.LIGHTNING),
+        lessonCard(536, 6, 3, 1, 6, "Armadodo", CardType.EARTH),
     ),
 )
 
@@ -40,6 +52,7 @@ private fun lessonCard(
     bottom: Int,
     left: Int,
     name: String,
+    type: CardType? = null,
 ): Card = Card(
     id = id,
     nameKey = "STR_FF14_CARD_$id",
@@ -49,4 +62,5 @@ private fun lessonCard(
     bottom = bottom,
     left = left,
     rarity = 1,
+    type = type,
 )

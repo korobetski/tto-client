@@ -4,6 +4,7 @@ import com.tripletriad.data.CardCatalog
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.Board
 import com.tripletriad.model.CardColor
+import com.tripletriad.model.CardType
 import com.tripletriad.model.GameRules
 import com.tripletriad.model.HandVisibility
 import com.tripletriad.model.MatchPreparation
@@ -11,6 +12,7 @@ import com.tripletriad.model.MatchSetup
 import com.tripletriad.model.MatchState
 import com.tripletriad.model.PlacedCard
 import com.tripletriad.model.TurnOrder
+import com.tripletriad.model.TypeRule
 
 /**
  * The lessons after the first one — a rule each, one move each.
@@ -48,6 +50,14 @@ internal data class TutorialPuzzle(
     val hand: List<Int>,
     /** The one cell left free, which every line names. */
     val cell: Int,
+    /**
+     * The board's elements, by cell — empty unless the lesson is about Elemental.
+     *
+     * Sparse rather than a nine-slot list because a lesson gives an element to the *one* cell it is
+     * talking about. A real Elemental board has one on roughly half of them, which is the right
+     * amount of noise for a match and the wrong amount for a sentence naming one tile.
+     */
+    val elements: Map<Int, CardType> = emptyMap(),
     /** Said before the move, in order. */
     val lines: List<String>,
     /** Said once it has been made, over the outcome panel. */
@@ -111,7 +121,10 @@ internal fun puzzleSetup(puzzle: TutorialPuzzle, catalog: CardCatalog): MatchSet
     return MatchSetup(
         state = MatchState(
             rules = puzzle.rules,
-            board = Board(cells = cells),
+            board = Board(
+                cells = cells,
+                elements = List(Board.SIZE) { puzzle.elements[it] },
+            ),
             hands = mapOf(
                 CardColor.BLUE to hand.map { it.copy(owner = CardColor.BLUE) },
                 CardColor.RED to emptyList(),
@@ -343,7 +356,58 @@ internal val TUTORIAL_COURSE: List<TutorialLesson> = listOf(
             ),
         ),
     ),
+    // Gayla is a lightning card on a lightning tile, so it fights at +1: its top 2 becomes a 3 and
+    // takes Thrustaevis's 2, which it only ties on the printed numbers. Verified three ways — the
+    // rule off captures nothing, and the rule *on with no element under the card* captures nothing
+    // either, which is what makes this a lesson about the tile rather than about the rule's name.
+    //
+    // Block 2, and it has to be. The FFXIV tribes — beast, garlean, primals, scions — are not
+    // elements and match no tile, so every FFXIV card takes −1 on any elemental cell and a +1
+    // cannot be demonstrated with one at all. See `elementalModifier`.
+    TutorialLesson(
+        titleKey = StringKeys.LESSON_TITLE_ELEMENTAL,
+        ruleKeys = listOf("RULE_ELEMENTAL"),
+        puzzle = TutorialPuzzle(
+            rules = GameRules(typeRule = TypeRule.ELEMENTAL),
+            board = listOf(
+                PuzzlePiece(1, THRUSTAEVIS, CardColor.RED),
+                PuzzlePiece(0, FASTITOCALON_F, CardColor.BLUE),
+                PuzzlePiece(2, COCKATRICE, CardColor.BLUE),
+                PuzzlePiece(3, GLACIAL_EYE, CardColor.BLUE),
+                PuzzlePiece(5, ANACONDAUR, CardColor.BLUE),
+                PuzzlePiece(6, CREEPS, CardColor.BLUE),
+                PuzzlePiece(7, GRENDEL, CardColor.BLUE),
+                PuzzlePiece(8, ARMADODO, CardColor.BLUE),
+            ),
+            hand = listOf(GAYLA),
+            cell = CENTRE,
+            elements = mapOf(CENTRE to CardType.LIGHTNING),
+            lines = listOf(StringKeys.LESSON_ELEMENTAL_1, StringKeys.LESSON_ELEMENTAL_2),
+            closing = StringKeys.LESSON_ELEMENTAL_DONE,
+        ),
+    ),
+    // The exam, and the only lesson with no position: a whole match under three of the rules the
+    // course taught, against an opponent playing to win rather than to lose. Nothing is ringed and
+    // nothing is constrained — a puzzle cannot be failed, which is exactly why the course needs
+    // something that can be. See `examScript`.
+    TutorialLesson(
+        titleKey = StringKeys.LESSON_TITLE_EXAM,
+        ruleKeys = EXAM_RULE_KEYS,
+        puzzle = null,
+    ),
 )
+
+/**
+ * What the exam is played under — three rules the course has taught, named for its row.
+ *
+ * Same and Plus because they are the two that change how a hand is read, and Reverse because it
+ * changes which hand is good. Not Combo: it is not a rule to switch on, and it comes along with
+ * Same anyway ([com.tripletriad.model.GameRules.comboEnabled]).
+ */
+internal val EXAM_RULES: GameRules = GameRules(same = true, plus = true, reverse = true)
+
+/** The same three, as the keys the list row prints. */
+internal val EXAM_RULE_KEYS: List<String> = listOf("RULE_SAME", "RULE_PLUS", "RULE_REVERSE")
 
 /**
  * The positions alone, in course order.
@@ -379,6 +443,20 @@ private const val COEURL = 266
 private const val AHRIMAN = 267
 private const val GOOBBUE = 268
 private const val CHOCOBO = 269
+
+/*
+ * The block-2 cards the Elemental lesson is built from — the FF8 set, which is the only one whose
+ * types are elements. See that lesson's comment.
+ */
+private const val GAYLA = 518
+private const val FASTITOCALON_F = 520
+private const val COCKATRICE = 523
+private const val GLACIAL_EYE = 527
+private const val THRUSTAEVIS = 529
+private const val ANACONDAUR = 530
+private const val CREEPS = 531
+private const val GRENDEL = 532
+private const val ARMADODO = 536
 private const val AMALJAA = 270
 private const val HILDIBRAND = 318
 private const val NANAMO = 319

@@ -2,6 +2,7 @@ package com.tripletriad.ui
 
 import com.tripletriad.model.CaptureKind
 import com.tripletriad.model.CardColor
+import com.tripletriad.model.CardType
 import com.tripletriad.model.GameRules
 import com.tripletriad.model.MatchState
 import com.tripletriad.model.Side
@@ -262,6 +263,37 @@ class TutorialPuzzleTest {
     }
 
     /**
+     * Elemental is the tile's doing, not the card's.
+     *
+     * Gayla's top 2 only *ties* the card above it. On a lightning tile a lightning card fights one
+     * higher, so the tie becomes a capture — and the check that makes this a lesson about the
+     * **square** is the third one: switch the rule on but take the element off the cell, and
+     * nothing happens. A position that captured either way would be teaching the rule's name and
+     * not the rule.
+     *
+     * The cards are block 2, and have to be. The FFXIV tribes — beast, garlean, primals, scions —
+     * are not elements and match no tile, so every FFXIV card takes −1 on an elemental cell and the
+     * +1 this lesson turns on cannot be shown with one at all.
+     */
+    @Test
+    fun elementalIsTheTilesDoing() {
+        val puzzle = TUTORIAL_PUZZLES[ELEMENTAL_LESSON]
+        val played = play(ELEMENTAL_LESSON)
+
+        assertEquals(mapOf(CENTRE to CardType.LIGHTNING), puzzle.elements, "one tile, named")
+        assertEquals(setOf(ELEMENTAL_ABOVE_CELL), played.capturedPositions())
+        assertEquals(setOf(CaptureKind.BASIC), played.kinds(), "Elemental works through power")
+
+        val setup = assertNotNull(puzzleSetup(puzzle.copy(elements = emptyMap()), catalog))
+        assertEquals(
+            emptyList(),
+            setup.state.play(setup.state.currentHand.single(), puzzle.cell)
+                .lastPlay?.captures.orEmpty(),
+            "with the rule on but no element under the card, the same placement takes nothing",
+        )
+    }
+
+    /**
      * **The rule being taught is the only explanation** — every lesson, every baseline.
      *
      * Each position is replayed under the rule sets it claims to be dead under
@@ -317,9 +349,16 @@ class TutorialPuzzleTest {
      */
     @Test
     fun theNumbersTheLinesNameAreStillOnTheCard() {
-        val dodo = assertNotNull(catalog[DODO_ID], "the card every lesson is played with")
+        val dodo = assertNotNull(catalog[DODO_ID], "the card most lessons are played with")
+        val gayla = assertNotNull(catalog[GAYLA_ID], "the Elemental lesson's card")
 
         assertEquals(DODO_POWERS, listOf(dodo.top, dodo.right, dodo.bottom, dodo.left), "Dodo")
+        assertEquals(GAYLA_POWERS, listOf(gayla.top, gayla.right, gayla.bottom, gayla.left), "Gayla")
+        assertEquals(
+            CardType.LIGHTNING,
+            gayla.type,
+            "the Elemental lesson stands its card on its own element; the type is the lesson",
+        )
     }
 
     /** Builds the lesson and plays the one move it asks for. */
@@ -350,6 +389,7 @@ class TutorialPuzzleTest {
         const val REVERSE_LESSON = 4
         const val FALLEN_ACE_LESSON = 5
         const val REVERSE_FALLEN_ACE_LESSON = 6
+        const val ELEMENTAL_LESSON = 7
 
         /** Middle-right and bottom-centre: the two sides Same matches. */
         const val SAME_RIGHT_CELL = 5
@@ -374,7 +414,13 @@ class TutorialPuzzleTest {
         /** Bottom-centre: the card the pair takes. */
         const val REVERSE_FALLEN_ACE_BELOW_CELL = 7
 
+        /** Top-centre: the card the elemental bonus turns a tie into a capture against. */
+        const val ELEMENTAL_ABOVE_CELL = 1
+
         const val DODO_ID = 257
         val DODO_POWERS = listOf(4, 2, 3, 4)
+
+        const val GAYLA_ID = 518
+        val GAYLA_POWERS = listOf(2, 1, 4, 4)
     }
 }

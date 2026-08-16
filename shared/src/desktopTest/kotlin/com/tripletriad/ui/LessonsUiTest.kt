@@ -69,7 +69,7 @@ class LessonsUiTest {
     /**
      * Finishing a lesson is remembered, and remembered *through the list*.
      *
-     * The course is eight lessons long, which is more than anyone finishes in one sitting — so
+     * The course is ten lessons long, which is more than anyone finishes in one sitting — so
      * the thing that makes it a course rather than eight screens is that it knows where you
      * stopped. Asserted by leaving the lesson the way a player does, through the panel's own
      * control, and coming back to the list.

@@ -1,0 +1,16 @@
+# Screenshots Directory
+
+Place application screenshots here for use in documentation.
+
+Recommended screenshots:
+- menu.png - Main menu screen
+- match.png - Gameplay/match screen
+- dashboard.png - Player dashboard
+- card_detail.png - Single card close-up
+- collection.png - Card collection view
+- decks.png - Deck builder screen
+- android_landscape.png - Android in landscape orientation
+- android_portrait.png - Android in portrait orientation
+- desktop.png - Desktop application window
+
+All screenshots should be in PNG format, preferably 1920x1080 or device-native resolution.

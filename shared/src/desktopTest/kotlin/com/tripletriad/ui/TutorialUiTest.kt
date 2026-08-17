@@ -6,9 +6,12 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.i18n.AppLocale
+import com.tripletriad.i18n.StringKeys
+import com.tripletriad.i18n.loadStrings
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.HAND_SIZE
 import com.tripletriad.storage.InMemoryDocumentStore
+import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -201,6 +204,37 @@ class TutorialUiTest {
 
         assertTrue(isVisible("Lesson complete"), "the panel should name what was finished")
         assertFalse(isVisible("You win !"), "a lesson that cannot be lost should not claim a win")
+    }
+
+    /**
+     * **The closing line is a sentence, and not the key it is stored as.**
+     *
+     * `MatchScript.outcomeLines` holds whatever its author put there — a lesson stores
+     * `APP_LESSON_BASICS_WIN`, a ladder stores the sentence itself, because the AS3 never gave its
+     * dialogue any keys — and [OutcomeBubble] resolves both through `Strings.get`, where a key no
+     * bundle defines falls through to itself. It did not: it passed the line to [TalkBubble]
+     * untouched, so every ladder was unaffected and every one of the twelve lessons ended on
+     * `APP_LESSON_…_DONE` printed in the tutor's mouth.
+     *
+     * Waits for one of the three the opening match can close on rather than asserting a single one,
+     * because [MatchAiOptions.TUTOR] plays to lose but the player is played by [playOut] and can
+     * still draw. Either half of the bug fails it: the sentence never arrives, or the key does.
+     */
+    @Test
+    fun aLessonClosesOnASentenceAndNotOnItsKey() = runComposeUiTest {
+        val strings = runBlocking { loadStrings(AppLocale.EN_US) }
+        val closings = listOf(
+            StringKeys.LESSON_BASICS_WIN,
+            StringKeys.LESSON_BASICS_LOSE,
+            StringKeys.LESSON_BASICS_DRAW,
+        ).map { strings[it] }
+
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        openLesson()
+        playOut(TUTORIAL_TIMEOUT_MS)
+
+        waitUntil(timeoutMillis = TUTORIAL_TIMEOUT_MS) { closings.any { isVisible(it) } }
+        assertFalse(isVisible("APP_LESSON"), "the tutor read out a string key")
     }
 
     /**

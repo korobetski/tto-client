@@ -89,14 +89,16 @@ class TalkBubbleTest {
     }
 
     /**
-     * Without the artwork the line is still readable.
+     * The frame needs no artwork at all — it is drawn.
      *
-     * The frame is decoration around text that carries the meaning, so a missing texture must
-     * cost the frame and not the sentence — which is the opposite of the rule captions, where the
-     * picture *is* the sentence and a missing one is skipped entirely.
+     * This used to say something else: `TalkBubble` composed `talk_basic.tex` and this asserted
+     * that a missing texture cost the frame and not the sentence, which is the opposite of the rule
+     * captions, where the picture *is* the sentence. There is no texture now (see [TalkBubble]), so
+     * what is left is that the whole component still runs outside the app, with no `LocalCardArt`
+     * above it — which is what every other test in this file quietly depends on.
      */
     @Test
-    fun theLineSurvivesAMissingFrame() = runComposeUiTest {
+    fun theBubbleNeedsNoArtwork() = runComposeUiTest {
         setContent { TalkBubble(message = LINE, speaker = SPEAKER) {} }
 
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { isVisible(LINE) }
@@ -108,7 +110,9 @@ class TalkBubbleTest {
      * The bubble was drawn at the AS3's authored 544x144 whatever it held, and the AS3 could
      * afford that: its stage is 1024 wide and desktop-only. Here the nine tutorial lines run to
      * 189 characters in French and wrap to seven lines in a frame that holds three, so the
-     * sentence spilled out of the picture and onto the board behind it.
+     * sentence spilled out of the picture and onto the board behind it. A drawn panel grows with
+     * its line by construction, which is most of why it is drawn; this stays because "the frame is
+     * as tall as what it holds" is a claim about layout, not about a texture.
      *
      * Read out of the shipped bundles rather than pinned as a literal, so a line added or a
      * translation revised is measured too — which is the only version of this test that keeps

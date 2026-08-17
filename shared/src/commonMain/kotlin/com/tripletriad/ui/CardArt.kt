@@ -34,8 +34,6 @@ import tripletriad.shared.generated.resources.Res
 class CardArt internal constructor(
     /** `back` — `Card.as:93`. Drawn over everything while a card is mid-flip. */
     val back: ImageBitmap,
-    /** `talk_basic.tex` — [TalkBubble]'s frame. One image for every language; it holds no text. */
-    val talk: ImageBitmap,
     private val stars: Map<Int, ImageBitmap>,
     private val types: Map<CardType, ImageBitmap>,
     private val digits: Map<String, Painter>,
@@ -143,10 +141,18 @@ internal fun rememberCardFace(art: CardArt?, card: Card): ImageBitmap? {
     return face
 }
 
-/** Reads and decodes the 19 shared textures. Call once, at boot. */
+/**
+ * Reads and decodes the 19 shared textures. Call once, at boot.
+ *
+ * Twenty until now, and the count above this class only ever listed nineteen of them: `talk.png` —
+ * `talk_basic.tex`, the speech frame — is no longer decoded, because [TalkBubble] draws its own
+ * panel. The file is still copied by `tools/import_card_art.py` and
+ * still ships in `composeResources`; removing it there means editing the importer and re-running it
+ * against the AS3 tree, which is a separate change (`CLAUDE.md`, "do not hand-edit generated
+ * files").
+ */
 suspend fun loadCardArt(): CardArt = CardArt(
     back = loadImage("back.png"),
-    talk = loadImage("talk.png"),
     stars = Card.RARITY_RANGE.associateWith { loadImage("${it}stars.png") },
     types = CardType.entries.associateWith { loadImage("${it.textureName}.png") },
     digits = sliceDigitAtlas(loadImage("digits.png")),

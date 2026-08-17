@@ -331,10 +331,15 @@ internal fun LessonBubbles(speech: LessonSpeech, script: MatchScript?, enabled: 
  * both are on screen. The bubble sits at the top and the panel in the middle, so neither covers
  * the other.
  *
- * The line is a sentence rather than a key, and goes through [Strings.get] anyway: a key no bundle
- * defines resolves to itself, which is the documented fallback and is exactly what is wanted here.
- * The ladders' dialogue has no keys because the original never gave it any: see
- * [CampaignMessages].
+ * The line goes through [Strings.get] whether it is a key or a sentence: a key no bundle defines
+ * resolves to itself, which is the documented fallback. That is what lets the two callers disagree
+ * about what they put in [MatchScript.outcomeLines] — a lesson stores `APP_LESSON_SAME_DONE`, a
+ * ladder stores the sentence, because the original never gave its dialogue any keys (see
+ * [CampaignMessages]).
+ *
+ * It used to pass the line straight to [TalkBubble], which this paragraph already claimed it did
+ * not. Every ladder line was unaffected, being its own text; every lesson closed on the raw
+ * `APP_LESSON_*_DONE` key printed in the bubble.
  */
 @Composable
 internal fun OutcomeBubble(script: MatchScript?, result: MatchResult?) {
@@ -343,7 +348,7 @@ internal fun OutcomeBubble(script: MatchScript?, result: MatchResult?) {
     var said by remember(line) { mutableStateOf(false) }
 
     if (!said) {
-        TalkBubble(message = line, speaker = strings[checkNotNull(script).speakerKey]) {
+        TalkBubble(message = strings[line], speaker = strings[checkNotNull(script).speakerKey]) {
             said = true
         }
     }

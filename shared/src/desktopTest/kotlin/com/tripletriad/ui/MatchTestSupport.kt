@@ -80,10 +80,13 @@ internal fun ComposeUiTest.isFinished(): Boolean = exists(MATCH_RESULT_TEST_TAG)
  *
  * This is the new shape of every match test: the opponent takes its turn on its own after a pause,
  * so a test cannot assume the turn has passed back by the time its next line runs.
+ *
+ * @param timeoutMillis [TUTORIAL_TIMEOUT_MS] for a lesson, where a turn also waits on the speech
+ *   bubbles and their tweens and can take several times what an ordinary opponent's pause does.
  */
 @OptIn(ExperimentalTestApi::class)
-internal fun ComposeUiTest.awaitPlayer() {
-    waitUntil(timeoutMillis = UI_TIMEOUT_MS) { isPlayerTurn() || isFinished() }
+internal fun ComposeUiTest.awaitPlayer(timeoutMillis: Long = UI_TIMEOUT_MS) {
+    waitUntil(timeoutMillis = timeoutMillis) { isPlayerTurn() || isFinished() }
 }
 
 /**
@@ -96,8 +99,8 @@ internal fun ComposeUiTest.awaitPlayer() {
  * @return the cell played on.
  */
 @OptIn(ExperimentalTestApi::class)
-internal fun ComposeUiTest.playOneCard(): Int {
-    awaitPlayer()
+internal fun ComposeUiTest.playOneCard(timeoutMillis: Long = UI_TIMEOUT_MS): Int {
+    awaitPlayer(timeoutMillis)
     check(!isFinished()) { "the match is already over" }
     val before = handSize(CardColor.BLUE)
     onNodeWithTag(handCardTestTag(CardColor.BLUE, 0)).performClick()
@@ -116,13 +119,13 @@ internal fun ComposeUiTest.playOneCard(): Int {
  * rather than on a count.
  */
 @OptIn(ExperimentalTestApi::class)
-internal fun ComposeUiTest.playOut() {
+internal fun ComposeUiTest.playOut(timeoutMillis: Long = UI_TIMEOUT_MS) {
     var moves = 0
     while (!isFinished()) {
         check(moves <= PLACEMENTS_PER_MATCH) { "played $moves times and the match has not ended" }
-        playOneCard()
+        playOneCard(timeoutMillis)
         moves++
-        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { isPlayerTurn() || isFinished() }
+        awaitPlayer(timeoutMillis)
     }
 }
 

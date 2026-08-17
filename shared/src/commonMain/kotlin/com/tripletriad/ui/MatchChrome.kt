@@ -601,7 +601,7 @@ private fun RewardRow(item: Item, cards: Map<Int, Card>, strings: Strings) {
         horizontalArrangement = Arrangement.spacedBy(SpaceSm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ItemIcon(iconId = itemIconId(item), description = name, size = IconSm)
+        ItemGlyph(item = item, description = name, size = IconSm)
         Text(
             text = if (item.stack > 1) "$name x${item.stack}" else name,
             color = MaterialTheme.colorScheme.onSurface,

@@ -662,11 +662,6 @@ private fun CharacterDestination(
     onNavigate: (Screen) -> Unit,
 ) {
     val toDashboard = { onNavigate(Screen.DASHBOARD) }
-    // Null only before the settings file has been read, which is behind the splash — so this is
-    // unreachable rather than a degraded mode, and "no lesson finished" is the right answer for a
-    // player whose progress is not known yet either way.
-    val lessonsDone = settings?.value?.lessonsDone ?: 0
-    val scope = rememberCoroutineScope()
     // Loaded in the same startup phase as the card table, and this whole function is behind the
     // splash — so the empty fallback is unreachable rather than a degraded mode. It is here so the
     // two destinations that need it are not each a null check, which is what took this `when` past
@@ -674,43 +669,19 @@ private fun CharacterDestination(
     val starters = startup.starters ?: StarterCatalog(emptyList())
 
     when (destination) {
-        Screen.DASHBOARD -> DashboardScreen(
+        // The hub and the course, one arm rather than two for the reason [SocialDestination]
+        // pairs its own: they read the same progress counter, and splitting them put this `when`
+        // back over the complexity gate.
+        Screen.DASHBOARD, Screen.LESSONS -> ProgressDestination(
+            destination = destination,
             profile = profile,
-            // For the quest badge, and read here rather than inside the screen so the dashboard
-            // and [QuestsScreen] cannot disagree about what day it is.
-            at = clock.nowMillis(),
-            onPlay = { onNavigate(Screen.OPPONENTS) },
-            onStats = { onNavigate(Screen.STATS) },
-            onQuests = { onNavigate(Screen.QUESTS) },
-            onPvp = pvp?.let { { onNavigate(Screen.PVP) } },
-            pvpBadge = pvpBadge(pvp),
-            // The collection and the shelf are the navigation bar's own two entries and are not
-            // repeated here; these two open the *other* tab of each — see [DashboardScreen].
-            onDecks = { onNavigate(Screen.DECKS) },
-            onInventory = { onNavigate(Screen.INVENTORY) },
-            onHelp = { onNavigate(Screen.HELP) },
-            onLessons = { onNavigate(Screen.LESSONS) },
-            lessonsBadge = "${lessonsDone.coerceAtMost(LAST_LESSON + 1)} / ${LAST_LESSON + 1}",
-            // With a server, Logout means *sign out*: the token is dropped and the session ended,
-            // not merely the screen changed. That is the distinction the original never made — its
-            // Logout navigated away and left `Game.PROFILE_DATAS` loaded — and here it matters,
-            // because leaving the token behind on a shared device would leave the account behind.
-            onLogout = {
-                if (account != null) scope.launch { account.signOut() }
-                onNavigate(chooser)
-            },
-        )
-
-        // The course. Its lessons are a match screen and so live with the matches below; this is
-        // only the list in front of them.
-        Screen.LESSONS -> LessonsScreen(
-            profile = profile,
-            done = lessonsDone,
-            onPlay = { lesson ->
-                choice.lesson = lesson
-                onNavigate(Screen.TUTORIAL)
-            },
-            onBack = toDashboard,
+            pvp = pvp,
+            account = account,
+            chooser = chooser,
+            choice = choice,
+            clock = clock,
+            settings = settings,
+            onNavigate = onNavigate,
         )
 
         Screen.OPPONENTS -> startup.opponents?.let { opponents ->
@@ -1212,20 +1183,6 @@ internal class Choice {
 
     /** Which lesson the course list opened, for the same reason [invitee] is here. */
     var lesson: Int by mutableStateOf(0)
-}
-
-/**
- * What is waiting behind the Multiplayer card, or null when nothing is.
- *
- * Read from the session rather than fetched: `StartupEffects` has already asked at launch, and this
- * is the one place a player who is not thinking about multiplayer will still be told it wants them.
- * That matters because an uncollected prize has a deadline the server settles for them.
- */
-private fun pvpBadge(pvp: PvpSession?): String? = when {
-    pvp == null -> null
-    pvp.claims.isNotEmpty() -> "${pvp.claims.size}"
-    pvp.match != null -> DOT_SEPARATOR
-    else -> null
 }
 
 /** Where the match music plays — `BaseMatchScreen`, and every screen that is one. */

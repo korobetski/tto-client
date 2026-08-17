@@ -175,6 +175,17 @@ data class TtoColors(
     val positive: Color = Green80,
     val onPositive: Color = Green20,
     val positiveContainer: Color = Green30,
+    /**
+     * The two things a player earns, wherever they are *drawn* rather than said.
+     *
+     * A role each rather than one "icon" colour, because MGP and XP are told apart at a glance by
+     * their tint before their shape: the purse is the game's own gold and the wheel is not.
+     * `currency` is [transient]'s amber and that is not a coincidence to be tidied away — a boon
+     * *is* temporary MGP — but the two are separate roles because a boon marker that stopped being
+     * amber should not silently repaint the purse. See `TtoIcons.Chip` and `TtoIcons.Experience`.
+     */
+    val currency: Color = Amber80,
+    val experience: Color = Blue80,
 )
 
 /**

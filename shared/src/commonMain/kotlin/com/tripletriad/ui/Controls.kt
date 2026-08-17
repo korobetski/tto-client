@@ -59,6 +59,7 @@ import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -659,32 +660,23 @@ internal fun rememberNoteHost(tag: String): NoteHost = remember(tag) { NoteHost(
  * except the current one and existed because the original had no back button, and the character's
  * **name**, which is the app bar's own title on the one screen where it is the subject.
  *
- * The boon markers are shown as `MGP ×n` / `XP ×n` rather than as the original's two icons, because
- * a boon is a **count of boosted matches** and the icon said only that there was at least one — see
- * [com.tripletriad.model.Boons.spending].
+ * The boon markers were the letters `MGP ×n` / `XP ×n`, because the original's two icons said only
+ * that there was at least one and a boon is a **count of boosted matches** — see
+ * [com.tripletriad.model.Boons.spending]. They are the plaque again now that the plaque is a glyph
+ * rather than a 24x32 bitmap ([TtoIcons.MgpBoon]), and the count stays beside it: the objection was
+ * never to the picture, it was to a picture *instead of* the number.
  */
 @Composable
 internal fun CharacterActions(save: GameSave) {
     val strings = LocalStrings.current
-    val boons = buildList {
-        if (save.boons.mgp > 0) add("${strings[StringKeys.MGP]} ×${save.boons.mgp}")
-        if (save.boons.xp > 0) add("${strings[StringKeys.XP]} ×${save.boons.xp}")
-    }
 
     Row(
         modifier = Modifier.testTag(CHARACTER_BAR_TEST_TAG).padding(end = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        if (boons.isNotEmpty()) {
-            Text(
-                text = boons.joinToString(" "),
-                color = LocalTtoColors.current.transient,
-                style = MaterialTheme.typography.labelSmall,
-                maxLines = 1,
-                softWrap = false,
-            )
-        }
+        BoonMarker(TtoIcons.MgpBoon, strings[StringKeys.MGP], save.boons.mgp)
+        BoonMarker(TtoIcons.XpBoon, strings[StringKeys.XP], save.boons.xp)
         Text(
             text = "${strings[StringKeys.LEVEL]} ${save.level}",
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = SUBDUED),
@@ -693,12 +685,50 @@ internal fun CharacterActions(save: GameSave) {
             softWrap = false,
         )
         // The purse as the game's own coin rather than the letters `MGP`: it is the one number on
-        // this bar the player is tracking, and `icons/PGS.png` is what the original marked it with.
-        ItemIcon(iconId = "PGS", description = strings[StringKeys.MGP], size = IconSm)
+        // this bar the player is tracking. Drawn rather than `icons/PGS.png`, which was 29 px of
+        // token scaled to 16 dp beside vector text — see [TtoIcons.Chip].
+        Icon(
+            imageVector = TtoIcons.Chip,
+            contentDescription = strings[StringKeys.MGP],
+            tint = LocalTtoColors.current.currency,
+            modifier = Modifier.size(IconSm),
+        )
         Text(
             text = "${save.mgp}",
             color = MaterialTheme.colorScheme.onBackground,
             style = MaterialTheme.typography.labelLarge,
+            maxLines = 1,
+            softWrap = false,
+        )
+    }
+}
+
+/**
+ * One boon: its plaque and how many matches it still covers, or nothing at all when it is spent.
+ *
+ * Nothing at all, rather than `×0`: a boon a player does not have is not a fact about their bar.
+ *
+ * @param label the boon's own name, which is the icon's description — a screen reader gets "MGP,
+ *   2" and not "picture, 2".
+ */
+@Composable
+private fun BoonMarker(icon: ImageVector, label: String, matches: Int) {
+    if (matches <= 0) return
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = LocalTtoColors.current.transient,
+            modifier = Modifier.size(IconSm),
+        )
+        Text(
+            text = "×$matches",
+            color = LocalTtoColors.current.transient,
+            style = MaterialTheme.typography.labelSmall,
             maxLines = 1,
             softWrap = false,
         )

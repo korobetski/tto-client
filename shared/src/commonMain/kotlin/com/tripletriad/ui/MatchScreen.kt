@@ -556,6 +556,8 @@ internal fun MatchScreen(
             // the panel was *drawn* rather than on the width — a phone in landscape is wide and
             // has no panel, and for a while that left the rules strip nowhere at all.
             showOpponent = !panelShown,
+            // A lesson names itself here as well as on the panel — see [TurnLine].
+            outcomeTitle = script?.outcomeTitle,
             onExit = onExit,
         )
         BoardRules(match.rules, panelShown)
@@ -716,6 +718,7 @@ private fun StatusBar(
     opponentName: String,
     turnFraction: Float?,
     showOpponent: Boolean,
+    outcomeTitle: String?,
     onExit: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(top = MatchHeaderTopInset)) {
@@ -725,6 +728,7 @@ private fun StatusBar(
             npc = npc,
             opponentName = opponentName,
             showOpponent = showOpponent,
+            outcomeTitle = outcomeTitle,
             onExit = onExit,
         )
         TurnTimerBar(fraction = turnFraction)
@@ -788,6 +792,7 @@ private fun StatusRow(
     npc: Npc,
     opponentName: String,
     showOpponent: Boolean,
+    outcomeTitle: String?,
     onExit: () -> Unit,
 ) {
     Row(
@@ -827,7 +832,7 @@ private fun StatusRow(
                 .then(state.currentPlayer?.let { Modifier.testTag(turnTestTag(it)) } ?: Modifier),
             contentAlignment = Alignment.Center,
         ) {
-            TurnLine(state = state, selected = selected)
+            TurnLine(state = state, selected = selected, outcomeTitle = outcomeTitle)
         }
         // The opponent's face and name where the "next match" control used to be. Abandoning a
         // match is the back control; restarting one is the end-of-match panel's business, and a
@@ -881,14 +886,19 @@ private fun Score(state: MatchState) {
  * the bundles offer and it matches the original, where the local player is always the blue one
  * (`data-flow.md`, `openPhase`). When there is an AI or a second player this needs revisiting; a
  * neutral "red wins" has no key in any of the four locales.
+ *
+ * A lesson replaces that sentence with its own, for the reason [MatchScript.outcomeTitle] gives.
+ * Both places or neither: the panel naming itself "Lesson complete" while the line behind it still
+ * read "You win !" left the congratulation on screen with a second one over the top of it, which
+ * is the state `aLessonEndsByNamingItselfRatherThanClaimingAVictory` was written against.
  */
 @Composable
-private fun TurnLine(state: MatchState, selected: Card?) {
+private fun TurnLine(state: MatchState, selected: Card?, outcomeTitle: String?) {
     val strings = LocalStrings.current
     val outcome = state.outcome()
     if (outcome != null) {
         Text(
-            text = when (outcome) {
+            text = outcomeTitle?.let { strings[it] } ?: when (outcome) {
                 is MatchOutcome.Win ->
                     if (outcome.winner == CardColor.BLUE) {
                         strings[StringKeys.YOU_WIN]

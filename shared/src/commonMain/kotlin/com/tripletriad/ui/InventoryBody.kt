@@ -270,7 +270,7 @@ private fun ItemRow(
         if (card != null) {
             CardThumb(card = card)
         } else {
-            ItemIcon(iconId = itemIconId(item), description = itemName(strings, item, cards))
+            ItemGlyph(item = item, description = itemName(strings, item, cards))
         }
 
         Column(modifier = Modifier.weight(1f)) {

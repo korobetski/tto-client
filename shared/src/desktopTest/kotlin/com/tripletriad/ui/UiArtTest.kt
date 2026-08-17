@@ -12,6 +12,7 @@ import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -60,7 +61,14 @@ class UiArtTest {
         assertTrue(missing.isEmpty(), "no artwork for: ${missing.joinToString()}")
     }
 
-    /** The bag and the shop draw these; a booster with no icon is a row of bare text. */
+    /**
+     * Every booster's artwork is still in the bundle, though the shelf no longer draws it.
+     *
+     * `ItemGlyph` draws `TtoIcons.Booster` for all ten kinds now. This is kept rather than deleted
+     * because `BoosterType.iconId` in `:core` still names these files and `ICON_NAMES` still
+     * copies them: what it guards is that the two lists agree, so the four tribe pictures are
+     * there to go back to if the glyph turns out to have been the wrong trade.
+     */
     @Test
     fun everyBoosterPackHasItsIcon() {
         for (booster in BoosterType.entries) {
@@ -69,19 +77,20 @@ class UiArtTest {
     }
 
     /**
-     * Every potion too, resolved the way the three screens that draw one resolve it.
+     * A potion needs **nothing from the bundle**, which is the point of it being drawn.
      *
-     * Through [itemIconId] and **not** `PotionItem.iconId`, which is the whole reason this test
-     * exists: the model answers `potionItem`, the AS3 texture name, and nothing under `art/icons/`
-     * is called that. Every potion in the game therefore drew an empty plate — in the bag, on the
-     * shelf and in the list of what a match dropped — with the right picture shipped beside it
-     * under the name the FFXIV art uses. Asking the model directly here would assert the bug.
+     * This used to assert the opposite: that `itemIconId` resolved every potion onto one of the
+     * two shipped boost bitmaps, because `PotionItem.iconId` is `potionItem` and nothing under
+     * `art/icons/` is called that, so every potion drew an empty plate. `ItemGlyph` draws a vector
+     * plaque now, so the bug that test guarded is unreachable rather than fixed — asserted here as
+     * the absence it is, so that a potion quietly routed back through [itemIconId] fails loudly.
      */
     @Test
-    fun everyPotionHasItsIcon() {
+    fun aPotionIsDrawnRatherThanFetched() {
         for (potion in PotionType.entries) {
             val item = PotionItem(potion)
-            assertNotNull(art.icon(itemIconId(item)), "no icon for ${potion.name}")
+            assertNotNull(boonOf(item), "no boon for ${potion.name}, so nothing to draw")
+            assertNull(art.icon(itemIconId(item)), "a potion should not be asking for a bitmap")
         }
     }
 

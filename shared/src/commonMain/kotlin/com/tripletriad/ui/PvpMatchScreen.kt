@@ -512,33 +512,12 @@ private fun OwnRow(
                 modifier = Modifier
                     .testTag(pvpHandTestTag(slot))
                     .onGloballyPositioned { coordinates = it }
-                    .then(
-                        if (!playable) {
-                            Modifier
-                        } else {
-                            Modifier.pointerInput(card.id, drag) {
-                                detectDragGestures(
-                                    onDragStart = { offset ->
-                                        coordinates?.let {
-                                            drag.start(
-                                                card,
-                                                it.localToRoot(offset),
-                                            )
-                                        }
-                                    },
-                                    onDrag = { change, _ ->
-                                        change.consume()
-                                        coordinates?.let {
-                                            drag.moveTo(it.localToRoot(change.position))
-                                        }
-                                    },
-                                    onDragEnd = {
-                                        drag.drop()?.let { (dropped, at) -> onDrop(dropped, at) }
-                                    },
-                                    onDragCancel = { drag.cancel() },
-                                )
-                            }
-                        },
+                    .handDrag(
+                        enabled = playable,
+                        card = card,
+                        drag = drag,
+                        at = { coordinates },
+                        onDrop = onDrop,
                     )
                     // See `MatchBoard`: the match layer keeps a plain `clickable` so that
                     // adjacent cards do not grow into each other's hit areas, and states the role
@@ -573,6 +552,39 @@ private fun OwnRow(
                 }
             }
         }
+    }
+}
+
+/**
+ * Lifting one card out of the hand and dropping it on a cell.
+ *
+ * Its own modifier rather than a block inside [OwnRow] for two reasons: the gate is the same one
+ * the tap path uses — a card the rules forbid cannot be lifted at all, see [OwnRow] — and the four
+ * gesture callbacks together were what took that composable past the complexity detekt allows.
+ *
+ * [at] is read as a lambda because the card's coordinates are only known after the first layout
+ * pass, and the gesture must see the current ones rather than the ones captured when the modifier
+ * was built.
+ */
+private fun Modifier.handDrag(
+    enabled: Boolean,
+    card: Card,
+    drag: BoardDragState,
+    at: () -> LayoutCoordinates?,
+    onDrop: (Card, Int) -> Unit,
+): Modifier = if (!enabled) {
+    this
+} else {
+    pointerInput(card.id, drag) {
+        detectDragGestures(
+            onDragStart = { offset -> at()?.let { drag.start(card, it.localToRoot(offset)) } },
+            onDrag = { change, _ ->
+                change.consume()
+                at()?.let { drag.moveTo(it.localToRoot(change.position)) }
+            },
+            onDragEnd = { drag.drop()?.let { (dropped, cell) -> onDrop(dropped, cell) } },
+            onDragCancel = { drag.cancel() },
+        )
     }
 }
 

@@ -3,6 +3,7 @@ package com.tripletriad.ui
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.Strings
+import com.tripletriad.model.BoonType
 import com.tripletriad.model.BoosterItem
 import com.tripletriad.model.BoosterType
 import com.tripletriad.model.Card
@@ -105,15 +106,24 @@ class ItemRowTest {
     /**
      * A potion is pictured by its **boon**, not by the name the model carries.
      *
-     * See [itemIconId]: `PotionItem.iconId` is the AS3 texture name and nothing ships under it.
-     * `UiArtTest` proves both of these are in the bundle; this proves which one each potion asks
-     * for.
+     * The claim outlived the mechanism: it used to be a mapping onto one of two shipped bitmaps
+     * and is now which of the two plaques `ItemGlyph` draws — see [itemIconId] for why the bitmaps
+     * stopped being asked for. What has to stay true either way is that the six potion types
+     * collapse onto two pictures, and that the one they collapse onto is the boon they raise.
      */
     @Test
     fun aPotionIsPicturedByWhichBoonItRaises() {
-        assertEquals("mgp_boost_icon", itemIconId(PotionItem(PotionType.MGP)))
-        assertEquals("mgp_boost_icon", itemIconId(PotionItem(PotionType.BIG_MGP)))
-        assertEquals("xp_boost_icon", itemIconId(PotionItem(PotionType.SMALL_XP)))
+        assertEquals(BoonType.MGP, boonOf(PotionItem(PotionType.MGP)))
+        assertEquals(BoonType.MGP, boonOf(PotionItem(PotionType.BIG_MGP)))
+        assertEquals(BoonType.XP, boonOf(PotionItem(PotionType.SMALL_XP)))
+    }
+
+    /** And nothing else is a boon, so nothing else is drawn as one. */
+    @Test
+    fun noOtherKindIsPicturedAsABoon() {
+        assertNull(boonOf(BoosterItem(BoosterType.BEAST)))
+        assertNull(boonOf(MiscItem()))
+        assertNull(boonOf(CardItem(DODO)))
     }
 
     /** Everything else keeps the name its own model gives. */

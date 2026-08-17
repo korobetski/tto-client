@@ -16,6 +16,11 @@ import kotlin.test.assertTrue
  * What is worth asserting here is the three things the list is *for*, none of which the single row
  * it replaced could do: every lesson is reachable, one can be started out of order, and finishing
  * one is remembered.
+ *
+ * The tick is read from the **unmerged** tree throughout: a lesson row is clickable, so it merges
+ * its descendants' semantics and the tick inside it has no node of its own in the merged tree.
+ * Read merged, every one of these assertions says "nothing is ticked" whatever the course knows.
+ * See [existsUnmerged].
  */
 @OptIn(ExperimentalTestApi::class)
 class LessonsUiTest {
@@ -29,6 +34,10 @@ class LessonsUiTest {
         openLessons()
 
         for (lesson in TUTORIAL_COURSE.indices) {
+            // Scrolled to rather than asserted where it sits: the course is twelve rows in a
+            // `LazyColumn` and the last of them is below the fold on the test window, so an
+            // unscrolled `exists` was asserting the viewport's height and not the list's contents.
+            scrollToLesson(lesson)
             assertTrue(exists(lessonRowTestTag(lesson)), "lesson $lesson should be listed")
         }
     }
@@ -42,7 +51,11 @@ class LessonsUiTest {
         openLessons()
 
         for (lesson in TUTORIAL_COURSE.indices) {
-            assertFalse(exists(lessonDoneTestTag(lesson)), "lesson $lesson cannot be done yet")
+            scrollToLesson(lesson)
+            assertFalse(
+                existsUnmerged(lessonDoneTestTag(lesson)),
+                "lesson $lesson cannot be done yet",
+            )
         }
     }
 
@@ -82,14 +95,16 @@ class LessonsUiTest {
         onNodeWithTag(lessonRowTestTag(0)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(BOARD_TEST_TAG) }
 
-        playOut()
+        // The first lesson is the nine-line opening match, so a turn waits on the speech as well
+        // as on the tutor — the same reason `TutorialUiTest` plays on the longer clock.
+        playOut(TUTORIAL_TIMEOUT_MS)
         // Back, not Next: a lesson played to the end counts however the player leaves it, which is
         // the whole reason progress is reported from the result rather than from a control.
         onNodeWithTag(MATCH_DONE_TEST_TAG).performClick()
 
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(LESSONS_LIST_TEST_TAG) }
-        assertTrue(exists(lessonDoneTestTag(0)), "the first lesson was played to the end")
-        assertFalse(exists(lessonDoneTestTag(1)), "and the second was never opened")
+        assertTrue(existsUnmerged(lessonDoneTestTag(0)), "the first lesson was played to the end")
+        assertFalse(existsUnmerged(lessonDoneTestTag(1)), "and the second was never opened")
     }
 
     /**
@@ -113,8 +128,9 @@ class LessonsUiTest {
             exists(LESSONS_BLURB_TEST_TAG),
             "and should not still be explaining how to begin",
         )
+        scrollToLesson(TUTORIAL_COURSE.size - 1)
         assertTrue(
-            exists(lessonDoneTestTag(TUTORIAL_COURSE.size - 1)),
+            existsUnmerged(lessonDoneTestTag(TUTORIAL_COURSE.size - 1)),
             "the last row should be ticked, or the two halves disagree about the same number",
         )
     }

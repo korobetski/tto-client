@@ -121,8 +121,14 @@ class TalkBubbleTest {
 
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { isVisible(longest) }
 
-        val frame = onNodeWithTag(TALK_FRAME_TEST_TAG).getUnclippedBoundsInRoot()
-        val line = onNode(hasText(longest, substring = true)).getUnclippedBoundsInRoot()
+        // Both read unmerged. The bubble is `clickable` — it announces itself as something a
+        // screen reader can dismiss — and a clickable merges its descendants, so the frame and the
+        // line are both absorbed into one node carrying the whole bubble's bounds. Measured
+        // merged, this compares that node against itself and can never fail.
+        val frame = onNodeWithTag(TALK_FRAME_TEST_TAG, useUnmergedTree = true)
+            .getUnclippedBoundsInRoot()
+        val line = onNode(hasText(longest, substring = true), useUnmergedTree = true)
+            .getUnclippedBoundsInRoot()
 
         assertTrue(
             line.top >= frame.top && line.bottom <= frame.bottom,

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,9 +23,13 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.tripletriad.model.BoonType
+import com.tripletriad.model.BoosterItem
 import com.tripletriad.model.Card
 import com.tripletriad.model.GameSave
+import com.tripletriad.model.Item
 import com.tripletriad.model.Npc
+import com.tripletriad.ui.theme.LocalTtoColors
 
 /**
  * The pictures that identify someone or something at a glance — an avatar, an opponent, a card.
@@ -123,6 +128,61 @@ internal fun ItemIcon(
             )
         }
     }
+}
+
+/**
+ * Whatever pictures [item]: a drawn glyph for the two kinds that have one, [ItemIcon]'s bitmap for
+ * the rest.
+ *
+ * ### Which kinds are drawn, and why those
+ *
+ * A **potion** because its picture is a *symbol* rather than a thing — "more MGP for a while" is
+ * what [TtoIcons.MgpBoon] draws and what the shipped 24x32 boost bitmaps drew before it, at a size
+ * that suited neither the bag's 24 dp plate nor the outcome panel's 16 dp row.
+ *
+ * A **booster** because ten of them shared five pictures, six of those being one generic wrapper:
+ * see [TtoIcons.Booster], including what the four tribe packs give up for it.
+ *
+ * Everything else keeps its bitmap and should: a card item is a card, and no drawing of a card
+ * back is worth losing the artwork the row is *about*.
+ *
+ * The three screens that draw an item all go through here, for the reason [itemIconId] gives about
+ * being reconciled once: three copies of "and these two are different" is three chances for one of
+ * them to keep drawing the old picture.
+ */
+@Composable
+internal fun ItemGlyph(
+    item: Item,
+    description: String,
+    size: Dp = ICON_SIZE,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalTtoColors.current
+    val boon = boonOf(item)
+    val drawn = when {
+        boon == BoonType.XP -> TtoIcons.XpBoon to colors.experience
+        boon == BoonType.MGP -> TtoIcons.MgpBoon to colors.currency
+        // Neither of the earned-thing colours: a pack is not MGP and not XP, it is what they buy.
+        item is BoosterItem -> TtoIcons.Booster to MaterialTheme.colorScheme.onSurface
+        else -> null
+    }
+
+    if (drawn == null) {
+        ItemIcon(
+            iconId = itemIconId(item),
+            description = description,
+            size = size,
+            modifier = modifier,
+        )
+        return
+    }
+
+    Icon(
+        imageVector = drawn.first,
+        contentDescription = description,
+        tint = drawn.second,
+        modifier = modifier.size(size),
+    )
 }
 
 /**

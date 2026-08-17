@@ -268,6 +268,16 @@ configurations.consumable("androidComposeAssetsElements") {
 
 val desktopTestTask = tasks.named<Test>("desktopTest")
 
+// `ScreenshotCapture` writes the README's eight pictures and is skipped without this. Forwarded
+// from a Gradle property rather than read as one: `-Dtto.screenshots` on the command line reaches
+// the Gradle JVM and not the forked test JVM, and an environment variable would be read from
+// whatever the daemon was started with. See `ScreenshotCapture` for the command.
+desktopTestTask.configure {
+    providers.gradleProperty("tto.screenshots").orNull?.let {
+        systemProperty("tto.screenshots", it)
+    }
+}
+
 tasks.register<JacocoReport>("coverageReport") {
     group = "verification"
     description = "HTML + XML coverage for the desktop target, from :shared:desktopTest."

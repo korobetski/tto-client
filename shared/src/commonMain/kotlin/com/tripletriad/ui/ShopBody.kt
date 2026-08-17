@@ -253,8 +253,8 @@ private fun OfferRow(
         if (card != null) {
             CardThumb(card = card)
         } else {
-            ItemIcon(
-                iconId = itemIconId(offer.item),
+            ItemGlyph(
+                item = offer.item,
                 description = itemName(strings, offer.item, cards),
             )
         }

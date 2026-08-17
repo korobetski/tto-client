@@ -13,9 +13,31 @@ This client faithfully recreates the original Adobe AIR/ActionScript 3 game whil
 
 ## Screenshots
 
-Screenshots will be added as the project matures. To generate screenshots:
+| | |
+|---|---|
+| ![Main menu](docs/screenshots/menu.png)<br>**Main menu** | ![Dashboard](docs/screenshots/dashboard.png)<br>**Dashboard** — the hub a character lands on |
+| ![Match, landscape](docs/screenshots/match_landscape.png)<br>**Match, landscape** — three cards down, All Open | ![Match, portrait](docs/screenshots/match_portrait.png)<br>**Match, portrait** — the phone layout, not a scaled one |
+| ![Collection](docs/screenshots/collection.png)<br>**Collection** — grid and detail, two panes | ![Deck builder](docs/screenshots/deck_builder.png)<br>**Deck builder** — the starter deck open |
+| ![Card detail](docs/screenshots/card_detail.png)<br>**Card detail** | ![Tutorial](docs/screenshots/tutorial.png)<br>**Tutorial** — the first lesson, mid-sentence |
 
-### From Android Device
+### How these are taken
+
+The app photographs itself. `ScreenshotCapture` (in `shared/src/desktopTest/`) drives the same
+screens the UI tests drive, at a fixed window size and density, and writes the eight files above
+into `docs/screenshots/`. No device, no emulator, and the same picture every run:
+
+```bash
+./gradlew :shared:desktopTest --tests "*ScreenshotCapture*" -Ptto.screenshots=1
+```
+
+Without `-Ptto.screenshots` every capture is skipped, so an ordinary `./gradlew build` neither
+writes into the repository nor pays for the run. Adding a screenshot means adding a method there —
+the landmark tag it waits on is what pins *which* screen it caught.
+
+### From a real device
+
+Worth having for the things a headless surface cannot show — system insets, a notch, the real
+Android font scale:
 
 ```bash
 # Capture and pull screenshot
@@ -26,24 +48,9 @@ adb pull /sdcard/screenshot.png docs/screenshots/
 MSYS_NO_PATHCONV=1 adb shell screencap -p /sdcard/screenshot.png
 ```
 
-### From Desktop
-
-Run the app and take screenshots manually, or use automated tools.
-
-### Recommended Screenshots
-
-Place screenshots in `docs/screenshots/` directory:
-
-- `menu.png` — Main menu with logo and options
-- `match_landscape.png` — Match in landscape orientation
-- `match_portrait.png` — Match in portrait orientation
-- `dashboard.png` — Player dashboard with stats
-- `collection.png` — Card collection view
-- `deck_builder.png` — Deck editing screen
-- `card_detail.png` — Close-up of a single card
-- `tutorial.png` — Tutorial lesson in progress
-
-> **Status:** Screenshots directory created. Contributions of actual device screenshots are welcome!
+> **Not verified:** these are desktop (Skiko) renders at 2x density, not device captures. They are
+> what the shared Compose tree draws; an Android or iOS host may differ in insets, font scale and
+> system chrome.
 
 ---
 

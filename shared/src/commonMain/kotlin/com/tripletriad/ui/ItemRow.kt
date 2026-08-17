@@ -65,34 +65,31 @@ internal fun itemCard(item: Item, cards: Map<Int, Card>): Card? =
     (item as? CardItem)?.let { cards[it.cardId] }
 
 /**
- * Which shipped icon to draw for [item] — [Item.iconId], except where the atlas disagrees with it.
+ * Which shipped icon to draw for [item] — its own [Item.iconId], for everything that has one.
  *
- * ### The one item kind whose own name finds nothing
+ * ### The one item kind that has none, and no longer asks for one
  *
- * `PotionItem.iconId` is `potionItem`, which is the AS3 texture name (`PotionItem.as:36`, camelCase
- * where every other one is not) and is **in no shipped icon folder**: `tools/import_ui_art.py`
- * copies `xp_boost_icon` and `mgp_boost_icon`, which are the same two pictures under the names the
- * FFXIV art uses. So every potion in the game drew an empty plate — in the bag, on the shop shelf
- * and in the list of what a match dropped — while the file it wanted sat beside the ones that
- * worked, differently named.
+ * `PotionItem.iconId` is `potionItem`, the AS3 texture name (`PotionItem.as:36`, camelCase where
+ * every other one is not), and it is **in no shipped icon folder**: `tools/import_ui_art.py`
+ * copies `xp_boost_icon` and `mgp_boost_icon`, the same two pictures under the names the FFXIV art
+ * uses. Every potion in the game therefore drew an empty plate — in the bag, on the shop shelf and
+ * in the list of what a match dropped.
  *
- * Reconciled here rather than in [com.tripletriad.model.PotionItem], for the reason [AchievementIcon]
- * gives about `ac-fob`: which texture is shipped under which name is the UI's business, and `:core`
- * is right to carry the name the original used. Reconciled *once* rather than at the three call
- * sites, because three copies of a mapping is three chances for one of them to be missed — which is
- * how this was missed in the first place.
- *
- * Keyed on the boon rather than on the six potion types: the art has two pictures, one per boon,
- * and a `when` over the types would be six lines saying the same two things.
+ * That was reconciled here, by mapping a potion onto whichever of the two bitmaps matched its
+ * boon. It is reconciled a layer up now: a potion is drawn as a **vector** plaque ([ItemGlyph],
+ * [TtoIcons.MgpBoon]) and asks this function for nothing, which is why the mapping is gone rather
+ * than merely unused. [boonOf] is what replaced it, and the two shipped bitmaps stay in the bundle
+ * — `ICON_NAMES` mirrors what the importer copies, and that list is not the UI's to trim.
  */
-internal fun itemIconId(item: Item): String = when (item) {
-    is PotionItem -> when (item.potionType.modifier.type) {
-        BoonType.XP -> "xp_boost_icon"
-        BoonType.MGP -> "mgp_boost_icon"
-    }
+internal fun itemIconId(item: Item): String = item.iconId
 
-    else -> item.iconId
-}
+/**
+ * Which boon [item] raises, or null when it is not a potion — the question [ItemGlyph] asks.
+ *
+ * Keyed on the boon rather than on the six potion types: there are two plaques, one per boon, and
+ * a `when` over the types would be six lines saying the same two things.
+ */
+internal fun boonOf(item: Item): BoonType? = (item as? PotionItem)?.potionType?.modifier?.type
 
 /**
  * What the row should add about [item], or null when there is nothing to add.

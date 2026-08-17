@@ -85,9 +85,10 @@ import kotlin.time.Duration
  *   payout and writes the stats in the same pass, so "pays nothing but still counts" is not a state
  *   this could ask for without reimplementing it. See [startingMatch] and [creditFor], which are
  *   the two ends it has to be applied at.
- * @property outcomeTitle what the end panel announces **instead of the result** — set by a lesson,
- *   null everywhere else, which is what leaves an ordinary match saying `You win !` exactly as it
- *   always has.
+ * @property outcomeTitle what the end panel and the board's own status line announce **instead of
+ *   the result** — set by a lesson, null everywhere else, which is what leaves an ordinary match
+ *   saying `You win !` exactly as it always has. Both places, because a panel that names the lesson
+ *   over a line still calling it a win says the thing twice and disagrees with itself.
  *
  *   A taught lesson should not claim a victory. Seven of the twelve are one-move positions composed
  *   so the player cannot fail, so "You win !" over them is flattery for doing as they were told,

@@ -2,10 +2,12 @@ package com.tripletriad.ui
 
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import com.tripletriad.FF14_BLOCK
 import com.tripletriad.data.SaveRepository
 import com.tripletriad.i18n.AppLocale
@@ -66,12 +68,14 @@ internal fun ComposeUiTest.existsUnmerged(tag: String): Boolean =
  * whole tree rendering in it.
  *
  * @param lessonsDone how much of the course this device has already finished, for the two states a
- *   test cannot otherwise reach without playing twelve lessons through the UI. Written as the same
- *   field the app persists, so a test asking for a finished course is asking for the state a
- *   finished course actually leaves behind rather than for a flag of its own.
+ *   test cannot otherwise reach without playing twelve lessons through the UI. Written under the
+ *   key the file really carries — `lessons_done`, `UserSettings`' own `@SerialName` — so a test
+ *   asking for a finished course is asking for the state a finished course actually leaves behind
+ *   rather than for a flag of its own. Spelled `lessonsDone` it was silently dropped as an unknown
+ *   key, and every seeded test read back zero.
  */
 internal fun settingsFor(locale: AppLocale, lessonsDone: Int = 0): SettingsStore =
-    InMemorySettingsStore("""{"language":"${locale.tag}","lessonsDone":$lessonsDone}""")
+    InMemorySettingsStore("""{"language":"${locale.tag}","lessons_done":$lessonsDone}""")
 
 /**
  * Blocks until the splash finishes and the main menu is up.
@@ -159,6 +163,19 @@ internal fun ComposeUiTest.awaitOpponents() {
 internal fun ComposeUiTest.openLessons() {
     onNodeWithTag(DASHBOARD_LESSONS_TEST_TAG).performClick()
     waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(LESSONS_LIST_TEST_TAG) }
+}
+
+/**
+ * Brings one lesson row into view, for the rows below the fold.
+ *
+ * The course is a `LazyColumn` twelve rows long and the test window holds about ten, so the last
+ * two are not composed until something scrolls to them — `exists` on one of those is a statement
+ * about the window's height. Pairs with [scrollToOpponent], which the opponent list needs for the
+ * same reason.
+ */
+@OptIn(ExperimentalTestApi::class)
+internal fun ComposeUiTest.scrollToLesson(lesson: Int) {
+    onNodeWithTag(LESSONS_LIST_TEST_TAG).performScrollToNode(hasTestTag(lessonRowTestTag(lesson)))
 }
 
 @OptIn(ExperimentalTestApi::class)

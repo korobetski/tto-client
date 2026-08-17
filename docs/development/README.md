@@ -9,7 +9,8 @@ Phase 0, Task 1.6 deliverables. How this project is written, tested, reviewed an
 | [testing-guide.md](./testing-guide.md) | running, filtering and writing tests — and the mutation check |
 | [coding-standards.md](./coding-standards.md) | formatting, naming, imports, documentation, complexity — and which config file enforces each |
 | [architecture-guidelines.md](./architecture-guidelines.md) | layering, state, navigation, DI, error handling, concurrency, the rules engine |
-| [git-workflow.md](./git-workflow.md) | branches, commits, PRs, merge strategy, branch protection |
+| [git-workflow.md](./git-workflow.md) | branches, commits, PRs, merge strategy, releases, branch protection |
+| [design-system.md](./design-system.md) | colours, type, spacing and the shared controls |
 | [testing-strategy.md](./testing-strategy.md) | what is tested today, what is not, and how to know a test can fail |
 | [performance-guidelines.md](./performance-guidelines.md) | targets, how to measure them, Compose specifics, the app-size decision |
 | [tutorial-and-help-proposal.md](./tutorial-and-help-proposal.md) | **a design, not a standard** — the lesson academy and the rules sandbox that replace the one-rule tutorial, and the animated examples for the help screen |
@@ -37,4 +38,4 @@ finding. The configuration files are the authority; the documents explain the re
 
 - [docs/analysis/](../analysis/) — analysis of the existing AS3 codebase
 - [docs/migration/](../migration/) — the migration plan
-- [README.md](../../README.md) — the Proof of Concept
+- [README.md](../../README.md) — what is actually built, and what was verified to prove it

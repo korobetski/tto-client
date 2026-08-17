@@ -6,19 +6,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
-/**
- * One file per document in a directory under the user's home.
- *
- * `~/My Games/Triple Triad Online/<subdirectory>/<key>.<extension>`, which continues the choice
- * [DesktopSettingsStore] made: AIR's `applicationStorageDirectory` — where `TTOFiles.STORAGE_DIR`
- * put `saves/` — has no JDK equivalent, and `user.home` plus the original's two path segments is
- * both predictable and easy for a player to find and back up.
- *
- * @param subdirectory the collection this store holds, e.g. `saves`. Keeps profiles and match
- *   history in separate directories rather than distinguishing them by key prefix, so a stray file
- *   in one cannot show up in the other's [keys].
- * @param extension appended to every key on disk. `sav` keeps the original's file naming.
- */
 class DesktopDocumentStore(
     subdirectory: String,
     private val extension: String = "sav",
@@ -67,7 +54,6 @@ class DesktopDocumentStore(
     private fun fileFor(key: String): File = File(directory, "${sanitizeKey(key)}.$extension")
 
     private companion object {
-        /** Same two segments as `conf.as:14`, so settings and saves sit side by side. */
         const val ROOT = "My Games/Triple Triad Online"
     }
 }

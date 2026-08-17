@@ -40,7 +40,7 @@ Treat it as compromised.
 ```
 
 ```bash
-./gradlew :shared:desktopTest            # 165 tests, 22 s
+./gradlew :shared:desktopTest            # 856 tests, 0 failures (measured 2026-08-17)
 ```
 
 ```bash
@@ -60,7 +60,7 @@ The single most important convention in the repository. A previous proof of conc
 repository was reported COMPLETE with "technology stack validated" and had **never been compiled** —
 12 build-blocking defects. Everything written since states its evidence.
 
-So: not "tests pass" but "`./gradlew build` green, 275 executions, 0 failures"; not "works on
+So: not "tests pass" but "`./gradlew :shared:desktopTest` green, 856 tests, 0 failures"; not "works on
 Android" but "installed on a Pixel 6a, API 37; both orientations verified by screenshot". And when
 something is *not* verified, say that too, in the same breath. README and the development docs are
 full of **Not verified:** paragraphs, and they are the reason the rest can be trusted.
@@ -119,19 +119,26 @@ bundle look trustworthy without making it so.
 
 `docs/migration/0X-PHASE-*.md` carries the task list, and each task is annotated with what was
 actually delivered against it — including where the implementation deliberately differs from the
-plan. Phase 1 is complete as of this document; the honest list of what is missing is:
+plan. The game is playable and has shipped through `v1.1.2`; the honest list of what is still
+missing is:
 
-- the pre-match phase chain (Random hand, Swap, coin flip), Roulette rule generation, Order/Chaos
-  enforcement, Sudden Death, the AI, save games
-- drag and drop onto the board
-- multiplayer transport — and note that `net/Socket.as` is largely dead code, 27 of its 29 handlers
-  unreachable ([network-protocol.md](docs/analysis/network-protocol.md))
-- iOS: the shared framework compiles and its tests pass on CI; there is no `.xcodeproj` and no app
-  has ever run
-- frame-timing measurement, release signing, dependency scanning, branch protection
+- **a peer-to-peer or same-device PvP transport.** Online PvP is built and server-mediated
+  (`net/PvpClient.kt`); a transport that does not go through the server is undecided. Note that the
+  AS3 original's `net/Socket.as` is largely dead code, 27 of its 29 handlers unreachable
+  ([network-protocol.md](docs/analysis/network-protocol.md)), so it is not a design to copy
+- **iOS**: the shared framework links and its tests pass on the macOS CI runner; there is no
+  `.xcodeproj` and no app has ever run
+- **frame-timing measurement**, **dependency scanning**, **branch protection**
 
 Nobody has reviewed any Phase 0 output. If you are looking for high-value work that is not code,
 that is it.
+
+> **This list was badly stale until 2026-08-17.** It claimed the pre-match phase chain, Roulette,
+> Sudden Death, the AI, save games, drag and drop and release signing were all missing. Every one
+> of them is built — `MatchAi` and the phase chain in
+> [`tto-core`](https://github.com/korobetski/tto-core), `data/SaveRepository.kt`,
+> `ui/BoardDragState.kt`, and the signing in `.github/workflows/release.yml`. If you are adding to
+> this list, delete from it too.
 
 ## Pull requests
 

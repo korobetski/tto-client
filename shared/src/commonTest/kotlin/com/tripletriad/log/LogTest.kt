@@ -6,10 +6,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/**
- * [Log] is process-wide mutable state, so every test here installs its own sink and [AfterTest]
- * puts it back. Without that, one test's [RecordingSink] would still be collecting during the next.
- */
 class LogTest {
     private val sink = RecordingSink()
 
@@ -49,10 +45,6 @@ class LogTest {
         assertEquals(listOf("yes", "yes"), sink.lines.map { it.message })
     }
 
-    /**
-     * The reason the message is a lambda at all. If a suppressed line still built its string, no
-     * one would log from the paths where logging is most useful.
-     */
     @Test
     fun aSuppressedMessageIsNeverBuilt() {
         Log.install(sink, minLevel = LogLevel.ERROR)
@@ -93,7 +85,6 @@ class LogTest {
         assertTrue(sink.lines.isEmpty(), "the old sink is still installed")
     }
 
-    /** [Log] compares by ordinal, so the declaration order is load-bearing. */
     @Test
     fun levelsAreDeclaredInAscendingSeverity() {
         assertEquals(

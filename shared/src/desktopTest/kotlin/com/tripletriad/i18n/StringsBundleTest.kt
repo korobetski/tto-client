@@ -6,13 +6,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/**
- * The **shipped** locale bundles, read through the resource loader.
- *
- * So this fails if a bundle is dropped from packaging, if `import_locales.py` writes something
- * that is not a flat object of strings, or if a key the UI names stops existing. The lookup logic
- * itself is [StringsTest]'s business, in `commonTest`, where it needs no resources.
- */
 class StringsBundleTest {
     private val loaded = AppLocale.entries.associateWith { runBlocking { loadStrings(it) } }
 
@@ -24,13 +17,6 @@ class StringsBundleTest {
         }
     }
 
-    /**
-     * The check that earns the whole file: every key the UI looks up resolves to a real string in
-     * every locale, rather than to itself.
-     *
-     * `Strings[key]` returning the key is a deliberate last resort, which makes a typo in a key
-     * constant invisible in review — it renders as `STR_NEXT_MACTH` on a device and nowhere else.
-     */
     @Test
     fun everyKeyTheUiUsesResolvesInEveryLocale() {
         val unresolved = mutableListOf<String>()
@@ -44,10 +30,6 @@ class StringsBundleTest {
         assertTrue(unresolved.isEmpty(), "unresolved: $unresolved")
     }
 
-    /**
-     * `en_US` is what every other locale falls back to, so a key missing *there* is a key that can
-     * reach a screen as its own name however many locales define it.
-     */
     @Test
     fun theFallbackLocaleDefinesEveryKeyTheUiUses() {
         val fallback = loaded.getValue(AppLocale.Default)
@@ -66,12 +48,6 @@ class StringsBundleTest {
         }
     }
 
-    /**
-     * How incomplete the non-English bundles are, stated as a number.
-     *
-     * Not a pass/fail bar — the fallback chain is what makes the gaps harmless — but a regression
-     * fence: if a re-import silently halved `de_DE`, nothing else here would notice.
-     */
     @Test
     fun theTranslationGapsAreTheKnownOnes() {
         val union = AppLocale.entries.flatMap { loaded.getValue(it).translatedKeys }.toSet()
@@ -82,12 +58,6 @@ class StringsBundleTest {
         }
     }
 
-    /**
-     * German and Japanese have no translation for the `APP_*` strings this port wrote, so they
-     * resolve through English. That is the intended behaviour and not an oversight — see
-     * [loadStrings] — and it is asserted rather than merely documented so that translating them
-     * later has to come past this test and update it.
-     */
     @Test
     fun theAppOwnedStringsAreTranslatedInEnglishAndFrenchAndFallBackElsewhere() {
         for (key in StringKeys.appOwned) {
@@ -108,7 +78,6 @@ class StringsBundleTest {
         }
     }
 
-    /** French really is French, so the wiring cannot be quietly serving one bundle to everyone. */
     @Test
     fun theBundlesActuallyDiffer() {
         val english = loaded.getValue(AppLocale.EN_US)
@@ -120,11 +89,6 @@ class StringsBundleTest {
         assertEquals("Weiter", loaded.getValue(AppLocale.DE_DE)[CONTINUE])
     }
 
-    /**
-     * `STR_REGISTER_MATCH` is declared twice in both `en_US` and `fr_FR` with **different** values.
-     * `import_locales.py` resolves it last-wins, the way AS3's `JSON.parse` did, so the port shows
-     * what the original showed. Pinned here because the alternative is a silent product change.
-     */
     @Test
     fun theDuplicatedKeyKeepsTheValueTheOriginalDisplayed() {
         assertEquals("Defy", loaded.getValue(AppLocale.EN_US)[REGISTER_MATCH])
@@ -135,38 +99,8 @@ class StringsBundleTest {
         const val CONTINUE = "STR_CONTINUE"
         const val REGISTER_MATCH = "STR_REGISTER_MATCH"
 
-        /**
-         * Keys defined by any of the four bundles: `import_locales.py`'s 697 imported strings
-         * across the four, plus the 270 `APP_*` strings this port authored.
-         */
         const val UNION_KEYS = 967
 
-        /**
-         * Imported key count plus however many `APP_*` strings that locale translates: 693 + 270,
-         * 694 + 270, then 653 and 686 with no app-owned strings at all.
-         *
-         * Almost everything the ported screens show was already translated in four languages by
-         * the AS3 bundles. The `APP_*` strings are the ones the original never needed a sentence
-         * for — the splash phases, the empty-list notes, the turn lines, the navigation bar's own
-         * labels — plus three groups it could not have had: the sign-in form and its refusals, the
-         * server list and its update notice, and the tutorial's nine lines, which the AS3 held as
-         * English string literals inside `TutorialScreen` with no key anywhere.
-         *
-         * The `APP_LESSON*` strings are the first that answer to nothing in the original at all:
-         * the AS3 taught one rule, so the eleven lessons behind it — their titles, their lines
-         * and the list screen around them — have no source wording to follow. See
-         * `TUTORIAL_COURSE`.
-         */
-        /**
-         * ### What the three FFVIII packs added
-         *
-         * The six `STR_*_BOOSTER` names — Monster, Galbadian, Fiend, Companion, Guardian Force and
-         * Character — are in **all four** bundles, unlike every other string this port has written.
-         * They are pack names, proper nouns of a kind the imported bundles already carry nine of,
-         * so leaving German and Japanese to fall back to English would have put two naming
-         * conventions in one shop. The seven `APP_PACK_*` strings and the six descriptions follow
-         * the ordinary rule and are English and French only.
-         */
         val TRANSLATED_KEYS = mapOf(
             AppLocale.EN_US to 963,
             AppLocale.FR_FR to 964,
@@ -174,15 +108,6 @@ class StringsBundleTest {
             AppLocale.JA_JA to 686,
         )
 
-        /**
-         * What each locale is short of the union.
-         *
-         * `en_US` is short 4 because of four keys no other locale shares either: `RULE_OPEN`
-         * (only `de_DE`, a pre-rename leftover), `STR_GSGROUP` (only `fr_FR`) and two malformed
-         * `ja_JA` keys — `STR_SAVES_LISTは` and a `STR_NPC_MA_DINCHT` with two trailing
-         * zero-width spaces. All four are unreachable typos in the original data, kept rather
-         * than quietly deleted; `tools/import_locales.py` reports them on every run.
-         */
         val EXPECTED_GAPS = mapOf(
             AppLocale.EN_US to 4,
             AppLocale.FR_FR to 3,

@@ -7,15 +7,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * [matchLayout] is a pure function of two measured numbers, so the arrangement can be checked
- * without a screen — which is the reason it was extracted.
- *
- * Three earlier revisions of this screen estimated the space left for the board and got it
- * wrong on a landscape phone, twice producing hands drawn over the board. The invariant that
- * catches every one of those is [theArrangementAlwaysFitsInTheSpaceItWasGiven]: whatever the
- * bounds, the arrangement's own footprint must not exceed them.
- */
 class MatchLayoutTest {
     @Test
     fun landscapePutsTheHandsBesideTheBoardInTwoColumns() {
@@ -94,14 +85,6 @@ class MatchLayoutTest {
         }
     }
 
-    /**
-     * What the arrangement actually occupies: two hand areas, the board, and the two breaks.
-     *
-     * The breaks are [HandBoardGap] and they are counted here for the same reason `matchLayout`
-     * reserves them — they are real space between the three groups. Leaving them out of this sum
-     * would let the test pass a layout that fits only if the hands touch the board, which is the
-     * arrangement the gap exists to prevent.
-     */
     private fun footprint(layout: MatchLayout): Pair<Dp, Dp> {
         val boardWidth = (CardSpriteWidth * BOARD_SIDE + BoardGapTotal) * layout.boardScale
         val boardHeight = (CardSpriteHeight * BOARD_SIDE + BoardGapTotal) * layout.boardScale
@@ -117,15 +100,12 @@ class MatchLayoutTest {
         const val BOARD_SIDE = 3
         const val LANDSCAPE_HAND_ROWS = 3
 
-        /** `TileGap` four times over — the outer padding plus the two inner gaps. */
         val BoardGapTotal = 16.dp
 
-        /** Rounding in `Dp` arithmetic, not a real overflow allowance. */
         val TOLERANCE = 0.5.dp
 
         const val MIN_TESTED_SCALE = 0.23f
 
-        /** Phones both ways up, a tablet, a desktop window, and two degenerate cases. */
         val VIEWPORTS = listOf(
             411.dp to 890.dp,
             914.dp to 385.dp,

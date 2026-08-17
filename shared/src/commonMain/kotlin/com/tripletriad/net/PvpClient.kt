@@ -29,41 +29,12 @@ import io.ktor.http.contentType
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.Serializable
 
-/**
- * Playing against another person, over the server.
- *
- * ### Why there is no engine on this side
- *
- * Every other match this client plays is run locally: `MatchState` is here, the AI is here, and the
- * server only checks the transcript afterwards. A PvP match is the opposite — the server holds the
- * one state and this client holds a **view** of it. It asks what it may see, sends a slot and a
- * square, and is told what happened.
- *
- * That is not a preference about architecture. If this client held both hands, the only thing
- * protecting the opponent's cards would be this client choosing not to draw them, and a modified
- * build would see everything with nothing anywhere to show for it.
- *
- * ### The same contract as [AccountClient]
- *
- * Nothing here throws for a network failure, every method returns an [AccountResult], and the
- * base URL is read per request because the player can change servers mid-session. A reader who
- * knows one of these two clients knows both.
- */
 class PvpClient(
     private val client: HttpClient,
     private val baseUrl: suspend () -> String,
     private val version: AppVersion = CURRENT_VERSION,
 ) {
 
-    /**
-     * Every table currently on offer, this player's own included.
-     *
-     * Replaces a `POST /pvp/queue` that both joined a queue and took whoever was in it. That was
-     * one call because it was one *action* — find me a match — and because the client could not
-     * choose between the two halves without seeing a queue it had no business seeing. Neither
-     * argument survives a match having terms: a player paired into a wager they never saw has not
-     * agreed to it. So the lobby is readable, and choosing is the client's job again.
-     */
     suspend fun tables(token: String): AccountResult<List<PvpTable>> =
         call(HTTP_OK) {
             client.get("${baseUrl()}/pvp/tables") {
@@ -72,7 +43,6 @@ class PvpClient(
             }
         }
 
-    /** Opens one, on the terms this player is offering. */
     suspend fun openTable(
         token: String,
         request: PvpTableRequest,
@@ -85,7 +55,6 @@ class PvpClient(
             }
         }
 
-    /** Withdraws it. */
     suspend fun cancelTable(token: String, tableId: String): AccountResult<Unit> = guard {
         val response = client.delete("${baseUrl()}/pvp/tables/$tableId") {
             protocolHeaders()
@@ -98,7 +67,6 @@ class PvpClient(
         }
     }
 
-    /** Joins one, which opens the match. */
     suspend fun joinTable(
         token: String,
         tableId: String,
@@ -112,7 +80,6 @@ class PvpClient(
             }
         }
 
-    /** The invitations standing in either direction. */
     suspend fun challenges(token: String): AccountResult<List<PvpChallenge>> =
         call(HTTP_OK) {
             client.get("${baseUrl()}/pvp/challenges") {
@@ -121,7 +88,6 @@ class PvpClient(
             }
         }
 
-    /** Invites a named player, on stated terms. */
     suspend fun challenge(
         token: String,
         username: String,
@@ -135,7 +101,6 @@ class PvpClient(
             }
         }
 
-    /** Accepts an invitation, which opens the match. */
     suspend fun accept(
         token: String,
         challengeId: String,
@@ -149,7 +114,6 @@ class PvpClient(
             }
         }
 
-    /** Declines an invitation, or withdraws one. */
     suspend fun dropChallenge(token: String, challengeId: String): AccountResult<Unit> = guard {
         val response = client.delete("${baseUrl()}/pvp/challenges/$challengeId") {
             protocolHeaders()
@@ -162,18 +126,6 @@ class PvpClient(
         }
     }
 
-    /**
-     * The match in progress, or `Ok(null)` when there is none.
-     *
-     * **Null is an answer, not an absence**, which is why it is inside an `Ok` rather than being a
-     * failure: "you are not in a match" is the normal state of a player who is not in a match, and
-     * a caller that had to distinguish it from "the server is unreachable" by the shape of an error
-     * would get it wrong the first time the network blinked.
-     *
-     * This is also the call that makes a match survive the app being killed — which mobile does
-     * without asking. It takes no id: the client says who it is and the server says what it is
-     * doing.
-     */
     suspend fun currentMatch(token: String): AccountResult<PvpMatchView?> = guard {
         val response = client.get("${baseUrl()}/pvp/match") {
             protocolHeaders()
@@ -186,13 +138,6 @@ class PvpClient(
         }
     }
 
-    /**
-     * Places a card.
-     *
-     * A refusal is not an error to hide: the server is the referee, so "it is not your turn" or
-     * "that move is not allowed" mean this client's view was stale, and the caller's response is to
-     * poll again rather than to complain. Both arrive as [AccountResult.Failed] with a 409.
-     */
     suspend fun play(
         token: String,
         matchId: String,
@@ -206,7 +151,6 @@ class PvpClient(
             }
         }
 
-    /** Concedes: the same settlement running out of time produces, chosen rather than suffered. */
     suspend fun forfeit(token: String, matchId: String): AccountResult<PvpMatchView> =
         call(HTTP_OK) {
             client.post("${baseUrl()}/pvp/match/$matchId/forfeit") {
@@ -215,13 +159,6 @@ class PvpClient(
             }
         }
 
-    /**
-     * Matches won and not yet collected.
-     *
-     * Asked separately from [currentMatch] because that one answers with the *newest* match, so a
-     * player who started another game would have an uncollected prize hidden behind it — and would
-     * lose it when the server's deadline passed and picked for them.
-     */
     suspend fun claims(token: String): AccountResult<List<PvpMatchView>> =
         call(HTTP_OK) {
             client.get("${baseUrl()}/pvp/claims") {
@@ -230,7 +167,6 @@ class PvpClient(
             }
         }
 
-    /** Names the cards taken, under the One and Diff trade rules. */
     suspend fun claim(
         token: String,
         matchId: String,
@@ -269,17 +205,6 @@ class PvpClient(
         AccountResult.Offline(failure.message ?: failure.toString())
     }
 
-    /**
-     * The failure this response describes.
-     *
-     * The PvP routes refuse things that are about a *match* rather than about an account —
-     * `AccountError` has no member meaning "it is not your turn" — so they answer with their own
-     * [PvpRefusal] vocabulary, and it comes back as [AccountResult.RefusedPvp].
-     *
-     * The **code** is what matters here, and it took a release to arrive: the routes used to send
-     * only a reason, in English, which is a sentence no screen in a four-language game can show.
-     * A refusal a client cannot render is a refusal that vanishes, which is what happened.
-     */
     @Suppress("TooGenericExceptionCaught")
     private suspend fun <T> HttpResponse.toFailure(): AccountResult<T> {
         if (status.value == HTTP_UPGRADE_REQUIRED) {
@@ -316,19 +241,12 @@ class PvpClient(
         const val HTTP_TOO_MANY_REQUESTS = 429
         const val DETAIL_LIMIT = 500
 
-        /** 409, and the two things it means. See [play]. */
         const val HTTP_CONFLICT = 409
     }
 }
 
-/** What the server is asked for when this client wants to challenge somebody. */
 @Serializable
 internal data class ChallengeRequest(val username: String, val terms: PvpTableRequest)
 
-/**
- * A refusal, as the shape every PvP 4xx answers with.
- *
- * [code] is what the UI switches on; [reason] is the server's own English sentence, kept for logs.
- */
 @Serializable
 internal data class Refusal(val code: PvpRefusal, val reason: String)

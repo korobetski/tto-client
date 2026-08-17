@@ -15,13 +15,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
-/**
- * The offline half of match verification.
- *
- * What these are really testing is the promise in [MatchTranscript]'s own documentation — that a
- * match played with no connection still counts. Everything here is a way of asking "under what
- * circumstances would a match the player actually played be lost?"
- */
 class TranscriptQueueTest {
 
     // ---- Keeping matches --------------------------------------------------
@@ -76,12 +69,6 @@ class TranscriptQueueTest {
 
     // ---- Refusing to break the game ---------------------------------------
 
-    /**
-     * A corrupt queue must not stop the game starting.
-     *
-     * The matches in it are lost whatever happens; the only question is whether the player can
-     * still play. Throwing here would answer "no" on a launch path.
-     */
     @Test
     fun anUnreadableQueueDegradesToEmpty() = runTest {
         val store = InMemoryDocumentStore(mapOf(PROFILE to "not json at all"))
@@ -98,11 +85,6 @@ class TranscriptQueueTest {
 
     // ---- The bound --------------------------------------------------------
 
-    /**
-     * At the limit the **oldest** go, which is the opposite of what a queue usually drops.
-     *
-     * Deliberate: the recent matches are the ones whose rewards the player is still waiting for.
-     */
     @Test
     fun theOldestAreDroppedOnceTheLimitIsReached() = runTest {
         val queue = TranscriptQueue(InMemoryDocumentStore(), limit = 2)
@@ -139,11 +121,6 @@ class TranscriptQueueTest {
         assertTrue(submitter.seen.isEmpty())
     }
 
-    /**
-     * The test the whole class is for.
-     *
-     * An unreachable server must leave the queue exactly as it was, so the next launch tries again.
-     */
     @Test
     fun anOfflineServerLeavesTheQueueIntact() = runTest {
         val store = InMemoryDocumentStore()
@@ -159,7 +136,6 @@ class TranscriptQueueTest {
         assertEquals(listOf(1, 2), queue.pending(PROFILE).map { it.seed })
     }
 
-    /** Going offline halfway keeps the rest and only the rest. */
     @Test
     fun goingOfflineHalfwayKeepsWhatWasNotJudged() = runTest {
         val queue = TranscriptQueue(InMemoryDocumentStore())
@@ -178,7 +154,6 @@ class TranscriptQueueTest {
         assertEquals(listOf(2, 3), queue.pending(PROFILE).map { it.seed })
     }
 
-    /** And it stops there rather than spending a timeout on each of the rest. */
     @Test
     fun drainingStopsAtTheFirstOfflineResult() = runTest {
         val queue = TranscriptQueue(InMemoryDocumentStore())
@@ -190,12 +165,6 @@ class TranscriptQueueTest {
         assertEquals(1, submitter.seen.size, "the other four would be four more timeouts")
     }
 
-    /**
-     * A rejection is an **answer**, so the transcript goes.
-     *
-     * Keeping it would have the client resubmit a transcript the server has already refused, on
-     * every launch, forever — for a verdict that cannot change.
-     */
     @Test
     fun aRejectedTranscriptIsConsumedRatherThanRetried() = runTest {
         val queue = TranscriptQueue(InMemoryDocumentStore())
@@ -231,13 +200,6 @@ class TranscriptQueueTest {
         assertTrue(queue.pending(PROFILE).isEmpty(), "it will not become readable")
     }
 
-    /**
-     * No session is a **hold**, not an answer — the other half of "an honest match still counts".
-     *
-     * A player who plays offline and signs in afterwards is the ordinary case, not an edge one:
-     * the transcript was made before there was anyone to credit it to. Consuming it here would
-     * throw away exactly the matches accounts were added to keep.
-     */
     @Test
     fun anUnauthenticatedDrainLeavesTheQueueIntact() = runTest {
         val queue = TranscriptQueue(InMemoryDocumentStore())
@@ -252,13 +214,6 @@ class TranscriptQueueTest {
 
     // ---- Fixtures ---------------------------------------------------------
 
-    /**
-     * A verdict as it now arrives: inside the receipt the server credits it with.
-     *
-     * The queue does not read past the verdict — what it decides is whether the transcript has been
-     * *answered* — so an otherwise empty receipt is the honest fixture here. What the credited
-     * profile does next belongs to `MatchReporter`.
-     */
     private fun judged(verdict: MatchVerdict) =
         SubmissionResult.Judged(MatchReceipt(verdict = verdict))
 

@@ -23,50 +23,15 @@ import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.GameSave
 import com.tripletriad.ui.theme.LocalTtoColors
 
-/** The course, as a list. */
 const val LESSONS_LIST_TEST_TAG: String = "lessons-list"
 
-/** `lesson-row-<index>` — one lesson, tapped to play it. */
 fun lessonRowTestTag(lesson: Int): String = "lesson-row-$lesson"
 
-/** Present on a lesson the player has finished. */
 fun lessonDoneTestTag(lesson: Int): String = "lesson-done-$lesson"
 
-/**
- * The line above the list, under whichever of its two readings applies.
- *
- * Two tags on one `Text` rather than one, because what a test needs to know is *which* sentence is
- * up: a single tag would be present either way and would assert only that a paragraph exists.
- */
 const val LESSONS_BLURB_TEST_TAG: String = "lessons-blurb"
 const val LESSONS_ALL_DONE_TEST_TAG: String = "lessons-all-done"
 
-/**
- * The course — every lesson, in order, with what each one teaches and how far the player has got.
- *
- * ### Why the course needed a screen of its own
- *
- * There was one lesson and it was a row on the opponent list, which is where `PVEScreen.as:79`
- * drew it: a bare `tt_tuto` texture above the opponents. That is the right place for *one* thing
- * called "Tutorial" and the wrong place for eight — a course has an order, a place you are up to,
- * and lessons worth going back to, none of which a single row can say. It is also not an opponent,
- * which is what everything else on that list is.
- *
- * So it lives on the dashboard now, beside the rule book it ends at, and the opponent list has lost
- * its row. That keeps [Screen.up] a function: a screen reachable from two places with different
- * back destinations is the case `Screen`'s own KDoc names as the point to stop using an enum, and
- * one entry point costs nothing here.
- *
- * ### Nothing is locked
- *
- * Progress is shown, not enforced. The lessons are ordered so that none needs anything a later one
- * teaches — Combo is played under Same, the pair lesson after each of its halves — but a player who
- * already knows Plus and wants only the Combo lesson is not somebody to argue with, and a locked
- * row would be arguing. What [done] buys is a course you can put down and pick up, which is the
- * thing twelve lessons need and one did not.
- *
- * @param done how many lessons have been finished, so lesson [done] is the one to resume at.
- */
 @Composable
 internal fun LessonsScreen(
     profile: GameSave,
@@ -119,13 +84,6 @@ internal fun LessonsScreen(
     }
 }
 
-/**
- * One lesson: its number, what it is called, what it teaches, and whether it is done.
- *
- * The rules are named from their own AS3 constants, which are also i18n keys — the same trick the
- * opponent list and the quest list use, and the reason this row reads in German and Japanese while
- * the title above it falls back to English.
- */
 @Composable
 private fun LessonRow(
     index: Int,

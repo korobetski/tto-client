@@ -15,13 +15,6 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * [SaveRepository] against an [InMemoryDocumentStore], so this runs on every target with no
- * filesystem.
- *
- * The clock is a parameter throughout, which is what makes "the save stamped the right time" an
- * assertion rather than a hope.
- */
 class SaveRepositoryTest {
     private fun repository(store: InMemoryDocumentStore = InMemoryDocumentStore()) =
         SaveRepository(store, Random(1)) to store
@@ -43,7 +36,6 @@ class SaveRepositoryTest {
         assertEquals(listOf(CardItem(42, 2)), loaded.bag)
     }
 
-    /** `Save.as:82-83`: the save stamps `LAST_SAVE` and bumps `SAVE_NUMBER` itself. */
     @Test
     fun savingStampsTheTimeAndIncrementsTheSaveNumber() = runTest {
         val (repository, _) = repository()
@@ -70,7 +62,6 @@ class SaveRepositoryTest {
         assertFalse(blob.contains("USERNAME"))
     }
 
-    /** `Save.as:85` names the file from the username and the creation date. Both are needed. */
     @Test
     fun theKeyCombinesTheLowercasedUsernameAndTheCreationDate() {
         val save = GameSave.new(username = "Kuplu Kopo", createdAt = 1_700_000_000_000)
@@ -78,9 +69,6 @@ class SaveRepositoryTest {
         assertEquals("kuplu kopo - 1700000000000", SaveRepository.keyFor(save))
     }
 
-    /**
-     * Two profiles with the same name must not overwrite each other — the date keeps them apart.
-     */
     @Test
     fun twoProfilesWithTheSameNameCoexist() = runTest {
         val (repository, _) = repository()
@@ -91,7 +79,6 @@ class SaveRepositoryTest {
         assertEquals(2, repository.keys().size)
     }
 
-    /** The username is player-typed, so a slash in it must produce a save, not an error. */
     @Test
     fun anAwkwardUsernameStillProducesAUsableKey() = runTest {
         val (repository, _) = repository()
@@ -132,9 +119,6 @@ class SaveRepositoryTest {
         assertIs<SaveLoadFailure.Corrupt>(failure.failure)
     }
 
-    /**
-     * A blob that decodes cleanly but is not a profile: the codec was happy, the schema was not.
-     */
     @Test
     fun loadingValidObfuscationWrappingInvalidJsonReportsCorrupt() = runTest {
         val store = InMemoryDocumentStore(
@@ -158,7 +142,6 @@ class SaveRepositoryTest {
         assertIs<SaveLoadFailure.Unreadable>(failure.failure)
     }
 
-    /** A failed *write* must not be swallowed the way a settings write is: it is data loss. */
     @Test
     fun aFailedWritePropagates() = runTest {
         val store = InMemoryDocumentStore(failure = IllegalStateException("disk full"))
@@ -184,7 +167,6 @@ class SaveRepositoryTest {
         assertEquals("new - 2", slots.first().key)
     }
 
-    /** One damaged file must not make the others unlistable. */
     @Test
     fun listingSkipsWhatItCannotRead() = runTest {
         val (repository, store) = repository()
@@ -231,9 +213,6 @@ class SaveRepositoryTest {
         assertNull(repository.load(key).getOrNull())
     }
 
-    /**
-     * `Save.as:59` recomputes FORFEITS on load; `sane()` does the equivalent for LEVEL and RANK.
-     */
     @Test
     fun loadingAppliesSaneSoDerivedFieldsAgreeWithTheirSources() = runTest {
         val (repository, store) = repository()
@@ -247,14 +226,6 @@ class SaveRepositoryTest {
         assertEquals(0, loaded.mgp)
     }
 
-    /**
-     * A profile owning cards from two blocks comes back owning both.
-     *
-     * This replaces a test that round-tripped `MODE`, which no longer exists. The fact worth
-     * keeping is the one underneath it: what a character *is* survives the codec. And it is worth
-     * keeping in the mixed form specifically, because a mixed collection was impossible to hold
-     * while `MODE` existed and is the ordinary case now.
-     */
     @Test
     fun aMixedCollectionSurvivesARoundTrip() = runTest {
         val (repository, _) = repository()

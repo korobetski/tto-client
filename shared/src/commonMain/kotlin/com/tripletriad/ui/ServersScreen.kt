@@ -39,34 +39,8 @@ const val SERVERS_REFRESH_TEST_TAG: String = "servers-refresh"
 const val UPDATE_NOTICE_TEST_TAG: String = "update-notice"
 const val UPDATE_DOWNLOAD_TEST_TAG: String = "update-download"
 
-/** One row per configured server. Suffixed with the entry id, which is stable and unique. */
 fun serverRowTestTag(entry: ServerEntry): String = "server-${entry.id}"
 
-/**
- * The servers this build offers, what each one is doing, and which one is in play.
- *
- * ### Why the player gets to choose at all
- *
- * Because there is more than one right answer. A player near one region should not be paying
- * two hundred milliseconds a move to reach another, a self-hosted deployment is a legitimate place
- * to keep a character, and a host that is down should not make the game unplayable when another is
- * up. The alternative — one hard-coded address — turns every one of those into "the game is
- * broken".
- *
- * ### What switching costs, and why the screen says so
- *
- * The account. A token is only valid on the host that issued it and the character it names does not
- * exist elsewhere, so moving signs the player out — see [AccountSession.useServer]. That is not a
- * bug to hide behind a spinner; it is the thing the player needs to know *before* they tap,
- * which is why the note is above the list rather than in a dialog after it.
- *
- * What switching does **not** cost is progress. Sessions and unsubmitted matches are stored per
- * server, so the old host still has both when the player comes back.
- *
- * @param onSelect what to do with a chosen entry. Suspending, and given the entry rather than being
- *   a plain `() -> Unit` per row, because the switch is a sign-out and a restore and the screen
- *   should stay on top of the list while it happens.
- */
 @Composable
 internal fun ServersScreen(
     connectivity: Connectivity,
@@ -132,14 +106,6 @@ internal fun ServersScreen(
     }
 }
 
-/**
- * One server: a status dot, its label and address, and what the last probe learned.
- *
- * The name shown is the **configured** one and not the one the server calls itself. A
- * deployment can call itself anything, including what another one calls itself, and a list where
- * two rows are labelled the same is a list the player cannot choose from. The address is under it
- * for the same reason: it is the thing that is actually unique.
- */
 @Composable
 private fun ServerRow(
     entry: ServerEntry,
@@ -193,13 +159,6 @@ private fun ServerRow(
     }
 }
 
-/**
- * A one-line status the main menu can carry, tappable to open the list.
- *
- * Deliberately small and deliberately always present. A banner that appears only when something is
- * wrong is a banner that moves the layout at the worst moment, and a player who has never seen it
- * green has no idea what it means when it turns red.
- */
 @Composable
 internal fun ServerIndicator(connectivity: Connectivity, onClick: () -> Unit) {
     val status = connectivity.status
@@ -223,24 +182,6 @@ internal fun ServerIndicator(connectivity: Connectivity, onClick: () -> Unit) {
     }
 }
 
-/**
- * "There is a newer build, and here is where to get it."
- *
- * ### Why a link and not an update
- *
- * Because the app is not allowed to be the updater on two of its three platforms and should not be
- * on the third — the reasoning is in [rememberUrlOpener]. What is left is doing the one useful
- * thing well: saying which version, saying whether the server will still serve this one, and
- * putting the right artifact for *this* platform one tap away.
- *
- * The button is absent, rather than disabled, when the source publishes no download for this
- * platform. A greyed-out button implies the player is doing something wrong; the truth is that
- * there is nothing on the other end of it.
- *
- * Which source the advice came from — the deployment or the releases page — is deliberately not
- * shown. The player's question is "is there a newer build and where is it", and answering it with
- * *where we found out* would be answering a question nobody asked. See [UpdateAdvice].
- */
 @Composable
 internal fun UpdateNotice(advice: UpdateAdvice) {
     val strings = LocalStrings.current
@@ -292,7 +233,6 @@ internal fun UpdateNotice(advice: UpdateAdvice) {
     }
 }
 
-/** The coloured dot. The whole status, at a glance, in eight dp. */
 @Composable
 private fun StatusDot(status: ServerStatus) {
     Box(
@@ -302,14 +242,6 @@ private fun StatusDot(status: ServerStatus) {
     )
 }
 
-/**
- * What to say about a status in one short phrase.
- *
- * Kept here rather than on [ServerStatus] because it is wording, and the status lives in the
- * network layer — the same division the account screen's wording draws. The latency
- * is folded in rather than given its own column: it is only meaningful for the two states that have
- * one, and an empty column for the other five is a column that mostly says nothing.
- */
 private fun ServerStatus.describe(strings: Strings): String = when (this) {
     ServerStatus.Unknown -> strings[StringKeys.SERVER_UNKNOWN]
     ServerStatus.Checking -> strings[StringKeys.SERVER_CHECKING]
@@ -323,12 +255,6 @@ private fun ServerStatus.describe(strings: Strings): String = when (this) {
     is ServerStatus.Unusable -> strings[StringKeys.SERVER_UNUSABLE]
 }
 
-/**
- * The colour a status is drawn in.
- *
- * Four colours for seven states, on purpose: what the player acts on is *green, wait, act, broken*,
- * and giving each state its own hue would be seven things to learn instead of four.
- */
 @Composable
 private fun ServerStatus.tint(): Color = when (this) {
     is ServerStatus.Online -> LocalTtoColors.current.positive

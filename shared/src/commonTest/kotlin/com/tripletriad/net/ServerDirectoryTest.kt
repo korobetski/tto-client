@@ -9,14 +9,6 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
-/**
- * The list of servers, and which one is in play.
- *
- * Two properties are load-bearing and everything here is about one of them: an id derives from the
- * **address** and from nothing else, and the chosen server survives a relaunch. The first is what
- * keeps one server's token off another's requests; the second is what stops a player who chose the
- * second entry from being put back on the first every morning.
- */
 class ServerDirectoryTest {
 
     // ---- Reading a configured list ----------------------------------------
@@ -29,7 +21,6 @@ class ServerDirectoryTest {
         assertEquals("https://eu.example.org", entries.first().baseUrl)
     }
 
-    /** The label is what the player sees; the address is what the app uses. */
     @Test
     fun anEntryMayBeLabelled() {
         val entry = serverEntries("Europe=https://eu.example.org").single()
@@ -38,7 +29,6 @@ class ServerDirectoryTest {
         assertEquals("https://eu.example.org", entry.baseUrl)
     }
 
-    /** Without one, the host stands in for it — the scheme is noise on a menu. */
     @Test
     fun anUnlabelledEntryIsNamedAfterItsHost() {
         assertEquals("eu.example.org", serverEntries("https://eu.example.org").single().label)
@@ -66,12 +56,6 @@ class ServerDirectoryTest {
         assertTrue(serverEntries("   ").isEmpty())
     }
 
-    /**
-     * One address listed twice is one server.
-     *
-     * Showing it twice would offer the player a switch that changes nothing — and, because both
-     * rows key the same session, one that would look like it had failed.
-     */
     @Test
     fun oneAddressUnderTwoLabelsIsStillOneServer() {
         val entries = serverEntries("A=https://a.example.org, Also A=https://a.example.org/")
@@ -81,7 +65,6 @@ class ServerDirectoryTest {
 
     // ---- The id is the address --------------------------------------------
 
-    /** Renaming a server must not sign the player out of it. */
     @Test
     fun theIdSurvivesARelabelling() {
         assertEquals(
@@ -90,7 +73,6 @@ class ServerDirectoryTest {
         )
     }
 
-    /** A trailing slash is not a different server. */
     @Test
     fun theIdIgnoresATrailingSlash() {
         assertEquals(
@@ -99,7 +81,6 @@ class ServerDirectoryTest {
         )
     }
 
-    /** And two addresses are two servers, whatever they are called. */
     @Test
     fun twoAddressesAreTwoServers() {
         assertNotEquals(
@@ -108,7 +89,6 @@ class ServerDirectoryTest {
         )
     }
 
-    /** The id becomes a filename on both hosts. */
     @Test
     fun theIdIsSafeToUseAsADocumentKey() {
         val id = ServerEntry.of("https://a.example.org:8443/path?x=1").id
@@ -144,12 +124,6 @@ class ServerDirectoryTest {
         assertTrue(directory.select(entries[1]))
     }
 
-    /**
-     * A server dropped from a build is not a reason to refuse to start.
-     *
-     * The fallback is visible rather than silent: the servers screen shows the first entry as the
-     * selected one, which is the truth.
-     */
     @Test
     fun aStoredServerThatIsNoLongerConfiguredFallsBack() = runTest {
         val store = InMemoryDocumentStore()
@@ -168,7 +142,6 @@ class ServerDirectoryTest {
         assertEquals(entries.first(), directory.selected)
     }
 
-    /** An unreadable choice costs the choice, not the launch. */
     @Test
     fun anUnreadableStoreLeavesAWorkingDefault() = runTest {
         val store = InMemoryDocumentStore(failure = IllegalStateException("permission denied"))
@@ -180,7 +153,6 @@ class ServerDirectoryTest {
         assertEquals(entries[1], directory.selected)
     }
 
-    /** Selecting something that is not on the list is a configuration bug, not a runtime state. */
     @Test
     fun anUnconfiguredServerCannotBeSelected() = runTest {
         val directory = ServerDirectory(InMemoryDocumentStore(), listOf(entries.first()))
@@ -188,7 +160,6 @@ class ServerDirectoryTest {
         assertFailsWith<IllegalArgumentException> { directory.select(entries[1]) }
     }
 
-    /** "No server" is expressed by there being no directory, not by an empty one. */
     @Test
     fun aDirectoryWithNoServersIsRefused() {
         assertFailsWith<IllegalArgumentException> {

@@ -33,50 +33,17 @@ const val PVP_TABLE_OPEN_TEST_TAG: String = "pvp-table-open"
 const val PVP_TABLE_MGP_TEST_TAG: String = "pvp-table-mgp"
 const val PVP_TABLE_ROULETTE_TEST_TAG: String = "pvp-table-roulette"
 
-/** `pvp-rule-<key>` — one rule the host may tick. */
 fun ruleToggleTestTag(key: String): String = "pvp-rule-$key"
 
-/** `pvp-format-<id>` — one format the host may play in. */
 fun formatToggleTestTag(id: String): String = "pvp-format-$id"
 
-/** `pvp-trade-<rule>` — one trade rule. */
 fun tradeToggleTestTag(trade: TradeRule): String = "pvp-trade-${trade.name.lowercase()}"
 
-/**
- * Stating the terms of a match: the format, the rules, and what it is played for.
- *
- * ### One screen, both ways into a match
- *
- * A table offers these terms to the lobby; an invitation offers the same ones to one named person.
- * They were not the same for most of this feature's life — an invitation carried a wager and
- * nothing else, so accepting one always played the default format under whatever the roulette drew.
- * That made naming your rules something you could do for strangers and not for a friend.
- *
- * They are now the same request, checked by the same function on the server — see
- * `PvpReferee.checkTerms` — and stated on the same screen. [invitee] is the whole difference:
- * null offers the terms to everybody, a name offers them to one person.
- *
- * ### The host chooses, and until now nobody did
- *
- * Every PvP match this game has ever played used `Roulette.augment(GameRules(), …)` — one to three
- * rules drawn at random, with no way to ask for any of them or to refuse any of them. That was
- * defensible while PvP was a queue, because two strangers have no way to agree on anything. It
- * stops being defensible the moment they can read each other's terms first.
- *
- * ### Why Roulette is a checkbox and not the thirteenth chip
- *
- * `RULE_ROULETTE` really is one of the sixteen keys, and it is deliberately not offered as one.
- * `GameRules.roulette` is what `RULES_W['RULE_ROULETTE']` counts, and what the Wheel of Fortune
- * achievements read — so it means *a draw happened*, which is a claim only the server may make.
- * Ticking it here would credit a roulette win for a match that never drew. The checkbox therefore
- * sets a separate flag on the request, and the server performs the draw and sets the field.
- */
 @Composable
 internal fun PvpTableScreen(
     profile: GameSave,
     formats: FormatCatalog,
     session: PvpSession,
-    /** Who this is aimed at, or null to offer it to the lobby. See the KDoc. */
     invitee: String? = null,
     onOpened: () -> Unit,
     onBack: () -> Unit,
@@ -231,11 +198,9 @@ internal fun PvpTableScreen(
     }
 }
 
-/** A heading inside a screen's column. The same weight the lobby's own headings use. */
 @Composable
 private fun SectionLabel(text: String) {
     SectionHeader(text = text, modifier = Modifier.padding(top = SpaceMd))
 }
 
-/** Wagers move in tens: a slider that can land on 37 MGP is precision nobody wanted. */
 private const val STEP = 10

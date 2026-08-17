@@ -4,14 +4,6 @@ import com.tripletriad.data.CardCatalog
 import com.tripletriad.model.Card
 import com.tripletriad.model.CardType
 
-/**
- * The twenty-eight cards the lessons name, built here rather than loaded.
- *
- * `commonTest` has no filesystem on Kotlin/Native, and what the lesson tests are about is the
- * *positions* rather than the loader — which `CardCatalogTest` covers. The powers are transcribed
- * from `cards.json`, and `TutorialPuzzleTest.theNumbersTheLinesNameAreStillOnTheCard` holds the
- * transcription to the shipped data: if a re-import renumbers the block, that is where it fails.
- */
 internal val LESSON_CATALOG: CardCatalog = CardCatalog(
     sets = emptyList(),
     cards = listOf(

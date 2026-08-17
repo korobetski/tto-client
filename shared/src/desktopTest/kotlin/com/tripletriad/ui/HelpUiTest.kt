@@ -16,13 +16,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/**
- * The rules screen: an accordion over [HELP_RULES], and the bundle behind it.
- *
- * The second half is what earns the file. `Strings[key]` falls back to returning the key, so a rule
- * whose `_HELP` text was never imported renders as `RULE_SWAP_HELP` on a device and nowhere else —
- * the exact failure the accordion is most likely to have and the least likely to be noticed.
- */
 @OptIn(ExperimentalTestApi::class)
 class HelpUiTest {
     private val english = runBlocking { loadStrings(AppLocale.EN_US) }
@@ -32,7 +25,6 @@ class HelpUiTest {
         openFromDashboard(DASHBOARD_HELP_TEST_TAG, HELP_LIST_TEST_TAG)
     }
 
-    /** Tap to open, tap again to close. Only one is open at a time. */
     @Test
     fun tappingARuleOpensItsTextAndTappingAgainClosesIt() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -60,7 +52,6 @@ class HelpUiTest {
         assertFalse(existsUnmerged(helpTextTestTag(FIRST_RULE)), "two rules were open at once")
     }
 
-    /** Every entry is reachable, including the ones past the first screenful. */
     @Test
     fun everyRuleHasARowOnTheScreen() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -72,15 +63,6 @@ class HelpUiTest {
         }
     }
 
-    /**
-     * Every rule has a name and a help text in the fallback bundle.
-     *
-     * Three of the texts — `RULE_SAME_WALL_HELP`, `RULE_COMBO_HELP`, `RULE_ELEMENTAL_HELP` —
-     * resolve to the rule's own name in all four bundles, so the original explained nothing for
-     * them. That is a gap in the imported Square Enix wording rather than in this screen, and it is
-     * asserted as such: they must still *resolve*, and the day someone writes a real paragraph this
-     * test keeps passing.
-     */
     @Test
     fun everyRuleResolvesToBothALabelAndAText() {
         val unresolved = HELP_RULES.flatMap { ruleKey ->
@@ -89,21 +71,12 @@ class HelpUiTest {
         assertTrue(unresolved.isEmpty(), "unresolved: $unresolved")
     }
 
-    /** The list is deduplicated: `HelpScreen.as` lists `RULE_CHAOS` at both `:77` and `:84`. */
     @Test
     fun theListHasNoDuplicates() {
         assertEquals(HELP_RULES.size, HELP_RULES.toSet().size, HELP_RULES.toString())
         assertEquals(RULES_LISTED, HELP_RULES.size)
     }
 
-    /**
-     * `RULE_COMBO` is in this list and in no other.
-     *
-     * It is a dead constant everywhere else — nothing writes or reads a combo flag, and combo fires
-     * unconditionally whenever Same, Same Wall or Plus captures. So the help screen keeps its own
-     * order rather than deriving one from the rules engine, which correctly excludes it. This is
-     * what says the two lists are allowed to differ on purpose.
-     */
     @Test
     fun comboIsExplainedHereAndIsNotARuleTheEngineToggles() {
         assertTrue(COMBO in HELP_RULES, "the one place combo is legitimately named")
@@ -113,13 +86,6 @@ class HelpUiTest {
         )
     }
 
-    /**
-     * The four headings are on the screen, and every rule is under exactly one of them.
-     *
-     * The second half is what makes the grouping safe to maintain: [HELP_RULES] is *derived* from
-     * [HELP_FAMILIES], so a rule cannot be listed and shown nowhere — and this is the assertion
-     * that keeps it derived rather than quietly forked back into two hand-kept lists.
-     */
     @Test
     fun theRulesAreGroupedUnderFourHeadings() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -137,7 +103,6 @@ class HelpUiTest {
         )
     }
 
-    /** And the headings are translated, like every other string this port authored. */
     @Test
     fun everyHeadingResolves() {
         val unresolved = HELP_FAMILIES.map { it.labelKey }.filter { english[it] == it }
@@ -150,10 +115,8 @@ class HelpUiTest {
 
         const val COMBO = "RULE_COMBO"
 
-        /** `HelpScreen.as:72-89` lists eighteen, with `RULE_CHAOS` twice. */
         const val RULES_LISTED = 17
 
-        /** Sight, play, capture, elements — see [HELP_FAMILIES]. */
         const val FAMILIES = 4
     }
 }

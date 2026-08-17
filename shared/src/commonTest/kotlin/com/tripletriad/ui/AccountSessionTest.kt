@@ -50,24 +50,10 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * Signing in, coming back, and signing out — the state a form and a dashboard render.
- *
- * What is being pinned down here is the promise the whole account feature is for: **the character
- * is the server's, and a player who comes back finds it**. Everything else in the class exists to
- * keep that true when the network is not cooperating.
- */
 class AccountSessionTest {
 
     // ---- Intents ----------------------------------------------------------
 
-    /**
-     * Every intent goes to its own endpoint, walked as a set rather than one at a time.
-     *
-     * The reason `Intent` is a sealed type: a sixth case does not compile until it is handled here
-     * as well as on the server. A test per intent would be five chances to add a sixth that quietly
-     * goes nowhere — this one fails the moment the `when` gains a branch nobody wired up.
-     */
     @Test
     fun everyIntentAsksItsOwnEndpoint() = runTest {
         val expected = mapOf(
@@ -93,7 +79,6 @@ class AccountSessionTest {
         }
     }
 
-    /** A refused intent is reported and changes nothing, as a refused item use is. */
     @Test
     fun aRefusedIntentIsReportedAndChangesNothing() = runTest {
         val session = signedInSession(answering(HttpStatusCode.Conflict, """{"error":"NOPE"}"""))
@@ -106,7 +91,6 @@ class AccountSessionTest {
         assertFalse(session.isBusy)
     }
 
-    /** With nobody signed in, an intent asks nothing at all. */
     @Test
     fun anIntentWithoutASessionAsksNothing() = runTest {
         val paths = mutableListOf<String>()
@@ -121,12 +105,6 @@ class AccountSessionTest {
 
     // ---- Seed tickets -----------------------------------------------------
 
-    /**
-     * The stock is read from disk first, so a launch with no network can still play.
-     *
-     * The whole reason the seeds are written down. A client that only ever fetched them would be
-     * unable to start a match on a plane, which is exactly the case the stock exists for.
-     */
     @Test
     fun theStockIsReadFromDiskBeforeAnythingIsAsked() = runTest {
         val documents = InMemoryDocumentStore()
@@ -145,7 +123,6 @@ class AccountSessionTest {
         assertEquals(11, session.nextSeed(), "the oldest seed is not the next one")
     }
 
-    /** Each seed is handed out once, oldest first, and then the stock is empty. */
     @Test
     fun eachSeedIsHandedOutOnce() = runTest {
         val documents = InMemoryDocumentStore()
@@ -163,12 +140,6 @@ class AccountSessionTest {
         assertEquals(0, session.ticketsHeld)
     }
 
-    /**
-     * A low stock is topped up, and what the server answers replaces what was held.
-     *
-     * Replaces rather than appends because the response is *everything* the account holds unspent —
-     * which is also what repairs a stock that has drifted from the server's idea of it.
-     */
     @Test
     fun aLowStockIsToppedUpFromTheServer() = runTest {
         val documents = InMemoryDocumentStore()
@@ -190,12 +161,6 @@ class AccountSessionTest {
         )
     }
 
-    /**
-     * A top-up that cannot happen leaves the stock alone and reports nothing.
-     *
-     * Offline is the ordinary case here, not a failure: the player keeps what they hold and plays
-     * from it. Putting it on [AccountSession.failure] would raise a note over an unrelated screen.
-     */
     @Test
     fun aTopUpThatFailsKeepsWhatIsHeldAndSaysNothing() = runTest {
         val documents = InMemoryDocumentStore()
@@ -214,7 +179,6 @@ class AccountSessionTest {
         assertNull(session.failure, "being offline was reported as a failure")
     }
 
-    /** With nobody signed in there is nothing to key a stock on, and nothing is asked. */
     @Test
     fun thereIsNoStockWithoutAnAccount() = runTest {
         val session = sessionOver(answering(HttpStatusCode.NoContent, ""))
@@ -227,13 +191,6 @@ class AccountSessionTest {
 
     // ---- Using an item ----------------------------------------------------
 
-    /**
-     * Using an item **asks the server** and takes the profile it answers with.
-     *
-     * The assertion that matters is the third one: nothing about the resulting profile was computed
-     * here. A pack opened locally would produce a perfectly plausible save that the server never
-     * agreed to, which is the whole vector `POST /me/bag/use` exists to close.
-     */
     @Test
     fun usingAnItemAsksTheServerAndAdoptsWhatItAnswers() = runTest {
         val paths = mutableListOf<String>()
@@ -253,13 +210,6 @@ class AccountSessionTest {
         assertFalse(session.isBusy)
     }
 
-    /**
-     * Each attempt carries an operation id, and two attempts do not share one.
-     *
-     * The id is what makes a retry safe on the server — see `Idempotent` in `:core`. Two *taps* are
-     * two intents and must not collide, or the second one would silently replay the first and the
-     * player would watch the same pack twice having spent two.
-     */
     @Test
     fun everyAttemptCarriesItsOwnOperationId() = runTest {
         val bodies = mutableListOf<String>()
@@ -280,7 +230,6 @@ class AccountSessionTest {
         assertNotEquals(ids[0], ids[1], "two taps shared an operation id")
     }
 
-    /** Nobody signed in means nothing is used, and no request is made to find that out. */
     @Test
     fun usingAnItemWithoutASessionAsksNothing() = runTest {
         val paths = mutableListOf<String>()
@@ -292,7 +241,6 @@ class AccountSessionTest {
         assertTrue(paths.isEmpty(), "a signed-out client still called the server: $paths")
     }
 
-    /** A refused use is reported rather than swallowed, and nothing is invented in its place. */
     @Test
     fun aRefusedUseIsReportedAndChangesNothing() = runTest {
         val session = signedInSession(answering(HttpStatusCode.Conflict, """{"error":"NOPE"}"""))
@@ -318,7 +266,6 @@ class AccountSessionTest {
         assertNull(session.failure)
     }
 
-    /** And the token is stored, which is the whole point of having signed in. */
     @Test
     fun signingInStoresTheTokenForTheNextLaunch() = runTest {
         val documents = InMemoryDocumentStore()
@@ -340,12 +287,6 @@ class AccountSessionTest {
         assertEquals(player, session.player)
     }
 
-    /**
-     * A refusal is state the form renders, not an exception it has to survive.
-     *
-     * And nothing is stored: a failed sign-in that left a token behind would be a launch that
-     * restores a session the player never got.
-     */
     @Test
     fun aRefusedSignInBecomesAFailureAndStoresNothing() = runTest {
         val documents = InMemoryDocumentStore()
@@ -374,13 +315,6 @@ class AccountSessionTest {
         assertTrue(session.failure is AccountResult.Offline, "was ${session.failure}")
     }
 
-    /**
-     * The reason signing in is where the drain happens.
-     *
-     * A player who played offline has transcripts queued and no token to submit them with; signing
-     * in is the moment they become creditable, and the dashboard they land on should already show
-     * what they paid.
-     */
     @Test
     fun signingInDrainsWhatWasQueuedOffline() = runTest {
         val reporter = RecordingReporter()
@@ -408,15 +342,6 @@ class AccountSessionTest {
         assertTrue(reporter.drained.isEmpty())
     }
 
-    /**
-     * And what the drain credited is what the player is shown.
-     *
-     * The half that was missing. Signing in submitted the queue and then kept the profile the
-     * *sign-in* had returned — which is the state before any of those matches were credited — so a
-     * player who had played offline landed on a dashboard that the server had already superseded,
-     * and stayed on it until the next launch. See `MatchReporter.drain`, which had no way to hand
-     * the credited profile back to anybody.
-     */
     @Test
     fun signingInAdoptsWhatTheDrainCredited() = runTest {
         val credited = PlayerState(save = GameSave(username = "kuplu", mgp = 9001))
@@ -429,7 +354,6 @@ class AccountSessionTest {
         assertEquals(credited, session.player, "the sign-in profile survived the drain")
     }
 
-    /** A drain that credited nothing leaves the profile the sign-in returned. */
     @Test
     fun aDrainThatCreditedNothingChangesNothing() = runTest {
         val session = sessionOver(
@@ -456,10 +380,6 @@ class AccountSessionTest {
         assertTrue(session.isRestored)
     }
 
-    /**
-     * "We have not looked yet" and "nobody is signed in" are different, and only one of them should
-     * put a sign-in form in front of a player who has a perfectly good stored session.
-     */
     @Test
     fun restoringWithNothingStoredStillFinishes() = runTest {
         val session = sessionOver(answering(HttpStatusCode.OK, encode(player)))
@@ -471,7 +391,6 @@ class AccountSessionTest {
         assertTrue(session.isRestored)
     }
 
-    /** An expired token is not sent at all — [SessionStore] refuses to hand it back. */
     @Test
     fun anExpiredStoredSessionIsNotUsed() = runTest {
         val documents = InMemoryDocumentStore()
@@ -489,12 +408,6 @@ class AccountSessionTest {
         assertFalse(asked, "an expired token was sent to the server")
     }
 
-    /**
-     * A token the server no longer honours is thrown away rather than kept to be retried.
-     *
-     * It will not start working, and keeping it means a needless round trip before the sign-in form
-     * on every launch from here on.
-     */
     @Test
     fun aRejectedTokenIsCleared() = runTest {
         val documents = InMemoryDocumentStore()
@@ -510,7 +423,6 @@ class AccountSessionTest {
         assertNull(session.failure, "nobody asked for this request, so nobody is shown its failure")
     }
 
-    /** But an unreachable server keeps it: the session is probably still fine. */
     @Test
     fun anOfflineRestoreKeepsTheStoredToken() = runTest {
         val documents = InMemoryDocumentStore()
@@ -525,14 +437,6 @@ class AccountSessionTest {
 
     // ---- The name offered back --------------------------------------------
 
-    /**
-     * The case the whole thing is for: the token is gone, and the name is not.
-     *
-     * A player coming back after thirty days has to type a password, and there is no reason for
-     * them to have to type who they are as well — the app knows. This is the test that would fail
-     * if [SessionStore.lastUsername] were ever simplified into a call to `load`, which discards the
-     * document at exactly this moment.
-     */
     @Test
     fun anExpiredSessionStillRemembersWhoItWas() = runTest {
         val documents = InMemoryDocumentStore()
@@ -555,7 +459,6 @@ class AccountSessionTest {
         assertEquals("kuplu", session.lastUsername)
     }
 
-    /** Nothing stored, nothing to offer — and no empty string pretending to be a name. */
     @Test
     fun aFirstRunHasNoNameToOffer() = runTest {
         val session = sessionOver(answering(HttpStatusCode.OK, encode(player)))
@@ -565,12 +468,6 @@ class AccountSessionTest {
         assertNull(session.lastUsername)
     }
 
-    /**
-     * Each server remembers its own, and a switch does not carry one across.
-     *
-     * The same separation the token has, in the one place a player would actually believe it: a
-     * name in the field is a claim about which account this host knows.
-     */
     @Test
     fun theNameDoesNotFollowThePlayerToAnotherServer() = runTest {
         val documents = InMemoryDocumentStore()
@@ -588,11 +485,6 @@ class AccountSessionTest {
 
     // ---- Signing out ------------------------------------------------------
 
-    /**
-     * Locally first, and the server's answer is ignored.
-     *
-     * A sign-out a dead network could refuse would be a button that sometimes does nothing.
-     */
     @Test
     fun signingOutWorksEvenWhenTheServerCannotBeReached() = runTest {
         val documents = InMemoryDocumentStore()
@@ -607,13 +499,6 @@ class AccountSessionTest {
         assertNull(SessionStore(documents).load(home.id, NOW))
     }
 
-    /**
-     * And it forgets the name, which an expiry deliberately does not.
-     *
-     * The asymmetry is the point. An expired token is the app forgetting on a schedule; signing out
-     * is a person asking to be forgotten, usually because somebody else is about to hold the
-     * device. Leaving their name in the field would answer a question nobody asked.
-     */
     @Test
     fun signingOutForgetsTheNameToo() = runTest {
         val documents = InMemoryDocumentStore()
@@ -629,12 +514,6 @@ class AccountSessionTest {
 
     // ---- Changes made outside a match -------------------------------------
 
-    /**
-     * A purchase shows immediately and is sent afterwards.
-     *
-     * The shop has already told the player the card is theirs; a round trip is not something to
-     * make them watch, and the local copy is the one the client keeps working from either way.
-     */
     @Test
     fun persistingShowsTheChangeBeforeTheServerHasAnswered() = runTest {
         val documents = InMemoryDocumentStore()
@@ -652,7 +531,6 @@ class AccountSessionTest {
         assertEquals("Bearer $TOKEN", seen?.headers?.get("Authorization"))
     }
 
-    /** A failed store is logged and left; the player keeps what they bought on screen. */
     @Test
     fun aFailedProfileStoreDoesNotUndoWhatIsOnScreen() = runTest {
         val documents = InMemoryDocumentStore()
@@ -667,7 +545,6 @@ class AccountSessionTest {
         assertEquals(10, offline.save?.mgp)
     }
 
-    /** With nobody signed in there is nothing to change and nothing to send. */
     @Test
     fun persistingWithNoPlayerIsANoOp() = runTest {
         val session = sessionOver(answering(HttpStatusCode.OK, encode(signedIn)))
@@ -689,13 +566,6 @@ class AccountSessionTest {
 
     // ---- Switching servers ------------------------------------------------
 
-    /**
-     * Moving to another server signs the player out of the one they left.
-     *
-     * The token is only valid where it was issued and the character it names does not exist
-     * elsewhere, so carrying either across would show one server's profile while every request went
-     * to another — a state that looks like it is working right up until a match is submitted.
-     */
     @Test
     fun switchingServersDropsTheSignedInPlayer() = runTest {
         val documents = InMemoryDocumentStore()
@@ -716,7 +586,6 @@ class AccountSessionTest {
         assertEquals(away.id, session.serverId)
     }
 
-    /** And the session it left behind is still there, so coming back is free. */
     @Test
     fun theSessionOnTheServerYouLeftSurvives() = runTest {
         val documents = InMemoryDocumentStore()
@@ -733,7 +602,6 @@ class AccountSessionTest {
         assertNull(SessionStore(documents).load(away.id, NOW))
     }
 
-    /** Choosing the server you are already on does nothing at all. */
     @Test
     fun reselectingTheCurrentServerIsNotASwitch() = runTest {
         val session = sessionOver(
@@ -748,9 +616,6 @@ class AccountSessionTest {
 
     // ---- Fixtures ---------------------------------------------------------
 
-    /**
-     * @param credited what the drain reports the server wrote, or null for "it credited nothing".
-     */
     private class RecordingReporter(private val credited: PlayerState? = null) : MatchReporter {
         val drained = mutableListOf<String>()
 
@@ -779,13 +644,6 @@ class AccountSessionTest {
         )
     }
 
-    /**
-     * A connection over one server, which is what every test here but [useServer] wants.
-     *
-     * The directory is real rather than mocked: it is the thing that decides which id the session
-     * and the queue are keyed by, and a stub would let this file agree with itself about a key the
-     * app would derive differently.
-     */
     private fun connectionOver(
         http: HttpClient,
         documents: InMemoryDocumentStore,
@@ -805,13 +663,6 @@ class AccountSessionTest {
         )
     }
 
-    /**
-     * Signed in, with [onTickets] deciding what the seed endpoint answers.
-     *
-     * `/me` has to succeed for any of these to mean anything: the stock is keyed on the account,
-     * and there is no account until `restore` has read one. So the engine answers the profile and
-     * routes only the ticket call to the test.
-     */
     private fun ticketEngine(
         onTickets: MockRequestHandleScope.() -> HttpResponseData,
     ) = MockEngine { request ->
@@ -831,7 +682,6 @@ class AccountSessionTest {
         respondJson(status, body)
     }
 
-    /** The mock engine's `respond` with the one header Ktor's negotiation needs to decode. */
     private fun MockRequestHandleScope.respondJson(
         status: HttpStatusCode,
         body: String,
@@ -843,21 +693,13 @@ class AccountSessionTest {
 
     private inline fun <reified T> encode(value: T) = matchProtocolJson.encodeToString(value)
 
-    /** The one server every test but the switch runs against. */
     private val home = ServerEntry.of(BASE_URL, label = "Home")
 
-    /** Somewhere else, for the switch. */
     private val away = ServerEntry.of("http://127.0.0.1:9090", label = "Away")
 
     private fun stored(expiresAt: Long) =
         StoredSession(token = TOKEN, expiresAt = expiresAt, username = "kuplu")
 
-    /**
-     * A session with a live token already stored, for the calls that need one to do anything.
-     *
-     * Planted rather than signed in, so that the mock engine answers the call under test instead of
-     * a sign-in the test does not care about.
-     */
     private suspend fun signedInSession(engine: MockEngine): AccountSession {
         val documents = InMemoryDocumentStore()
         SessionStore(documents).save(home.id, stored(expiresAt = LATER))
@@ -873,10 +715,8 @@ class AccountSessionTest {
         const val NOW = 1_770_000_000_000L
         const val LATER = NOW + 86_400_000L
 
-        /** Opaque to the client and meaningless to the mock — it only has to arrive. */
         const val TOKEN = "test-session"
 
-        /** Never a real one, and never printed — as in the server's own `AccountFlowTest`. */
         const val PASSWORD = "not-a-real-password"
     }
 }

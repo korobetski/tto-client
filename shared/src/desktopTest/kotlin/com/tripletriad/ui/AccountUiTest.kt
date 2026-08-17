@@ -49,24 +49,9 @@ import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import androidx.compose.ui.autofill.ContentType as AutofillType
 
-/**
- * The flow a build with a server actually has.
- *
- * The claim being tested is the one the whole feature rests on: **with a server, the character is
- * the account's**. So Play must lead to a sign-in form rather than to the local character list,
- * signing in must land on that account's dashboard, and a stored token must skip the form entirely
- * on the next launch. The thirteen screens behind the dashboard are `NavigationTest`'s business and
- * are not re-tested here; what is tested is that they are now reached from somewhere else.
- */
 @OptIn(ExperimentalTestApi::class)
 class AccountUiTest {
 
-    /**
-     * Without a server, nothing about the flow changes.
-     *
-     * The regression worth guarding: an offline build is a supported build, and none of this work
-     * may have turned every preview, screenshot and UI test into a sign-in form.
-     */
     @Test
     fun withNoServerPlayStillLeadsToTheLocalCharacterList() = runComposeUiTest {
         setContent { App(store = english()) }
@@ -77,17 +62,6 @@ class AccountUiTest {
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_NEW_TEST_TAG) }
     }
 
-    /**
-     * The form appears, and says which build it belongs to.
-     *
-     * The version is asserted here rather than in a test of its own because it is part of what this
-     * screen *is* — this is where a player is when they need the number, and a form that has it in
-     * one build and not the next is the regression worth catching.
-     *
-     * `CLIENT_VERSION` and not `CURRENT_VERSION`: the release number identifies the build, which is
-     * what an update changes and what a bug report has to name. The protocol version is a different
-     * number on purpose — see `gradle.properties`.
-     */
     @Test
     fun withAServerPlayLeadsToTheSignInFormAndItSaysWhichBuildThisIs() = runComposeUiTest {
         setContent { App(store = english(), server = connection()) }
@@ -97,7 +71,6 @@ class AccountUiTest {
         onNodeWithTag(ACCOUNT_VERSION_TEST_TAG).assertTextEquals("v$CLIENT_VERSION")
     }
 
-    /** Typing in the two fields and pressing the button ends on the account's own dashboard. */
     @Test
     fun signingInLandsOnTheAccountsDashboard() = runComposeUiTest {
         setContent { App(store = english(), server = connection()) }
@@ -114,12 +87,6 @@ class AccountUiTest {
         }
     }
 
-    /**
-     * The reason the token is stored at all.
-     *
-     * A returning player must not be shown a form they already filled in — which is also why the
-     * splash waits for the restore rather than racing it.
-     */
     @Test
     fun aStoredSessionSkipsTheFormOnTheNextLaunch() = runComposeUiTest {
         val documents = InMemoryDocumentStore()
@@ -140,12 +107,6 @@ class AccountUiTest {
         awaitDashboard()
     }
 
-    /**
-     * When the form *is* reached, half of it is already filled in.
-     *
-     * An expired token is the ordinary way back here — thirty days pass — and the app still knows
-     * who this was. Asking them to type it again would be asking for something it has on disk.
-     */
     @Test
     fun anExpiredSessionLeavesTheNameInTheForm() = runComposeUiTest {
         val documents = InMemoryDocumentStore()
@@ -165,7 +126,6 @@ class AccountUiTest {
         onNodeWithTag(ACCOUNT_NAME_TEST_TAG).assertTextContains("kuplu")
     }
 
-    /** And with nothing stored, the field is empty rather than holding somebody else's name. */
     @Test
     fun aFirstRunLeavesTheFormBlank() = runComposeUiTest {
         setContent { App(store = english(), server = connection()) }
@@ -176,14 +136,6 @@ class AccountUiTest {
         onNodeWithTag(ACCOUNT_NAME_TEST_TAG).assertTextEquals("Character Name", "")
     }
 
-    /**
-     * The other half of not typing this: the fields tell the platform what they are.
-     *
-     * This is what lets the OS password manager offer to save the password and fill it back in —
-     * and it is the whole reason the app stores no password of its own. Worth a test because the
-     * hint is invisible: nothing on screen changes if it is dropped, and the failure is silent and
-     * only reproducible on a device.
-     */
     @Test
     fun theFieldsTellThePasswordManagerWhatTheyAre() = runComposeUiTest {
         setContent { App(store = english(), server = connection()) }
@@ -193,13 +145,6 @@ class AccountUiTest {
         onNodeWithTag(ACCOUNT_PASSWORD_TEST_TAG).assertContentType(AutofillType.Password)
     }
 
-    /**
-     * And registering asks for a *new* one, which is a different request.
-     *
-     * `Password` asks the manager to fill what it has; `NewPassword` asks it to offer to generate
-     * and save. Getting these the wrong way round is how a password manager ends up either silent
-     * on the form that needs it or overwriting a stored entry on the form that does not.
-     */
     @Test
     fun creatingAnAccountAsksForANewPasswordInstead() = runComposeUiTest {
         setContent { App(store = english(), server = connection()) }
@@ -211,7 +156,6 @@ class AccountUiTest {
         onNodeWithTag(ACCOUNT_PASSWORD_TEST_TAG).assertContentType(AutofillType.NewPassword)
     }
 
-    /** A refusal keeps the player on the form, with the reason on it. */
     @Test
     fun aRefusedSignInStaysOnTheFormAndSaysWhy() = runComposeUiTest {
         val refusing = MockEngine {
@@ -229,14 +173,6 @@ class AccountUiTest {
         check(exists(ACCOUNT_SCREEN_TEST_TAG)) { "a refused sign-in left the form" }
     }
 
-    /**
-     * The refusal is a sentence in the player's language, not a key and not English.
-     *
-     * This screen's strings were hard-coded English until the sign-in form was the only part of the
-     * app that could not be read in French. `INVALID_CREDENTIALS` is asserted specifically because
-     * it is the refusal a real player meets — a typed password — and because its wording comes from
-     * a bundle now rather than from a `when` branch.
-     */
     @Test
     fun aRefusalIsWordedInThePlayersLanguage() = runComposeUiTest {
         val refusing = MockEngine {
@@ -259,12 +195,6 @@ class AccountUiTest {
         )
     }
 
-    /**
-     * The button stays inert until the two fields could possibly be valid.
-     *
-     * Not a security measure — the server checks the same rules and is the only check that counts.
-     * It is here so a password that is too short is a disabled button rather than a round trip.
-     */
     @Test
     fun theFormWillNotSubmitCredentialsTheServerWouldRefuse() = runComposeUiTest {
         var asked = false
@@ -287,18 +217,6 @@ class AccountUiTest {
         check(!asked) { "the form sent credentials it had already judged invalid" }
     }
 
-    /**
-     * Registering is the same form with the toggle flipped, and it reaches the same dashboard — by
-     * way of the starter step, which is the one thing `POST /accounts` cannot carry.
-     *
-     * The choice has to reach the *server*: the account is created with the default box whatever
-     * the player picks, so a step that only changed the local copy would look right for one session
-     * and be gone on the next sign-in.
-     *
-     * Asserted on the **cards** and not on `MODE`, which no longer exists. That is not a weaker
-     * assertion: the cards were always the part that mattered, and the field was only ever a label
-     * naming which table the ids belonged to.
-     */
     @Test
     fun registeringAsksForAStarterAndSendsIt() = runComposeUiTest {
         val saved = mutableListOf<String>()
@@ -326,12 +244,6 @@ class AccountUiTest {
 
     // ---- Fixtures ---------------------------------------------------------
 
-    /**
-     * The autofill hint this node declares. Not a text assertion — the value is not rendered.
-     *
-     * `AutofillType` is `androidx.compose.ui.autofill.ContentType`, aliased because Ktor's
-     * `ContentType` is a MIME type and this file needs both.
-     */
     private fun SemanticsNodeInteraction.assertContentType(expected: AutofillType) =
         assert(SemanticsMatcher.expectValue(SemanticsProperties.ContentType, expected))
 
@@ -347,14 +259,6 @@ class AccountUiTest {
         onNodeWithTag(ACCOUNT_SUBMIT_TEST_TAG).performClick()
     }
 
-    /**
-     * A server that says yes: the same account, whether it is signed into or asked about.
-     *
-     * The two shapes are distinguished because they genuinely differ — `/me` answers a
-     * `PlayerState` and the rest answer a `Session` wrapping one — and a fixture that returned the
-     * wrong one would fail the restore silently, which is exactly the bug these tests are for.
-     * Which endpoint was called is `AccountClientTest`'s question; what these need is a live one.
-     */
     private fun connection(
         sessions: InMemoryDocumentStore = InMemoryDocumentStore(),
         engine: MockEngine = MockEngine { request ->
@@ -384,7 +288,6 @@ class AccountUiTest {
 
     private fun english() = settingsFor(AppLocale.EN_US)
 
-    /** The mock engine's `respond` with the one header Ktor's negotiation needs to decode. */
     private fun MockRequestHandleScope.respondJson(
         status: HttpStatusCode,
         body: String,
@@ -396,20 +299,12 @@ class AccountUiTest {
 
     private inline fun <reified T> encode(value: T) = matchProtocolJson.encodeToString(value)
 
-    /**
-     * A healthy server of exactly this version.
-     *
-     * Answered for `/server` so the menu's indicator has something real to render and so no update
-     * notice appears — a required one replaces the sign-in form, which would break every test in
-     * this file for the wrong reason. That it *would* is the point of `AccountScreen`'s branch.
-     */
     private val serverInfo = ServerInfo(
         name = "Test server",
         version = CURRENT_VERSION,
         minimumClient = CURRENT_VERSION,
     )
 
-    /** The one server these tests run against. */
     private val home = ServerEntry.of("http://127.0.0.1:8080", label = "Test server")
 
     private companion object {
@@ -417,16 +312,8 @@ class AccountUiTest {
         const val NOW = 1_770_000_000_000L
         const val LATER = NOW + 86_400_000L
 
-        /**
-         * A moment [App]'s clock has already passed.
-         *
-         * Anchored to [FixedClock.DEFAULT_MILLIS] rather than to [NOW], because the clock is what
-         * decides expiry and `App`'s default is the one these tests run against. An `EXPIRED`
-         * derived from [NOW] would be a number that happens to work until somebody changes either.
-         */
         const val EXPIRED = FixedClock.DEFAULT_MILLIS - 1
 
-        /** Never a real one, and never printed. */
         const val PASSWORD = "not-a-real-password"
 
         val player = PlayerState(save = GameSave(username = "kuplu", mgp = 4200))
@@ -434,12 +321,6 @@ class AccountUiTest {
     }
 }
 
-/**
- * Through the sign-in form with the toggle flipped, as far as the collection step.
- *
- * File-level rather than a member: `AccountUiTest` is already at the number of functions detekt
- * allows in one class, and a navigation helper is not what that limit is protecting.
- */
 @OptIn(ExperimentalTestApi::class)
 private fun ComposeUiTest.register() {
     awaitMenu()

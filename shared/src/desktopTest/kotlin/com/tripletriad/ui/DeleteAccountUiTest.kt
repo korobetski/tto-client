@@ -46,24 +46,9 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * Deleting an account, from the settings screen.
- *
- * ### Why this is the most carefully tested screen in the app
- *
- * Because it is the only one whose mistake cannot be corrected. Every other destructive control in
- * this port deletes something the player can make again — a local save, a bought item — and this
- * one ends the account, its cards, its history, and its rows in other players' histories. There is
- * no undo, no grace period and nothing to restore from.
- *
- * So what is asserted is not only that it works. It is the **shape of the gate**: that a single tap
- * does nothing, that a wrong password takes nothing away, and that backing out leaves no password
- * behind on a device somebody else may pick up.
- */
 @OptIn(ExperimentalTestApi::class)
 class DeleteAccountUiTest {
 
-    /** Signed out, there is no account group at all — not a disabled one. */
     @Test
     fun withNoAccountThereIsNothingToDelete() = runComposeUiTest {
         setContent { Fixture(account = null) }
@@ -74,12 +59,6 @@ class DeleteAccountUiTest {
         )
     }
 
-    /**
-     * The first tap reveals the explanation and the field. It **sends nothing**.
-     *
-     * The property that separates this from the `armed` two-tap pattern used elsewhere: there is no
-     * state in which one more tap in the same place ends the account.
-     */
     @Test
     fun theFirstTapAsksRatherThanActs() = runComposeUiTest {
         val calls = mutableListOf<String>()
@@ -97,13 +76,6 @@ class DeleteAccountUiTest {
         onNodeWithTag(OPTIONS_DELETE_CONFIRM_TEST_TAG).assertIsNotEnabled()
     }
 
-    /**
-     * Tapping again closes it and **clears what was typed**.
-     *
-     * Backing out of this is something a player does on a device they are about to hand over, and a
-     * password left sitting in a field is the one thing that must not survive the retreat. Asserted
-     * by reopening: the field is composed fresh, so its contents are whatever the state holds.
-     */
     @Test
     fun backingOutForgetsTheTypedPassword() = runComposeUiTest {
         setContent { Fixture(account = session()) }
@@ -118,7 +90,6 @@ class DeleteAccountUiTest {
         onNodeWithTag(OPTIONS_DELETE_CONFIRM_TEST_TAG).assertIsNotEnabled()
     }
 
-    /** With a password typed and the server agreeing, the account goes and the caller is told. */
     @Test
     fun aConfirmedDeletionEndsTheSessionAndLeavesTheScreen() = runComposeUiTest {
         val calls = mutableListOf<String>()
@@ -138,14 +109,6 @@ class DeleteAccountUiTest {
         )
     }
 
-    /**
-     * A **wrong password takes nothing away** — the case that decides the whole design.
-     *
-     * `signOut` clears the token first and ignores the server, because a sign-out a dead network
-     * could refuse would be a button that does nothing. Doing that here would mean mistyping your
-     * password signs you out of an account that still exists: answering "that is not your password"
-     * by taking away the session. So the player stays signed in, stays on the screen, and is told.
-     */
     @Test
     fun aWrongPasswordChangesNothing() = runComposeUiTest {
         val account = session(engine = refusing())
@@ -164,7 +127,6 @@ class DeleteAccountUiTest {
         assertTrue(exists(OPTIONS_ACCOUNT_GROUP_TEST_TAG), "a refused deletion left the screen")
     }
 
-    /** And it says so, in the player's own language rather than as a status code. */
     @Test
     fun theRefusalIsWordedForTheReader() = runComposeUiTest {
         val account = session(engine = refusing())
@@ -187,14 +149,6 @@ class DeleteAccountUiTest {
         onNodeWithTag(OPTIONS_DELETE_CONFIRM_TEST_TAG).performClick()
     }
 
-    /**
-     * [OptionsScreen] alone, with the real session behind it.
-     *
-     * Not the whole `App`: reaching this screen through the shell means signing in first, which is
-     * `AccountUiTest`'s subject, and would put a sign-in between every assertion here and the thing
-     * it is about. The session is real either way — what is faked is the server, which is the only
-     * part a test cannot have.
-     */
     @Composable
     private fun Fixture(account: AccountSession?, onDeleted: () -> Unit = {}) {
         CompositionLocalProvider(LocalStrings provides strings) {
@@ -209,7 +163,6 @@ class DeleteAccountUiTest {
         }
     }
 
-    /** A session already signed in, as it is by the time anybody reaches Settings. */
     private fun session(
         engine: MockEngine = accepting(),
         calls: MutableList<String> = mutableListOf(),
@@ -243,7 +196,6 @@ class DeleteAccountUiTest {
         }
     }
 
-    /** Everything succeeds, and the delete is recorded so a test can say it was not sent. */
     private fun accepting() = MockEngine { request ->
         if (request.method == HttpMethod.Delete) {
             recorded += "DELETE ${request.url.encodedPath}"
@@ -252,7 +204,6 @@ class DeleteAccountUiTest {
         respondJson(HttpStatusCode.OK, matchProtocolJson.encodeToString(player))
     }
 
-    /** The server refuses the password — the ordinary failure, not an outage. */
     private fun refusing() = MockEngine { request ->
         if (request.method == HttpMethod.Delete) {
             recorded += "DELETE ${request.url.encodedPath}"

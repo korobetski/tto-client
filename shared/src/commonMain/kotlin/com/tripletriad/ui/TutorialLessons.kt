@@ -17,92 +17,19 @@ import com.tripletriad.model.PlacedCard
 import com.tripletriad.model.TurnOrder
 import com.tripletriad.model.TypeRule
 
-/**
- * The lessons after the first one — a rule each, one move each.
- *
- * ### Why a puzzle rather than a match
- *
- * The lesson that ships today is a whole nine-placement match, and that is the right shape for
- * *the board, the digits and capture*: there is nothing to demonstrate until some cards are down.
- * It is the wrong shape for a named rule. A match under Same takes four minutes, and Same fires
- * only if the player happens to place a card where it can — so the lesson either says nothing or
- * says it about a board the player did not build. A position one move from the rule firing takes
- * fifteen seconds and cannot fail to teach it.
- *
- * ### The rule has to be the only explanation
- *
- * Every position here captures **nothing** with the special rules switched off. That is not a
- * nicety: a placement that would have won on raw power teaches the player that their 2 beat a 4
- * for some reason they have not been told, and the lesson's own sentence is then false. The
- * positions were found by `tools/find_lesson_positions.py`, which searches for exactly that
- * property, and each is pinned by `TutorialPuzzleTest` replaying it through the real engine —
- * because that tool is a *second* implementation of rules that live in `tto-core` and will drift
- * from them.
- *
- * ### Nothing here is a card the player owns
- *
- * As with the first lesson's hand ([tutorialDeck]), these are fixed cards from block 1 rather than
- * anything in the collection: the sentences name the numbers on them.
- */
 internal data class TutorialPuzzle(
-    /** The rule this lesson exists to teach, in force for it and nothing else. */
     val rules: GameRules,
-    /** The eight cards already down, by cell. */
     val board: List<PuzzlePiece>,
-    /** What the player holds — one card, the one the lesson is about. */
     val hand: List<Int>,
-    /** The one cell left free, which every line names. */
     val cell: Int,
-    /**
-     * The board's elements, by cell — empty unless the lesson is about Elemental.
-     *
-     * Sparse rather than a nine-slot list because a lesson gives an element to the *one* cell it is
-     * talking about. A real Elemental board has one on roughly half of them, which is the right
-     * amount of noise for a match and the wrong amount for a sentence naming one tile.
-     */
     val elements: Map<Int, CardType> = emptyMap(),
-    /** Said before the move, in order. */
     val lines: List<String>,
-    /** Said once it has been made, over the outcome panel. */
     val closing: String,
-    /**
-     * The rule sets under which this placement must capture **nothing**.
-     *
-     * Usually the empty one — raw power has to take nothing, or the rule being taught is not what
-     * the player just watched. A lesson about *two* rules cannot ask that: an ace captures plenty
-     * on raw power, and the claim there is the interaction, so its baselines are the two rules one
-     * at a time. Carried as data because it is the property `TutorialPuzzleTest` checks, and it
-     * differs per lesson.
-     */
     val baselines: List<GameRules> = listOf(GameRules()),
 )
 
-/** One card already on a lesson's board. */
 internal data class PuzzlePiece(val position: Int, val cardId: Int, val owner: CardColor)
 
-/**
- * The position, as a [MatchSetup] the ordinary match screen can play.
- *
- * Null when a card id does not resolve in [catalog], which is a data fault rather than a state a
- * player reaches — `TutorialPuzzleTest` resolves every id in the shipped catalogue. The caller
- * skips the lesson rather than crashing, on the same footing as the rest of [App]'s `?.let` chain.
- *
- * ### The two invariants a hand-built position has to keep
- *
- * [MatchState] derives everything from its counters, so a position that disagrees with itself does
- * not fail loudly — it plays wrongly:
- *
- * - **`placement` must equal the number of cards down.** `currentPlayer` is
- *   `order.colorAt(placement)`, so a position that under-counts hands the turn to the wrong side.
- * - **the hands must fill the cells that are left.** Fewer, and the match reaches a placement with
- *   an empty hand and `play` throws; more, and it ends with cards still held.
- *
- * Both are checked here rather than trusted, because the failure is silent at the point where it
- * is introduced and loud somewhere else entirely.
- *
- * The opponent's hand is empty — a one-move puzzle ends on the player's move — so
- * [HandVisibility.HIDDEN] describes it exactly and the Open rules have nothing to reveal.
- */
 @Suppress("ReturnCount")
 internal fun puzzleSetup(puzzle: TutorialPuzzle, catalog: CardCatalog): MatchSetup? {
     val pieces = puzzle.board.associateBy { it.position }
@@ -148,48 +75,6 @@ internal fun puzzleSetup(puzzle: TutorialPuzzle, catalog: CardCatalog): MatchSet
     )
 }
 
-/**
- * A whole match played under a rule, for the rules a single placement cannot show.
- *
- * ### Why two lessons needed a shape the other eight did not
- *
- * A [TutorialPuzzle] teaches by making one move be the rule. That works for every rule that decides
- * **a capture** — the position is composed so the capture happens for one reason and no other, and
- * the whole lesson is over in fifteen seconds.
- *
- * Two of the rules left decide something else entirely:
- *
- * - **Bonus and Malus** read a *running tally*. Their modifier is not a property of the position;
- *   it is a count of what has been played, and a count of one is the count a puzzle could show.
- *   The rule only becomes visible over several turns, as the number climbs.
- * - **Order and Chaos** do not touch capture at all. They decide *which card you may pick up*, and
- *   on a board with one card in hand that is not a constraint, it is a description.
- *
- * So these are matches — and the concession is real: a drill can be **lost**, and it takes as long
- * as a game does. It is still the honest shape. A one-move position claiming to teach Bonus would
- * be a position with a tally of one, which is the case where the rule does nothing.
- *
- * The exam is the same shape with [tutoring] off, and expressing it here rather than as its own
- * function is what removed the last thing the course identified by *index*: it used to be "the
- * lesson at [LAST_LESSON] with no puzzle", which would silently have become a broken lesson the
- * moment a row was added after it. Adding these two rows is exactly that moment.
- *
- * @property rules what it is played under — the whole of what makes it a drill rather than an
- *   ordinary match against a tutor who declares nothing.
- * @property deck the five cards the player is dealt. Fixed, because both drills are about the hand:
- *   one deals five cards of one tribe, the other deals five in an order it then tells you to read.
- * @property lines what is said before each placement, by placement index. The player opens while
- *   [tutoring], so the even keys are their own turns.
- * @property outcomes said over the outcome panel, per result. A drill can be **lost** — that is the
- *   price of it being a match — so the three are asked for rather than assumed. A lesson whose
- *   sentence is about the rule and not about the score says the same thing three times, which is
- *   what [whateverHappens] is for; the exam, which is a test, says three different ones.
- * @property tutoring whether this is being **taught** or **examined**, which is one idea and
- *   therefore one flag: taught means the opponent plays to lose (`MatchAiOptions.TUTOR`), the
- *   player opens, the digits that decided a capture are ringed, and the clock is the doubled one
- *   a lesson's own sentences need. Examined means none of those — a real match, a real toss, and
- *   thirty seconds a turn.
- */
 internal data class TutorialDrill(
     val rules: GameRules,
     val deck: List<Int>,
@@ -198,25 +83,9 @@ internal data class TutorialDrill(
     val tutoring: Boolean = true,
 )
 
-/** One sentence for all three results: a lesson's closing line is about the rule, not the score. */
 internal fun whateverHappens(key: String): Map<MatchResult, String> =
     MatchResult.entries.associateWith { key }
 
-/**
- * One lesson of the course, as the list screen and the player meet it.
- *
- * @property titleKey what it is called.
- * @property ruleKeys the rules it teaches, as AS3 rule constants — which are also i18n keys, so the
- *   list row's subtitle needs no table of its own and reads in all four languages rather than the
- *   two this port authors.
- * @property puzzle the position it teaches from, for a rule one move can show.
- * @property drill the match it teaches from, for a rule one move cannot — see [TutorialDrill].
- *
- * **At most one of the two**, and the opening match has neither: it is the ported `TutorialScreen`,
- * whose nine lines and rigged flip are written into `openingScript` rather than described as data.
- * A row carrying both would be a row where the dispatch in [scriptFor] silently picks one, so it is
- * rejected here instead.
- */
 internal data class TutorialLesson(
     val titleKey: String,
     val ruleKeys: List<String>,
@@ -228,74 +97,18 @@ internal data class TutorialLesson(
     }
 }
 
-/**
- * What the exam is played under — three rules the course has taught, named for its row.
- *
- * **Above the course rather than beside its row**, because the exam's row reads these and
- * top-level properties in one file initialise in the order they are written: declared after
- * [TUTORIAL_COURSE] they are still null when it builds, which is what
- * `Variable 'EXAM_RULE_KEYS' must be initialized` was saying.
- *
- * Same and Plus because they are the two that change how a hand is read, and Reverse because it
- * changes which hand is good. Not Combo: it is not a rule to switch on, and it comes along with
- * Same anyway ([com.tripletriad.model.GameRules.comboEnabled]).
- */
 internal val EXAM_RULES: GameRules = GameRules(same = true, plus = true, reverse = true)
 
-/** The same three, as the keys the list row prints. */
 internal val EXAM_RULE_KEYS: List<String> = listOf("RULE_SAME", "RULE_PLUS", "RULE_REVERSE")
 
-/**
- * `BLUE_CARDS = [1, 3, 6, 7, 10]` (`TutorialScreen.as:54`) — the hand the lesson is written around.
- *
- * Fixed rather than chosen, and it has to be: line 5 tells the player to pick a card with a bigger
- * number on the touching side, which is only sound advice if the hand is known to contain one.
- *
- * These are card **numbers**, resolved against the set the character plays — so an `ff8_` character
- * is dealt the first, third, sixth, seventh and tenth FF8 cards, exactly as before. That used to
- * happen for free, because an id meant nothing without `MODE` to read it through; ids are global
- * now, so the indirection the lesson depends on has to be spelled out. Left implicit, the tutorial
- * would deal five FFXIV cards to an FFVIII character and then fail to resolve them.
- *
- * The lesson holds either way, because it never names a card.
- *
- * **Here rather than beside the screen that speaks the lines**, because [TUTORIAL_COURSE]'s
- * exam row is dealt the same hand and a course's data has to be initialisable without the
- * screen: as a `private val` in `TutorialScreen.kt` this was read from that file's own
- * initialiser chain before it had been assigned, and `.map` on it threw.
- */
 @Suppress("MagicNumber") // Transcribed card numbers: naming each one would say nothing it does not.
 private val TUTORIAL_NUMBERS = listOf(1, 3, 6, 7, 10)
 
-/**
- * The five cards the lesson deals the player.
- *
- * Fixed to the first block rather than to the character's collection, which no longer exists. The
- * tutorial deals its own hand — the script fixes the deal — so these are not cards the player owns
- * and never were; what matters is that the nine written lines describe them.
- */
 internal fun tutorialDeck(): List<Int> =
     TUTORIAL_NUMBERS.map { Card.idFor(block = TUTORIAL_BLOCK, number = it) }
 
-/** The block the lesson's five cards come from. See [tutorialDeck]. */
 private const val TUTORIAL_BLOCK = 1
 
-/**
- * The course, in the order it is taught.
- *
- * Ordered so no lesson uses anything an earlier one has not shown. Same before Plus because Same is
- * the simpler claim — two numbers equal, against two sums equal. Combo after both, because
- * **combo is not a rule**: `GameRules.comboEnabled` is always true and `RULE_COMBO` is a dead
- * constant everywhere but the help screen (see [HelpScreen]), so its lesson is played under Same
- * and the third card falls to the chain. Same Wall after Same, for the reason it is named after
- * it.
- * Reverse and Fallen Ace last, and then together, because the pair only means anything once each
- * has been met alone.
- *
- * Every number below is transcribed from a position `tools/find_lesson_positions.py` found and
- * `TutorialPuzzleTest` replays through the real engine. The comments state the arithmetic each
- * lesson's own sentences state, which is the thing a reader can check against the card values.
- */
 // Card ids and cell indices; naming each one would say nothing the comments do not.
 @Suppress("MagicNumber")
 internal val TUTORIAL_COURSE: List<TutorialLesson> = listOf(
@@ -582,31 +395,14 @@ internal val TUTORIAL_COURSE: List<TutorialLesson> = listOf(
     ),
 )
 
-/**
- * The positions alone, in course order.
- *
- * Derived rather than kept beside [TUTORIAL_COURSE], so a lesson cannot be in one list and missing
- * from the other — which is exactly what a second hand-maintained table would eventually do.
- */
 internal val TUTORIAL_PUZZLES: List<TutorialPuzzle> = TUTORIAL_COURSE.mapNotNull { it.puzzle }
 
-/** The matches alone, in course order — derived for the same reason [TUTORIAL_PUZZLES] is. */
 internal val TUTORIAL_DRILLS: List<TutorialDrill> = TUTORIAL_COURSE.mapNotNull { it.drill }
 
-/** The cell with four neighbours, where a rule has the most room to fire. */
 internal const val CENTRE: Int = 4
 
-/** Cell 1 — a top-edge cell, and therefore one that has a wall. See the Same Wall lesson. */
 internal const val TOP_CENTRE: Int = 1
 
-/**
- * The two placements a drill speaks on — the player's first move and their third.
- *
- * A tutoring drill forces the player to open ([TutorialDrill.tutoring]), so they hold the even
- * placements and these are turns 1 and 3 of their own five. The third is where the lines can point
- * at something that has *accumulated*: two of the player's cards are down by then, which is the
- * whole of what a running tally needs to have become visible.
- */
 private const val FIRST_MOVE: Int = 0
 private const val THIRD_MOVE: Int = 4
 

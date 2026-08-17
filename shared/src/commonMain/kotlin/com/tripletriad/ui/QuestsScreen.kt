@@ -37,40 +37,10 @@ const val QUESTS_LIST_TEST_TAG: String = "quests-list"
 const val QUESTS_RESET_TEST_TAG: String = "quests-reset"
 const val QUESTS_NONE_TEST_TAG: String = "quests-none"
 
-/** `quest-q-win-3` — one row, by the quest's own id. */
 fun questRowTestTag(id: String): String = "quest-$id"
 
-/** `quest-progress-q-win-3` — the `1 / 3` counter, which is what a test reads. */
 fun questProgressTestTag(id: String): String = "quest-progress-$id"
 
-/**
- * The three quests of the day — the one screen in this app with no AS3 ancestor at all.
- *
- * Everything else here is a port of something; daily quests are new, and the only reason this
- * screen can be written the way it is is that [DailyQuestRepository.statuses] answers without
- * writing. A player who has not played today still sees what is on offer, because the day's draw
- * is *derived* from the character's creation date and the UTC day rather than assigned by a
- * request. See `DailyQuests` for why the draw is nonetheless pinned the moment one is credited.
- *
- * ### It reads like the achievements list on purpose
- *
- * A quest and an achievement are the same thing to a reader — a label, how far along, a reward —
- * and the two differ only in when they reset. `StatsScreen` earned its shape recently and this
- * takes it: icon, label, `n / m`, bar, and a **date instead of the counter** once the thing is
- * done. Inventing a second progress idiom would have been two vocabularies for one concept.
- *
- * ### Offline is not a special case
- *
- * Credit runs inside `MatchRewards.credit`, which is the same pure function a local profile and a
- * server-backed one both go through. So a character with no account has quests, they advance, and
- * they pay — with no branch anywhere in this file.
- *
- * @param at the instant the day is read from. `Clock.nowMillis()`; a parameter rather than a read
- *   so a test can sit on either side of midnight.
- * @param opponents used only to name the opponent a [Objective.BeatOpponent] quest asks for. Null
- *   before `npcs.json` has loaded, which the startup gate makes unreachable here — the label then
- *   falls back to the icon id rather than to nothing.
- */
 @Composable
 internal fun QuestsScreen(
     profile: GameSave,
@@ -112,12 +82,6 @@ internal fun QuestsScreen(
     }
 }
 
-/**
- * One quest.
- *
- * The completed form drops the counter for the reason `AchievementRow` does: `3 / 3` above a bar
- * pinned at full says nothing a player wants, and what a finished quest has to say is that it paid.
- */
 @Composable
 private fun QuestRow(
     status: DailyQuestStatus,
@@ -186,19 +150,6 @@ private fun QuestRow(
     }
 }
 
-/**
- * The label, with the one thing the objective names filled in.
- *
- * Two of the objectives carry a parameter — an opponent and a rule — and both resolve through keys
- * the bundles already hold: a rule constant *is* an i18n key (`RULE_SAME` is in all four bundles),
- * and an opponent's `nameKey` is how every other screen names one. So this adds no strings beyond
- * the six quest lines themselves.
- *
- * @param nameFor turns an opponent's icon id into a name. A function rather than a catalogue,
- *   because the two callers know the answer by different routes: this screen looks the opponent up,
- *   and the end-of-match panel has just played them. Falls back to the icon id, which is ugly and
- *   true — better than a blank where a name should be.
- */
 internal fun DailyQuest.label(strings: Strings, nameFor: (String) -> String): String =
     when (val objective = objective) {
         is Objective.BeatOpponent -> strings.format(labelKey, nameFor(objective.iconId))
@@ -206,7 +157,6 @@ internal fun DailyQuest.label(strings: Strings, nameFor: (String) -> String): St
         else -> strings[labelKey]
     }
 
-/** [label] with the opponent resolved through the catalogue, which is what a list needs. */
 private fun DailyQuest.label(
     strings: Strings,
     opponents: NpcCatalog?,
@@ -215,7 +165,6 @@ private fun DailyQuest.label(
     opponents?.byIcon(iconId, formatId)?.let { strings[it.nameKey] } ?: iconId
 }
 
-/** The bar `StatsScreen` draws, in the same colour. Four lines, not worth a shared file. */
 @Composable
 private fun QuestMeter(fraction: Float) {
     Box(

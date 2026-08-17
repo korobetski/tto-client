@@ -8,14 +8,6 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
-/**
- * [SaveCodec] round-trips and rejects.
- *
- * The obfuscation is not tested for *strength* — it has none to speak of, by design and by
- * documentation. What is tested is that a save survives a round trip on every target, that
- * damage is detected rather than passed to the JSON parser, and that the plaintext is not visible
- * in the output.
- */
 class SaveCodecTest {
     @Test
     fun roundTripsJson() {
@@ -32,7 +24,6 @@ class SaveCodecTest {
         assertEquals(large, SaveCodec.decode(SaveCodec.encode(large, Random(3))))
     }
 
-    /** Non-ASCII has to survive: profile names are player-typed. */
     @Test
     fun roundTripsMultiByteCharacters() {
         val json = """{"USERNAME":"Frédéric 日本語 🃏"}"""
@@ -52,10 +43,6 @@ class SaveCodecTest {
         )
     }
 
-    /**
-     * The salt is what stops two similar profiles producing two similar files. Without it, XOR
-     * obfuscation is readable by holding two saves side by side.
-     */
     @Test
     fun theSameInputEncodesDifferentlyEachTime() {
         val json = """{"USERNAME":"Kuplu Kopo"}"""
@@ -98,10 +85,6 @@ class SaveCodecTest {
         assertFailsWith<SaveCorruptException> { SaveCodec.decode("${SaveCodec.MAGIC}00000001zzzz") }
     }
 
-    /**
-     * The checksum's whole purpose: a hand-edited byte must be reported, not handed to the JSON
-     * parser as plausible-looking rubbish.
-     */
     @Test
     fun rejectsAnAlteredPayload() {
         val encoded = SaveCodec.encode("""{"MGP":100,"XP":0}""", Random(10))
@@ -115,7 +98,6 @@ class SaveCodecTest {
         assertTrue(failure.message!!.contains("checksum"), failure.message)
     }
 
-    /** Leading or trailing whitespace is what a text editor adds; it must not be fatal. */
     @Test
     fun toleratesSurroundingWhitespace() {
         val json = """{"MGP":100}"""
@@ -124,7 +106,6 @@ class SaveCodecTest {
         assertEquals(json, SaveCodec.decode("\n  $encoded  \n"))
     }
 
-    /** Upper-case hex is still hex — nothing writes it, but nothing should choke on it either. */
     @Test
     fun acceptsUppercaseHex() {
         val json = """{"MGP":100}"""

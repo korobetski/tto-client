@@ -7,13 +7,6 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/**
- * [Strings] and [AppLocale] as pure logic — no resource bundle, so this runs on every target.
- *
- * What the real bundles contain is
- * [`StringsBundleTest`](../../../../../desktopTest/kotlin/com/tripletriad/i18n/StringsBundleTest.kt)
- * covers.
- */
 class StringsTest {
     private val strings = Strings(
         locale = AppLocale.FR_FR,
@@ -40,11 +33,6 @@ class StringsTest {
         assertTrue(strings.has("ONLY_FALLBACK"), "but it did resolve")
     }
 
-    /**
-     * The deliberate last resort. A missing string must be *visible* — `STR_WHATEVER` on screen is
-     * a bug report anyone can read — rather than an empty label or a crash on a screen that is
-     * otherwise fine.
-     */
     @Test
     fun anUnknownKeyResolvesToItself() {
         assertEquals("STR_NOT_A_KEY", strings["STR_NOT_A_KEY"])
@@ -90,10 +78,6 @@ class StringsTest {
         assertNull(AppLocale.forTag("fr"), "forTag is exact; match() is the lenient one")
     }
 
-    /**
-     * The display names are each written in the language they name, so a picker is readable by
-     * someone who cannot read the language currently selected. `conf.as:11` does the same.
-     */
     @Test
     fun everyLocaleHasATagAndANativeDisplayName() {
         assertEquals(EXPECTED_LOCALES, AppLocale.entries.size)
@@ -105,7 +89,6 @@ class StringsTest {
     }
 
     private companion object {
-        /** `application.xml`: `<supportedLanguages>de en fr ja</supportedLanguages>`. */
         const val EXPECTED_LOCALES = 4
     }
 }

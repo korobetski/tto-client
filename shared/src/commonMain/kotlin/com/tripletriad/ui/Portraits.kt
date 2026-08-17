@@ -31,21 +31,6 @@ import com.tripletriad.model.Item
 import com.tripletriad.model.Npc
 import com.tripletriad.ui.theme.LocalTtoColors
 
-/**
- * The pictures that identify someone or something at a glance — an avatar, an opponent, a card.
- *
- * Written once here rather than in each screen because they share the part that is easy to get
- * wrong: **every one of them can be absent**, and each has to say so without a gap in the layout.
- * Eleven opponents ship no portrait, one item ships no icon, and a bundle can always be built
- * short. A missing image is drawn as its own initial on a tinted plate, which keeps the row the
- * same height and still tells the player which one it is.
- *
- * ### Why the images are pixel-scaled rather than smoothed
- *
- * [FilterQuality.None]. The source art is 40x40 and 50x50 sprites from a 2013 Flash game, drawn at
- * 1:1 on a display of the era. On a 3x phone they are enlarged three or four times, and bilinear
- * smoothing turns a crisp sprite into a blur. Nearest-neighbour keeps the edges the artist drew.
- */
 @Composable
 internal fun AvatarBadge(
     profile: GameSave,
@@ -70,12 +55,6 @@ internal fun AvatarBadge(
     }
 }
 
-/**
- * An opponent's 50x50 portrait, or their monogram.
- *
- * Square with a soft corner rather than circular: these are cropped character art, and a circle
- * takes the crop further in and cuts heads. The avatars are framed portraits and survive it.
- */
 @Composable
 internal fun NpcPortrait(
     npc: Npc,
@@ -98,13 +77,6 @@ internal fun NpcPortrait(
     }
 }
 
-/**
- * A bag or achievement icon, by the name the model carries.
- *
- * No monogram fallback: an item's name is already next to it in every place one of these is drawn,
- * so a letter would be repeating what the row says. An absent icon leaves its plate, which holds
- * the alignment of the column it is in.
- */
 @Composable
 internal fun ItemIcon(
     iconId: String,
@@ -130,26 +102,6 @@ internal fun ItemIcon(
     }
 }
 
-/**
- * Whatever pictures [item]: a drawn glyph for the two kinds that have one, [ItemIcon]'s bitmap for
- * the rest.
- *
- * ### Which kinds are drawn, and why those
- *
- * A **potion** because its picture is a *symbol* rather than a thing — "more MGP for a while" is
- * what [TtoIcons.MgpBoon] draws and what the shipped 24x32 boost bitmaps drew before it, at a size
- * that suited neither the bag's 24 dp plate nor the outcome panel's 16 dp row.
- *
- * A **booster** because ten of them shared five pictures, six of those being one generic wrapper:
- * see [TtoIcons.Booster], including what the four tribe packs give up for it.
- *
- * Everything else keeps its bitmap and should: a card item is a card, and no drawing of a card
- * back is worth losing the artwork the row is *about*.
- *
- * The three screens that draw an item all go through here, for the reason [itemIconId] gives about
- * being reconciled once: three copies of "and these two are different" is three chances for one of
- * them to keep drawing the old picture.
- */
 @Composable
 internal fun ItemGlyph(
     item: Item,
@@ -185,15 +137,6 @@ internal fun ItemGlyph(
     )
 }
 
-/**
- * An achievement's badge, which is an icon for most of them and a card thumbnail for one.
- *
- * `Achievement.iconId` is not one namespace. Most rows name a `misc/` icon — the tiers reuse
- * `card_r{n}_icon` to say how hard they are — but `ac-fob` names `ff14_thumb_37`, the thumbnail of
- * the card it is about. That is the atlas's frame under the AS3's own name for it: the sheet calls
- * the same frame `ff14_37`, which is what a card's [textureId] is. Rather than rename the model or
- * the table, the two spellings are reconciled in the one place that has to know both.
- */
 @Composable
 internal fun AchievementIcon(
     iconId: String,
@@ -228,15 +171,6 @@ internal fun AchievementIcon(
     }
 }
 
-/**
- * The atlas frame an achievement's `card_thumb_<id>` icon names.
- *
- * It was `ff14_thumb_37` -> `ff14_37`, a string edit between two names that shared a prefix. Both
- * halves changed with global ids: the achievement names a card id rather than a table and an
- * index, and the frame is that id in hex. So this parses rather than substitutes, and returns null
- * for anything that is not a card thumbnail — every other achievement icon is an ordinary texture
- * name and must pass through untouched.
- */
 internal fun thumbTextureId(iconId: String): String? =
     iconId.removePrefix(CARD_THUMB_PREFIX)
         .takeIf { it != iconId }
@@ -247,13 +181,6 @@ private const val CARD_THUMB_PREFIX = "card_thumb_"
 private const val HEX_RADIX = 16
 private const val HEX_WIDTH = 4
 
-/**
- * A card's 40x40 thumbnail — the tile the original's collection grid is built from.
- *
- * Takes a [Painter] rather than an [ImageBitmap] because that is what a slice of an atlas is; see
- * [UiArt.thumb]. Null while the sheets load, and null for a card with no frame, which is why the
- * plate is drawn whether or not there is an image on it.
- */
 @Composable
 internal fun CardThumb(
     card: Card,
@@ -267,12 +194,6 @@ internal fun CardThumb(
     )
 }
 
-/**
- * [CardThumb] for a caller holding an id rather than a card.
- *
- * The starter preview draws five cards straight off `starters.json`, on a screen that has no
- * `CardCatalog`. See [cardTextureId].
- */
 @Composable
 internal fun CardThumb(cardId: Int, size: Dp = THUMB_SIZE, modifier: Modifier = Modifier) {
     val texture = cardTextureId(cardId)
@@ -283,7 +204,6 @@ internal fun CardThumb(cardId: Int, size: Dp = THUMB_SIZE, modifier: Modifier = 
     )
 }
 
-/** The plate, and the slice on it if there is one. Drawn whether or not the atlas has loaded. */
 @Composable
 private fun CardThumb(painter: Painter?, size: Dp, modifier: Modifier) {
     Box(
@@ -306,7 +226,6 @@ private fun CardThumb(painter: Painter?, size: Dp, modifier: Modifier) {
     }
 }
 
-/** The image if there is one, its first letter if there is not. */
 @Composable
 private fun Bitmap(image: ImageBitmap?, description: String, fallback: String) {
     if (image != null) {
@@ -327,13 +246,10 @@ private fun Bitmap(image: ImageBitmap?, description: String, fallback: String) {
     }
 }
 
-/** `avatar` — one profile is shown at a time, so one tag is enough. */
 const val AVATAR_TEST_TAG: String = "avatar"
 
-/** `portrait-<iconId>`, so a test can name the opponent whose picture it is looking for. */
 fun portraitTestTag(iconId: String): String = "portrait-$iconId"
 
-/** `thumb-<textureId>` — the card's own id, the same key the grid keys its items on. */
 fun thumbTestTag(textureId: String): String = "thumb-$textureId"
 
 private val AVATAR_SIZE = 56.dp

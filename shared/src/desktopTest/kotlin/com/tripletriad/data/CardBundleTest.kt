@@ -11,14 +11,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-/**
- * Covers the **real** `cards.json` in the Compose resource bundle, as opposed to
- * [CardCatalogTest], which parses a hand-written fragment.
- *
- * These counts used to be asserted through the UI, off a debug line the app printed above the
- * board. That line is gone — a title bar is 20 dp the board wants more — so the coverage moved
- * here, where it belongs: nothing about "the bundle is packaged and parses" needs a composition.
- */
 class CardBundleTest {
     private val catalog = runBlocking { loadCardCatalog() }
 
@@ -30,13 +22,6 @@ class CardBundleTest {
         assertEquals(listOf("ff14", "ff8"), catalog.releasedSets.map { it.slug })
     }
 
-    /**
-     * Every shipped id decodes, and none is legacy — which is what makes the reset detectable.
-     *
-     * The claims document 19 § What to test asks for, over the real bundle rather than a fixture:
-     * two cards never share an id, every id names a declared set, and no block holds more than the
-     * 255 its low byte can address.
-     */
     @Test
     fun everyBundledIdNamesADeclaredSetAndANumberInRange() {
         val blocks = catalog.sets.map { it.block }.toSet()
@@ -73,14 +58,6 @@ class CardBundleTest {
         )
     }
 
-    /**
-     * The check that a card can never ship without its picture.
-     *
-     * `import_card_art.py` refuses to finish if a record has no source file, but nothing stops
-     * someone adding a card to `cards.json` afterwards and not re-running it. This reads all 263
-     * through the resource loader, which is also the only way to know the images were *packaged*
-     * and not merely copied into the source tree.
-     */
     @Test
     fun everyCardInTheCatalogHasArtworkInTheBundle() = runBlocking {
         val art = loadCardArt()
@@ -94,7 +71,6 @@ class CardBundleTest {
         )
     }
 
-    /** The nineteen shared textures: the back, the digit atlas, five rarity rows, twelve types. */
     @Test
     fun everySharedTextureLoads() = runBlocking {
         val art = loadCardArt()
@@ -116,7 +92,6 @@ class CardBundleTest {
         const val FF8_CARDS = 110
         const val MISSING_TO_REPORT = 10
 
-        /** Hex digits `1`..`A` in `cards.json`, never `0`: that range is the tile power. */
         val PRINTED_POWERS = 1..10
     }
 }

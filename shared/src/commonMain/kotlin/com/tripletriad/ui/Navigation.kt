@@ -24,37 +24,11 @@ import androidx.compose.ui.unit.dp
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 
-/** `nav-<tab>` — the four entries, under whichever of the two containers is drawn. */
 fun navTestTag(tab: String): String = "nav-$tab"
 
-/**
- * The bar and the rail carry the **same four tags**, so a test that only drives navigation does not
- * have to know which is on screen. These two say which one it is, for the tests that do.
- */
 const val NAV_BAR_TEST_TAG: String = "nav-bar"
 const val NAV_RAIL_TEST_TAG: String = "nav-rail"
 
-/**
- * The four places a loaded character can be.
- *
- * ### Why four, and why these four
- *
- * The dashboard listed eight destinations. Material's navigation bar takes three to five, and the
- * count is not a style rule: past five the targets are narrower than a thumb and the labels start
- * truncating in German. Two of the eight were pairs and became one screen each — see
- * [CollectionScreen] and [StoreScreen] — and two more, the record and the rules, are things a
- * player opens occasionally from [HOME] rather than switches to. That leaves exactly four that are
- * *modes of playing* rather than *pages*, which is the test a bar entry has to pass.
- *
- * ### Why this needs no back stack
- *
- * A tabbed shell usually does: with several tab histories, "up" stops being a property of a screen.
- * Not here — every one of these roots already has [Screen.DASHBOARD] as its [Screen.up], because
- * the dashboard was the parent of all eight. So back from any tab lands on Home, which is also what
- * Material prescribes for a bar (`popUpTo(startDestination)`), and `Screen.up` was already saying
- * it. The one screen with a history of its own is the deck editor, and that is one boolean inside
- * [CollectionScreen].
- */
 internal enum class Tab(val root: Screen, val labelKey: String, val icon: ImageVector) {
     HOME(Screen.DASHBOARD, StringKeys.HOME, TtoIcons.Home),
     PLAY(Screen.OPPONENTS, StringKeys.PLAY, TtoIcons.Play),
@@ -62,16 +36,6 @@ internal enum class Tab(val root: Screen, val labelKey: String, val icon: ImageV
     STORE(Screen.SHOP, StringKeys.SHOP, TtoIcons.Shop),
 }
 
-/**
- * Which tab a screen belongs to, or null for one that is outside the bar entirely.
- *
- * The record, the rules and the avatar picker answer [Tab.HOME] rather than null: they hang off the
- * dashboard and are still *in* the character's shell, so the bar stays and shows where they came
- * from. A bar that vanished on the screens reachable from Home would be a bar that flickers.
- *
- * The screens ahead of a character and the three match screens answer null. A match is immersive by
- * design; the others have no character and so no bar to draw.
- */
 internal val Screen.tab: Tab?
     get() = when (this) {
         // The course keeps the bar, like the rule book it sits beside: it is a list to read and
@@ -89,62 +53,15 @@ internal val Screen.tab: Tab?
         -> null
     }
 
-/**
- * The bar's state, for the tree under a loaded character.
- *
- * A composition local rather than two more parameters on eleven screens. That is the trade this
- * makes and it is worth naming: a local is invisible at the call site, which is the usual argument
- * against one — but the alternative is threading `current` and `onSelect` through
- * [CharacterScaffold] and every screen that calls it, including the four that never look at either.
- * [LocalUiArt] is provided for the same reason and stated the same way.
- *
- * Null outside the character's shell, which is what makes [ScreenScaffold] draw no bar on the menu.
- */
 @Immutable
 internal class Navigation(val current: Tab?, val onSelect: (Tab) -> Unit)
 
 internal val LocalNavigation = staticCompositionLocalOf<Navigation?> { null }
 
-/**
- * Whether the window is wide enough for a rail and two panes.
- *
- * ### The threshold, and why it is a number here rather than a dependency
- *
- * 600 dp is Material's own `WindowWidthSizeClass.Compact`/`Medium` boundary, and the
- * `material3-adaptive-*` artifacts exist to compute it: `NavigationSuiteScaffold` would pick the
- * bar or the rail, `ListDetailPaneScaffold` would arrange the two panes. Both are separate
- * artifacts whose Compose Multiplatform publication would have to be checked target by target,
- * and what they would replace here is one comparison and one `if`. That is not a trade worth
- * making for two screens; it is worth revisiting the day a third pane or a real back stack appears.
- *
- * Measured once, in [App], off the whole window rather than per screen — every screen's answer
- * would otherwise depend on the padding above it, and the rail and the panes have to agree.
- */
 internal val LocalWideLayout = compositionLocalOf { false }
 
-/** Material's compact/medium boundary. A phone in landscape clears it; a phone upright does not. */
 internal val WideLayoutThreshold = 600.dp
 
-/**
- * The same four entries as [BottomNavigation], down the left edge.
- *
- * Which is the layout the original had: `card_list.jpg` is a 1024-wide stage with its controls on
- * one side and its content beside them, and this port had been drawing a 520 dp column in the
- * middle of a desktop window with nothing either side of it.
- *
- * ### Neither of these names a colour any more, and that is the point
- *
- * Both used to hand-write five: `indicatorColor = primary`, `selectedIconColor = onPrimary`, and
- * three alpha-dimmed variants of `onBackground`. Every one of those was **working around a scheme
- * that was not finished**. Material's own defaults put the selection pill on `secondaryContainer` —
- * the state role, which is what a navigation indicator is — and the unselected entries on
- * `onSurfaceVariant`, which is what that role is for. With the palette complete they are simply
- * right, and the amber indicator the overrides produced was saying "this is an action" about the
- * thing marking where you already are.
- *
- * The container stays transparent because [App] paints the backdrop under everything, and a bar
- * that filled its own would put a lighter band across the bottom of every screen.
- */
 @Composable
 internal fun SideNavigation(state: Navigation) {
     val strings = LocalStrings.current
@@ -173,14 +90,6 @@ internal fun SideNavigation(state: Navigation) {
     }
 }
 
-/**
- * Material's [NavigationBar], with the four entries [Tab] declares.
- *
- * Held to [ContentMaxWidth] and centred for the reason the app bar is: on a desktop window the
- * four targets would otherwise sit a hand's width apart with the content in the middle.
- *
- * See [SideNavigation] for why neither of them names a colour.
- */
 @Composable
 internal fun BottomNavigation(state: Navigation) {
     val strings = LocalStrings.current

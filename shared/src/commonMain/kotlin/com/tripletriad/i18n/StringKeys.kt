@@ -1,41 +1,21 @@
 package com.tripletriad.i18n
 
-/**
- * Every key the UI looks up, named once.
- *
- * Not just tidiness: `Strings[key]` falls back to returning the key, so a typo in a literal is
- * invisible in review and shows up as `STR_NEXT_MACTH` on a device. Naming them here means
- * [`StringsBundleTest`](../../../../../desktopTest/kotlin/com/tripletriad/i18n/StringsBundleTest.kt
- * ) can walk [all] and assert each one resolves in each locale — a check that is worth more than
- * the constants are.
- *
- * `STR_*` and `RULE_*` come from the AS3 bundles; `APP_*` are this port's own. See [loadStrings].
- */
 object StringKeys {
-    /** `Next Match` — reused for the reset control; the AS3 had no "new match" of its own. */
     const val NEXT_MATCH: String = "STR_NEXT_MATCH"
 
-    /**
-     * `You win !` / `You lose...` — the outcome is phrased from the local player's side, which
-     * is blue. `data-flow.md` §`openPhase` records the same assumption in the original: the
-     * local player always sees their own hand, and it is always the blue one.
-     */
     const val YOU_WIN: String = "STR_YOU_WIN"
     const val YOU_LOSE: String = "STR_YOU_LOSE"
 
     const val DRAW: String = "STR_DRAW"
 
-    /** The rule's name, used to qualify a draw that goes to a decider. */
     const val SUDDEN_DEATH: String = "RULE_SUDDEN_DEATH"
 
     const val LOADING_CARDS: String = "APP_LOADING_CARDS"
     const val SIDE_BLUE: String = "APP_SIDE_BLUE"
     const val SIDE_RED: String = "APP_SIDE_RED"
 
-    /** `{0}` is the side. */
     const val TURN_PICK_CARD: String = "APP_TURN_PICK_CARD"
 
-    /** `{0}` is the side, `{1}` the selected card's name. */
     const val TURN_PICK_CELL: String = "APP_TURN_PICK_CELL"
 
     // ---- Main menu. All three come from the AS3 bundles, so all four languages have them:
@@ -43,7 +23,6 @@ object StringKeys {
     // `STR_SETTINGS`/`STR_QUIT`. This port shows three of them for now.
     const val PLAY: String = "STR_PLAY"
 
-    /** The AS3's own label for its settings screen, and it really is "Options" in en_US. */
     const val SETTINGS: String = "STR_SETTINGS"
     const val QUIT: String = "STR_QUIT"
 
@@ -54,13 +33,8 @@ object StringKeys {
     const val BACKGROUND_VOLUME: String = "STR_BACKGROUND_VOLUME"
     const val NOISE_VOLUME: String = "STR_NOISE_VOLUME"
 
-    /**
-     * No AS3 equivalent: its screens all used `STR_CANCEL`, which is the wrong word for
-     * leaving a pane that has already saved everything.
-     */
     const val BACK: String = "APP_BACK"
 
-    /** Says out loud that the two volume sliders persist but nothing plays yet. */
     const val AUDIO_PENDING: String = "APP_AUDIO_PENDING"
 
     // ---- Splash. One key per `StartupPhase`, in the same order.
@@ -76,7 +50,6 @@ object StringKeys {
     const val NEW_PROFILE: String = "STR_NEW_GAME"
     const val USERNAME: String = "STR_USERNAME"
 
-    /** `Collection` — the AS3's own label for the `ff14_` / `ff8_` choice. */
     const val COLLECTION: String = "STR_MODE"
     const val LEVEL: String = "STR_LEVEL"
     const val MGP: String = "STR_MGP"
@@ -85,15 +58,12 @@ object StringKeys {
     const val DRAWS: String = "STR_DRAWS"
     const val DELETE: String = "STR_DELETE"
 
-    /** `Do you really wants to delete this game ?` — the original's wording, typo included. */
     const val DELETE_CONFIRM: String = "STR_DELETE_SAVE_CONFIRMATION_MESSAGE"
     const val CANCEL: String = "STR_CANCEL"
     const val START: String = "STR_START"
 
-    /** No AS3 key: nothing in the original ever said a save list was empty. */
     const val NO_PROFILE: String = "APP_NO_PROFILE"
 
-    /** No AS3 key: `AvatarChooser` was a bare grid with the screen around it doing the talking. */
     const val AVATAR: String = "APP_AVATAR"
 
     // ---- Opponents.
@@ -102,70 +72,44 @@ object StringKeys {
     const val MATCH_FEE: String = "STR_MATCH_FEE"
     const val REWARDS: String = "STR_REWARDS"
 
-    /** `Defy` — the AS3's verb for challenging an opponent. */
     const val CHALLENGE: String = "STR_REGISTER_MATCH"
 
-    /** No AS3 key: its opponent list simply omitted whoever was unavailable, saying nothing. */
     const val NO_OPPONENT: String = "APP_NO_OPPONENT"
 
-    /** `XP` — no `STR_XP` exists, though `STR_MGP` does. */
     const val XP: String = "APP_XP"
 
-    /** `Difficulty` — the field is in the data, but the AS3 never labelled it. */
     const val DIFFICULTY: String = "APP_DIFFICULTY"
 
     // ---- Match.
-    /** `{0}` is the side. Replaces the "pick a card" line while the opponent moves. */
     const val OPPONENT_TURN: String = "APP_OPPONENT_TURN"
 
-    /** Heading over the newly-earned achievements in the end-of-match panel. */
     const val ACHIEVEMENT_EARNED: String = "APP_ACHIEVEMENT_EARNED"
 
-    /** `Rematch` — the control that plays the same opponent again. */
     const val REMATCH: String = "STR_REMATCH"
 
     // ---- Dashboard. `dashboardScreen.as:49-59` builds its stack from exactly these.
-    /** `Multiplayer` — listed, and inert: PvP is Phase 5. */
     const val MULTIPLAYER: String = "STR_MULTIPLAYER"
     const val CARD_LIST: String = "STR_CARD_LIST"
 
-    /**
-     * `Cards` — the title over the collection and the decks once they share a screen.
-     *
-     * No AS3 equivalent, and deliberately not one of the two it covers: `STR_CARD_LIST` over a tab
-     * showing decks, or `STR_CARD_DECKS` over one showing the collection, would each be wrong half
-     * the time. The two tabs keep their own names.
-     */
     const val CARDS: String = "APP_CARDS"
 
-    /**
-     * `Home` — the navigation bar's name for the dashboard.
-     *
-     * No AS3 equivalent for the same reason as [CARDS]: the original had no bar, and its dashboard
-     * was titled with the character's name. That is still its app-bar title; this is what the bar
-     * calls the place it goes back to.
-     */
     const val HOME: String = "APP_HOME"
     const val CARD_DECKS: String = "STR_CARD_DECKS"
     const val INVENTORY: String = "STR_INVENTORY"
     const val SHOP: String = "STR_SHOP"
     const val HELP: String = "STR_HELP"
 
-    /** `Logout` — leaves the character, which is what returning to the main menu is. */
     const val LOGOUT: String = "STR_LOGOUT"
 
     // ---- Card list and card detail.
-    /** `Card Informations` — the original's title, plural included. */
     const val CARD_INFOS: String = "STR_CARD_INFOS"
     const val TOTAL: String = "STR_TOTAL"
     const val SIDES: String = "STR_SIDES"
     const val RARITY: String = "STR_RARITY"
     const val CARD_TYPE: String = "STR_CARD_TYPE"
 
-    /** No AS3 key: its detail panel simply stayed blank until a card was tapped. */
     const val PICK_CARD: String = "APP_PICK_CARD"
 
-    /** No AS3 key: the collection screen dimmed unowned cards and said nothing. */
     const val OWNED: String = "APP_OWNED"
 
     // ---- Decks.
@@ -174,29 +118,12 @@ object StringKeys {
     const val RESET_DECK: String = "STR_RESET_DECK"
     const val SAVE: String = "STR_SAVE"
 
-    /**
-     * Why a deck that looks complete cannot be played. `{0}` is how many of its cards are gone.
-     *
-     * No AS3 key, and no AS3 problem: a card could not leave a collection there. It can here — a
-     * card wager takes one — and `GameSave.withoutCard` leaves the deck standing on purpose rather
-     * than editing it down behind the player's back. That is the right call and it needs saying out
-     * loud, or the deck is simply refused everywhere with five cards visibly in it.
-     */
     const val DECK_MISSING_CARDS: String = "APP_DECK_MISSING_CARDS"
 
-    /** `Play this deck` — the deck selector's confirm, shown before the deal. */
     const val CHOOSE_DECK: String = "STR_CHOOSE_DECK"
 
-    /**
-     * `Random` — the rule's own name, reused by `DeckSelector` for its "deal me anything" button
-     * (`DeckSelector.as:113` looks up `RULE_RANDOM`, not a button key of its own).
-     */
     const val RANDOM_DECK: String = "RULE_RANDOM"
 
-    /**
-     * No AS3 key: `DeckSelector.as:84-86` handles an empty list with an empty block, so a player
-     * with no complete deck was shown a blank panel and no reason for it.
-     */
     const val NO_FULL_DECK: String = "APP_NO_FULL_DECK"
 
     // ---- Inventory and shop.
@@ -205,145 +132,61 @@ object StringKeys {
     const val DISCARD: String = "STR_DISCARD"
     const val BUY: String = "STR_BUY"
 
-    /** `Card Shop` — the shop panel's title, where `STR_SHOP` is the menu entry. */
     const val CARD_SHOP: String = "STR_CARD_SHOP"
 
-    /** No AS3 key: an empty bag drew an empty list. */
     const val EMPTY_BAG: String = "APP_EMPTY_BAG"
 
-    /** `{0}` is the card's name. What opening a pack yielded. */
     const val OBTAINED: String = "APP_OBTAINED"
 
-    /** Why Use is refused on a card the profile already has — `InventoryScreen.as:111`. */
     const val ALREADY_OWNED: String = "APP_ALREADY_OWNED"
 
-    /**
-     * The bag was asked to spend something and did not — `ItemEffect.NotUseable`.
-     *
-     * No AS3 equivalent, because the original could not reach the state: `Inventory.use` ran on the
-     * one profile there was. On an account the bag is the server's, and the copy on screen can be
-     * ahead of it — see [com.tripletriad.ui.MatchSettlement]. The wording says what happened to the
-     * *item* rather than blaming the player, because they did nothing wrong.
-     */
     const val ITEM_REFUSED: String = "APP_ITEM_REFUSED"
 
-    /**
-     * The answer came back and nothing changed — [com.tripletriad.ui.IntentOutcome.REFUSED].
-     *
-     * Deliberately vague where [ITEM_REFUSED] is specific: the bag knows the refusal is about an
-     * item it holds, and the shelf does not know whether the offer was declined for the price, the
-     * format or the stock. Naming a cause the client has not been told would be a guess in the one
-     * place a player would take it for fact.
-     */
     const val NOTHING_HAPPENED: String = "APP_NOTHING_HAPPENED"
 
-    /**
-     * The attempt could not be made at all: no session, or the request never came back.
-     *
-     * Distinct from [ITEM_REFUSED], which is the server answering no. This one is nobody answering,
-     * and the difference matters to the player: one means try something else, the other means try
-     * again. It deliberately does not name a cause — the client does not know one, and
-     * `AccountResult` reaches the screens that can say more.
-     */
     const val ACTION_FAILED: String = "APP_ACTION_FAILED"
 
-    /**
-     * A bag entry whose `type` this build does not know.
-     *
-     * `Item.itemize`'s `else` branch — [com.tripletriad.model.MiscItem] — which the original drew
-     * with an empty label and a booster icon. Reachable only from a save written by a newer build
-     * or from the declared-and-unused `item-type-accessory`.
-     */
     const val UNKNOWN_ITEM: String = "APP_UNKNOWN_ITEM"
 
-    /**
-     * The free five, offered to a character that cannot field a hand.
-     *
-     * No AS3 equivalent: the original had no way to lose a starter deck, because a card id meant
-     * whatever the profile's own table said it meant. See
-     * [com.tripletriad.data.StarterPack].
-     */
     const val STARTER_PACK: String = "APP_STARTER_PACK"
     const val STARTER_PACK_DESC: String = "APP_STARTER_PACK_DESC"
 
-    /**
-     * The four lines of the pack reveal — see [com.tripletriad.ui.PackRevealScreen].
-     *
-     * No AS3 equivalent: a pack there was one card and one `APP_OBTAINED` line. The wording is
-     * instruction rather than progress — "3 of 5" would tell a player what the grid already shows.
-     */
     const val PACK_SEALED: String = "APP_PACK_SEALED"
     const val PACK_BREAK_SEAL: String = "APP_PACK_BREAK_SEAL"
     const val PACK_SPENT: String = "APP_PACK_SPENT"
     const val PACK_REVEAL: String = "APP_PACK_REVEAL"
     const val PACK_TO_COLLECTION: String = "APP_PACK_TO_COLLECTION"
 
-    /** `{0}` is the star count a pack's guaranteed slot can never fall below. */
     const val PACK_GUARANTEE: String = "APP_PACK_GUARANTEE"
 
-    /** `{0}` is the percentage chance a pack holds at least one five-star. */
     const val PACK_ODDS: String = "APP_PACK_ODDS"
 
-    /** The unset position of a filter — see [com.tripletriad.ui.CardListBody]'s chips. */
     const val ALL: String = "APP_ALL"
 
-    /** The price of the one thing on the shelf that has none. */
     const val FREE: String = "APP_FREE"
 
-    /** The button under it. `STR_BUY` would be a lie about a pack that costs nothing. */
     const val CLAIM: String = "APP_CLAIM"
 
     // ---- Character statistics.
     const val ACHIEVEMENTS_LIST: String = "STR_ACHIEVEMENTS_LIST"
     const val FORFEITS: String = "STR_FORFEITS"
 
-    /**
-     * `Matches`.
-     *
-     * An `APP_` key although `profileScreen.as:191` asks for `STR_MATCHES`: that key is **in none
-     * of the four bundles**, so the original's own round chart was captioned `STR_MATCHES`. A
-     * dangling key is not a translation to preserve.
-     */
     const val MATCHES: String = "APP_MATCHES"
 
-    /** No AS3 equivalent: it drew a pie chart and never wrote the number. */
     const val WIN_RATE: String = "APP_WIN_RATE"
 
-    /** The two potion multipliers, which the original showed as two unlabelled icons. */
     const val BOONS: String = "APP_BOONS"
 
-    /** No AS3 key: an achievement list with nothing in it rendered as an empty group. */
     const val NO_ACHIEVEMENT: String = "APP_NO_ACHIEVEMENT"
 
-    /**
-     * `{0}` is the next tier's name — the line under a family's earned one.
-     *
-     * No AS3 equivalent: the original listed the tiers as twenty-two separate entries and never
-     * said which one followed which.
-     */
     const val NEXT_TIER: String = "APP_NEXT_TIER"
 
     // ---- The daily quests, which the original had no equivalent of at all.
-    /**
-     * The screen, its header and the two states a row can be in.
-     *
-     * All `APP_`: daily quests are not a port of anything. [QUESTS_RESET] takes the UTC day as
-     * `{0}` and says the boundary out loud, because a reset the player cannot see coming is a
-     * reset that looks like lost progress. The day is shown rather than a countdown — nothing on
-     * this screen ticks, and a stale "4 h left" would be worse than a date that cannot go stale.
-     */
     const val QUESTS: String = "APP_QUESTS"
     const val QUESTS_RESET: String = "APP_QUESTS_RESET"
     const val QUEST_DONE: String = "APP_QUEST_DONE"
     const val NO_QUEST: String = "APP_NO_QUEST"
 
-    /**
-     * The six quest lines, keyed as `DailyQuestCatalog` names them.
-     *
-     * Two take a parameter, and neither needs a string of its own for it: `{0}` of [QUEST_BEAT] is
-     * the opponent's `nameKey`, and `{0}` of [QUEST_RULE] is the rule constant — which *is* a
-     * bundle key, in all four locales. So three quests naming three different rules are one line.
-     */
     const val QUEST_PLAY_3: String = "APP_QUEST_PLAY_3"
     const val QUEST_WIN_1: String = "APP_QUEST_WIN_1"
     const val QUEST_WIN_3: String = "APP_QUEST_WIN_3"
@@ -353,12 +196,6 @@ object StringKeys {
 
     // ---- Playing another person. All `APP_`: the AS3's PvP screen never worked, and its bundles
     // have no key for any of this.
-    /**
-     * The lobby: the open tables, and hosting one.
-     *
-     * `PVP_FIND` and `PVP_WAITING` were here and are gone with the quick queue they described.
-     * Nothing is "waiting" any more — a host is *offering*, on terms everybody can read.
-     */
     const val PVP_TABLES: String = "APP_PVP_TABLES"
     const val PVP_NO_TABLE: String = "APP_PVP_NO_TABLE"
     const val PVP_HOST: String = "APP_PVP_HOST"
@@ -366,25 +203,15 @@ object StringKeys {
     const val PVP_HOST_CANCEL: String = "APP_PVP_HOST_CANCEL"
     const val PVP_JOIN: String = "APP_PVP_JOIN"
 
-    /** One table's own line. `{0}` is the host. */
     const val PVP_TABLE_BY: String = "APP_PVP_TABLE_BY"
     const val PVP_TABLE_MINE: String = "APP_PVP_TABLE_MINE"
     const val PVP_TABLE_FREE: String = "APP_PVP_TABLE_FREE"
 
-    /** How long a table has left. `{0}` is whole minutes. See `PvpMatchRow.TABLE_MILLIS`. */
     const val PVP_TABLE_EXPIRES: String = "APP_PVP_TABLE_EXPIRES"
 
-    /**
-     * Which deck the player is bringing, chosen once for the whole lobby.
-     *
-     * [PVP_DECK_ANY] is the default and is not "no deck": it is the server's own choice, the first
-     * complete deck in the save, which is what every PvP match was dealt before a player could say
-     * otherwise.
-     */
     const val PVP_DECK: String = "APP_PVP_DECK"
     const val PVP_DECK_ANY: String = "APP_PVP_DECK_ANY"
 
-    /** What a match is played for: an amount of MGP, and a trade rule. `{0}` is the amount. */
     const val PVP_STAKE: String = "APP_PVP_STAKE"
     const val PVP_STAKE_MGP: String = "APP_PVP_STAKE_MGP"
     const val PVP_TRADE: String = "APP_PVP_TRADE"
@@ -394,33 +221,17 @@ object StringKeys {
     const val PVP_TRADE_DIRECT: String = "APP_PVP_TRADE_DIRECT"
     const val PVP_TRADE_ALL: String = "APP_PVP_TRADE_ALL"
 
-    /**
-     * Which format a table is played in.
-     *
-     * The formats **name** themselves — see `Format.nameKey`, and `DerivedKeysTest` for why that
-     * is a category of key `StringKeys.all` cannot see.
-     */
     const val PVP_FORMAT: String = "APP_PVP_FORMAT"
 
-    /** Choosing the rules, and asking the server to draw some more. */
     const val PVP_RULES_PICK: String = "APP_PVP_RULES_PICK"
     const val PVP_ROULETTE: String = "APP_PVP_ROULETTE"
     const val PVP_ROULETTE_HINT: String = "APP_PVP_ROULETTE_HINT"
 
-    /** The end of a match: what the wager moved. `{0}` is an amount of MGP. */
     const val PVP_STAKE_WON: String = "APP_PVP_STAKE_WON"
     const val PVP_STAKE_LOST: String = "APP_PVP_STAKE_LOST"
     const val PVP_WON_CARDS: String = "APP_PVP_WON_CARDS"
     const val PVP_LOST_CARDS: String = "APP_PVP_LOST_CARDS"
 
-    /**
-     * Why the server refused something.
-     *
-     * One per [com.tripletriad.protocol.PvpRefusal] a player can actually cause. The codes that
-     * mean "this client has a bug" — an unknown format, a move the rules forbid — deliberately have
-     * no key: they are reported through the generic failure line, because a sentence explaining
-     * them to a player would be explaining somebody else's mistake.
-     */
     const val PVP_ERROR_AFFORD: String = "APP_PVP_ERROR_AFFORD"
     const val PVP_ERROR_TABLE_GONE: String = "APP_PVP_ERROR_TABLE_GONE"
     const val PVP_ERROR_RULES: String = "APP_PVP_ERROR_RULES"
@@ -430,7 +241,6 @@ object StringKeys {
     const val PVP_ERROR_YOURSELF: String = "APP_PVP_ERROR_YOURSELF"
     const val PVP_ERROR_NOTHING_OWED: String = "APP_PVP_ERROR_NOTHING_OWED"
 
-    /** Collecting a prize. `{0}` is how many are left to choose, or how many are waiting. */
     const val PVP_CLAIM: String = "APP_PVP_CLAIM"
     const val PVP_CLAIM_TITLE: String = "APP_PVP_CLAIM_TITLE"
     const val PVP_CLAIM_PROMPT: String = "APP_PVP_CLAIM_PROMPT"
@@ -438,20 +248,11 @@ object StringKeys {
     const val PVP_CLAIM_PENDING: String = "APP_PVP_CLAIM_PENDING"
     const val PVP_CLAIM_NONE: String = "APP_PVP_CLAIM_NONE"
 
-    /**
-     * What the **loser** is told while the winner names their prize. `{0}` is the winner.
-     *
-     * The one line in the claim vocabulary written from the other side of the table. It exists
-     * because the choice is made out of *this* player's hand: they are the one it happens to, and
-     * until now the only account they got of it was a card missing from their collection later.
-     */
     const val PVP_CLAIM_WAIT: String = "APP_PVP_CLAIM_WAIT"
 
-    /** Inviting somebody by name. `{0}` is the other player. */
     const val PVP_CHALLENGE: String = "APP_PVP_CHALLENGE"
     const val PVP_INVITE: String = "APP_PVP_INVITE"
 
-    /** The terms screen, aimed at one person. `{0}` is who. */
     const val PVP_INVITE_TO: String = "APP_PVP_INVITE_TO"
     const val PVP_FROM: String = "APP_PVP_FROM"
     const val PVP_SENT_TO: String = "APP_PVP_SENT_TO"
@@ -459,7 +260,6 @@ object StringKeys {
     const val PVP_DECLINE: String = "APP_PVP_DECLINE"
     const val PVP_NO_CHALLENGE: String = "APP_PVP_NO_CHALLENGE"
 
-    /** The board: conceding, how a forfeit is explained, and the two states with no match. */
     const val PVP_FORFEIT: String = "APP_PVP_FORFEIT"
     const val PVP_YOU_LEFT: String = "APP_PVP_YOU_LEFT"
     const val PVP_THEY_LEFT: String = "APP_PVP_THEY_LEFT"
@@ -467,15 +267,6 @@ object StringKeys {
     const val PVP_NO_MATCH: String = "APP_PVP_NO_MATCH"
 
     // ---- The tutorial's nine lines.
-    /**
-     * `TutorialScreen.helpTexts` — and `APP_` keys although the text is nine years old, because
-     * **the original never translated them**. They are Flash string literals in the middle of a
-     * screen class, with no `i18n.gettext` around them and no matching key in any of the four
-     * bundles: a French player was taught Triple Triad in English.
-     *
-     * So they enter through the port's own bundle, where they can be. The wording is the AS3's,
-     * with one correction — its line 9 reads "the winnner".
-     */
     const val TUTORIAL_1: String = "APP_TUTORIAL_1"
     const val TUTORIAL_2: String = "APP_TUTORIAL_2"
     const val TUTORIAL_3: String = "APP_TUTORIAL_3"
@@ -486,45 +277,19 @@ object StringKeys {
     const val TUTORIAL_8: String = "APP_TUTORIAL_8"
     const val TUTORIAL_9: String = "APP_TUTORIAL_9"
 
-    /** The campaign entry `PVEScreen.as:79` draws as a bare `tt_tuto` texture with no label. */
     const val TUTORIAL: String = "APP_TUTORIAL"
 
-    /**
-     * The three rule lessons behind the original's, which the AS3 has nothing to say for.
-     *
-     * It taught one rule — All Open, and only by naming it — so there is no source wording to
-     * follow here and none is pretended: these are written for this port, in the tutor's voice, and
-     * every one of them describes a position that `TutorialPuzzleTest` pins. A line that named the
-     * wrong numbers would be the worst kind of defect this screen can have, which is why the
-     * numbers are asserted rather than proof-read.
-     */
     const val LESSONS: String = "APP_LESSONS"
     const val LESSONS_BLURB: String = "APP_LESSONS_BLURB"
     const val LESSON_DONE: String = "APP_LESSON_DONE"
     const val LESSON_NEXT: String = "APP_LESSON_NEXT"
 
-    /**
-     * What the end panel announces after a lesson, in place of `You win !`.
-     *
-     * Seven of the twelve are positions composed so the player cannot fail, so a victory is not
-     * what happened. The exam keeps the real result — see [MatchScript.outcomeTitle].
-     */
     const val LESSON_COMPLETE: String = "APP_LESSON_COMPLETE"
 
-    /** The list's standing blurb, replaced once every lesson has been finished. */
     const val LESSONS_ALL_DONE: String = "APP_LESSONS_ALL_DONE"
 
-    /**
-     * Where the last lesson leads, on the control that leads there.
-     *
-     * `STR_HELP` is the word the navigation uses for that screen and it was this button's label
-     * too, which made the course end on `Aide` — a menu item, in the place a course says goodbye.
-     * The destination is unchanged: `TutorialRematchPanel.nextLesson` dispatches `NEXT_SCREEN`,
-     * and `NEXT_SCREEN` is the rule book.
-     */
     const val LESSON_TO_RULES: String = "APP_LESSON_TO_RULES"
 
-    /** One per lesson, for the course list. */
     const val LESSON_TITLE_BASICS: String = "APP_LESSON_TITLE_BASICS"
     const val LESSON_TITLE_SAME: String = "APP_LESSON_TITLE_SAME"
     const val LESSON_TITLE_PLUS: String = "APP_LESSON_TITLE_PLUS"
@@ -538,13 +303,6 @@ object StringKeys {
     const val LESSON_TITLE_ORDER: String = "APP_LESSON_TITLE_ORDER"
     const val LESSON_TITLE_EXAM: String = "APP_LESSON_TITLE_EXAM"
 
-    /**
-     * The opening match's closing lines — **three**, where a position lesson has one.
-     *
-     * It is a whole nine-placement game and the tutor watched it, so what it ends on can react to
-     * how it went. The positions cannot be lost, so their one sentence is about the rule instead;
-     * see [LESSON_SAME_DONE] and its siblings.
-     */
     const val LESSON_BASICS_WIN: String = "APP_LESSON_BASICS_WIN"
     const val LESSON_BASICS_LOSE: String = "APP_LESSON_BASICS_LOSE"
     const val LESSON_BASICS_DRAW: String = "APP_LESSON_BASICS_DRAW"
@@ -573,13 +331,6 @@ object StringKeys {
     const val LESSON_ELEMENTAL_2: String = "APP_LESSON_ELEMENTAL_2"
     const val LESSON_ELEMENTAL_DONE: String = "APP_LESSON_ELEMENTAL_DONE"
 
-    /**
-     * The two drills — a whole match each, so they speak twice rather than once.
-     *
-     * Three lines and not two because a drill has room for one: the third is said on the player's
-     * *third* move, which is the first moment a running tally has anything to point at. See
-     * `TutorialDrill`.
-     */
     const val LESSON_BONUS_1: String = "APP_LESSON_BONUS_1"
     const val LESSON_BONUS_2: String = "APP_LESSON_BONUS_2"
     const val LESSON_BONUS_3: String = "APP_LESSON_BONUS_3"
@@ -589,168 +340,82 @@ object StringKeys {
     const val LESSON_ORDER_3: String = "APP_LESSON_ORDER_3"
     const val LESSON_ORDER_DONE: String = "APP_LESSON_ORDER_DONE"
 
-    /** The exam says something different for each of the three results — it can be lost. */
     const val LESSON_EXAM_START: String = "APP_LESSON_EXAM_START"
     const val LESSON_EXAM_WIN: String = "APP_LESSON_EXAM_WIN"
     const val LESSON_EXAM_LOSE: String = "APP_LESSON_EXAM_LOSE"
     const val LESSON_EXAM_DRAW: String = "APP_LESSON_EXAM_DRAW"
 
     // ---- The two tournament ladders.
-    /** `Campaigns` — the panel `PVEScreen.as:73` puts above the opponent list. */
     const val CAMPAIGNS: String = "STR_CAMPAIGNS"
 
-    /**
-     * `Match {0} of {1}` — how far up a ladder the player is.
-     *
-     * No AS3 equivalent: the original tracks `STEP` and never shows it, so a player seven matches
-     * into the Card Club has no way to know how many are left.
-     */
     const val CAMPAIGN_STEP: String = "APP_CAMPAIGN_STEP"
 
     // ---- The account the menu remembers.
-    /**
-     * `Servers` — the menu card, which was the one hard-coded English label left on that screen.
-     *
-     * `MenuScreen.as` has no such entry: the AS3 build talked to one host, named at compile time.
-     */
     const val SERVERS: String = "APP_SERVERS"
 
-    /** `Continue` — the AS3's own, and what the resume card offers on a live session. */
     const val CONTINUE: String = "STR_CONTINUE"
 
-    /** `Signed in` — a stored token was accepted and no form was needed. */
     const val SESSION_RESTORED: String = "APP_SESSION_RESTORED"
 
-    /** `Reconnecting…` — `AccountSession.restore` is still asking. */
     const val SESSION_CONNECTING: String = "APP_SESSION_CONNECTING"
 
-    /** `Session expired` — the name is remembered and the token is not usable. */
     const val SESSION_LAPSED: String = "APP_SESSION_LAPSED"
 
-    /** `Sign in again` — the lapsed card's action, which opens the form with the name filled. */
     const val SIGN_IN_AGAIN: String = "APP_SIGN_IN_AGAIN"
 
-    /** `Switch` — sign out, which is also what makes the app forget the name. */
     const val SWITCH_ACCOUNT: String = "APP_SWITCH_ACCOUNT"
 
     // ---- The sign-in form, which was the last screen written in hard-coded English.
-    /**
-     * `Sign in` — the form's title and its button.
-     *
-     * `STR_CONNECT` exists and is *Connect*, which in the AS3 meant joining the game's lobby. It is
-     * not the same claim, and reusing it would have been a translation chosen for being available.
-     */
     const val SIGN_IN: String = "APP_SIGN_IN"
 
-    /** `Create an account`. */
     const val CREATE_ACCOUNT: String = "APP_CREATE_ACCOUNT"
 
-    /** `Password` — no `STR_PASSWORD` in any bundle; the AS3 build had no accounts. */
     const val PASSWORD: String = "APP_PASSWORD"
 
-    /** What an account buys: the character lives on the server. */
     const val ACCOUNT_BLURB: String = "APP_ACCOUNT_BLURB"
 
-    /** `New here? Create an account` and its opposite. */
     const val ACCOUNT_TO_REGISTER: String = "APP_ACCOUNT_TO_REGISTER"
     const val ACCOUNT_TO_SIGN_IN: String = "APP_ACCOUNT_TO_SIGN_IN"
 
-    /** The title over a build the server will not serve. */
     const val UPDATE_NEEDED: String = "APP_UPDATE_NEEDED"
 
     // ---- What a refused request is told to the player. See `AccountResult.message`.
     const val ERROR_OFFLINE: String = "APP_ERROR_OFFLINE"
     const val ERROR_UPDATE: String = "APP_ERROR_UPDATE"
 
-    /** `The server answered {0}.` — a status code, for the failures with no better name. */
     const val ERROR_STATUS: String = "APP_ERROR_STATUS"
 
-    /**
-     * What a spinner announces to a screen reader.
-     *
-     * Never drawn as text: [LOADING] labels the shape, so that a screen busy fetching something
-     * says so instead of saying nothing at all. See `LoadingNote`.
-     */
     const val LOADING: String = "APP_LOADING"
 
-    /** The button on a failed list — see `FailedNote`. The only state a player can act on. */
     const val RETRY: String = "APP_RETRY"
 
-    /**
-     * What a hidden card announces itself as.
-     *
-     * A card the Open rules keep face down must not name itself to a screen reader: that would leak
-     * the opponent's hand through the accessibility tree, which is the same secret `MatchView`
-     * guards on the wire. See `CardView.cardLabel`.
-     */
     const val CARD_FACE_DOWN: String = "APP_CARD_FACE_DOWN"
 
-    /**
-     * What a profile stored on this device is, said where a player chooses one.
-     *
-     * The whole anti-cheat design promises that **on an account** the server is the only writer of
-     * anything with value. A local save is the other case, deliberately: it is the player's own
-     * file. Naming that is what stops the promise from being read as covering both.
-     */
     const val PROFILE_LOCAL_NOTE: String = "APP_PROFILE_LOCAL_NOTE"
 
-    /**
-     * No seed left to start a match on — see `SeedTickets`.
-     *
-     * Deliberately not phrased as an error: nothing is wrong, the player has simply been offline
-     * for longer than the stock covers, and reconnecting fixes it.
-     */
     const val NO_SEEDS: String = "APP_NO_SEEDS"
 
-    /**
-     * Asked too often — see `AccountResult.Throttled`.
-     *
-     * Two of them because the server does not always say how long: [ERROR_THROTTLED_IN] takes
-     * `{0}` seconds, and [ERROR_THROTTLED] is what is shown when there is no number to show. A
-     * single string with a `{0}` that is sometimes blank reads as a bug in the app.
-     */
     const val ERROR_THROTTLED: String = "APP_ERROR_THROTTLED"
     const val ERROR_THROTTLED_IN: String = "APP_ERROR_THROTTLED_IN"
     const val ERROR_NAME_TAKEN: String = "APP_ERROR_NAME_TAKEN"
     const val ERROR_BAD_CREDENTIALS: String = "APP_ERROR_BAD_CREDENTIALS"
     const val ERROR_EXPIRED: String = "APP_ERROR_EXPIRED"
 
-    /** The cards an opponent's drop table can pay out, listed on its row. */
     const val REWARD_CARDS: String = "APP_REWARD_CARDS"
 
-    /**
-     * The four headings the help screen groups the rules under.
-     *
-     * No AS3 equivalent: `HelpScreen.as` lists all seventeen in one column with no headings at all.
-     * See [com.tripletriad.ui.HELP_FAMILIES] for why the grouping is editorial rather than derived
-     * from `GameRules`.
-     */
     const val HELP_FAMILY_SIGHT: String = "APP_HELP_FAMILY_SIGHT"
     const val HELP_FAMILY_PLAY: String = "APP_HELP_FAMILY_PLAY"
     const val HELP_FAMILY_CAPTURE: String = "APP_HELP_FAMILY_CAPTURE"
     const val HELP_FAMILY_ELEMENTS: String = "APP_HELP_FAMILY_ELEMENTS"
 
-    /**
-     * `{0} more open up as you level.` — under the opponent list.
-     *
-     * The list is filtered by the player's level now, and a list that silently omits three quarters
-     * of the table reads as a short table. See [com.tripletriad.data.NpcCatalog.available].
-     */
     const val OPPONENTS_LOCKED: String = "APP_OPPONENTS_LOCKED"
 
     // ---- The server list, which had no translated string on it at all.
-    /** What choosing another server costs, and what it does not. */
     const val SERVERS_BLURB: String = "APP_SERVERS_BLURB"
 
-    /** The probe button, and what it says while it is out. */
     const val SERVERS_CHECK: String = "APP_SERVERS_CHECK"
     const val SERVERS_CHECKING: String = "APP_SERVERS_CHECKING"
 
-    /**
-     * One phrase per [com.tripletriad.net.ServerStatus]. `{0}` on [SERVER_ONLINE] is the latency.
-     *
-     * Seven states, four colours — see `ServerStatus.tint`. The wording is what tells them apart.
-     */
     const val SERVER_UNKNOWN: String = "APP_SERVER_UNKNOWN"
     const val SERVER_CHECKING: String = "APP_SERVER_CHECKING"
     const val SERVER_ONLINE: String = "APP_SERVER_ONLINE"
@@ -759,44 +424,21 @@ object StringKeys {
     const val SERVER_UNREACHABLE: String = "APP_SERVER_UNREACHABLE"
     const val SERVER_UNUSABLE: String = "APP_SERVER_UNUSABLE"
 
-    /** The update notice. `{0}` is the version the server wants. */
     const val UPDATE_REQUIRED: String = "APP_UPDATE_REQUIRED"
     const val UPDATE_REQUIRED_BODY: String = "APP_UPDATE_REQUIRED_BODY"
     const val UPDATE_AVAILABLE: String = "APP_UPDATE_AVAILABLE"
     const val UPDATE_AVAILABLE_BODY: String = "APP_UPDATE_AVAILABLE_BODY"
     const val UPDATE_GET: String = "APP_UPDATE_GET"
 
-    /**
-     * The settings group that is about the **account** rather than about the app.
-     *
-     * `STR_GENERAL_SETTINGS` and `STR_AUDIO_SETTINGS` came from the AS3, which had no accounts and
-     * so has no third heading to borrow.
-     */
-    /**
-     * `Sell all` — the bag's third button, where Discard used to be.
-     *
-     * No AS3 key: the original sold one at a time and had a Drop beside it. `STR_SELL` is the
-     * neighbour and is deliberately not reused with a suffix, because the two differ by more than a
-     * word in every language this ships in.
-     */
     const val SELL_ALL: String = "APP_SELL_ALL"
 
     const val ACCOUNT_SETTINGS: String = "APP_ACCOUNT_SETTINGS"
 
-    /** `Delete account`, and the paragraph that has to be read before it can be meant. */
     const val DELETE_ACCOUNT: String = "APP_DELETE_ACCOUNT"
     const val DELETE_ACCOUNT_BODY: String = "APP_DELETE_ACCOUNT_BODY"
 
-    /**
-     * The second button, which is a different sentence from the first on purpose.
-     *
-     * `STR_DELETE_CONFIRM` exists and is what the local profile list arms with, and it is
-     * deliberately not reused: that one deletes a file the player can make again, this one ends an
-     * account. A shared string would make the two gestures look interchangeable.
-     */
     const val DELETE_ACCOUNT_CONFIRM: String = "APP_DELETE_ACCOUNT_CONFIRM"
 
-    /** Every key above, for the tests that assert each resolves. */
     val all: List<String> = listOf(
         NEXT_MATCH, YOU_WIN, YOU_LOSE, DRAW, SUDDEN_DEATH,
         LOADING_CARDS, SIDE_BLUE, SIDE_RED, TURN_PICK_CARD, TURN_PICK_CELL,
@@ -874,6 +516,5 @@ object StringKeys {
         ACCOUNT_SETTINGS, DELETE_ACCOUNT, DELETE_ACCOUNT_BODY, DELETE_ACCOUNT_CONFIRM,
     )
 
-    /** The subset this port authored, which is the subset that may be untranslated. */
     val appOwned: List<String> = all.filter { it.startsWith("APP_") }
 }

@@ -71,16 +71,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-/**
- * Red hand, board, blue hand — as a row in landscape, a column in portrait.
- *
- * `SpaceBetween` puts the board dead centre: both hand areas are given the same fixed size by
- * [MatchLayout], so the board does not drift as a hand empties.
- *
- * Also the drag's own scope. [BoardDragState] is hoisted here because it is the nearest thing that
- * contains both a hand and the board, and the floating card is drawn here for the same reason —
- * anywhere lower and it would be clipped by the hand it came out of.
- */
 @Composable
 @Suppress("LongParameterList")
 internal fun PlayArea(
@@ -141,7 +131,6 @@ internal fun PlayArea(
     }
 }
 
-/** The three panels, arranged for the orientation. */
 @Composable
 private fun PlayAreaContents(
     layout: MatchLayout,
@@ -177,17 +166,6 @@ private fun PlayAreaContents(
     }
 }
 
-/**
- * The card under the finger, drawn where the finger is.
- *
- * `Card.onTouch` builds a second `Card` and hands it to `DragDropManager.startDrag` as the drag
- * avatar (`Card.as:141-144`), leaving the original in the hand — so the ghost is the original's
- * behaviour and not a Compose necessity. The card in the hand dims rather than disappearing, which
- * is what keeps the hand from re-laying-out under a gesture that has not finished.
- *
- * Centred on the finger, so the cell being aimed at is the one under the card's middle and the one
- * [BoardDragState.hovered] is testing.
- */
 @Composable
 internal fun DragGhost(drag: BoardDragState, scale: Float) {
     val card = drag.card ?: return
@@ -210,33 +188,6 @@ internal fun DragGhost(drag: BoardDragState, scale: Float) {
     }
 }
 
-/**
- * Which digits decided the last placement, by cell.
- *
- * A capture is always a comparison between **two facing sides**, and the pair is derivable from
- * what the engine already says: which cell fell, which cell the attack came from, and adjacency.
- * So the card that fell lights the side that lost, and the card that took it lights the side it
- * won with.
- *
- * ### The chain is included, and how its attacker is found
- *
- * A combo capture did not lose to the placed card — it lost to a card that had *just turned*. Its
- * attacker is therefore one of the previous wave's captures, and the one adjacent to it. Two facts
- * from the engine make that a lookup rather than a re-derivation:
- *
- * - `Capture.wave` numbers the generations, so the candidates for a wave-*n* capture are the
- *   wave-*(n−1)* ones;
- * - **combo never chains off a basic capture** (`RulesEngine.propagate`, and
- *   [com.tripletriad.model.GameRules.comboEnabled]), so a first-generation combo's attacker is one
- *   of the *special* captures.
- *
- * Where more than one candidate is adjacent, the pair is genuinely ambiguous without re-running the
- * comparison — which is rules logic, and would not belong in a composable. That card is left dark
- * rather than guessed at. On the boards the lessons use it never happens.
- *
- * Empty when nothing was captured, when the board has not been played on, or when the caller does
- * not want it — an ordinary match lights nothing. See [MatchScript.explains].
- */
 internal fun captureHighlights(board: Board, play: PlayResult?): Map<Int, Set<Side>> {
     if (play == null) return emptyMap()
     val lit = mutableMapOf<Int, MutableSet<Side>>()
@@ -255,7 +206,6 @@ internal fun captureHighlights(board: Board, play: PlayResult?): Map<Int, Set<Si
     return lit
 }
 
-/** Where a capture at [wave] could have come from — see [captureHighlights]. */
 private fun attackers(play: PlayResult, wave: Int): Set<Int> = when (wave) {
     FIRST_WAVE -> setOf(play.position)
     // The generation before, and at the first remove only the special captures: a basic one never
@@ -267,66 +217,16 @@ private fun attackers(play: PlayResult, wave: Int): Set<Int> = when (wave) {
     else -> play.captures.filter { it.wave == wave - 1 }.mapTo(mutableSetOf()) { it.position }
 }
 
-/**
- * Which generation each captured card belongs to — 0 for the placement's own, 1 and up for the
- * chain behind it.
- *
- * What it is for: **letting a combo be seen happening**. Every captured card used to turn on the
- * same frame, so a chain of three looked like one placement taking three cards, and the rule that
- * makes the third fall — a card captured by Same, Plus or Same Wall attacking its own neighbours in
- * turn — was invisible. Staggered by generation it reads as what it is, a wave.
- *
- * A property of the *result*, not of the mode: the same map is built for a match this client ran
- * and for one a referee sent back, and both pass it to the same board. See [COMBO_WAVE_MS].
- */
 internal fun captureWaves(play: PlayResult?): Map<Int, Int> =
     play?.captures.orEmpty().associate { it.position to it.wave }
 
-/**
- * How long a card waits per generation before it turns.
- *
- * Long enough to read as "and then that one took the next", short enough that a three-card chain
- * does not become a cutscene. **One constant for every mode**: a combo is the same event whoever
- * resolved it, and a rule that looked different against the referee than against the AI would be
- * teaching two things.
- *
- * The AS3 has no equivalent — `TTOCore.animate` walks its `cardToFlip` array and calls `flipTo` on
- * each in the same frame, and its own `waveEffect` grouping is the array it is still mutating
- * (see `RulesEngine.propagate`, which rewrote that). So the wave existed in the data and never on
- * screen.
- */
 internal const val COMBO_WAVE_MS: Long = 450L
 
-/**
- * How much longer the whole cascade takes than a single flip.
- *
- * What the callers who have to *wait* for it need: the opponent, which must not move while cards
- * are still turning, and the outcome panel, which must not cover them. Zero when nothing chained,
- * so an ordinary capture is paced exactly as it was.
- */
 internal fun waveDelayMillis(play: PlayResult?): Long =
     (play?.captures.orEmpty().maxOfOrNull { it.wave } ?: FIRST_WAVE) * COMBO_WAVE_MS
 
-/** The placement's own captures. Anything above this fell to the chain. */
 private const val FIRST_WAVE = 0
 
-/**
- * The 3×3 board. Empty cells show their element, if the board has one.
- *
- * Every cell is also a drop target: it registers its own bounds with [drag] and lights up while the
- * finger is over it. `Tile.onDragEnter` accepts the drag and `onDragDrop` refuses an occupied cell
- * (`Tile.as:107-127`), which is the same pair of rules — an occupied cell simply never highlights,
- * so the refusal is visible before the finger lifts rather than after.
- *
- * @param held the card waiting for a cell, or null. Every free cell outlines faintly while there is
- *   one — "where can this go" answered before the attempt rather than by it, which matters most on
- *   a phone, where the finger covers the cell it is aiming at. Under the Elemental rule it answers
- *   the better question too: every free elemental cell shows what it would do to *this* card.
- * @param rules which modifier applies to the cards standing here, if any.
- * @param tally how much of it there is, under Bonus or Malus. Neither of these two is enough on its
- *   own, which is why both arrived together: a grid given only a `Board` can draw the printed
- *   digits and nothing else, and that is what this one did.
- */
 @Composable
 @Suppress("LongParameterList")
 internal fun BoardGrid(
@@ -395,48 +295,6 @@ internal fun BoardGrid(
     }
 }
 
-/**
- * One cell.
- *
- * ### The power rules, made visible
- *
- * `Board.elements` has been populated under `TypeRule.ELEMENTAL` since the engine was ported, and
- * `elementalModifier` has been deciding matches with it — but the only thing on screen was the
- * first three letters of the enum name on an *empty* cell. So the rule was invisible exactly when
- * it mattered: once a card was down, nothing said the 7 fighting for that edge was really a 6.
- * Bonus and Malus were worse: they leave no mark on the board at all, so the only way to follow
- * them was to count cards by type and do the arithmetic per card, per side, per turn.
- *
- * Four things are drawn now, all from data that was already there:
- *
- * - **the element itself**, as the card artwork's own type icon rather than `EAR` / `LIG`. The
- *   glyphs are in the bundle ([CardArt.typeIcon]) and are what the same element looks like on a
- *   card, which is the comparison a player has to make.
- * - **what the rules did to the card sitting here**: `+1`, `−3`, whichever of the three is up.
- *   [powerModifier] answers for all of them, so the badge is one concept and not three.
- * - **the digits it left**, on the card itself — see [BoardCard]. The badge says *why* and the
- *   digits say *what*, which is the split that survives the clamp: a `+4` on an 8 raises that side
- *   by two, and only the digits can say so.
- * - **what the cell would do**, on every free elemental cell while a card is held. This is the
- *   half that changes play: a hand card has one element, the nine cells have nine, and working out
- *   which cell suits it by reading nine icons is arithmetic the screen can do.
- *
- * The prospective badge is **Elemental only**, and deliberately. Under Bonus or Malus every free
- * cell would show the same number, which is nine copies of one fact — and the fact belongs to the
- * card, which is not on the board yet. A card in hand is worth what is printed on it; see
- * [AscensionTally].
- *
- * An untyped card takes `−1` on any elemental cell — see [elementalModifier], where that is
- * documented as intended rather than accidental — so the badge appears for typeless cards too, and
- * it should: that is the case a player is most likely to get wrong.
- *
- * @param isTarget the finger is over it with a card, and it can take one. The border is what says
- *   so — Feathers drew a `dropIndicatorSkin` over the whole tile, and a border is the same claim
- *   without an atlas.
- * @param isOpen it could take the card currently in hand, but is not the one being aimed at. The
- *   same ring at a third of its weight: three states on one border, so a cell never has to grow.
- * @param held the card looking for a cell, or null. Only its type is read.
- */
 @Composable
 @Suppress("LongParameterList")
 private fun TileCell(
@@ -497,13 +355,6 @@ private fun TileCell(
     }
 }
 
-/**
- * The cell's element, as the icon a card of that element wears.
- *
- * Faint, and behind whatever else the cell draws: it is the cell's property, not an event. The
- * enum name is kept as the content description so the element is still nameable to a screen reader
- * and to a test, which the three-letter label was doing by accident.
- */
 @Composable
 private fun ElementBadge(position: Int, element: CardType, scale: Float) {
     val icon = LocalCardArt.current?.typeIcon(element)
@@ -529,20 +380,6 @@ private fun ElementBadge(position: Int, element: CardType, scale: Float) {
     }
 }
 
-/**
- * `+1`, `−3`, in the corner of the cell — whatever the active rule is doing to the card on it.
- *
- * Tertiary for the bonus and error for the penalty, which is the theme's own pair for "this went
- * your way" and "this did not" — the same two colours the shop and the achievements list use, so
- * the board does not invent a third vocabulary. A plate behind it because the badge sits over card
- * artwork whose colours are not the theme's to choose.
- *
- * **Colour is not the only carrier**, which is what makes it usable by a player who cannot tell
- * these two apart: the sign is written. A badge distinguished only by red and green would be a
- * board with no information on it for about one man in twelve.
- *
- * The minus is U+2212, not a hyphen: it is a sign, and beside a numeral a hyphen reads short.
- */
 @Composable
 private fun PowerModifierBadge(position: Int, value: Int, scale: Float, modifier: Modifier) {
     val positive = value > 0
@@ -569,32 +406,6 @@ private fun PowerModifierBadge(position: Int, value: Int, scale: Float, modifier
     )
 }
 
-/**
- * A placed card that flips when its owner changes.
- *
- * Re-triggered by a [LaunchedEffect] on the owner rather than by a tap: on the board a flip is
- * something the rules *did*, not something the player asked for.
- *
- * **A port now, not a substitution.** `Card.flip()` (`Card.as:249-291`) chains four 0.1 s
- * tweens — `flip` → `yoyo` → `unflip` → `yoyo2` — squashing `scaleY` to 0 and back twice while
- * `scaleX` widens to 1.2 for the duration. The colour switches and the back appears at the first
- * pinch; the new face returns at the second.
- *
- * An earlier revision used a `rotationY` half-turn instead, which **mirrored the card's contents
- * between 90° and 180°** — every glyph on it drawn backwards for a fifth of a second. A squash
- * cannot do that, because the scale never goes negative. The original's choice was the right one.
- *
- * ### It draws the **printed** powers, and the modifier is a badge beside them
- *
- * A previous revision folded the modifier into the digits, so a 5 on a `+3` board was drawn as an
- * 8. That was wrong, and not merely as a matter of taste: **the printed values are what decide Same
- * and Plus** — see `RulesEngineOptions.specialPowerBasis`, which now says so — so a card whose
- * digits had the modifier baked in would be showing numbers a player cannot use to spot a Same. The
- * one thing the board must never do is renumber the cards a rule reads.
- *
- * So the digits are the card's own, and `TileCell` draws `+3` over the top. The player adds it up
- * for the basic comparison, which is the only comparison it applies to.
- */
 @Composable
 private fun BoardCard(placed: PlacedCard, scale: Float, highlight: Set<Side>, wave: Int) {
     val squashY = remember { Animatable(1f) }
@@ -655,12 +466,6 @@ private fun BoardCard(placed: PlacedCard, scale: Float, highlight: Set<Side>, wa
 
 private fun lerp(from: Float, to: Float, fraction: Float): Float = from + (to - from) * fraction
 
-/**
- * One side's remaining cards, in a fixed-size box so the board stays put as the hand empties.
- *
- * Dimmed when it is not that side's turn. [HAND_SIZE] slots are always laid out; the empty ones
- * are spacers, which is what holds the arrangement steady.
- */
 @Composable
 @Suppress("LongParameterList")
 private fun HandArea(
@@ -758,31 +563,6 @@ private fun HandArea(
     }
 }
 
-/**
- * One selectable card in a hand, and — for the player's own playable cards — one that can be picked
- * up and carried to a cell.
- *
- * The selection ring is a border on the card's own bounds rather than a frame around them: a
- * frame would have to grow the slot, and a growing slot moves every card beside it.
- *
- * ### Tapping still works, and that is deliberate
- *
- * Task 4.7 ends on "do not ship drag-only", and the original does not: `Card.onTouch` dispatches
- * `TRIGGERED` on a tap *and* starts a drag on a move, `Tile.onTouch` handles the second tap, and
- * `BaseMatchScreen` listens for both. Dragging a card into a 3×3 grid on a phone is fiddly; tapping
- * twice is not. Compose keeps them apart on its own — `clickable` cancels once the pointer passes
- * touch slop, which is the same threshold the drag starts at.
- *
- * @param drag the board's drag state, or **null** when this card may not be dragged. Null rather
- *   than a boolean beside it, so a card that cannot be dragged cannot reach the state at all.
- * @param allowed whether the rules let this card be picked up at all — false only under Order and
- *   Chaos, which leave one card of the five. Dimmed *and* unclickable, because a card that looks
- *   ordinary and ignores a tap is the reading a player takes as a broken screen. See [PlayableRing]
- *   for why this is said twice over.
- * @param chosen this is the one card the rules leave, and it wears the ring that says so. Distinct
- *   from `allowed` rather than its negation across the hand: with no rule narrowing anything every
- *   card is allowed and none is chosen.
- */
 @Composable
 @Suppress("LongParameterList")
 private fun HandCard(
@@ -864,20 +644,6 @@ private fun HandCard(
     }
 }
 
-/**
- * How the board and the two hands are arranged, and at what size.
- *
- * @property landscape true when the hands sit either side of the board rather than above and
- *   below it.
- * @property handColumns cards across in one hand area — five in a portrait strip, two in a
- *   landscape block.
- * @property handRows rows needed to hold [HAND_SIZE] cards at [handColumns] across.
- * @property scale the factor a **hand** card is drawn at. 1.0 is the authored AS3 size.
- * @property boardScale the factor a **board** tile is drawn at, always at least [scale]. The
- *   board is only three cards across where a portrait hand is five, so it is not bound by the
- *   same budget and would otherwise leave a third of a phone screen empty. The FFXIV board
- *   draws it larger than the hands too.
- */
 internal data class MatchLayout(
     val landscape: Boolean,
     val handColumns: Int,
@@ -885,106 +651,43 @@ internal data class MatchLayout(
     val scale: Float,
     val boardScale: Float,
 ) {
-    /** Fixed size of one hand area, empty slots included. */
     val handWidth: Dp
         get() = (CardSpriteWidth * handColumns + HandGap * (handColumns + 1)) * scale
     val handHeight: Dp
         get() = (CardSpriteHeight * handRows + HandGap * (handRows + 1)) * scale
 }
 
-/**
- * Chooses the arrangement for a **measured** [width] x [height] and the largest scale that
- * fits inside it.
- *
- * A pure function of two numbers, which is the whole point: three earlier attempts estimated
- * the leftover space from a screen size minus a constant and each one over-subscribed the
- * column on some device. An over-subscribed column is not a visible error either — `Modifier
- * .size` silently coerces into the constraints it is given, so children collapse to zero
- * height while continuing to draw at full size, and the symptom is overlap rather than a
- * clipped or complaining layout. Deriving the scale from real bounds cannot do that.
- *
- * Both hands are the same shape, so in landscape the total width is two hand areas plus the
- * board and the height is whichever of hand or board is taller; in portrait the axes swap.
- */
 private const val BOARD_WIDTH = 3
 
-/** Two columns of cards either side of the board: taller than wide, which landscape has. */
 private const val LANDSCAPE_HAND_COLUMNS = 2
 private const val MIN_CARD_SCALE = 0.22f
 
-/** 1.0 is the authored 88x118 face. Drawing bigger than the source art would only blur it. */
 private const val MAX_CARD_SCALE = 1f
 private const val ELEMENT_LABEL_CHARS = 3
 
-/** The element belongs to the cell, not to the play. Present, and never louder than a card. */
 private const val ELEMENT_ALPHA = 0.55f
 
-/** Dimming for a hand that is not to move. Shared with the PvP board, which dims the same way. */
 internal const val INACTIVE_HAND_ALPHA = 0.45f
 
-/** The card following the finger. Slightly transparent, so the cell under it stays readable. */
 private const val DRAG_GHOST_ALPHA = 0.85f
 
-/** What is left in the hand while its card is in the air. */
 internal const val DRAG_SOURCE_ALPHA = 0.3f
 
-/**
- * A free cell while a card is held: present, but not louder than the cell being aimed at.
- *
- * Nine cells lit at full strength would compete with the drop indicator they are meant to lead to.
- */
 private const val OPEN_CELL_ALPHA = 0.38f
 
-/**
- * `Card.afterFly`'s tween — the card dropping into the cell it was played on.
- *
- * `Card.fly` (`:195-208`) is two halves and this is the second. The first raises the card 100px
- * out of the hand and fades it out over 0.4s, and it is **not ported**: this port removes the
- * card from the hand the instant it is played, and there is nothing left there to raise. Under a
- * drag it would be wrong as well as absent — the player's own finger has already carried the card
- * across, and replaying that journey afterwards would show it twice.
- *
- * The half that lands is the half that reads as a placement, and it is the same under a tap and
- * under a drop.
- */
 private const val LAND_MS = 400
 
-/**
- * `rotation: -90°` settling to `-360°` — three quarters of a turn, anticlockwise.
- *
- * Written as the *starting* angle because that is what the modifier interpolates from, so the
- * end is 0 rather than a full turn that has to be normalised. The direction survives: -90 to 0
- * the short way would be a quarter turn clockwise, and this is 270° the other way.
- */
 private const val LAND_DEGREES = -270f
 
-/** `scaleX = scaleY = 1.2` before the tween pulls it back. */
 private const val LAND_SCALE = 1.2f
 
-/**
- * `x: _x + 50, y: _y - 100` — where the card starts, relative to where it lands.
- *
- * In fractions of the card's own size rather than the original's pixels, because those were
- * pixels on a fixed 1136x640 stage and this port draws the card at whatever scale the screen
- * affords. 50 and 100 against a 104x128 sprite are these.
- */
 private const val LAND_OFFSET_X = 0.48f
 private const val LAND_OFFSET_Y = -0.78f
 
-/** `Starling.juggler.tween(this, 0.1, ...)`, four times over -- `Card.as:249-291`. */
 private const val FLIP_LEG_MS = 100
 
-/** `scaleX: 1.2` / `scaleY: 1.2` -- the overshoot each leg tweens to. */
 private const val FLIP_STRETCH = 1.2f
 
-/**
- * How long the opponent appears to think.
- *
- * `PVEMatchScreen.as:42` waits `1000 + tools.rand(4) * 1000` — one to five seconds — which covered
- * a `setTimeout` cascade of turn announcements this port does not have. Long enough that a
- * placement reads as the opponent's move rather than as part of the player's, and short enough not
- * to be a wait.
- */
 /*
  * `Transitions.EASE_IN` / `EASE_OUT`, per the mapping in
  * [api-mapping.md](../../../../../../../docs/analysis/api-mapping.md). Starling's curves are
@@ -997,44 +700,18 @@ internal val TileShape = RoundedCornerShape(6.dp)
 internal val SelectionRingWidth = 2.dp
 private val ElementFontSize = 9.sp
 
-/** The type glyphs are authored at 16 px; a board tile is 104 wide, so this is a quarter of it. */
 private val ElementIconSize = 26.dp
 private val ModifierFontSize = 10.sp
 private val ModifierShape = RoundedCornerShape(3.dp)
 private val ModifierInset = 2.dp
 private val ModifierPadding = 3.dp
 
-/** The gap between cards in a hand. Shared with the PvP board so the two lay out alike. */
 internal val HandGap = 3.dp
 
-/**
- * The gap between a hand and the board, which is **not** the gap between two cards.
- *
- * In landscape the arrangement is hand | board | hand, and the three used to be separated by
- * whatever `SpaceBetween` had left over — which on a phone held sideways was about two dp. Seven
- * columns of identically sized cards with identical gutters is not three groups, it is one wide
- * grid, and a player could not see where their hand stopped and the board began.
- *
- * Four times the gutter, so the eye reads it as a break rather than as a wider gutter, and counted
- * in [matchLayout] so the space is reserved rather than hoped for.
- */
 internal val HandBoardGap = 16.dp
 
-/** Nothing in a match touches the edge of the window. See `PlayArea`. */
 internal val PlayAreaInset = 8.dp
 
-/**
- * How far the match's own header sits below the top of the window.
- *
- * A match is the one part of this app with no app bar, so its first line of text starts at the very
- * top of the glass — and on a phone that is where the camera is. `App` already insets the whole
- * tree out of a reported `displayCutout`, which handles the phones that report one; this is the
- * margin for the rest, and for the fact that a score jammed against the edge reads as clipped even
- * on a screen with nothing in the way.
- *
- * Small on purpose. Nine tiles and two hands are what this screen is for, and every dp spent here
- * comes out of the board — see `matchLayout`, which is handed whatever the header leaves.
- */
 internal val MatchHeaderTopInset = 12.dp
 
 internal fun matchLayout(width: Dp, height: Dp): MatchLayout {

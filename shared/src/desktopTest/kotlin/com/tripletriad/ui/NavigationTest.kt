@@ -16,22 +16,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/**
- * Splash → menu → match / options, driven through the real [App].
- *
- * Everything here is asserted on what is *on screen*, never on the `Screen` value: the enum being
- * right while nothing changed is exactly the failure worth catching.
- */
 @OptIn(ExperimentalTestApi::class)
 class NavigationTest {
-    /**
-     * While startup is incomplete, the splash is up and says which phase it is on.
-     *
-     * Held there by a store that never answers, rather than by asserting on the first frame of a
-     * normal start: `runComposeUiTest` drains coroutines around every interaction, so by the time
-     * the first assertion runs a healthy startup has already finished and the menu is up. A test
-     * that "passed" on timing would prove nothing about the splash.
-     */
     @Test
     fun theSplashHoldsWhileStartupIsUnfinishedAndNamesItsPhase() = runComposeUiTest {
         setContent { App(store = NeverAnswers) }
@@ -41,7 +27,6 @@ class NavigationTest {
         onNodeWithTag(SPLASH_PHASE_TEST_TAG).assertTextEquals(SPLASH_LINES.first())
     }
 
-    /** Every phase resolves to a real string, not an `APP_STARTUP_*` key leaking through. */
     @Test
     fun everyPhaseHasAStringRatherThanItsKey() {
         val strings = runBlocking { loadStrings(AppLocale.EN_US) }
@@ -63,12 +48,6 @@ class NavigationTest {
         onNodeWithTag(MENU_QUIT_TEST_TAG).assertTextEquals("Quit")
     }
 
-    /**
-     * With no character, Play leads to the character list — the original's Load Game.
-     *
-     * Asserted on the empty-list message rather than on the list node: an empty `LazyColumn`
-     * renders nothing, so "the list exists" would be the weaker claim of the two.
-     */
     @Test
     fun playWithNoCharacterAsksForOne() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -83,12 +62,6 @@ class NavigationTest {
         onNodeWithTag(PROFILE_NEW_TEST_TAG).assertTextEquals("New Game")
     }
 
-    /**
-     * The whole line: menu → characters → new → dashboard → opponents → board, and back out again.
-     *
-     * Four hops back rather than three, which is the dashboard's whole cost — and the reason it is
-     * worth it is that the seven screens hanging off it have somewhere to hang.
-     */
     @Test
     fun playReachesABoardAndTheChevronComesBack() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -108,7 +81,6 @@ class NavigationTest {
         onNodeWithTag(MENU_PLAY_TEST_TAG).assertTextEquals("Play")
     }
 
-    /** Once a character is loaded, Play skips the list — the original's Continue. */
     @Test
     fun playWithACharacterLoadedGoesStraightToItsDashboard() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -123,15 +95,6 @@ class NavigationTest {
         awaitDashboard()
     }
 
-    /**
-     * Every card on the home screen opens the screen it names, and its chevron comes back.
-     *
-     * The routing table's own test: eight destinations that each existed as a file and none of
-     * which was reachable until [Screen] grew them. Multiplayer is deliberately absent — it is
-     * drawn disabled, and Phase 5 is what turns it on. The collection and the shelf are absent for
-     * a different reason: they moved to the navigation bar, and
-     * [everyNavigationBarEntryOpensItsScreen] is where they are asserted.
-     */
     @Test
     fun everyDashboardEntryOpensItsScreen() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -150,14 +113,6 @@ class NavigationTest {
         }
     }
 
-    /**
-     * The four navigation-bar destinations, and that back from each of them lands on Home.
-     *
-     * The second half is the claim worth pinning. A tabbed shell normally needs a back stack
-     * because "up" stops being a property of a screen; here it does not, because every one of these
-     * roots already had the dashboard as its `Screen.up` — see [Tab]. This is what says that is
-     * still true, and it would fail the day a tab root is given a different parent.
-     */
     @Test
     fun everyNavigationBarEntryOpensItsScreen() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -178,7 +133,6 @@ class NavigationTest {
         openFromBar("home", DASHBOARD_PLAY_TEST_TAG)
     }
 
-    /** The board is immersive: no bar over it, and none on the menu either. */
     @Test
     fun theNavigationBarIsAbsentOnTheMenuAndDuringAMatch() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -189,7 +143,6 @@ class NavigationTest {
         assertFalse(exists(navTestTag("home")), "a match should not be leavable by a bar entry")
     }
 
-    /** Logout leaves the character behind and lands where another is chosen. */
     @Test
     fun logoutReturnsToTheCharacterList() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -214,9 +167,6 @@ class NavigationTest {
         onNodeWithTag(MENU_PLAY_TEST_TAG).assertTextEquals("Play")
     }
 
-    /**
-     * The reason `onQuit` is a parameter at all: `:shared` cannot leave an app, and must not try.
-     */
     @Test
     fun quitCallsTheHostRatherThanDoingAnythingItself() = runComposeUiTest {
         var quits = 0
@@ -230,7 +180,6 @@ class NavigationTest {
         onNodeWithTag(MENU_PLAY_TEST_TAG).assertTextEquals("Play")
     }
 
-    /** A menu in the language the settings file names, not the machine's. */
     @Test
     fun theMenuIsInTheStoredLanguage() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.FR_FR)) }
@@ -240,12 +189,6 @@ class NavigationTest {
         onNodeWithTag(MENU_QUIT_TEST_TAG).assertTextEquals("Quitter")
     }
 
-    /**
-     * A first run — no settings file — still reaches the menu.
-     *
-     * The language then comes from the machine, so nothing here asserts on wording; what is being
-     * pinned is that a missing file is not a stall on the splash.
-     */
     @Test
     fun aFirstRunWithNoSettingsFileStillStarts() = runComposeUiTest {
         val store = InMemorySettingsStore()
@@ -256,7 +199,6 @@ class NavigationTest {
         assertEquals(1, store.writes, "the first run should have persisted a file")
     }
 
-    /** An unreadable store must not be able to hang the splash. */
     @Test
     fun aStoreThatThrowsDoesNotStrandTheSplash() = runComposeUiTest {
         setContent {
@@ -266,13 +208,6 @@ class NavigationTest {
         awaitMenu()
     }
 
-    /**
-     * A store stuck on its first read, so the splash cannot leave `StartupPhase.SETTINGS`.
-     *
-     * Note this is *not* the same as a store that throws — `aStoreThatThrowsDoesNotStrandTheSplash`
-     * covers that, and the app must recover from it. This one models a read that simply never
-     * returns, which is the only way to observe the splash in a fixed phase.
-     */
     private object NeverAnswers : SettingsStore {
         override suspend fun read(): String? = awaitCancellation()
 
@@ -280,7 +215,6 @@ class NavigationTest {
     }
 
     private companion object {
-        /** `app-en_US.json`, in `StartupPhase` order. */
         val SPLASH_LINES = listOf(
             "reading settings…",
             "loading cards…",

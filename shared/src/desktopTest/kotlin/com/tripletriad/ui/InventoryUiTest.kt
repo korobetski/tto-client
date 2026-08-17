@@ -23,22 +23,12 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/**
- * The bag: what is in it, and what Use, Sell and Discard do to the file.
- *
- * Every assertion is against the decoded `.sav` rather than the screen, because the AS3's bag is
- * exactly where screen and file came apart — `useBtnHandler` mutated `Game.PROFILE_DATAS` and saved
- * only as a side effect of the `sortBag()` call at its end. A test that read the list back off the
- * screen would have passed against that.
- */
 @OptIn(ExperimentalTestApi::class)
 class InventoryUiTest {
-    /** The shipped table, because a card's resale is its rarity and only this knows it. */
     private val cards: Map<Int, Card> =
         kotlinx.coroutines.runBlocking { com.tripletriad.data.loadCardCatalog() }.all
             .associateBy { it.id }
 
-    /** A character whose bag holds one of each kind that behaves differently. */
     private fun withBag(): GameSave = Inventory.addAll(
         GameSave.new(createdAt = 0L),
         listOf(
@@ -71,7 +61,6 @@ class InventoryUiTest {
         assertFalse(exists(INVENTORY_LIST_TEST_TAG), "an empty bag should not draw a list")
     }
 
-    /** Nothing is actionable until a row is picked — the three buttons are not even drawn. */
     @Test
     fun theActionsAppearOnlyOnceSomethingIsSelected() = runComposeUiTest {
         val documents = seeded(withBag())
@@ -85,14 +74,6 @@ class InventoryUiTest {
         onNodeWithTag(INVENTORY_USE_TEST_TAG).assertIsEnabled()
     }
 
-    /**
-     * Tapping the selected row again puts the actions away.
-     *
-     * The bag is a radio group with no "none" entry, so the row itself has to be the way out —
-     * `listHandler` in the original had the same job. Worth pinning because the footer acts on
-     * whatever is selected: a selection that could not be cleared would leave three live buttons
-     * pointed at an item the player had stopped thinking about.
-     */
     @Test
     fun tappingTheSelectedRowAgainClearsTheSelection() = runComposeUiTest {
         val documents = seeded(withBag())
@@ -107,7 +88,6 @@ class InventoryUiTest {
         assertFalse(exists(INVENTORY_USE_TEST_TAG), "a second tap should put the footer away")
     }
 
-    /** Selling pays what the card's rarity is worth — see `CardValue` — and takes one off. */
     @Test
     fun sellingACardPaysForItAndLeavesTheRest() = runComposeUiTest {
         val documents = seeded(withBag())
@@ -128,7 +108,6 @@ class InventoryUiTest {
         assertEquals(1, Inventory.count(save, CardItem(SELLABLE_CARD)), "one of the two sold")
     }
 
-    /** Only a card item is sellable, so both Sell buttons are dead on a pack. */
     @Test
     fun aPackCannotBeSoldByEitherButton() = runComposeUiTest {
         val documents = seeded(withBag())
@@ -144,7 +123,6 @@ class InventoryUiTest {
         onNodeWithTag(INVENTORY_USE_TEST_TAG).assertIsEnabled()
     }
 
-    /** Using a card item is how a card enters the collection. */
     @Test
     fun usingACardAddsItToTheCollection() = runComposeUiTest {
         val documents = seeded(withBag())
@@ -164,16 +142,6 @@ class InventoryUiTest {
         )
     }
 
-    /**
-     * The card is **shown**, not merely named.
-     *
-     * `UnlockCardAnim` is the one thing the original does on this screen that a line of text
-     * cannot. The player has usually never seen the card — that is what makes it worth having —
-     * and the note beside the button gives them its name and nothing else.
-     *
-     * The reveal clears itself, which is the half worth asserting: it is drawn over the whole
-     * screen, so one that never left would cover the bag for the rest of the session.
-     */
     @Test
     fun usingACardShowsIt() = runComposeUiTest {
         val documents = seeded(withBag())
@@ -187,14 +155,6 @@ class InventoryUiTest {
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { !exists(UNLOCKED_CARD_TEST_TAG) }
     }
 
-    /**
-     * Opening a pack reveals nothing, because nothing was unlocked.
-     *
-     * `useBtnHandler` plays the animation in the card branch alone (`:236-245`). A pack yields
-     * another **bag** item, so revealing it here would show off a card the player does not own —
-     * and the obvious implementation, "play it whenever Use produces a card id", does exactly
-     * that: `PackOpened` carries one too.
-     */
     @Test
     fun openingAPackRevealsNothing() = runComposeUiTest {
         val documents = seeded(withBag())
@@ -212,17 +172,6 @@ class InventoryUiTest {
         assertFalse(exists(UNLOCKED_CARD_TEST_TAG), "a pack unlocked nothing to show")
     }
 
-    /**
-     * Use is **offered** for a card the profile already owns, and the row says it is a duplicate.
-     *
-     * The inverse of what this test asserted, and the inversion is the point. The AS3 enables the
-     * button from [Item.useable] and disables it two lines later for an owned card
-     * (`InventoryScreen.as:107-113`), because a second copy did nothing. A second copy is now a
-     * card the player can put in a deck — § 1 of
-     * `docs/migration/20-CARD-COPIES-AND-PLATFORM-ACCOUNTS.md` — so refusing would withhold the
-     * one thing that makes a duplicate worth keeping. The fact is still shown; only the refusal
-     * has gone. See `ownedNote`.
-     */
     @Test
     fun useIsOfferedForACardAlreadyInTheCollectionAndSaysHowMany() = runComposeUiTest {
         val documents = seeded(withBag())
@@ -235,17 +184,6 @@ class InventoryUiTest {
         assertTrue(isVisible("already owned \u00d71"), "the row still says it is not the first")
     }
 
-    /**
-     * Opening a pack turns its cards over, and they land in the **bag** rather than the collection.
-     *
-     * That second half is the original's behaviour and the whole point of a pack: what comes out
-     * can be used or sold. See `ItemUse.PackOpened`.
-     *
-     * The first half is new. A pack deals [BoosterType.size] cards now, and they are revealed one
-     * tap at a time on [PackRevealScreen] — so the note this test used to look for is gone, and
-     * what it looks for instead is the reveal, the right number of face-down slots, and the way
-     * out. The drawn ids are not pinned: `App` uses the default random.
-     */
     @Test
     fun openingAPackRevealsItsCardsAndPutsThemInTheBag() = runComposeUiTest {
         val documents = seeded(withBag())
@@ -286,7 +224,6 @@ class InventoryUiTest {
         )
     }
 
-    /** A potion raises its boon rather than doing anything to the collection. */
     @Test
     fun drinkingAPotionRaisesTheBoon() = runComposeUiTest {
         val documents = seeded(withBag())
@@ -304,14 +241,6 @@ class InventoryUiTest {
         assertEquals(0, Inventory.count(save, PotionItem(PotionType.MGP)), "and it is consumed")
     }
 
-    /**
-     * **Sell all** empties the stack in one tap, and is paid for every one of them.
-     *
-     * This replaced Discard, which destroyed an item for nothing and needed a two-tap arm to be
-     * safe. Being paid is not something to protect a player from, so the arm went with it — and the
-     * assertion below is the one that would have caught the arm being removed from the *wrong*
-     * button: the whole stack goes, not one of it.
-     */
     @Test
     fun sellingAllEmptiesTheStackAndPaysForEveryOne() = runComposeUiTest {
         val documents = seeded(withBag())
@@ -336,11 +265,6 @@ class InventoryUiTest {
         )
     }
 
-    /**
-     * At a stack of one it is disabled, because it would be the button beside it.
-     *
-     * Two controls that do the same thing invite the player to wonder which one they got wrong.
-     */
     @Test
     fun sellAllIsInertWhenThereIsOnlyOne() = runComposeUiTest {
         val documents = seeded(withBag())
@@ -354,9 +278,6 @@ class InventoryUiTest {
     }
 
     private companion object {
-        /** An ff14 card outside [STARTER_CARDS], so it is neither owned nor a starter. */
         val SELLABLE_CARD = Card.idFor(block = 1, number = 44)
-
-        /** `CardItem.as:25` — `value = _cardId * 4`. */
     }
 }

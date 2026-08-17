@@ -28,31 +28,9 @@ import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/**
- * The Elemental rule, on screen.
- *
- * The engine has applied `elementalModifier` since it was ported and the board has carried its
- * elements just as long; what was missing was any way for a player to see either. These assert the
- * three things now drawn — the element, what it did to the card on it, and what it would do to the
- * card in hand.
- *
- * ### Why this composes [PlayArea] rather than playing a match
- *
- * Because the rule is opponent data. Reaching an elemental board through the app means finding an
- * NPC in `npcs.json` that happens to declare `RULE_ELEMENTAL`, beating the roulette if it has one,
- * and then hoping the cell the test wants got an element — `Board.elements()` rolls each of the
- * nine independently at about one in two. A `MatchState` built here states the board it means, and
- * the arithmetic on it is `PowerTest`'s in `:core`.
- */
 @OptIn(ExperimentalTestApi::class)
 class ElementalBoardTest {
 
-    /**
-     * A cell with an element shows it, and a cell without one shows nothing.
-     *
-     * The second half is the one that keeps the feature honest: eight of nine cells carrying a
-     * glyph nobody chose would be noise on every match played without the rule.
-     */
     @Test
     fun aCellShowsItsElementAndAPlainCellShowsNone() = runComposeUiTest {
         setContent { Fixture(state = elementalBoard()) }
@@ -61,7 +39,6 @@ class ElementalBoardTest {
         assertFalse(existsUnmerged(tileElementTestTag(PLAIN_CELL)), "a plain cell has no element")
     }
 
-    /** A card sitting on its own element is worth one more, and the cell says by how much. */
     @Test
     fun aCardOnAMatchingElementShowsItsBonus() = runComposeUiTest {
         setContent {
@@ -74,12 +51,6 @@ class ElementalBoardTest {
             .assertTextEquals("+1")
     }
 
-    /**
-     * And a card on the wrong element is worth one less — **including an untyped one**.
-     *
-     * That is the case a player is most likely to get wrong, and it is intended rather than a
-     * quirk of the AS3: see `elementalModifier`, where it is documented against the ruleset.
-     */
     @Test
     fun aCardOnTheWrongElementShowsItsPenaltyAndSoDoesAnUntypedOne() = runComposeUiTest {
         setContent {
@@ -96,13 +67,6 @@ class ElementalBoardTest {
             .assertTextEquals("−1")
     }
 
-    /**
-     * Picking a card up shows what each free elemental cell would do to **it**.
-     *
-     * This is the half that changes how the rule plays. A hand card has one element and the board
-     * has up to nine; working out which cell suits it means reading nine glyphs and comparing each
-     * against the card in hand, which is arithmetic the screen already has the data to do.
-     */
     @Test
     fun holdingACardAnnotatesEveryFreeElementalCellForIt() = runComposeUiTest {
         val fire = card(id = 300, type = CardType.FIRE)
@@ -127,17 +91,6 @@ class ElementalBoardTest {
 
     // ---- Fixtures ----------------------------------------------------------
 
-    /**
-     * [PlayArea] in a box big enough to lay a board out in.
-     *
-     * The selection is held here because it is hoisted above `PlayArea` in the real screen — the
-     * status bar reads it too. A fixture that passed a constant `null` would compose the board in
-     * a state a match can never be in, and the one test that taps a card would silently assert
-     * nothing.
-     *
-     * The theme is real because the modifier badge reads `tertiary` and `error` off it, and a
-     * composable that resolved neither would still draw — in whatever Material's defaults are.
-     */
     @Composable
     private fun Fixture(state: MatchState) {
         var selected by remember { mutableStateOf<Card?>(null) }
@@ -185,7 +138,6 @@ class ElementalBoardTest {
         ),
     )
 
-    /** Powers and rarity are irrelevant here; only [Card.type] is read. */
     private fun card(id: Int, type: CardType?) = Card(
         id = id,
         nameKey = "STR_TEST_$id",
@@ -202,7 +154,6 @@ class ElementalBoardTest {
         const val FIRE_CELL = 0
         const val ICE_CELL = 1
 
-        /** A cell the board rolled no element for, which is about half of them in a real match. */
         const val PLAIN_CELL = 4
 
         val FIXTURE_SIDE = 900.dp

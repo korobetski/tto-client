@@ -13,15 +13,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/** [MatchHistoryRepository]: appending, querying, tallying and the row limit. */
 class MatchHistoryRepositoryTest {
     private val profile = "mao - 1000"
 
-    /**
-     * A plausible row. Callers vary the rest with `.copy()` rather than through more parameters:
-     * six named arguments on a test factory is where the factory stops being easier to read
-     * than the thing it builds.
-     */
     private fun record(
         id: String,
         timestamp: Long,
@@ -56,7 +50,6 @@ class MatchHistoryRepositoryTest {
         assertEquals(listOf("b", "c", "a"), repository.all(profile).map { it.id })
     }
 
-    /** Re-appending the same id replaces rather than duplicating, so a retry is safe. */
     @Test
     fun appendingTheSameIdTwiceReplacesIt() = runTest {
         val repository = MatchHistoryRepository(InMemoryDocumentStore())
@@ -164,10 +157,6 @@ class MatchHistoryRepositoryTest {
         assertEquals(written, MatchHistoryRepository(store).all(profile).single())
     }
 
-    /**
-     * A damaged history reads as empty and is rewritten on the next append; losing it is
-     * survivable.
-     */
     @Test
     fun anUnreadableDocumentReadsAsEmptyRatherThanThrowing() = runTest {
         val store = InMemoryDocumentStore(mapOf(profile to "not json at all"))
@@ -187,12 +176,6 @@ class MatchHistoryRepositoryTest {
         assertTrue(MatchHistoryRepository(store).all(profile).isEmpty())
     }
 
-    /**
-     * The limit drops the oldest and says how many, rather than trimming silently.
-     *
-     * Run at a limit of 3 rather than the default 2,000: appending is O(n) per call, so filling the
-     * real limit would be quadratic and would test the same branch.
-     */
     @Test
     fun theOldestRowsAreDroppedPastTheLimit() = runTest {
         val repository = MatchHistoryRepository(InMemoryDocumentStore(), limit = 3)

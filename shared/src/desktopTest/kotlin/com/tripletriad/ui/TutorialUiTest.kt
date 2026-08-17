@@ -17,16 +17,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/**
- * The lesson — `TutorialScreen`, through the real app.
- * It is [MatchScreen] with a [MatchScript] on it, so what is worth asserting is exactly the five
- * things the script changes: the deal, who starts, how the opponent plays, what is said, and where
- * the end panel goes. The match underneath is already covered by [MatchUiTest] and is not re-tested
- * here.
- */
 @OptIn(ExperimentalTestApi::class)
 class TutorialUiTest {
-    /** The course opens from the dashboard, onto a board with no deck to choose. */
     @Test
     fun theLessonOpensStraightOntoABoard() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -42,14 +34,6 @@ class TutorialUiTest {
         )
     }
 
-    /**
-     * The opponent moves first, and the player still holds five cards when it is their turn.
-     *
-     * `pof.rolls = [0,1,0]` (`TutorialScreen.as:64`) rigs the flip to red — 0 is red in
-     * `PileOuFace` — so that the first thing the lesson does is demonstrate a placement rather than
-     * ask for one. Read off the hands rather than off a turn tag, because "red has played" is the
-     * claim and the turn has already passed back by the time it can be asserted.
-     */
     @Test
     fun theTutorMovesFirst() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -64,13 +48,6 @@ class TutorialUiTest {
         )
     }
 
-    /**
-     * The first line is spoken before the opponent moves.
-     * The whole of the pacing in one assertion: the lines play after the pre-match captions, and
-     * the opponent waits behind them — on [LessonSpeech.isSpeaking] now rather than on the line
-     * count times 6.1 seconds, since a line can be tapped away. If the AI were not held back, the
-     * lesson would be explaining a board that had already changed twice.
-     */
     @Test
     fun theTutorSpeaksBeforePlaying() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -84,14 +61,6 @@ class TutorialUiTest {
         assertEquals(HAND_SIZE, handSize(CardColor.RED), "the opponent spoke before it played")
     }
 
-    /**
-     * The opponent loses on purpose — `MatchAiOptions.TUTOR`.
-     * Asserted as an outcome rather than as a move: what the lesson promises is a match the player
-     * can win while being told what a card is, and the way to check that is to play it out badly
-     * (first card, first free cell, every turn) and still come out ahead. A test that pinned the
-     * exact cell would break on any tie-break change and would not be saying anything about the
-     * lesson.
-     */
     @Test
     fun theLessonIsWinnableByPlayingBadly() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -106,15 +75,6 @@ class TutorialUiTest {
         )
     }
 
-    /**
-     * **A lesson pays nothing, and does not claim to.**
-     *
-     * The panel's payout line used to be unconditional — "every result pays here" was true while
-     * every match counted — so an uncounted lesson ended on `+0 MGP` in the affirmative colour: a
-     * reward announced, in the place rewards are announced, for a match deliberately paying none.
-     * Asserted on the tag rather than on the text, so it does not depend on the wording or the
-     * language.
-     */
     @Test
     fun theLessonAnnouncesNoPayout() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -127,15 +87,6 @@ class TutorialUiTest {
         assertFalse(exists(MATCH_REWARDS_TEST_TAG), "and drops nothing")
     }
 
-    /**
-     * **Finishing a lesson leaves the profile exactly as it found it.**
-     *
-     * The end-to-end half of what `LessonRecordTest` asserts on the extensions: no result, no
-     * counters, no money. `startedMatches` is the one worth reading twice — [MatchScreen] persists
-     * it when the screen *opens*, so a lesson that counted would already have written it before a
-     * card was played, and `forfeits` would carry the difference for the rest of the character's
-     * life.
-     */
     @Test
     fun theLessonLeavesTheProfileUntouched() = runComposeUiTest {
         val documents = InMemoryDocumentStore()
@@ -154,16 +105,6 @@ class TutorialUiTest {
         assertEquals(before.mgp, after.mgp, "and the lesson pays nothing")
     }
 
-    /**
-     * The end panel leads on to the next lesson, where a match offers a rematch.
-     *
-     * `TutorialRematchPanel.rematchFooter` overrides the footer with Help and Quit (`:19-33`), and
-     * `nextLesson` dispatches `NEXT_SCREEN`, which `TutorialScreen.endGame` sets to `HELP_SCREEN`
-     * on all three results — so in the original this control ended the course, because the course
-     * was one match. It now advances through [TUTORIAL_PUZZLES] and only the last of them leads to
-     * the rule book; see [theCourseEndsAtTheRuleBook]. Replacing the control rather than adding one
-     * is unchanged, and is still what keeps a lesson from being a repeatable source of MGP.
-     */
     @Test
     fun theEndOfTheFirstLessonLeadsToTheNext() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -187,14 +128,6 @@ class TutorialUiTest {
         )
     }
 
-    /**
-     * **A lesson ends "Lesson complete", not "You win !"**.
-     *
-     * The panel is the ordinary one and it announced the ordinary thing, which over a position
-     * composed so the player cannot fail is flattery for doing as they were told — and it spent the
-     * word on the one lesson in the course with a use for it. Asserted as an absence as well as a
-     * presence: a panel that showed both would be twice as wrong as one that showed the old line.
-     */
     @Test
     fun aLessonEndsByNamingItselfRatherThanClaimingAVictory() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -206,20 +139,6 @@ class TutorialUiTest {
         assertFalse(isVisible("You win !"), "a lesson that cannot be lost should not claim a win")
     }
 
-    /**
-     * **The closing line is a sentence, and not the key it is stored as.**
-     *
-     * `MatchScript.outcomeLines` holds whatever its author put there — a lesson stores
-     * `APP_LESSON_BASICS_WIN`, a ladder stores the sentence itself, because the AS3 never gave its
-     * dialogue any keys — and [OutcomeBubble] resolves both through `Strings.get`, where a key no
-     * bundle defines falls through to itself. It did not: it passed the line to [TalkBubble]
-     * untouched, so every ladder was unaffected and every one of the twelve lessons ended on
-     * `APP_LESSON_…_DONE` printed in the tutor's mouth.
-     *
-     * Waits for one of the three the opening match can close on rather than asserting a single one,
-     * because [MatchAiOptions.TUTOR] plays to lose but the player is played by [playOut] and can
-     * still draw. Either half of the bug fails it: the sentence never arrives, or the key does.
-     */
     @Test
     fun aLessonClosesOnASentenceAndNotOnItsKey() = runComposeUiTest {
         val strings = runBlocking { loadStrings(AppLocale.EN_US) }
@@ -237,13 +156,6 @@ class TutorialUiTest {
         assertFalse(isVisible("APP_LESSON"), "the tutor read out a string key")
     }
 
-    /**
-     * The last lesson is the one that leads to the rule book — the original's own ending, moved.
-     *
-     * Played by walking the course rather than by jumping to the end: what is being asserted is
-     * that the sequence *terminates*, and a test that opened the last lesson directly could not
-     * tell the difference between a course of four and a course that loops.
-     */
     @Test
     fun theCourseEndsAtTheRuleBook() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -270,7 +182,6 @@ class TutorialUiTest {
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(HELP_LIST_TEST_TAG) }
     }
 
-    /** Creates a character and opens one lesson of the course, waiting for its board. */
     private fun ComposeUiTest.openLesson(lesson: Int = 0) {
         newCharacter()
         openLessons()
@@ -279,7 +190,6 @@ class TutorialUiTest {
     }
 
     private companion object {
-        /** `APP_TUTORIAL_1`, first clause — enough to identify, short enough to survive a wrap. */
         const val FIRST_LINE = "Triple Triad is played by placing cards"
     }
 }

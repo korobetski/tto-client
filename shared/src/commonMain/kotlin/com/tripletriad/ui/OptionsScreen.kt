@@ -29,60 +29,14 @@ import kotlinx.coroutines.launch
 const val OPTIONS_BACKGROUND_VOLUME_TEST_TAG: String = "options-background-volume"
 const val OPTIONS_NOISE_VOLUME_TEST_TAG: String = "options-noise-volume"
 
-/** The account group and the two steps of deleting one. See [DeleteAccountRow]. */
 const val OPTIONS_ACCOUNT_GROUP_TEST_TAG: String = "options-account-group"
 const val OPTIONS_DELETE_ACCOUNT_TEST_TAG: String = "options-delete-account"
 const val OPTIONS_DELETE_PASSWORD_TEST_TAG: String = "options-delete-password"
 const val OPTIONS_DELETE_CONFIRM_TEST_TAG: String = "options-delete-confirm"
 const val OPTIONS_DELETE_NOTE_TEST_TAG: String = "options-delete-note"
 
-/** `options-language-fr_FR` and so on, so a test can name the chip it means. */
 fun optionsLanguageTestTag(locale: AppLocale): String = "options-language-${locale.tag}"
 
-/**
- * The three settings `UserSettings.json` actually holds: language and the two volumes.
- *
- * Grouped under the AS3's own headings — `STR_GENERAL_SETTINGS` and `STR_AUDIO_SETTINGS`, which
- * `SettingsScreen.as` uses for the same split — so the four bundles already carry every label on
- * this screen except **Back** and the audio caveat.
- *
- * ### Changes apply and persist immediately
- *
- * There is no Save button, and `STR_SETTINGS_SAVED` (which exists in all four bundles) is not
- * used. `SettingsScreen.as` had one because Feathers gave it a form; on a phone, a settings pane
- * you can leave with the system Back gesture must not be able to lose what you just did. Picking a
- * language redraws this screen in it, which *is* the confirmation — a toast saying "saved" would
- * be telling the user something the screen already showed them.
- *
- * ### The caveat under the volumes is now only half true
- *
- * `APP_AUDIO_PENDING` — "saved, but nothing plays yet" — was written when nothing did. The Android
- * host installs a real `AndroidAudioPlayer` and the match has had music and effects since Phase 1;
- * the **desktop host still installs `SilentAudioPlayer`**, so the line is right there and wrong on
- * a phone. Left in place rather than deleted because which of the two to fix is a product call, not
- * a wording one.
- *
- * ### On the shell, like everything else
- *
- * [ScreenScaffold] provides the title and the back control, so this screen's back sits where every
- * other screen's does. The groups are cards rather than headings over bare rows — a settings pane
- * is a list of *groups*, and a group whose edge the eye cannot find is a heading pretending to be
- * one.
- *
- * ### Why deleting an account is on the settings screen and not next to Logout
- *
- * Logout is on the dashboard, where it is one tap from a player who meant to go home. That is right
- * for a sign-out, which costs a sign-in to undo, and wrong for a deletion, which costs everything
- * and cannot be undone. Settings is a screen somebody navigates to on purpose, which is the first
- * of the two gates; the second is typing the password.
- *
- * @param account the signed-in session, or null in local-profile mode. Null hides the account group
- *   entirely rather than disabling it: there is no account to act on, and a greyed-out **Delete
- *   account** invites the question of whose.
- * @param onDeleted called once the server has confirmed the account is gone, so the shell can leave
- *   a screen whose subject no longer exists. Not called for a refusal — the screen stays and says
- *   why, exactly as the sign-in form does.
- */
 @Composable
 internal fun OptionsScreen(
     settings: SettingsHolder,
@@ -139,31 +93,6 @@ internal fun OptionsScreen(
     }
 }
 
-/**
- * **Delete account**, and behind it the only gate that means anything: the password.
- *
- * ### Why this is not the `armed` two-tap the rest of the app uses
- *
- * `ProfileScreen` and `InventoryBody` both arm a button and let the second tap do the thing, and
- * that is right for what they delete — a local save file the player can make again, an item they
- * can buy again. Two taps in the same place is a *rhythm*, though, and rhythm is exactly what a
- * mis-tap has. It is the wrong gate for the one action in this app that nothing can undo.
- *
- * So the second step is not another tap: it is typing the password. That cannot be arrived at by
- * momentum, it is the same thing the **server** insists on — `AccountRoutes` will refuse without it
- * — and it is what makes "somebody picked up an unlocked phone" a different event from "the owner
- * asked to be forgotten".
- *
- * ### What the first tap does, and does not
- *
- * It reveals the paragraph and the field. Nothing is sent, nothing is armed, and tapping again
- * closes it and **clears the typed password**, so backing out leaves nothing behind for the next
- * person holding the phone.
- *
- * The confirm button stays disabled until something is typed. That is not validation — the server
- * decides whether the password is right — it is refusing to send a request that could only be
- * refused, on an endpoint deliberately rate-limited as a place where passwords get guessed.
- */
 @Composable
 private fun DeleteAccountRow(account: AccountSession, note: NoteHost, onDeleted: () -> Unit) {
     val strings = LocalStrings.current
@@ -235,12 +164,6 @@ private fun DeleteAccountRow(account: AccountSession, note: NoteHost, onDeleted:
     )
 }
 
-/**
- * A heading and the card under it.
- *
- * The heading stays outside the card: Material puts a group's label above its container, and a
- * label inside one reads as the first row of it.
- */
 @Composable
 private fun SettingsGroup(
     heading: String,
@@ -259,12 +182,6 @@ private fun SettingsGroup(
     }
 }
 
-/**
- * One chip per locale, labelled in the language it selects.
- *
- * `AppLocale.displayName` is the endonym — `Deutsch`, not `German` — so the list is readable to
- * someone who has landed in a language they cannot read and is looking for their own.
- */
 @Composable
 private fun LanguageChoice(settings: UserSettings, onPick: (AppLocale) -> Unit) {
     val selected = settings.locale

@@ -22,37 +22,14 @@ import com.tripletriad.model.Item
 import com.tripletriad.protocol.ItemEffect
 import kotlinx.coroutines.launch
 
-/** The tab bar of the store screen — what is for sale, and what has been bought. */
 const val STORE_TABS_TEST_TAG: String = "store-tabs"
 
-/** The two halves of the store screen, in the order they are shown. */
 internal enum class StoreTab {
-    /** The shelf, and the Buy button under it. */
     SHOP,
 
-    /** The bag, and what can be done with what is in it. */
     BAG,
 }
 
-/**
- * The shop and the bag, on one screen with two tabs.
- *
- * They are the two ends of one transaction — a pack is bought on the first tab and opened on the
- * second — and the original made that a trip through the dashboard, which is why its own shop ends
- * on a commented-out save: nothing about the flow encouraged looking at what you had just bought.
- * Buy, switch tab, open: the pack never leaves the screen.
- *
- * ### The two things this screen owns rather than its tabs
- *
- * - **Which offer is selected**, because the Buy button is in the app bar's bottom bar and not in
- *   the shelf. A button that commits has to be reachable without scrolling the list it commits
- *   from, and the snackbar that confirms the purchase is drawn above it — see [ScreenScaffold].
- * - **The unlocked-card reveal**, because [UnlockedCard] covers the whole screen and a tab is not
- *   one. [InventoryBody] reports the card upwards instead of drawing it.
- *
- * @param initial which tab to open on; the screen keeps its own selection from then on.
- * @param onUseItem consumes a bag item, threaded to [InventoryBody] — see there.
- */
 @Composable
 @Suppress("LongParameterList")
 internal fun StoreScreen(
@@ -185,16 +162,6 @@ internal fun StoreScreen(
     }
 }
 
-/**
- * What the shelf says after a Buy or a Claim — three answers where there used to be one.
- *
- * The snackbar is the only account this screen gives of a purchase, and it announced the item
- * unconditionally. So a refused purchase and a request that never left said the same thing as a
- * successful one, over a purse and a bag that had not changed. The bag's own version of this is
- * `sellNote`, and the split is the same one [IntentOutcome] draws.
- *
- * @param bought what the player asked for, named. Only used when they actually got it.
- */
 private fun boughtNote(strings: Strings, outcome: IntentOutcome, bought: String): String =
     when (outcome) {
         IntentOutcome.APPLIED -> strings.format(StringKeys.OBTAINED, bought)

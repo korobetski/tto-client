@@ -22,10 +22,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tripletriad.data.BoosterPricing
-import com.tripletriad.data.ShopCatalog
 import com.tripletriad.data.ShopOffer
 import com.tripletriad.data.StarterCatalog
-import com.tripletriad.data.StarterPack
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.Strings
@@ -38,27 +36,15 @@ import kotlin.math.roundToInt
 const val SHOP_LIST_TEST_TAG: String = "shop-list"
 const val SHOP_BUY_TEST_TAG: String = "shop-buy"
 
-/** The free starter pack, present only while the character is owed one. */
 const val SHOP_STARTER_TEST_TAG: String = "shop-starter"
 const val SHOP_STARTER_CLAIM_TEST_TAG: String = "shop-starter-claim"
 
-/** The purchase confirmation, which the original never gave: `//Save.save(…)` was commented out. */
 const val SHOP_NOTE_TEST_TAG: String = "shop-note"
 
-/** `shop-offer-<slug>` — the offer's item, since no item is on either shelf twice. */
 fun shopOfferTestTag(offer: ShopOffer): String = "shop-offer-${itemSlug(offer.item)}"
 
-/** `shop-odds-<slug>` — the guarantee-and-odds line, present only on a pack. */
 fun shopOddsTestTag(offer: ShopOffer): String = "shop-odds-${itemSlug(offer.item)}"
 
-/**
- * `One card 4★ or better, guaranteed · ★5 chance 63%`, or null for anything that is not a pack.
- *
- * Derived from the pool on every composition rather than authored per pack: a description that
- * said "one guaranteed three-star" would be a sentence somebody has to remember to change, and two
- * of the shipped pools cannot honour that claim anyway — Bronze's whole pool tops out at three
- * stars. See [com.tripletriad.data.BoosterPricing.guaranteedFloor].
- */
 @Composable
 private fun packTerms(strings: Strings, item: Item, cards: Map<Int, Card>): String? {
     val pack = (item as? BoosterItem)?.boosterType ?: return null
@@ -75,39 +61,6 @@ private fun packTerms(strings: Strings, item: Item, cards: Map<Int, Card>): Stri
     }
 }
 
-/**
- * What the shop sells — the original's `shopScreen`.
- *
- * Tap an offer to select it, then Buy. That is the original's arrangement, and Buy is enabled by
- * affordability exactly as `shopList_changeHandler` (`:152-155`) computed it.
- *
- * What is on the shelf is [ShopCatalog], transcribed from the two static tables; the prices,
- * the order and the asymmetry between the collections are all documented there rather than here.
- *
- * ### The original's two defects, both fixed in the data layer
- *
- * - `buyButton_triggeredHandler` **subtracts the price and then checks whether it could be paid**
- *   (`:144-146`), so a profile could be taken below its own means; the check only decided whether
- *   the button stayed lit. [ShopCatalog.buy] is one operation that either happens or does not.
- * - It ends on a commented-out `//Save.save(Game.PROFILE_DATAS)` (`:149`), so **a purchase was
- *   never written**: the MGP and the item were both gone on quit. Persisted here, through
- *   [ProfileSession] like every other mutation.
- *
- * The unaffordable rows are shown greyed rather than hidden, which is the original's behaviour and
- * the right one: a card costing a million MGP is a goal, and a shop that hid it would only ever
- * show what the player has already outgrown.
- *
- * ### The one thing on this shelf that is not for sale
- *
- * A character short of five fieldable cards cannot play, and therefore cannot earn the MGP that
- * every other row on this screen wants. [StarterPackPanel] is the way out of that, and the shop is
- * where it belongs: it is already the screen a player reaches for when they have nothing, and it
- * needs no new navigation to find. See [StarterPack] for the rule and for the defect that made it
- * necessary.
- *
- * @param onClaimStarter grants the pack. Null when nothing is owed, which is what hides the panel —
- *   a "free cards" banner over a full collection would be an offer that does nothing.
- */
 @Composable
 @Suppress("LongParameterList")
 internal fun ColumnScope.ShopBody(
@@ -143,20 +96,6 @@ internal fun ColumnScope.ShopBody(
     }
 }
 
-/**
- * The free pack, with the five cards it holds drawn rather than described.
- *
- * Above the shelf and outside the `LazyColumn`, so it is on screen without scrolling: a player who
- * cannot play is looking at a list of things they cannot buy, and the one row that would help them
- * must not be the one they have to find.
- *
- * The thumbnails are the point. This is the authored starter of the character's own set — see
- * [StarterCatalog] — so showing them is showing exactly what the button does, which is what a
- * sentence about "starter cards" cannot do for a player who has never seen the table.
- *
- * The **deck** is drawn rather than all ten cards: it is the five the pack is about, it is what the
- * character will be holding on its next match, and ten thumbnails would wrap on a phone.
- */
 @Composable
 private fun StarterPackPanel(
     starters: StarterCatalog,
@@ -310,8 +249,6 @@ private fun OfferRow(
     }
 }
 
-/** `isEnabled = false` in the original, which greyed the whole renderer. */
 private const val UNAFFORDABLE_ALPHA = DISABLED
 
-/** A chance is shown as a whole percentage; nobody reads a pack's odds to two decimals. */
 private const val PERCENT = 100

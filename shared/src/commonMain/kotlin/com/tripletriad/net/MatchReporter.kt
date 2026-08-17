@@ -1,71 +1,20 @@
 package com.tripletriad.net
 
-import com.tripletriad.data.SaveRepository
 import com.tripletriad.log.Log
-import com.tripletriad.model.GameSave
 import com.tripletriad.protocol.MatchSubmitter
 import com.tripletriad.protocol.MatchTranscript
 import com.tripletriad.protocol.MatchVerdict
 import com.tripletriad.protocol.PlayerState
 import com.tripletriad.protocol.SubmissionResult
 
-/**
- * What the UI calls when a match ends, and when a profile is opened.
- *
- * ### Why an interface with a do-nothing default
- *
- * Because a build with no server is a supported build, and it must not be a build that quietly
- * accumulates transcripts nobody will ever collect. [None] makes "there is no server" an explicit
- * choice at the host, rather than a `null` every call site has to remember to check — and it keeps
- * every preview, test and screenshot free of storage writes they never asked for.
- *
- * ### Why it takes a profile key and not a [GameSave]
- *
- * Because [forget] has to work on the deletion path, where the profile is named by key and the save
- * may no longer be readable at all — a corrupt profile can be deleted, and its queue has to go with
- * it. A save-shaped interface would have made the one case that most needs cleaning up the one case
- * it could not express. Callers derive the key with [SaveRepository.keyFor].
- */
 interface MatchReporter {
 
-    /**
-     * Records a finished match for later judgement.
-     *
-     * Deliberately does **not** submit. A player who has just won is looking at a result screen,
-     * and a network round trip on that path is a spinner between them and it. The transcript is
-     * durable the moment this returns, and [drain] delivers it.
-     */
     suspend fun report(profileKey: String, transcript: MatchTranscript)
 
-    /**
-     * Submits whatever is waiting for [profileKey]. Safe to call when nothing is.
-     *
-     * @return the profile the server wrote while crediting, or null when it credited nothing —
-     *   nothing was queued, the server was unreachable, or every receipt was a duplicate or a
-     *   rejection. **The newest one only**, and that is not a shortcut: each receipt's profile
-     *   already includes every match credited before it, so applying them in turn would show the
-     *   player their progression flickering through states the server considers superseded.
-     *
-     * ### Why this is returned rather than delivered to a callback
-     *
-     * It used to be an `onCredited` lambda handed to the constructor, and **nothing ever passed
-     * one** — neither host did, so every profile the server credited was computed, sent, decoded
-     * and dropped. That was not an oversight so much as an impossibility: the reporter is built by
-     * the host, and the thing that has to adopt the profile is the [com.tripletriad.ui.AccountSession]
-     * that `App` creates afterwards. A return value can be used by whoever called; a constructor
-     * callback can only be used by whoever built.
-     */
     suspend fun drain(profileKey: String): PlayerState?
 
-    /** Forgets what is queued for [profileKey]. Called when the profile itself is deleted. */
     suspend fun forget(profileKey: String)
 
-    /**
-     * The reporter for a build with no server: matches are played and nothing is recorded.
-     *
-     * The default everywhere in `:shared`, so a preview or a UI test exercises the real screens
-     * without a queue, a store or a client.
-     */
     object None : MatchReporter {
         override suspend fun report(profileKey: String, transcript: MatchTranscript) = Unit
         override suspend fun drain(profileKey: String): PlayerState? = null
@@ -73,18 +22,6 @@ interface MatchReporter {
     }
 }
 
-/**
- * The real one: a durable queue in front of a submitter.
- *
- * The two are separate types because they fail differently and are testable apart —
- * [TranscriptQueue] is about surviving a process, [MatchSubmitter] about surviving a network — and
- * this is the small amount of glue that says when one calls the other.
- *
- * Nothing here throws. A match is already over by the time any of this runs, and neither a full
- * disk nor a dead server is worth taking the result screen down for; the failure is logged and the
- * transcript is either kept or lost, which the player finds out about through their progression
- * rather than through a stack trace.
- */
 class QueuedMatchReporter(
     private val queue: TranscriptQueue,
     private val submitter: MatchSubmitter,
@@ -101,14 +38,6 @@ class QueuedMatchReporter(
         }
     }
 
-    /**
-     * Drains, and hands the credited profile back.
-     *
-     * This is the function that used to log the verdicts and throw them away, because the server
-     * had nothing to credit them to. It now has: every accepted submission comes back with the
-     * profile the server wrote, and returning it is how that reaches the screen the player is
-     * looking at. A rejected or duplicate receipt carries no new profile and changes nothing here.
-     */
     @Suppress("TooGenericExceptionCaught")
     override suspend fun drain(profileKey: String): PlayerState? {
         val results = try {

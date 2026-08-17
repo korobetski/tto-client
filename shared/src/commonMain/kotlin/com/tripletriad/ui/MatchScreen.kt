@@ -68,121 +68,40 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
-/** Test tags for `shared/src/desktopTest`. */
 const val BOARD_TEST_TAG: String = "board"
 const val TURN_TEST_TAG: String = "turn"
 const val SCORE_TEST_TAG: String = "score"
 const val OUTCOME_TEST_TAG: String = "outcome"
 const val NEW_MATCH_TEST_TAG: String = "new-match"
 
-/** The active-rule strip above the board. Absent when no special rule is in force. */
 const val MATCH_RULES_TEST_TAG: String = "match-rules"
 
-/** `rule-help-RULE_REVERSE` — one per rule, and only while the strip is open. */
 fun ruleHelpTestTag(ruleKey: String): String = "rule-help-$ruleKey"
 
-/** The end-of-match panel. Its presence is the signal that the match is over and credited. */
 const val MATCH_RESULT_TEST_TAG: String = "match-result"
 
-/** The MGP and XP the finished match paid. */
 const val MATCH_PAYOUT_TEST_TAG: String = "match-payout"
 
-/** The control that leaves the board for the opponent list. */
 const val MATCH_DONE_TEST_TAG: String = "match-done"
 
-/** The chevron back to the main menu. */
 const val MATCH_EXIT_TEST_TAG: String = "match-exit"
 
-/** The opponent's name in the status bar. */
 const val MATCH_OPPONENT_TEST_TAG: String = "match-opponent"
 
-/** The turn timer's track. Always present; its fill is not. */
 const val TURN_TIMER_TEST_TAG: String = "turn-timer"
 
-/** The part of the track still running. Absent when it is not the player's turn. */
 const val TURN_TIMER_FILL_TEST_TAG: String = "turn-timer-fill"
 
-/**
- * `turn-blue` / `turn-red` — present only while that side is to move.
- *
- * A tag rather than the wording of [TURN_TEST_TAG], which is what the tests used to read. That
- * coupled every match test to `en_US`: the line says "blue to play" in English and "au bleu de
- * jouer" in French, so a test that wanted to know whose turn it was could only run in one language
- * — and the two tests that deliberately run in French and German had to avoid asking.
- */
 fun turnTestTag(player: CardColor): String = "turn-${player.name.lowercase()}"
 
-/** `tile-0` … `tile-8`, row-major, matching `Board.cells`. */
 fun tileTestTag(position: Int): String = "tile-$position"
 
-/** `tile-element-0` — the element drawn on a cell. Absent unless the Elemental rule is in force. */
 fun tileElementTestTag(position: Int): String = "tile-element-$position"
 
-/**
- * `tile-modifier-0` — the `+1` or `-1` an elemental cell is worth.
- *
- * Present on a cell holding a card, and on a free elemental cell while a card is in hand. See
- * [com.tripletriad.model.elementalModifier].
- */
 fun tileModifierTestTag(position: Int): String = "tile-modifier-$position"
 
-/**
- * `hand-blue-0` … `hand-blue-4`, by **slot** rather than card id.
- * Slots close up as cards are played, so slot 0 is always the first remaining card. That makes a
- * test able to say "play whatever is first" without knowing the deal. Slot numbering is independent
- * of how the slots are arranged on screen, so the same tag finds the same card in either
- * orientation.
- */
 fun handCardTestTag(owner: CardColor, slot: Int): String =
     "hand-${owner.name.lowercase()}-$slot"
-
-/**
- * A match against an opponent: the 3×3 board, both hands, and the opponent playing itself.
- *
- * All game logic lives below this file — the composable holds a `var state`, calls
- * `state.play(card, position)` for the player and `MatchAi.play(state)` for the opponent, and hands
- * the finished match to [MatchRewards]. Nothing here knows a rule. That separation is the point of
- * the port: the AS3 equivalent (`BaseMatchScreen` + `PVEMatchScreen`, 700 lines between them) *is*
- * the rules engine, the board, the score, the turn sequencer, the AI and the save writer at once.
- *
- * ### The opponent plays itself
- *
- * `BaseMatchScreen.opponentPhase()` is an empty stub with its body commented out and
- * `PVEMatchScreen` overrides it with `setTimeout(AI, 1000 + rand(4) * 1000)` — one to five seconds
- * of thinking time. That delay covered a `setTimeout` cascade of turn announcements, and now that
- * [MatchBanner] states how long each announcement takes, the cover is added up rather than guessed
- * at: the opponent waits for the captions the last placement earned, plus [OPPONENT_PAUSE_MS].
- *
- * ### Everything a match needs is a parameter
- *
- * The original reads the profile out of the global `Game.PROFILE_DATAS`, the opponent off a screen
- * property, and the clock off `new Date()`. All three arrive here instead, which is what lets a
- * test play a whole match against a chosen opponent with a pinned clock.
- *
- * @param profile the character playing. Read once, at assembly: the copy this screen holds is
- *   deliberately *not* updated as [onPersist] writes, because re-reading it mid-match would re-deal
- *   the hands.
- * @param onPersist writes the profile. Called at the start of the match — so abandoning it counts
- *   as a forfeit — and again once it is credited.
- * @param onTranscript hands the finished match to whoever submits it. Called **after** the credit
- *   and never in place of it: the reward is the player's and must not depend on a server being
- *   reachable. Defaults to doing nothing, which is what the many tests that only care about the
- *   game want. Not called at all when the match went to sudden death — see `suddenDeath` below.
- * @param turnLimit how long the player has to move before a card is played for them. The AS3's
- *   thirty seconds by default; a parameter so a test can reach the expiry without waiting for it.
- *   Overridden by [MatchScript.turnLimit] when there is a script.
- * @param script a match written in advance — see [MatchScript], [TutorialScreen] and
- *   [CampaignMatchScreen]. It can fix the deal, who starts, how the opponent plays and what is
- *   said, which is the whole of what the three AS3 subclasses of `PVEMatchScreen` override. Null
- *   for an ordinary match.
- * @param scriptExit what the end panel offers where an ordinary match offers Rematch, and **null
- *   for nothing at all** — the last rung of a ladder. A scripted match is never replayable in
- *   place: the script assumes the opening it forced, and re-running one would make it a repeatable
- *   source of MGP.
- * @param onResult how the match ended, once it has been credited and written. Exists for the
- *   tournament ladders, where the result decides which rung comes next; ignored by everything
- *   else, which reads the outcome off the state it already holds.
- */
 
 // `CyclomaticComplexMethod` is suppressed for one branch, added deliberately and worth the count:
 // the guard that refuses to draw a board when there is no seed to play it on. The alternative was
@@ -616,27 +535,6 @@ internal fun MatchScreen(
     }
 }
 
-/**
- * Hands the finished match over to be verified, unless it is one a transcript cannot describe.
- *
- * A function rather than four more lines inside the crediting effect, because `MatchScreen` is at
- * the cyclomatic complexity detekt allows and this is the branch that is genuinely separable: what
- * a transcript can express is a property of the *format*, and nothing above cares about it.
- *
- * @param unrepeatable suppresses the whole thing — a match the server could not replay even if it
- *   were honest. Two cases reach it.
- *
- *   **Sudden death.** [MatchTranscript] describes one nine-placement match — one seed, one deck,
- * one list of moves — with no way to say "and then the hands were regrouped and it was played
- * again". Submitting the first nine moves would be worse than submitting nothing: the server would
- * replay them, score the draw, and answer with a verdict contradicting the reward already credited
- * for the sudden-death result.
- *
- *   **A [MatchScript].** It forces the coin flip, fixes the deal and hands the opponent a different
- *   strategy, none of which the seed carries.
- * @param profile the profile as it was when the match began, so `ownedCards` describes the
- *   collection the deck was legal against rather than one a reward has since added to.
- */
 @Suppress("LongParameterList")
 private suspend fun reportTranscript(
     onTranscript: suspend (MatchTranscript) -> Unit,
@@ -663,14 +561,6 @@ private suspend fun reportTranscript(
     )
 }
 
-/**
- * Which of the player's cards may be played this turn — Order and Chaos.
- * Not `state.currentHand`: [MatchState.playableCards] narrows it to the first card under
- * `RULE_ORDER` and to one random card under `RULE_CHAOS`. The generator is derived from the
- * placement count rather than shared with the match, so Chaos picks the *same* card for the whole
- * of one turn — a fresh draw on every recomposition would move the playable card while the player
- * was reaching for it.
- */
 private fun playable(state: MatchState): List<Card> =
     if (state.currentPlayer != CardColor.BLUE) {
         emptyList()
@@ -678,18 +568,6 @@ private fun playable(state: MatchState): List<Card> =
         state.playableCards(Random(CHAOS_SEED + state.placement))
     }
 
-/**
- * Both halves of a placement's audio, for a match this client is running.
- *
- * The cascade is **launched rather than awaited**, and that is load-bearing: the opponent's effect
- * is keyed on the placement count, so the assignment that publishes its move cancels it, and
- * anything suspending after that point would never resume — the chain would simply go silent
- * whenever the AI was the one that made it. [scope] is the composition's, which outlives a
- * placement and dies with the screen.
- *
- * `PvpMatchScreen` needs no such care: its effect reacts to a view it does not itself assign, so it
- * can wait for the cascade in place.
- */
 private fun playMatchSounds(audio: AudioPlayer, scope: CoroutineScope, state: MatchState) {
     val captures = state.lastPlay?.captures.orEmpty()
 
@@ -703,13 +581,6 @@ private fun playMatchSounds(audio: AudioPlayer, scope: CoroutineScope, state: Ma
     }
 }
 
-/**
- * Score, whose turn it is, and a reset. One compact line so the board gets the rest.
- * The score is two numbers and a dash, with each number in its side's colour and no colour *word* —
- * it used to read "blue 5 — 5 red". Nothing in the AS3 bundles names a side, so those two words
- * would have been the only untranslatable text on screen, and the FFXIV board they are modelled on
- * shows the score without them too.
- */
 @Composable
 private fun StatusBar(
     state: MatchState,
@@ -735,23 +606,6 @@ private fun StatusBar(
     }
 }
 
-/**
- * How much of the turn is left, as `playerPanel`'s `ProgressBar` was.
- *
- * ### One bar, not two
- *
- * The original gives **both** players a timer and starts both (`BaseMatchScreen.as:377-387`) — but
- * only the blue one is listened to: `:93` attaches `TIME_UP_EVENT` to `bluePlayer` and to nothing
- * else, so red's bar runs down and expiring does nothing. Red is driven by `opponentPhase` instead,
- * which in this port answers in [OPPONENT_PAUSE_MS] and could never reach thirty seconds anyway. A
- * bar that cannot expire is decoration, so there is one.
- * It goes under the status line rather than over the hand, which is where `playerPanel` put it: the
- * hand here is sized to the cards by [MatchLayout], and a bar inside it would either shrink them or
- * be drawn across them.
- *
- * @param fraction 1f at the start of the turn, 0f when it is up. Null while it is not the player's
- *   turn, which is when the original calls `razTimer()`.
- */
 @Composable
 private fun TurnTimerBar(fraction: Float?) {
     Box(
@@ -862,7 +716,6 @@ private fun StatusRow(
     }
 }
 
-/** `5 — 5`, each half in its owner's colour. */
 @Composable
 private fun Score(state: MatchState) {
     val score = state.score
@@ -879,19 +732,6 @@ private fun Score(state: MatchState) {
     )
 }
 
-/**
- * Whose turn it is, what is selected, or the result once the board is full.
- *
- * The outcome is phrased from **blue's** side — `You win !` / `You lose...` — because that is what
- * the bundles offer and it matches the original, where the local player is always the blue one
- * (`data-flow.md`, `openPhase`). When there is an AI or a second player this needs revisiting; a
- * neutral "red wins" has no key in any of the four locales.
- *
- * A lesson replaces that sentence with its own, for the reason [MatchScript.outcomeTitle] gives.
- * Both places or neither: the panel naming itself "Lesson complete" while the line behind it still
- * read "You win !" left the congratulation on screen with a second one over the top of it, which
- * is the state `aLessonEndsByNamingItselfRatherThanClaimingAVictory` was written against.
- */
 @Composable
 private fun TurnLine(state: MatchState, selected: Card?, outcomeTitle: String?) {
     val strings = LocalStrings.current
@@ -934,34 +774,11 @@ private fun TurnLine(state: MatchState, selected: Card?, outcomeTitle: String?) 
     )
 }
 
-/**
- * Whether the player may put [card] on [position] right now.
- *
- * The one guard behind both ways of playing a card — tapping a cell with one selected, and dropping
- * one onto it. They check the same three things, and a pair like that is exactly what drifts apart:
- * the drag would have been the one that forgot `RULE_ORDER`.
- */
 private fun canPlay(state: MatchState, card: Card, position: Int): Boolean =
     state.currentPlayer == CardColor.BLUE &&
         state.board.isEmpty(position) &&
         card in playable(state)
 
-/**
- * Counts the player's turn down, and reports how much of it is left.
- *
- * `playerPanel`'s thirty-second limit, re-armed on every turn: `setTimer()` on the side to move and
- * `razTimer()` on the other (`BaseMatchScreen.as:377-387`). Its own composable rather than an
- * effect inside the match, because the loop and its three guards are the sort of thing that makes a
- * screen function too complex to read — which is what detekt said when they were.
- *
- * @param key restarts the whole clock. The match, so a rematch gets a fresh one.
- * @param running whether the match has actually begun — false while the pre-match announcements
- *   are still playing. The original arms the timer in `nextTurn`, after the whole cascade, so a
- *   turn does not start counting down behind the Start banner.
- * @param onExpired the turn ran out. Called once, from the effect's own coroutine.
- * @return 1f at the start of the turn falling to 0f, or **null** when the clock is not running —
- *   the opponent's turn, or a finished match.
- */
 @Composable
 private fun turnClock(
     key: Any,
@@ -987,15 +804,6 @@ private fun turnClock(
     return (remaining / limit).toFloat().takeIf { counting }
 }
 
-/**
- * A card and a cell chosen at random, for a turn that ran out of time.
- *
- * `BaseMatchScreen.autoPlay` (`:422-437`), and its randomness is the point: the penalty for letting
- * the clock run out is a move you did not choose. Under `RULE_ORDER` it takes `remainingCards[0]`
- * instead, which [playable] already narrows to — so the rule is honoured without being named here.
- * Null when the board is full or the hand is empty, which the caller cannot reach: [turnClock] does
- * not run once the match is finished.
- */
 private fun autoPlay(state: MatchState, random: Random): Pair<Card, Int>? {
     val cards = playable(state)
     val free = (0 until Board.SIZE).filter { state.board.isEmpty(it) }
@@ -1006,82 +814,27 @@ private fun autoPlay(state: MatchState, random: Random): Pair<Card, Int>? {
     }
 }
 
-/**
- * The opponent's thinking time, **on top of** whatever captions are still playing.
- *
- * `PVEMatchScreen` waits `1000 + rand(4) * 1000` before the AI moves, and that range is
- * not thinking time — it is cover for the `setTimeout` cascade that was announcing the
- * turn and the captures. Now that the captions state their own durations, the cover can be
- * computed instead of guessed at: the caller adds up [MatchBanner.totalMillis] for
- * everything the placement earned and this is what is left, the pause that would exist
- * even if nothing were on screen.
- *
- * Short, because it is now additive. A red turn costs this plus the 1.2s [MatchBanner.RED_TURN]
- * takes, which lands inside the original's own range without any of its randomness.
- */
 private const val OPPONENT_PAUSE_MS = 700L
 
-/**
- * How long the finished board is left uncovered before the outcome panel arrives.
- *
- * **On top of** the last placement's own captions, for the same reason [OPPONENT_PAUSE_MS] is on
- * top of them: what is being waited for is the moment *after* the animation, not the animation.
- *
- * The AS3 has no equivalent — `endGame` opens `rematch` behind a fixed `intervalDuration` with the
- * captions still running, so the panel and the flips overlap. That reads as a panel interrupting
- * the board, and in a lesson it means the one placement the whole lesson is about is covered
- * before it can be looked at. Longer than [OPPONENT_PAUSE_MS] because nothing is waiting on it:
- * the match is over, the profile is already credited, and the only thing this delays is a control.
- */
 private const val OUTCOME_PAUSE_MS = 1_400L
 
-/**
- * `playerPanel._timer = 30` — the turn limit, and the AS3's own default.
- *
- * `TutorialScreen.as:58` raises it to 60 for its lesson and `PVPScreen.as:277` sets it back to 30
- * for a network match, so 30 is what a PvE match plays under.
- */
 private val DEFAULT_TURN_LIMIT = 30.seconds
 
-/** How often the bar is redrawn. Fine enough to look continuous, coarse enough to be cheap. */
 private val TIMER_TICK = 100.milliseconds
 
-/** Below this the bar turns red. */
 private const val TIMER_URGENT = 0.25f
 
-/** The unfilled part of the track. */
 private const val TIMER_TRACK_ALPHA = 0.4f
 
-/**
- * Seeds the per-turn generator that Chaos draws its card from.
- *
- * Derived from the placement count rather than taken from the match's own generator, so the same
- * card stays playable for the whole of one turn: `playableCards` draws on every call, and a call
- * per recomposition would move the target while the player reached for it.
- */
 private const val CHAOS_SEED = 20260802
 
-/** Thin enough to read as a rule under the status line rather than as a control. */
 private val TurnTimerHeight = 3.dp
 private val TurnTimerShape = RoundedCornerShape(2.dp)
 
-/** The back control's own footprint: a 48 dp `IconButton` would own a fifth of the banner. */
 private val ExitButtonSize = 34.dp
 
-/** Smaller than the opponent list's 50 px plate — a face, not a portrait. */
 private val BannerPortraitSize = 26.dp
 
-/**
- * This visibility after [played]'s most recent placement, if it was the opponent's.
- *
- * The opponent's hand closes up when it plays, so every revealed position behind the played one
- * moves down one. [HandVisibility] is indexed by position and cannot re-index itself; skip this and
- * the Open rule goes on showing the right *number* of cards and the wrong ones, which is the
- * failure hardest to notice. See `PlayResult.handIndex`.
- *
- * A function rather than three lines in the effect because [MatchScreen] sits at the cyclomatic
- * complexity detekt allows, and a branch is what this is.
- */
 private fun HandVisibility.reindexedFor(played: MatchState): HandVisibility =
     played.lastPlay
         ?.takeIf { it.player == CardColor.RED }

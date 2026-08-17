@@ -4,13 +4,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * [Sound] and the two players that need no platform.
- *
- * What is *not* covered, anywhere: `AndroidAudioPlayer`. Nothing in a unit test can hear a sound,
- * `SoundPool` and `MediaPlayer` are unavailable off-device, and a mock of them would assert that
- * the mock was called. It was verified by hand on a device instead, and the README says so.
- */
 class SoundTest {
     @Test
     fun exactlyOneSoundIsMusicAndTheRestAreEffects() {
@@ -22,7 +15,6 @@ class SoundTest {
         assertTrue(Sound.effects.none { it.music })
     }
 
-    /** The ids are AS3 asset keys; a typo here plays nothing at all, quietly. */
     @Test
     fun everySoundNamesADistinctAs3Id() {
         val files = Sound.entries.map { it.file }
@@ -34,7 +26,6 @@ class SoundTest {
         )
     }
 
-    /** `SoundManager.progressHandler` restarted the track at this position. */
     @Test
     fun theMusicLoopsAfterTheIntro() {
         assertEquals(16_374, MUSIC_LOOP_START_MS)

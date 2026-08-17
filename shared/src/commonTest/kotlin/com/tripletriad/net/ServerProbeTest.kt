@@ -25,17 +25,6 @@ import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * Asking a server what it is.
- *
- * The value of this class is entirely in the *distinctions* it draws, so that is what is tested:
- * every case below is one a boolean "online" would have collapsed into another, and each collapse
- * would give the player the wrong advice — telling somebody whose build is three majors behind to
- * check their wifi, or telling somebody behind a captive portal that the game is down.
- *
- * The other guarantee is that none of it throws. A probe runs behind a screen the player may leave
- * at any moment and must not be able to take anything with it.
- */
 class ServerProbeTest {
 
     @Test
@@ -47,7 +36,6 @@ class ServerProbeTest {
         assertTrue(online.isUsable)
     }
 
-    /** The round trip, which is what a player choosing between two servers is actually after. */
     @Test
     fun theRoundTripIsMeasured() = runTest {
         var reading = 0L
@@ -59,12 +47,6 @@ class ServerProbeTest {
         assertEquals(ELAPSED, probe.probe(BASE_URL).latency)
     }
 
-    /**
-     * A server that answers and says its database is down is not a server that is unreachable.
-     *
-     * The advice differs: this one is worth trying again in a minute, and signing in will not work
-     * in the meantime. `Unreachable` means check the network, which would be wrong here.
-     */
     @Test
     fun aServerWithNoDatabaseIsDegradedAndNotUnreachable() = runTest {
         val status = probeAnswering(HttpStatusCode.OK, encode(healthy.copy(ready = false)))
@@ -74,7 +56,6 @@ class ServerProbeTest {
         assertFalse(degraded.isUsable)
     }
 
-    /** The state the whole endpoint exists to make expressible. */
     @Test
     fun aServerThatWillNotServeThisBuildIsOutdated() = runTest {
         val demanding = healthy.copy(minimumClient = AppVersion(CURRENT_VERSION.major + 1, 0, 0))
@@ -105,12 +86,6 @@ class ServerProbeTest {
         assertIs<ServerStatus.Unusable>(status)
     }
 
-    /**
-     * A captive portal: a 200, with something that is not this game on the other end.
-     *
-     * Distinguished from [ServerStatus.Unreachable] because "there is something there and it is not
-     * the game" is a different problem from "there is nothing there", and the fix differs too.
-     */
     @Test
     fun aTwoHundredThatIsNotAServerInfoIsUnusable() = runTest {
         val status = probeAnswering(HttpStatusCode.OK, """{"welcome":"free airport wifi"}""")
@@ -118,12 +93,6 @@ class ServerProbeTest {
         assertIs<ServerStatus.Unusable>(status)
     }
 
-    /**
-     * A server so new that this build cannot read its body still gets the right verdict.
-     *
-     * The header is the one field that cannot stop being readable, which is the whole reason it
-     * exists — so a body this build cannot decode falls back to it rather than to a shrug.
-     */
     @Test
     fun aServerTooNewToDecodeIsStillKnownToBeTooNew() = runTest {
         val theirs = AppVersion(CURRENT_VERSION.major + 1, 0, 0)
@@ -145,7 +114,6 @@ class ServerProbeTest {
         assertEquals(theirs, outdated.info.version)
     }
 
-    /** And without the header there is nothing to conclude but that it is not usable. */
     @Test
     fun anUnreadableBodyWithNoHeaderIsMerelyUnusable() = runTest {
         assertIs<ServerStatus.Unusable>(probeAnswering(HttpStatusCode.OK, "not json at all"))
@@ -174,7 +142,6 @@ class ServerProbeTest {
 
     // ---- The download offered ----------------------------------------------
 
-    /** An Android player sent to a desktop installer is worse off than one told only to update. */
     @Test
     fun onlyThisPlatformsDownloadIsOffered() {
         val published = healthy.copy(
@@ -227,7 +194,6 @@ class ServerProbeTest {
     private companion object {
         const val BASE_URL = "http://127.0.0.1:8080"
 
-        /** Any non-zero reading. The probe reports a difference, not a benchmark. */
         const val ELAPSED = 42L
     }
 }

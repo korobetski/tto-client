@@ -10,15 +10,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-/**
- * [UserSettings] and [UserSettingsRepository] against an [InMemorySettingsStore], so this runs on
- * every target and needs no filesystem.
- *
- * The platform stores are not covered here and are not covered anywhere: they are twenty lines of
- * `File` calls each, they live in the host modules, and testing them would mean testing
- * `java.io.File`. What *is* worth pinning is the on-disk **shape**, because an existing
- * `UserSettings.json` written by the AS3 build has to keep working.
- */
 class UserSettingsTest {
     @Test
     fun firstRunWritesAFileSeededFromTheDeviceLanguage() = runTest {
@@ -45,10 +36,6 @@ class UserSettingsTest {
         assertEquals(writesAfterFirstRun, store.writes, "nothing changed, so nothing was written")
     }
 
-    /**
-     * A real `UserSettings.json` as the AS3 build writes it: `JSON.stringify` of the `DATAS`
-     * object, so compact, unordered, and with integral volumes that are `Number`s.
-     */
     @Test
     fun aFileWrittenByTheAs3BuildStillParses() = runTest {
         val store = InMemorySettingsStore(
@@ -62,7 +49,6 @@ class UserSettingsTest {
         assertEquals(1f, settings.noiseVolume)
     }
 
-    /** The keys are the AS3's, so a rename cannot happen quietly. */
     @Test
     fun theFileKeepsTheAs3KeyNames() = runTest {
         val store = InMemorySettingsStore()
@@ -77,10 +63,6 @@ class UserSettingsTest {
         assertTrue(written.contains("\"ja_JA\""))
     }
 
-    /**
-     * `DATAS` in the AS3 is a bare object anything can be assigned to, so a file in the wild may
-     * hold keys this build has never heard of. They must not stop it parsing.
-     */
     @Test
     fun unknownKeysDoNotBreakParsing() = runTest {
         val store = InMemorySettingsStore(
@@ -90,10 +72,6 @@ class UserSettingsTest {
         assertEquals(AppLocale.FR_FR, UserSettingsRepository(store).load(AppLocale.EN_US).locale)
     }
 
-    /**
-     * A corrupt file is repaired, not fatal. `conf.as` would have thrown out of `JSON.parse` and
-     * taken the launch with it; there is nothing in this file worth failing to start over.
-     */
     @Test
     fun aCorruptFileIsReplacedRatherThanThrown() = runTest {
         val store = InMemorySettingsStore("{ this is not json")
@@ -120,7 +98,6 @@ class UserSettingsTest {
         assertEquals(AppLocale.Default, UserSettingsRepository(store).load(AppLocale.FR_FR).locale)
     }
 
-    /** A device tag that is not one of the four still resolves, because `match` is lenient. */
     @Test
     fun aRegionalVariantInTheFileStillResolves() = runTest {
         val store = InMemorySettingsStore("""{"language":"fr-CA"}""")
@@ -140,10 +117,6 @@ class UserSettingsTest {
         assertEquals(0f, settings.noiseVolume)
     }
 
-    /**
-     * The three swallowed failures are the reason [Log] exists. Repairing a settings file
-     * silently is how a file that is rewritten on every single launch goes unnoticed.
-     */
     @Test
     fun aRepairedFileSaysSoInTheLog() = runTest {
         val sink = RecordingSink()
@@ -179,7 +152,6 @@ class UserSettingsTest {
     }
 
     private companion object {
-        /** `conf.as:25-26` and `conf.as:33`. */
         val AS3_KEYS = listOf("language", "background_volume", "noise_volume")
     }
 }

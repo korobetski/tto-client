@@ -2,68 +2,15 @@ package com.tripletriad.storage
 
 import kotlin.random.Random
 
-/**
- * Thrown when a save file cannot be read back — wrong magic, odd hex, or a failed checksum.
- *
- * A distinct type rather than [IllegalArgumentException] so a caller can tell "this file is not one
- * of ours / is damaged" apart from a programming error, and can offer the user something better
- * than a stack trace.
- */
 class SaveCorruptException(message: String) : Exception(message)
 
-/**
- * Turns save JSON into an opaque blob, and back.
- *
- * ### What this is, and what it is not
- *
- * It is **obfuscation**, not encryption, and the distinction is worth being blunt about: the key is
- * a constant in this file, so it ships with every copy of the app and anyone who wants the
- * plaintext can have it. That is not a shortcoming of this implementation — it is inherent to
- * client-side save protection, and it was equally true of the original, whose AES key was the pixel
- * data of an embedded GIF (`utils/CryptoHelper.as` + `assets/tto_key.gif`). The purpose is to stop
- * a save being edited in Notepad, and it does that.
- *
- * ### Not compatible with AS3 `.sav` files
- *
- * The original wrote `Hex.fromArray(AESKey(pixels).encrypt(bytes))`. Reproducing it would mean
- * decoding a GIF to get 31×31 ARGB pixels — 3844 bytes handed to a cipher that takes 16, 24 or 32 —
- * and matching whatever `com.hurlant.crypto`'s raw-block behaviour did with the remainder, with no
- * `.sav` file in the repository to validate against. So the wire format is **new**, and legacy
- * files are not read. What is preserved is what was asked for: the save *contents*
- * ([com.tripletriad.model.GameSave] is field-for-field `Save.DATAS`) and the fact that a save on
- * disk is not human-readable.
- *
- * ### Format
- *
- * ```
- * TTO1<salt:8 hex><body:2 hex per byte>
- * body = (checksum:4 bytes big-endian ++ utf8(json)) xor keystream(salt)
- * ```
- *
- * - **Hex, not Base64.** `CryptoHelper` produced hex and the `.sav` files were hex text, so this
- *   keeps a save recognisably the same kind of artefact. It also avoids
- *   `kotlin.io.encoding.Base64`, which would need an opt-in. A save is a few kilobytes; the 2×
- *   is irrelevant.
- * - **Per-file salt**, so two profiles with similar contents do not produce visibly similar files —
- *   which a fixed keystream would, and which is the one thing that makes XOR obfuscation trivially
- *   readable by eye.
- * - **Checksum before the payload**, verified after deobfuscating, so a truncated or hand-edited
- *   file is reported as [SaveCorruptException] instead of being handed to the JSON parser as
- *   garbage. It is FNV-1a: a corruption detector, not a MAC. Someone who knows the format can
- *   recompute it.
- */
 object SaveCodec {
-    /** Marks the format and its version. Bump the digit if the layout below ever changes. */
     const val MAGIC: String = "TTO1"
 
     private const val SALT_HEX_LENGTH = INT_BYTES * 2
     private const val HEADER_LENGTH = MAGIC_LENGTH + SALT_HEX_LENGTH
     private const val CHECKSUM_BYTES = INT_BYTES
 
-    /**
-     * Mixed into the keystream seed alongside the per-file salt, so the salt alone is not the whole
-     * key. A constant in the binary, and openly so — see the class comment.
-     */
     private const val KEY: Int = 0x54_54_4F_21 // "TTO!"
 
     private const val FNV_OFFSET_BASIS: Int = -0x7EE3623B // 0x811C9DC5
@@ -75,13 +22,6 @@ object SaveCodec {
     private const val SHIFT_B = 17
     private const val SHIFT_C = 5
 
-    /**
-     * Obfuscates [json].
-     *
-     * @param random source of the per-file salt. A parameter, not a global, so a test can pin the
-     *   exact bytes a given input produces — the same reason [com.tripletriad.model.MatchState]
-     *   takes one.
-     */
     fun encode(json: String, random: Random = Random.Default): String {
         val salt = nonZeroSalt(random)
         val plain = json.encodeToByteArray()
@@ -92,11 +32,6 @@ object SaveCodec {
         return MAGIC + salt.toHex() + payload.toHex()
     }
 
-    /**
-     * Reverses [encode].
-     *
-     * @throws SaveCorruptException if [blob] is not a save of this format, or has been damaged.
-     */
     fun decode(blob: String): String {
         val text = blob.trim()
         ensureIntact(text.startsWith(MAGIC)) { "not a $MAGIC save file" }
@@ -118,15 +53,6 @@ object SaveCodec {
         return plain.decodeToString()
     }
 
-    /**
-     * XORs [bytes] in place with the keystream for [salt]. Its own inverse, which is why one
-     * function serves both directions.
-     *
-     * xorshift32 rather than a library PRNG: [Random] gives no guarantee that a given seed
-     * yields the same sequence across Kotlin versions or platforms, and a save written by the
-     * Android build must be readable by the desktop build in five years. Ten lines of arithmetic
-     * that cannot change is the right trade; the quality of the stream is irrelevant here.
-     */
     private fun applyKeystream(bytes: ByteArray, salt: Int) {
         // Seeded from salt xor KEY, forced non-zero: xorshift is stuck at 0 forever.
         var state = (salt xor KEY).let { if (it == 0) 1 else it }
@@ -138,7 +64,6 @@ object SaveCodec {
         }
     }
 
-    /** FNV-1a, 32-bit. Chosen for being short enough to read and verify by eye. */
     private fun fnv1a(bytes: ByteArray): Int {
         var hash = FNV_OFFSET_BASIS
         for (byte in bytes) {
@@ -147,7 +72,6 @@ object SaveCodec {
         return hash
     }
 
-    /** A salt that is never 0, so [applyKeystream]'s guard is never the thing that saves us. */
     private fun nonZeroSalt(random: Random): Int {
         val salt = random.nextInt()
         return if (salt == 0) 1 else salt
@@ -170,7 +94,6 @@ private const val BITS_PER_NIBBLE = 4
 private const val BITS_PER_BYTE = 8
 private const val HEX_DIGITS = "0123456789abcdef"
 
-/** Raises [SaveCorruptException] unless [intact]. The single throw site for a damaged file. */
 private inline fun ensureIntact(intact: Boolean, message: () -> String) {
     if (!intact) throw SaveCorruptException(message())
 }

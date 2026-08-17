@@ -21,14 +21,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * The opponent list, and what a finished match writes back.
- *
- * The **hour** is what makes this worth a file of its own: 27 of the 60 `ff14` opponents declare an
- * availability window and thirteen of those wrap midnight, so which opponents exist depends on the
- * clock. That is the only thing in the app that reads one, and pinning it is the only way to test
- * it.
- */
 @OptIn(ExperimentalTestApi::class)
 class OpponentUiTest {
     private val catalog = runBlocking { loadNpcCatalog() }
@@ -36,18 +28,6 @@ class OpponentUiTest {
     private fun stored(documents: InMemoryDocumentStore): GameSave =
         runBlocking { SaveRepository(documents).list().single().save }
 
-    /**
-     * Opponents are listed easiest first — `NPCs.as:1141` sorts difficulty, fee, then name.
-     *
-     * Asserted as the **ordering**, not as a named opponent at the top. It used to name
-     * `tt-master`, which held while the FFXIV table's hand-authored difficulties ran 1..19 and
-     * almost every value was unique. `NpcRating` measures difficulty onto a ten-point scale, so a
-     * band now holds several opponents and which of them sorts first is decided by name — a fact
-     * about the alphabet, not about the list being sorted.
-     *
-     * The property that matters survives the change and is what is checked: no opponent is ever
-     * listed before an easier one.
-     */
     @Test
     fun opponentsAreListedEasiestFirst() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -70,17 +50,6 @@ class OpponentUiTest {
         )
     }
 
-    /**
-     * A row shows the cards the opponent can be won from, before the match is entered.
-     *
-     * The AS3 lists an opponent's fee and difficulty and says nothing about what beating them
-     * yields, so a player picks an opponent without the one fact that would make the choice
-     * interesting. `Npc.cards` is the drop table and was always in the data.
-     *
-     * Asserted against the catalogue rather than a fixed id: which opponent heads the list is a
-     * property of the shipped table, and a test naming a card would break when the table is
-     * reauthored for something unrelated.
-     */
     @Test
     fun aRowShowsTheCardsAnOpponentCanGiveUp() = runComposeUiTest {
         // `itemRewards`, not `cards`: the first is the drop table, the second is the pool the
@@ -101,7 +70,6 @@ class OpponentUiTest {
         onNodeWithTag(opponentRewardsTestTag(drops.iconId), useUnmergedTree = true).assertExists()
     }
 
-    /** And an opponent with an empty drop table shows no row of cards at all. */
     @Test
     fun anOpponentWithNoDropsShowsNoCards() = runComposeUiTest {
         val barren = catalog
@@ -123,7 +91,6 @@ class OpponentUiTest {
             .assertDoesNotExist()
     }
 
-    /** A row states the rules the opponent imposes, before the player commits to the match. */
     @Test
     fun aRowNamesTheRulesTheOpponentImposes() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -135,19 +102,6 @@ class OpponentUiTest {
         assertTrue(isVisible("Match Fee"), "the row should state the fee")
     }
 
-    /**
-     * An opponent available only in the evening is absent at noon and present at 18:00.
-     *
-     * `linu-vali` declares `{begins: 17, ends: 23}`.
-     *
-     * ### Why this scrolls instead of looking the row up
-     *
-     * The list is a `LazyColumn`, so **only composed rows have semantics nodes at all** — an
-     * opponent ranked past the first screenful has no node whatever the hour, and
-     * `assertDoesNotExist` on it would pass for the wrong reason. `performScrollToNode` scans the
-     * lazy list's whole item set, so it succeeds exactly when the row exists and throws when it
-     * does not; that makes it the only assertion here that means what it says in both directions.
-     */
     @Test
     fun anEveningOpponentIsAbsentAtNoon() = runComposeUiTest {
         // Seeded above the level gate, because the fixture is a difficulty-4 opponent and a
@@ -189,13 +143,6 @@ class OpponentUiTest {
         onNodeWithTag(opponentRowTestTag(EVENING_OPPONENT)).assertExists()
     }
 
-    /**
-     * The two hours really do differ, and by the number the data says.
-     *
-     * Asserted on the catalog rather than on the screen: a count is not something a lazy list can
-     * be asked for, and the point of the two tests above is the *screen* honouring a filter whose
-     * arithmetic is `NpcCatalogTest`'s business.
-     */
     @Test
     fun theEveningListIsLongerThanTheNoonOne() {
         val atNoon = catalog.available(FF14_FORMAT, NOON, ANY_LEVEL).map { it.iconId }
@@ -211,13 +158,6 @@ class OpponentUiTest {
 
     // ---- What a finished match writes ------------------------------------
 
-    /**
-     * The whole point of the phase: **a played match reaches the file.**
-     *
-     * Asserted on the decoded `.sav` rather than on the screen, and on four independent fields —
-     * `ENDED_MATCHES`, the win/draw/loss counters, `MGP` and `SAVE_NUMBER`. A screen that showed a
-     * payout it never persisted would pass a test that only read the panel.
-     */
     @Test
     fun aFinishedMatchIsWrittenToTheProfile() = runComposeUiTest {
         val documents = InMemoryDocumentStore()
@@ -237,14 +177,6 @@ class OpponentUiTest {
         assertTrue(save.saveNumber >= 2, "created once, then written again: ${save.saveNumber}")
     }
 
-    /**
-     * A match *begun* is recorded before it ends, which is what makes `STATS.FORFEITS` mean
-     * anything.
-     *
-     * The AS3 increments `STARTED_MATCHES` when the match is launched (`PVEScreen.as:244`) but only
-     * ever saves in `endGame`, so an abandoned match loses the increment and forfeits can never be
-     * anything but zero. Persisting at the start is the deliberate fix — see `MatchScreen`.
-     */
     @Test
     fun abandoningAMatchCountsAsAForfeit() = runComposeUiTest {
         val documents = InMemoryDocumentStore()
@@ -262,7 +194,6 @@ class OpponentUiTest {
         assertEquals(1, save.pveMatches, "and it was a match against an opponent")
     }
 
-    /** Two matches accumulate rather than overwriting each other. */
     @Test
     fun aSecondMatchAddsToTheProfile() = runComposeUiTest {
         val documents = InMemoryDocumentStore()
@@ -288,14 +219,6 @@ class OpponentUiTest {
         )
     }
 
-    /**
-     * A new character is not shown the whole sixty-strong table, and is told so.
-     *
-     * `NpcCatalog.available` is where the arithmetic is tested; this is the screen honouring it —
-     * the footnote appears at level 1 and the difficulty-4 opponent does not, and levelling to 3
-     * produces them. Both halves matter: a filter with no explanation is a short list, and an
-     * explanation with no filter is a lie.
-     */
     @Test
     fun theOpponentListIsHeldBackByTheCharactersLevel() = runComposeUiTest {
         setContent {
@@ -343,23 +266,9 @@ class OpponentUiTest {
         onNodeWithTag(opponentRowTestTag(EVENING_OPPONENT)).assertExists()
     }
 
-    /**
-     * A character past the level gate, so a test about the *hour* is not also about the level.
-     *
-     * The level is **derived** from the opponent it has to reach, not written down. `NpcRating`
-     * measures difficulty from the shipped cards and rules, so an opponent's number moves when its
-     * hand or its rules are edited — and a hard-coded level would then be testing whether somebody
-     * remembered to update this file. `NpcCatalog.available` opens difficulties up to
-     * `level + LEVEL_REACH`, so the level that just reaches it is its difficulty less one.
-     *
-     * Seeded as **XP**, not as a level: `GameSave.sane()` recomputes the level from the experience
-     * on every load and every write, so a `copy(level = 3)` would be normalised straight back to 1
-     * before the screen ever saw it.
-     */
     private fun veteran(): GameSave =
         GameSave.new(createdAt = 0L).copy(xp = XpTable.thresholdFor(eveningOpponent.difficulty - 1))
 
-    /** The opponent with an evening window, read from the catalogue for its difficulty. */
     private val eveningOpponent: Npc
         get() = requireNotNull(catalog.byIcon(EVENING_OPPONENT, FF14_FORMAT)) {
             "$EVENING_OPPONENT is not in the roster"
@@ -369,7 +278,6 @@ class OpponentUiTest {
         const val NOON = 12
         const val EVENING = 18
 
-        /** `{begins: 17, ends: 23}` in `NPCs.as`. Its difficulty is measured, not assumed here. */
         const val EVENING_OPPONENT = "linu-vali"
     }
 }

@@ -58,45 +58,17 @@ const val CARD_TOTAL_TEST_TAG: String = "card-total"
 const val CARD_DETAIL_TEST_TAG: String = "card-detail"
 const val CARD_DETAIL_EMPTY_TEST_TAG: String = "card-detail-empty"
 
-/** The two filter rows, and the Sell button on a card the profile can spare. */
 const val CARD_FILTERS_TEST_TAG: String = "card-filters"
 const val CARD_SELL_TEST_TAG: String = "card-sell"
 
-/** `card-filter-set-<block>`, and `card-filter-set-all`. */
 fun setFilterTestTag(block: Int?): String = "card-filter-set-${block ?: "all"}"
 
-/** `card-filter-type-FIRE`, and `card-filter-type-all`. */
 fun typeFilterTestTag(type: CardType?): String = "card-filter-type-${type?.name ?: "all"}"
 
-/** `card-cell-<id>`. Ids are per-collection, and only one collection is ever on screen. */
 fun cardCellTestTag(cardId: Int): String = "card-cell-$cardId"
 
-/** `card-copies-<id>` — the copy badge, present only above one copy. */
 fun cardCopiesTestTag(cardId: Int): String = "card-copies-$cardId"
 
-/**
- * The whole collection, owned and not — the original's `cardListScreen`.
- *
- * Every card in the profile's table is drawn; the ones it does not own are dimmed. That is the
- * original's arrangement (`:101-106` walks the whole card table and sets `enabled` from membership
- * of `CARDS`), and it is the point of the screen: a collection browser that showed only what you
- * have would not tell you what there is to get.
- *
- * ### One visual departure
- *
- * The grid draws the original's thumbnails, sliced out of the three `card_thumbs` atlases — see
- * [UiArt] for why those stayed packed when the card faces were unpacked. What differs is how a card
- * you do not own is marked: **dimmed, not desaturated.**
- *
- * `CardThumb.enabled = false` applies a Starling `ColorMatrixFilter` at −1 saturation, with a `TODO
- * : make a grey card thumbs atlas` next to it. Compose Multiplatform has no portable colour-matrix
- * filter — `RenderEffect` is platform-specific — so alpha carries the same one bit of information.
- *
- * @param catalog both card tables. Only the profile's own is read: card ids index whichever table
- * `MODE` names, so showing the other collection's card for an id would be showing a different card.
- * @param note where a refused sale is reported. Owned by [CollectionScreen] because the snackbar
- * belongs to the scaffold, and this is one tab inside it.
- */
 @Composable
 internal fun ColumnScope.CardListBody(
     profile: GameSave,
@@ -203,21 +175,6 @@ internal fun ColumnScope.CardListBody(
     }
 }
 
-/**
- * What a card sale did, in one line — the bag's `sellNote`, one screen along.
- *
- * ### The refusal this screen can actually provoke
- *
- * [SellButton] already hides itself for a card no deck can spare, so the obvious no is unreachable
- * from here. The one that is not: on an account the collection is the **server's**, and a card the
- * client credited itself for a match against a program is not in it until the transcript has been
- * submitted and replayed. Selling it in that window is refused, the collection is then replaced by
- * the server's own, and the copy appears to have been sold for nothing. See [MatchSettlement] for
- * what closes the window, and this for the window being open.
- *
- * [StringKeys.NOTHING_HAPPENED] and not the bag's `ITEM_REFUSED`: the bag's line says the *bag* no
- * longer holds it, which is a sentence about a place this screen is not.
- */
 private fun sellCardNote(strings: Strings, outcome: IntentOutcome): String? = when (outcome) {
     // Silent on purpose, as in the bag: the copy badge and the purse in the app bar have both
     // already said it.
@@ -275,13 +232,6 @@ private fun CardCell(card: Card, copies: Int, isSelected: Boolean, onClick: () -
     }
 }
 
-/**
- * The selected card at full size, with what the original's right-hand panel showed.
- *
- * @param modifier its own footprint, which differs by layout: a fixed-height band above the grid on
- * a phone — fixed so the grid does not jump under the finger that just tapped it — and a fixed-
- * width column beside it on a window wide enough for both.
- */
 @Composable
 private fun CardDetail(
     card: Card?,
@@ -353,25 +303,6 @@ private fun CardDetail(
     }
 }
 
-/**
- * Sell one copy, when there is one to spare.
- *
- * ### Why it is here and not only in the bag
- *
- * The bag sells a `CardItem` — a card that has been *drawn* and not yet used. Once used, a card
- * joins the collection and there was no way out of it: a player opening their tenth Tonberry could
- * use it or leave it in the bag forever, and nothing turned a shelf of duplicates into anything.
- * The collection is where a player looks at what they have too much of, so it is where parting with
- * it belongs.
- *
- * ### It will not sell a card a deck is built on
- *
- * The copies a saved deck names are not offered — see [GameSave.spareCopiesOf]. Selling them would
- * leave a deck `Deck.isAffordable` refuses and a match the server rejects, and the player would
- * meet that at the point of play rather than at the point of the mistake. A card with nothing spare
- * shows no button at all rather than a disabled one: "you cannot sell this" is a question nobody
- * asked, and the answer would be a button on almost every owned card.
- */
 @Composable
 private fun ColumnScope.SellButton(card: Card, profile: GameSave, onSell: (Card) -> Unit) {
     val strings = LocalStrings.current
@@ -399,26 +330,6 @@ private fun ColumnScope.SellButton(card: Card, profile: GameSave, onSell: (Card)
     }
 }
 
-/**
- * The two filter rows: which set, and which element.
- *
- * ### Why filters at all
- *
- * The grid was 153 cards and is 263 since the sets were merged, on a screen whose only ordering is
- * by id. Finding the fire cards meant scrolling past two hundred that were not, and *counting* them
- * — "how many fire cards do I still need" — was not possible at all.
- *
- * The set filter is what `MODE` used to do by force. It is a **view** now rather than a
- * confinement: a player who wants to look at one set can, and nothing stops them owning or playing
- * the other.
- *
- * ### Types are drawn, not named
- *
- * Twelve of them, eight elements a player recognises by colour, and naming them would mean twelve
- * more keys in four bundles to say what the icon on the card already says. The row shows only the
- * types **present in the table** — the FFVIII set has no Beast or Garlean card, so an FFVIII-only
- * format offers no chip for them rather than a chip that always empties the grid.
- */
 @Composable
 private fun CardFilters(
     sets: List<Int>,
@@ -473,21 +384,6 @@ private fun CardFilters(
     }
 }
 
-/**
- * The element filter — the same chip carrying an icon instead of a word.
- *
- * ### Why this one is still hand-built when the word chips are [TtoFilterChip]
- *
- * Because a Material chip is a *label* with an optional leading icon, and this has no label at all:
- * see [CardFilters] for why the elements are drawn rather than named. Feeding an empty label to
- * `FilterChip` would give a chip padded for text that is not there, twelve times in a row on the
- * densest strip in the app.
- *
- * What it takes from the shared control instead is everything that is not the shape: [ttoClickable]
- * gives it the 48 dp touch target — these measured about 24 dp, the smallest tap targets in the
- * game — the selected state a screen reader can read, and the focus ring. The element's own name is
- * the description, so the strip reads out as twelve named toggles rather than twelve images.
- */
 @Composable
 private fun TypeChip(type: CardType, isOn: Boolean, onClick: () -> Unit) {
     val icon = LocalCardArt.current?.typeIcon(type)
@@ -516,51 +412,25 @@ private fun TypeChip(type: CardType, isOn: Boolean, onClick: () -> Unit) {
     }
 }
 
-/**
- * `Sides A 5 3 2 · Rarity ★★★`.
- *
- * The side order is top, right, bottom, left — `power[0..3]` as `CardDigits.display()` states it
- * and as `DecksScreen.as:296` prints it. Rarity is written as stars rather than drawn from the
- * `{n}stars` texture because the card beside it already carries that row, and because a star count
- * reads the same in all four languages.
- */
 private fun cardFacts(strings: Strings, card: Card): String = listOf(
     "${strings[StringKeys.SIDES]} " + listOf(card.top, card.right, card.bottom, card.left)
         .joinToString(" ", transform = ::powerLabel),
     "${strings[StringKeys.RARITY]} ${"★".repeat(card.rarity)}",
 ).joinToString(DOT_SEPARATOR)
 
-/** Small enough for eight columns on a phone, large enough for the digits to stay legible. */
 private const val THUMB_SCALE = 0.46f
 private val ThumbWidth = CardSpriteWidth * THUMB_SCALE
 
-/** Two thirds, so the panel fits a card, three lines and a scrolling description on a phone. */
 private const val DETAIL_SCALE = 0.66f
 
-/**
- * How tall the detail panel is, and why it is a constant.
- *
- * Fixed rather than fitted, so the grid does not jump under the finger that just tapped it — see
- * `CardListBody`, which selects and deselects on the same tap.
- *
- * It used to be the card art plus padding, about 98 dp, which was the height of the *picture* and
- * had nothing to do with what sits beside it: a name, a facts line, a paragraph of flavour text and
- * a Sell button do not fit in 98 dp and the last two did not appear at all. This is what they
- * actually need — the button at its Material height, three or four lines of description above it,
- * and the rest scrolling.
- */
 private val DetailHeight = 196.dp
 
-/** Wide enough for the card and its facts side by side, and no wider — the grid wants the rest. */
 private val DetailPaneWidth = 260.dp
 
-/** `adjustSaturation(-1)` in the original; alpha here. See [CardListBody]. */
 private const val UNOWNED_ALPHA = 0.28f
 
-/** A set is named by its block until sets carry a translated name — see `CardSet`. */
 private const val BLOCK_PREFIX = "Set "
 private val TypeChipSize = 16.dp
 
-/** The multiplication sign, not the letter x — it sits beside a numeral. */
 private const val COPIES_PREFIX = "\u00d7"
 private val CopiesBadgeCorner = 3.dp

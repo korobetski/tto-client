@@ -29,44 +29,9 @@ import com.tripletriad.ui.theme.TripleTriadTheme
 import kotlin.test.Test
 import kotlin.test.assertFalse
 
-/**
- * Bonus and Malus, on screen — `RULE_ASCENSION` and `RULE_DESCENSION`, as the French bundle names
- * them.
- *
- * ### Why this had to exist before the rule was worth playing
- *
- * These two leave **no mark on the board**. Elemental at least colours a cell, so a player can see
- * where the modifier comes from; a Bonus tally is a number nothing on screen holds. Following it
- * meant counting the cards of each type already placed, applying the total to every card of that
- * type, on every side, and redoing it after each turn — for the opponent's cards as well as one's
- * own, since the tally is board-wide and not per player.
- *
- * So the rule shipped as arithmetic homework, and what turns it back into a game is a **badge**
- * over the card saying what the board is doing to it.
- *
- * ### The digits do **not** move, and that is the sharp half
- *
- * A first version folded the modifier into the four numbers, so a 5 on a `+3` board was drawn as an
- * 8. That is wrong, and not by taste: the **printed** values are what Same and Plus compare —
- * `RulesEngineOptions.specialPowerBasis` — so a card whose digits had the modifier baked in would
- * be showing numbers a player cannot use to spot a Same. Every test below therefore asserts the
- * digits are the card's own *and* that the badge is present; either alone would allow the version
- * that was wrong.
- *
- * The digits are read through the accessibility label because they are 18x18 bitmaps out of an
- * atlas and a test cannot read a texture. `CardFace` builds the label from the same card the glyphs
- * come from, so asserting it pins what was drawn.
- *
- * ### Why it composes [PlayArea] rather than playing a match
- *
- * Same reason as `ElementalBoardTest`: reaching a Bonus board through the app means finding an NPC
- * that declares the rule and beating whatever roulette it has. A [MatchState] built here states the
- * board it means, and the arithmetic on it belongs to `RulesEngineTest` in `:core`.
- */
 @OptIn(ExperimentalTestApi::class)
 class BonusMalusBoardTest {
 
-    /** A card on a `+3` board keeps its printed 5s and wears a `+3`. */
     @Test
     fun aCardUnderBonusKeepsItsPrintedPowersAndWearsTheBadge() = runComposeUiTest {
         setContent {
@@ -77,7 +42,6 @@ class BonusMalusBoardTest {
         onNodeWithContentDescription("$BEAST_NAME, 5 5 5 5").assertExists()
     }
 
-    /** And under Malus the sign is written rather than merely coloured — digits still untouched. */
     @Test
     fun aCardUnderMalusWearsANegativeBadge() = runComposeUiTest {
         setContent {
@@ -88,13 +52,6 @@ class BonusMalusBoardTest {
         onNodeWithContentDescription("$BEAST_NAME, 5 5 5 5").assertExists()
     }
 
-    /**
-     * A runaway Malus still reports the whole tally, and still leaves the digits alone.
-     *
-     * `−9` against a 5 floors the card at 1 when it *fights* — [MIN_MODIFIED_POWER] — but the badge
-     * reports what the board is doing, not where the arithmetic landed, and the printed 5s are what
-     * Same and Plus will read whatever the tally says.
-     */
     @Test
     fun anOverwhelmingMalusStillShowsTheWholeTally() = runComposeUiTest {
         setContent {
@@ -108,7 +65,6 @@ class BonusMalusBoardTest {
         onNodeWithContentDescription("$BEAST_NAME, 5 5 5 5").assertExists()
     }
 
-    /** A card of another type is untouched, so the badge belongs to the card and not the board. */
     @Test
     fun aCardOfAnotherTypeIsUntouched() = runComposeUiTest {
         setContent {
@@ -127,15 +83,6 @@ class BonusMalusBoardTest {
         onNodeWithContentDescription("$OTHER_NAME, 5 5 5 5").assertExists()
     }
 
-    /**
-     * Picking a card up annotates nothing under Bonus, and the card keeps its printed digits.
-     *
-     * The counterpart of `ElementalBoardTest.holdingACardAnnotatesEveryFreeElementalCellForIt`, and
-     * the opposite answer for a reason. Under Elemental the nine cells differ, so the badge tells a
-     * player which one suits the card; under Bonus every cell would show the same number, which is
-     * nine copies of one fact about a card that is not on the board yet. In hand it does not count
-     * — see [AscensionTally].
-     */
     @Test
     fun holdingACardUnderBonusAnnotatesNothing() = runComposeUiTest {
         setContent {
@@ -153,7 +100,6 @@ class BonusMalusBoardTest {
         onNodeWithContentDescription("$BEAST_NAME, 5 5 5 5").assertExists()
     }
 
-    /** With no type rule up, a board draws exactly what the cards say and adds no badge. */
     @Test
     fun withNoRuleTheBoardIsUnannotated() = runComposeUiTest {
         setContent { Fixture(tallied(TypeRule.NONE).withCard(CELL, beast())) }
@@ -164,13 +110,6 @@ class BonusMalusBoardTest {
 
     // ---- Fixtures ----------------------------------------------------------
 
-    /**
-     * [PlayArea] in a box big enough to lay a board out in.
-     *
-     * The selection is hoisted here because it is hoisted above `PlayArea` in the real screen; a
-     * fixture passing a constant null would compose a state a match is never in, and the test that
-     * taps a card would assert nothing.
-     */
     @Composable
     private fun Fixture(state: MatchState) {
         var selected by remember { mutableStateOf<Card?>(null) }
@@ -196,13 +135,6 @@ class BonusMalusBoardTest {
         }
     }
 
-    /**
-     * A board under [rule] with [counts] already tallied, and no elements anywhere.
-     *
-     * The tally is set directly rather than reached by playing cards, so the fixture states the
-     * board it means in one line. What it must not do is state a tally the rule could not produce
-     * — a `+3` under `NONE` — which is why the rule and the counts arrive in one call.
-     */
     private fun tallied(
         rule: TypeRule,
         vararg counts: Pair<CardType, Int>,
@@ -227,7 +159,6 @@ class BonusMalusBoardTest {
 
     private fun beast() = card(BEAST_ID, CardType.BEAST)
 
-    /** Every side is 5, so one assertion covers all four and a transposed edge cannot hide. */
     private fun card(id: Int, type: CardType?) = Card(
         id = id,
         nameKey = "STR_TEST_$id",
@@ -241,14 +172,6 @@ class BonusMalusBoardTest {
     )
 
     private companion object {
-        /**
-         * The three tallies these tests are about, and why each is a different number.
-         *
-         * [BONUS] and [MALUS] are ordinary boards — a few cards of one type down. [RUNAWAY_MALUS]
-         * is the one that has to be **larger than any card's power**, because the floor is only
-         * observable when the arithmetic would have gone past it: `-2` against a 5 proves nothing
-         * about a clamp that never fired.
-         */
         const val BONUS = 3
         const val MALUS = -2
         const val RUNAWAY_MALUS = -9
@@ -258,13 +181,6 @@ class BonusMalusBoardTest {
         const val BEAST_ID = 300
         const val OTHER_ID = 301
 
-        /**
-         * The labels these cards carry.
-         *
-         * No bundle is loaded here, so `Strings[key]` returns the key — see `Strings.get`, whose
-         * last fallback is the key itself. That is what makes a missing translation visible rather
-         * than blank, and it is what these assertions read.
-         */
         const val BEAST_NAME = "STR_TEST_$BEAST_ID"
         const val OTHER_NAME = "STR_TEST_$OTHER_ID"
 

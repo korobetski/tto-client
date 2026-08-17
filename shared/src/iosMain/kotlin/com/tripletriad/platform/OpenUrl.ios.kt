@@ -6,7 +6,6 @@ import com.tripletriad.log.Log
 import platform.Foundation.NSURL
 import platform.UIKit.UIApplication
 
-/** Safari, or the App Store app when the URL is a store link — UIKit decides which. */
 @Composable
 actual fun rememberUrlOpener(): (String) -> Unit = remember {
     { url ->

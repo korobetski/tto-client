@@ -13,20 +13,10 @@ import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
-/**
- * That the artwork reaches the screens, and that a screen survives it being absent.
- *
- * Two halves, and the second is the one worth writing down. Eleven opponents ship no portrait and
- * one item ships no icon ([UiArtTest] pins both), so **a missing image is a normal state**, not a
- * broken build. Every one of these composables therefore has to draw something in the space — a
- * monogram, or an empty plate — and a row that silently collapsed would only be noticed by
- * someone looking at a phone.
- */
 @OptIn(ExperimentalTestApi::class)
 class ArtworkUiTest {
     private val art = runBlocking { loadUiArt() }
 
-    /** The profile picture `AVATAR_ID` names, on the screen that is about the profile. */
     @Test
     fun theRecordShowsTheCharactersAvatar() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -36,7 +26,6 @@ class ArtworkUiTest {
         assertTrue(existsUnmerged(AVATAR_TEST_TAG), "the record should show the avatar")
     }
 
-    /** The grid is thumbnails now, keyed by the card's own texture id. */
     @Test
     fun theCollectionGridDrawsThumbnails() = runComposeUiTest {
         val card = runBlocking { loadCardCatalog() }.all
@@ -51,7 +40,6 @@ class ArtworkUiTest {
         )
     }
 
-    /** You should be able to see who you are about to play. */
     @Test
     fun theOpponentListShowsPortraits() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -65,13 +53,6 @@ class ArtworkUiTest {
         )
     }
 
-    /**
-     * A deck slot is a thumbnail, and an empty one still holds its place.
-     *
-     * A fresh character has no saved deck, so the editor opens on five empty positions — which is
-     * exactly the case where a collapsing slot would go unnoticed: five nothings in a row look
-     * like a screen that has not loaded yet.
-     */
     @Test
     fun aDeckSlotFillsWithAThumbnailWhenACardIsPicked() = runComposeUiTest {
         val first = STARTER_CARDS.first()
@@ -87,14 +68,6 @@ class ArtworkUiTest {
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { existsUnmerged(thumbTestTag(card.textureId)) }
     }
 
-    /**
-     * An opponent with no portrait is drawn as their initial, not as a gap.
-     *
-     * Composed directly rather than reached through the Card Club, because the fallback is the
-     * whole subject: navigating there would make the test depend on the ladder, the entry fee and
-     * which rung comes first, none of which has anything to do with what happens when a file is
-     * missing.
-     */
     @Test
     fun anOpponentWithNoPortraitIsDrawnAsAMonogram() = runComposeUiTest {
         val npc = runBlocking { loadNpcCatalog() }.all.first { it.iconId == "jack" }

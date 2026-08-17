@@ -67,13 +67,7 @@ formatter is deterministic.
 
 ## 4. Documentation
 
-KDoc is required on:
-
-- every public declaration in `shared/`,
-- **every type or value ported from AS3 — with the source file and line it came from.**
-
-The second rule is the one that matters here. A migration is worthless if a reader cannot
-check it against the original. Compare:
+KDoc is required when something needs to be explained and the code is not explicit by itself.
 
 ```kotlin
 // Bad — the reader has to take this on faith.

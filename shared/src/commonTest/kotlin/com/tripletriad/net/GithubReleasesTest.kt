@@ -20,10 +20,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * Reading the releases page, which is the source of update advice that no deployment has to be
- * told about. See [GithubReleaseClient].
- */
 class GithubReleasesTest {
 
     @Test
@@ -34,12 +30,6 @@ class GithubReleasesTest {
         assertEquals(APK, release?.downloads?.get(ClientPlatform.ANDROID))
     }
 
-    /**
-     * The other two platforms get the release *page*, never the APK.
-     *
-     * `downloadForThisPlatform` is what a Download button opens, and handing a desktop build an
-     * Android package is handing it a file it cannot do anything with.
-     */
     @Test
     fun theOtherPlatformsGetThePageRatherThanTheAndroidPackage() = runTest {
         val downloads = clientOver(body = RELEASE).latest()?.downloads.orEmpty()
@@ -58,7 +48,6 @@ class GithubReleasesTest {
         assertEquals(listOf("/repos/korobetski/tto-client/releases/latest"), asked)
     }
 
-    /** A fork checks its own releases rather than reporting this one's as an update to itself. */
     @Test
     fun aForkAsksAboutItself() = runTest {
         val asked = mutableListOf<String>()
@@ -85,18 +74,11 @@ class GithubReleasesTest {
         assertNull(clientOver(body = body).latest())
     }
 
-    /** A tag that is not a version is a tag this build cannot compare itself against. */
     @Test
     fun aTagThatIsNotAVersionIsIgnored() = runTest {
         assertNull(clientOver(body = RELEASE.replace("v1.0.2", "nightly")).latest())
     }
 
-    /**
-     * A release with no APK attached is still worth having.
-     *
-     * The workflow can create the release and fail before uploading — it says so itself — and
-     * "there is a 1.0.3 and here is the page" is more useful than silence.
-     */
     @Test
     fun aReleaseWithNoApkStillNamesItsVersionAndItsPage() = runTest {
         val release = clientOver(body = RELEASE_WITHOUT_ASSETS).latest()
@@ -106,7 +88,6 @@ class GithubReleasesTest {
         assertTrue(release?.downloads?.containsKey(ClientPlatform.DESKTOP) == true)
     }
 
-    /** Every failure is a null: nothing here is worth a message to a player who did not ask. */
     @Test
     fun aRateLimitOrAnOutageIsSilent() = runTest {
         assertNull(clientOver(status = HttpStatusCode.Forbidden, body = "rate limited").latest())
@@ -145,7 +126,6 @@ class GithubReleasesTest {
     private companion object {
         const val PAGE = "https://github.com/korobetski/tto-client/releases/tag/v1.0.2"
 
-        /** Where the release workflow says the asset lands. Split only to fit a line. */
         const val APK = "https://github.com/korobetski/tto-client/releases/" +
             "download/v1.0.2/tto-1.0.2.apk"
 
@@ -153,12 +133,6 @@ class GithubReleasesTest {
                 { "name": "tto-1.0.2.apk", "browser_download_url": "$APK" }
               ],"""
 
-        /**
-         * Trimmed from a real `/releases/latest` body.
-         *
-         * `id` and `node_id` are kept deliberately: the response carries some forty fields this
-         * build does not read, and their presence is what `ignoreUnknownKeys` is here for.
-         */
         val RELEASE = """
             {
               "id": 12345,
@@ -173,7 +147,6 @@ class GithubReleasesTest {
             }
         """.trimIndent()
 
-        /** What the release workflow leaves behind if it fails between its two `gh` calls. */
         val RELEASE_WITHOUT_ASSETS = """
             {
               "tag_name": "v1.0.2",

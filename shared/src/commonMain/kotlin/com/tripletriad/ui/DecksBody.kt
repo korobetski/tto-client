@@ -52,52 +52,18 @@ const val DECK_RESET_TEST_TAG: String = "deck-reset"
 const val DECK_POWER_TEST_TAG: String = "deck-power"
 const val DECK_PICK_GRID_TEST_TAG: String = "deck-pick-grid"
 
-/** The editor's own "cards you no longer own" line. See [unownedPositions]. */
 const val DECK_MISSING_TEST_TAG: String = "deck-missing"
 
-/** `deck-missing-<index>` — the same warning on one slot of the list. */
 fun deckMissingTestTag(index: Int): String = "deck-missing-$index"
 
-/** `deck-slot-<index>`, 0-based over the five slots. */
 fun deckSlotTestTag(index: Int): String = "deck-slot-$index"
 
-/** `deck-position-<index>`, 0-based over the five positions of the deck being edited. */
 fun deckPositionTestTag(index: Int): String = "deck-position-$index"
 
-/** `deck-pick-<cardId>` in the owned-cards grid of the editor. */
 fun deckPickTestTag(cardId: Int): String = "deck-pick-$cardId"
 
-/** `deck-remaining-<cardId>` — unspent copies, shown only for a card owned more than once. */
 fun deckRemainingTestTag(cardId: Int): String = "deck-remaining-$cardId"
 
-/**
- * The five deck slots and the deck editor — the original's `DecksScreen`.
- *
- * ### One screen, two modes
- *
- * The original put the slot list, the owned-card pager, a card-detail list, the five deck
- * positions, a name field and two buttons on **one 1024-wide stage**, positioned by hand in
- * `draw()`. That does not fit a phone. Here the slots are a list, and picking one replaces it with
- * the editor; back goes to the slots and then to the dashboard. It is the same two things to do,
- * one at a time.
- *
- * ### What editing means
- *
- * Tap an owned card to add it, tap a card in the deck to take it out. The original was
- * slot-addressed — tap a card, then tap which of the five positions it goes in — which only matters
- * for the play order under `RULE_ORDER` and which is the same number of taps. See [Deck.plusCard]
- * for why holes are not representable.
- *
- * **Nothing is written until Save.** The editor holds its own copy, so backing out abandons the
- * edit; the original saved on Save too, but *also* saved from its Reset handler, which is where its
- * one real defect lives — see [GameSave.clearingDeck].
- *
- * @param editing which slot is open in the editor, or null for the list of five. **Hoisted**, not
- *   held here: back has to leave the editor before it leaves the screen, and the back button now
- *   belongs to the screen this is a tab of. See [CollectionScreen].
- * @param onPersist writes the profile. Goes through [ProfileSession], so the copy on screen stays
- *   the copy on disk — see there.
- */
 @Composable
 internal fun ColumnScope.DecksBody(
     profile: GameSave,
@@ -124,7 +90,6 @@ internal fun ColumnScope.DecksBody(
     }
 }
 
-/** The five slots, empty ones included — `DecksScreen.as:128-157` always draws five. */
 @Composable
 private fun DeckSlots(profile: GameSave, cards: Map<Int, Card>, onEdit: (Int) -> Unit) {
     Column(
@@ -406,18 +371,6 @@ private fun DeckEditor(
     }
 }
 
-/**
- * One position in a deck: a card, or the empty frame.
- *
- * `CardThumb(0)` with `enabled = false` in the original, which draws the `voidCardThumb` texture.
- * There is no such texture in the imported atlases, so an empty position is an outlined box of the
- * same size — which is the whole point of drawing five of these in a row: a deck that is short a
- * card should look short a card.
- *
- * @param owned whether the profile still holds this copy. A deck keeps its five cards when one of
- *   them is lost — see [unownedPositions] — so the same principle applies: a deck that is short a
- *   card should *look* short a card, even when it still has five thumbnails in it.
- */
 @Composable
 internal fun DeckPosition(card: Card?, owned: Boolean = true) {
     if (card == null) {
@@ -431,27 +384,6 @@ internal fun DeckPosition(card: Card?, owned: Boolean = true) {
     }
 }
 
-/**
- * Which positions of [deck] name a copy the profile no longer holds.
- *
- * ### Why this exists at all
- *
- * A card can leave a collection — a card wager takes one — and `GameSave.withoutCard` deliberately
- * leaves the decks standing rather than editing them down behind the player's back. `PveMatches`
- * then refuses such a deck wherever it is dealt from. Both halves are right and together they were
- * silent: the deck showed five cards, looked complete, and simply never appeared where a deck is
- * chosen. This is the half that says why.
- *
- * ### By position, not by card
- *
- * A deck may name the same card twice, which is legal while two copies are held. Lose one and
- * exactly *one* of those two positions is now unbacked — greying both would claim the player owns
- * none of them, and greying the card id would grey it in a second deck that can still afford it.
- * So the count is walked in deck order and each occurrence past the copies held is marked, which
- * is the same arithmetic `Deck.isAffordable` does, reported per position instead of as a verdict.
- *
- * @param owned card id to copies held — `GameSave.cards`.
- */
 internal fun unownedPositions(deck: Deck, owned: Map<Int, Int>): Set<Int> {
     val seen = mutableMapOf<Int, Int>()
     return deck.cards.withIndex().mapNotNullTo(mutableSetOf()) { (position, id) ->
@@ -461,44 +393,16 @@ internal fun unownedPositions(deck: Deck, owned: Map<Int, Int>): Set<Int> {
     }
 }
 
-/**
- * A slot's display name: what it is called, or `Deck 3` when it has never been named.
- *
- * `DecksScreen.as:154` labels an empty slot `STR_DECK` plus its 1-based index. Named here rather
- * than in the model, because the label is a translation and a save file should not carry one — see
- * [GameSave.withDeck].
- *
- * `resetDeckHandler` and `saveDeck_Handler` both reach for `STR_NEW_DECK` (`:344`, `:366`) for a
- * slot with no deck in it. That key is **in none of the four bundles**, so the original named such
- * a deck `STR_NEW_DECK`. The numbered label is what its own list already used.
- */
 internal fun deckLabel(strings: Strings, deck: Deck, index: Int): String =
     deck.name.ifBlank { "${strings[StringKeys.DECK]} ${index + 1}" }
 
-/**
- * `updateDeckPower` (`DecksScreen.as:332-339`) — the **sum of the rarities**, not of the sides.
- *
- * Which is worth stating out loud, because "deck power" reads like it should be about the numbers
- * on the cards: it is `deckPower += cardClip.data.rarity`, so a deck of five one-star cards scores
- * 5 and five five-star cards score 25. It is a measure of how rare a deck is, and the original's
- * label for it is the misleading part rather than the arithmetic.
- */
 internal fun deckPower(deck: Deck, cards: Map<Int, Card>): Int =
     deck.cards.sumOf { cards[it]?.rarity ?: 0 }
 
-/** Long enough for any deck name that will lay out in a row; the original's field had no limit. */
 private const val MAX_DECK_NAME = 24
 
-/**
- * Five of these plus a label have to fit the width of a phone.
- *
- * A little over the artwork's own 40 — these are shown next to a deck's name and power, and at 1:1
- * on a 3x display they sit lower than the text they belong to.
- */
 internal val DeckThumbSize = 44.dp
 
-/** A card whose every copy is already in the deck. Dimmer than unowned is in the browser. */
 private const val SPENT_ALPHA = 0.3f
 
-/** The multiplication sign, not the letter x — it sits beside a numeral. */
 private const val REMAINING_PREFIX = "\u00d7"

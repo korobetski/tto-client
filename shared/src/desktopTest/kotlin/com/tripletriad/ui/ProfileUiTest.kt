@@ -20,30 +20,13 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/**
- * Characters: listing, creating, choosing, deleting — and that the file on disk is the same profile
- * the screen is showing.
- *
- * Driven through the real `App` with an [InMemoryDocumentStore], so what these assert about the
- * store is what a real `.sav` would contain: the same [SaveRepository] writes it and the same
- * [SaveCodec] obfuscates it.
- */
 @OptIn(ExperimentalTestApi::class)
 class ProfileUiTest {
     private fun store() = InMemoryDocumentStore()
 
-    /** Decodes what is actually on "disk", so a test asserts the file and not the screen's copy. */
     private fun stored(documents: InMemoryDocumentStore): List<GameSave> =
         runBlocking { SaveRepository(documents).list().map { it.save } }
 
-    /**
-     * A locally created character opens the **authored** box, not `GameSave.new`'s five.
-     *
-     * The two creation paths disagreed until this: registering an account and then choosing a
-     * collection went through the catalogue, while creating a character on this device still got
-     * the AS3's `Save.as:30`. Same game, same screen one hop earlier, different ten cards — see
-     * `StarterPack.opened`.
-     */
     @Test
     fun creatingACharacterGrantsTheAuthoredStarter() = runComposeUiTest {
         val documents = store()
@@ -57,7 +40,6 @@ class ProfileUiTest {
         assertEquals(listOf(starter.deck), save.decks.map { it.cards })
     }
 
-    /** And the screen shows what is being chosen, rather than only which game the art is from. */
     @Test
     fun theCreationScreenShowsTheStarterItWouldGrant() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -104,7 +86,6 @@ class ProfileUiTest {
         assertEquals(starterFor(FF14_BLOCK).cards.associateWith { 1 }, saved.cards)
     }
 
-    /** The typed name reaches the file, and the file name is derived from it. */
     @Test
     fun theTypedNameIsTheCharactersName() = runComposeUiTest {
         val documents = store()
@@ -127,18 +108,6 @@ class ProfileUiTest {
         )
     }
 
-    /**
-     * **The box decides what you start with and nothing else.**
-     *
-     * The AS3 hard-codes `DATAS.MODE = 'ff14_'` in `setToDefaultValues()` and offers no way to
-     * change it, so an `ff8_` profile was unreachable despite the whole second card table and 25
-     * opponents shipping with the game. The first version of this test proved they were reachable
-     * by asserting that an FFVIII character saw `chocoboy` and *not* `tt-master`.
-     *
-     * That second half is now wrong on purpose. `MODE` is gone, the app plays the widest format,
-     * and the roster is one roster: choosing the FFVIII box gives you FFVIII cards and the whole
-     * cast. Asserting both opponents is asserting exactly what document 19 set out to change.
-     */
     @Test
     fun theChosenBoxDealsItsCardsAndLeavesTheRosterWhole() = runComposeUiTest {
         val documents = store()
@@ -175,12 +144,6 @@ class ProfileUiTest {
         )
     }
 
-    /**
-     * Deletion is two taps: the × arms, the second confirms.
-     *
-     * Both halves are asserted, because a control that deleted on the first tap would pass a test
-     * that only checked the profile was gone at the end.
-     */
     @Test
     fun deletingTakesTwoTapsAndRemovesTheFile() = runComposeUiTest {
         val documents = store()
@@ -246,7 +209,6 @@ class ProfileUiTest {
         )
     }
 
-    /** Choosing a listed character loads it and opens its own dashboard — and its own opponents. */
     @Test
     fun choosingAListedCharacterLoadsIt() = runComposeUiTest {
         val documents = store()
@@ -263,7 +225,6 @@ class ProfileUiTest {
         onNodeWithTag(opponentRowTestTag("chocoboy")).assertExists()
     }
 
-    /** A profile written by one launch is listed by the next. */
     @Test
     fun aStoredCharacterSurvivesARelaunch() = runComposeUiTest {
         val documents = store()
@@ -289,7 +250,6 @@ class ProfileUiTest {
     private companion object {
         const val NAME = "Sigfrid"
 
-        /** `app-en_US.json`. */
         const val NO_CHARACTER = "No character yet — create one to play."
     }
 }

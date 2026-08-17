@@ -8,40 +8,18 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * The **shipped** `starters.json`, checked against document 19's own refusals.
- *
- * § What an importer should refuse lists five content bugs, each of which reaches a player as
- * something worse than an error message: a starter of the wrong size is a character that begins
- * stronger or weaker than every other, and a released set with no starter is a set nobody can begin
- * with. There is no importer — the file is authored by hand — so this is where the refusals live,
- * and CI is what runs them.
- *
- * The rule itself is [StarterCatalog.violations]; this file is the bundle it is pointed at. Stating
- * it once means the day the grant moves to the server, the server checks the same sentences.
- */
 class StarterBundleTest {
     private val starters = runBlocking { loadStarterCatalog() }
     private val cards = runBlocking { loadCardCatalog() }
 
     private companion object {
-        /** Dodo, Tonberry, Sabotender — three real rarity-1 cards of block 1. */
         val FF14_COMMONS = listOf(257, 258, 259)
 
-        /** Geezard, which is block 2 and therefore foreign to a block-1 starter. */
         val FF8_COMMON = listOf(513)
 
-        /** An id no set will ever hold: block 3906 does not exist. */
         const val GHOST = 999_998
     }
 
-    /**
-     * Every refusal at once, which is the check that earns the file.
-     *
-     * One assertion rather than five, because [StarterCatalog.violations] returns sentences: a
-     * failure here names what is wrong with which starter, and splitting it into five tests would
-     * report the same sentence five times with four of them silent.
-     */
     @Test
     fun theShippedStartersBreakNoneOfTheAuthoringRules() {
         val problems = starters.violations(cards, cards.sets)
@@ -49,7 +27,6 @@ class StarterBundleTest {
         assertTrue(problems.isEmpty(), "starters.json: ${problems.joinToString("; ")}")
     }
 
-    /** And there really is something in it, so the check above cannot pass on an empty file. */
     @Test
     fun everyReleasedSetHasAStarterAndNothingElseDoes() {
         val released = cards.releasedSets.map { it.block }.toSet()
@@ -63,13 +40,6 @@ class StarterBundleTest {
         )
     }
 
-    /**
-     * The composition, restated as numbers.
-     *
-     * [StarterCatalog.violations] already refuses anything else; this is the assertion that says
-     * *what the rule is* in a form a reader can check against the document without reading the
-     * implementation. Ten cards, nine commons, one rare, and the rare in a five-card deck.
-     */
     @Test
     fun everyStarterIsTenCardsWithItsRareInTheDeck() {
         for (starter in starters.starters) {
@@ -88,7 +58,6 @@ class StarterBundleTest {
         }
     }
 
-    /** Ids are unique, so `StarterCatalog.get` cannot silently prefer one of two. */
     @Test
     fun theIdsAreUnique() {
         val ids = starters.starters.map { it.id }
@@ -96,14 +65,6 @@ class StarterBundleTest {
         assertEquals(ids.size, ids.toSet().size, ids.toString())
     }
 
-    /**
-     * Each starter's name resolves, in the locale everything else falls back to.
-     *
-     * `nameKey` is data-driven, so `StringsBundleTest` cannot see it — the same blind spot
-     * `DerivedKeysTest` exists for. Nothing displays these yet: the creation screen still chooses a
-     * collection, and the starter follows from its block. Asserted now so the day it does, the
-     * strings are already there rather than rendering as `APP_STARTER_FF14_BEASTS`.
-     */
     @Test
     fun everyStarterNameResolves() {
         val english = runBlocking { loadStrings(AppLocale.EN_US) }
@@ -112,12 +73,6 @@ class StarterBundleTest {
         assertTrue(unresolved.isEmpty(), "unresolved: $unresolved")
     }
 
-    /**
-     * A hand-built catalogue that breaks every rule is caught by all of them.
-     *
-     * Without this the suite above only proves the shipped file is fine today — it would pass just
-     * as happily against a `violations` that returned an empty list unconditionally.
-     */
     @Test
     fun aBrokenCatalogueIsRefusedOnEveryCount() {
         val broken = StarterCatalog(
@@ -144,7 +99,6 @@ class StarterBundleTest {
         assertTrue(problems.any { "released and has no starter" in it }, problems.toString())
     }
 
-    /** A starter naming a card that does not exist is refused before anything else is judged. */
     @Test
     fun aStarterNamingAnUnknownCardSaysSoAndStops() {
         val ghost = StarterCatalog(

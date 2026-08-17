@@ -19,19 +19,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/**
- * The menu's resume card — the visible half of a feature that has always worked silently.
- *
- * A stored token is restored on launch and the sign-in form is simply never shown, which from the
- * outside is indistinguishable from the form being broken. These assert the three things the card
- * exists to make distinguishable: signed in, still asking, and out of the thirty days.
- *
- * Driven against [MainMenuScreen] directly rather than through [App], because a `RememberedAccount`
- * needs a server and the full-app tests deliberately run on an offline build — there is no way to
- * reach a lapsed session through the real launch path without standing up a host that refuses a
- * token. What the card does with each state is the part with decisions in it, and it is all here;
- * where the states come from is `rememberedAccount`, three lines of `when`.
- */
 @OptIn(ExperimentalTestApi::class)
 class ResumeCardTest {
     @Test
@@ -45,11 +32,6 @@ class ResumeCardTest {
         assertEquals(1, went, "continuing should be one action, not a sign-in")
     }
 
-    /**
-     * The lapsed card offers a sign-in and not a "continue", because there is nothing to continue:
-     * the app stores no password, so a token past its thirty days leaves it with a name and no way
-     * to prove it. Saying so is the whole point — silence here reads as the app having forgotten.
-     */
     @Test
     fun aLapsedSessionSaysSoAndOffersToSignInAgain() = runComposeUiTest {
         setContent { Menu(account("Kaelith", SessionState.LAPSED)) }
@@ -58,7 +40,6 @@ class ResumeCardTest {
         onNodeWithTag(MENU_RESUME_GO_TEST_TAG).assertTextEquals("Sign in again")
     }
 
-    /** Nothing to press while the round trip is out — disabled, not absent. See `ResumeCard`. */
     @Test
     fun aSessionStillBeingRestoredSaysSoAndCannotBePressed() = runComposeUiTest {
         setContent { Menu(account("Kaelith", SessionState.CONNECTING)) }
@@ -78,7 +59,6 @@ class ResumeCardTest {
         assertEquals(1, switched, "the card should offer a way out of this account")
     }
 
-    /** No card at all when the app remembers nobody — an offline build, or a fresh install. */
     @Test
     fun rememberingNobodyDrawsNoCard() = runComposeUiTest {
         setContent { Menu(remembered = null) }
@@ -95,12 +75,6 @@ class ResumeCardTest {
     ) = RememberedAccount(username, state, onGo, onSwitch)
 }
 
-/**
- * The menu with everything but the card stubbed out.
- *
- * `connectivity = null` removes the server line, which needs a live directory — the card is what is
- * under test and it does not read one.
- */
 @Composable
 private fun Menu(remembered: RememberedAccount?) {
     val strings = remember { runBlocking { loadStrings(AppLocale.EN_US) } }

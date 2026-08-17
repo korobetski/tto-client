@@ -6,15 +6,20 @@ Phase 0, Task 1.6 deliverable.
 
 ## 1. Repository facts
 
-Check these before writing any automation — the earlier draft of the CI pipeline keyed on
-`main` and would never have fired.
+Check these before writing any automation.
 
 | Fact | Value |
 |---|---|
-| Default branch | **`master`** (not `main`) |
-| Current migration branch | `migration/kotlin-multiplatform` |
+| Default branch | **`main`** |
 | Gradle root | **the repository root** |
-| CI | [`.github/workflows/build.yml`](../../.github/workflows/build.yml), `paths-ignore` on `docs/`, `sources/` and `*.md` |
+| CI | [`.github/workflows/build.yml`](../../.github/workflows/build.yml), on push/PR to `main`, `paths-ignore` on `docs/`, `sources/` and `*.md` |
+| Release | [`.github/workflows/release.yml`](../../.github/workflows/release.yml), on a `v*` tag push |
+
+> **This document said `master` until 2026-08-17**, and warned that automation keying on `main`
+> would never fire — the opposite of the truth. `.github/workflows/build.yml` has
+> `branches: [main]`, and `git branch -a` lists `main` and nothing else. The
+> `migration/kotlin-multiplatform` branch it also named is gone; the migration was merged and the
+> branch deleted.
 
 The Gradle build used to live in a `kotlin/` subdirectory, which meant Android Studio had
 to be pointed at it and CI needed `working-directory: kotlin`. It was promoted to the root,
@@ -26,16 +31,15 @@ and would silently stop building one that was added and not listed.
 
 | Pattern | Purpose |
 |---|---|
-| `master` | released state; protected |
-| `migration/<topic>` | long-lived migration workstreams, e.g. `migration/kotlin-multiplatform` |
-| `feature/<phase>-<slug>` | one deliverable, e.g. `feature/phase1-atlas-loader` |
+| `main` | released state |
+| `feature/<slug>` | one deliverable, e.g. `feature/atlas-loader` |
 | `fix/<slug>` | a defect |
 | `spike/<slug>` | throwaway investigation; may be deleted unmerged |
 
-Branch off the migration branch, not `master`, while the migration is in flight.
+Branch off `main`. The `migration/<topic>` pattern this table used to carry was for the
+long-lived migration workstreams; those are merged and the pattern is retired.
 
-Keep branches short-lived. The `theme/BaseTTOTheme.as` rewrite (2,290 lines) is the one
-place where a longer branch is justified; split anything else.
+Keep branches short-lived.
 
 ## 3. Commits
 
@@ -122,13 +126,12 @@ build-blocking defects. See
 ## 5. Merge strategy
 
 - **Squash** for feature and fix branches: one logical change, one commit on the target.
-- **Merge commit** for `migration/*` into `master`: the individual commits are the record
-  of how the migration was done.
 - **Never rebase** a branch someone else has pulled.
 
-## 6. Branch protection on `master`
+## 6. Branch protection on `main`
 
-To configure (not yet in place — this repository has no protection rules):
+To configure (**not verified** — checking requires the GitHub API and was last confirmed absent
+in Phase 0):
 
 - require the `quality`, `shared` and `android` checks
 - require at least one approving review
@@ -140,11 +143,18 @@ PRs but consider not making it a blocking check until the iOS app actually exist
 
 ## 7. Tags and releases
 
-`v<major>.<minor>.<patch>` on `master` only. No release workflow exists yet, but it is now on
-the critical path rather than deferred: **updates are delivered through GitHub Releases** with
-an in-app version check, so a tag is what ships. That needs a signing key with a stable
-signature, a monotonic `versionCode`, and a workflow that attaches a signed APK to the release.
-See [docs/migration/12-PHASE-8-RELEASE.md](../migration/12-PHASE-8-RELEASE.md).
+`v<major>.<minor>.<patch>` on `main` only. **Pushing the tag is what ships** — updates are
+delivered through GitHub Releases with an in-app version check.
+
+[`.github/workflows/release.yml`](../../.github/workflows/release.yml) fires on `push: tags: ['v*']`
+and derives `-PclientVersion` from the tag name, so the APK's `versionName`, its `versionCode` and
+the release they hang under are one number by construction. It runs `verify` (ktlint, detekt,
+tests), then `installers` (a `.deb`, `.msi` and `.dmg` matrix) and `publish` (the signed APK and
+the GitHub release). Tags `v1.0.2` through `v1.1.2` have shipped this way.
+
+The `.dmg` is unsigned — a signed macOS build needs a paid Apple account, and `docs/` records the
+decision not to buy one. See
+[docs/migration/12-PHASE-8-RELEASE.md](../migration/12-PHASE-8-RELEASE.md).
 
 Read the certificate note below before generating that key.
 

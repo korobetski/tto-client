@@ -26,18 +26,6 @@ import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * The client half of match verification, against a fake transport.
- *
- * ### Why `MockEngine` and not a running server
- *
- * Because the interesting cases here are the ones a healthy server never produces: a refused
- * connection, a proxy's HTML error page returned with a 200, a server on a newer major. Those are
- * awkward to provoke against a real process and trivial to state here — and the suite stays in
- * `commonTest`, so it runs on the desktop JVM and Android's alike with no port to bind.
- *
- * The honest path is covered end to end elsewhere, by the server's own `MatchRoutesTest`.
- */
 class KtorMatchSubmitterTest {
 
     // ---- The ordinary outcomes --------------------------------------------
@@ -55,12 +43,6 @@ class KtorMatchSubmitterTest {
         assertEquals(MatchVerdict.Accepted(blue = 3, red = 7, winner = "RED"), judged.verdict)
     }
 
-    /**
-     * A rejected transcript is a **result**, not a failure.
-     *
-     * The server worked and answered the question; there is nothing to retry. Collapsing this into
-     * an error would be the bug that makes an honest player's client keep resubmitting.
-     */
     @Test
     fun aRejectedVerdictIsAlsoJudgedRatherThanAFailure() = runTest {
         val submitter = submitterAnswering(
@@ -75,7 +57,6 @@ class KtorMatchSubmitterTest {
         assertEquals(RejectionReason.TRUNCATED, rejected.reason)
     }
 
-    /** A draw puts no `winner` on the wire at all, because the server drops nulls. */
     @Test
     fun aDrawnVerdictDecodesWithNoWinnerField() = runTest {
         val submitter = submitterAnswering(
@@ -117,7 +98,6 @@ class KtorMatchSubmitterTest {
         assertEquals(AppVersion(2, 0, 0), update.serverVersion)
     }
 
-    /** A 426 without a readable header is still an update, just a less informative one. */
     @Test
     fun a426WithNoUsableHeaderIsStillUpdateRequired() = runTest {
         val submitter = submitterAnswering(
@@ -132,13 +112,6 @@ class KtorMatchSubmitterTest {
 
     // ---- The cases that must not lose the match ---------------------------
 
-    /**
-     * The most important test in the file.
-     *
-     * "An honest match played offline still counts" is the claim the whole design is built on, and
-     * it is only true if an unreachable server produces something the caller can hold and resubmit
-     * rather than an exception it has to guess how to handle.
-     */
     @Test
     fun anUnreachableServerIsOfflineAndNotAnException() = runTest {
         val submitter = submitterThrowing(IOException("Connection refused"))
@@ -149,13 +122,6 @@ class KtorMatchSubmitterTest {
         assertTrue(offline.cause.isNotBlank())
     }
 
-    /**
-     * A 200 whose body is not a verdict.
-     *
-     * A captive portal or a corporate proxy answers exactly like this — status 200, content that
-     * has nothing to do with the request. Without the guard the decode throws past a caller that
-     * has handled every documented outcome.
-     */
     @Test
     fun aTwoHundredThatIsNotAVerdictFailsInsteadOfThrowing() = runTest {
         val submitter = submitterAnswering(
@@ -177,13 +143,6 @@ class KtorMatchSubmitterTest {
         assertEquals(HttpStatusCode.InternalServerError.value, failed.status)
     }
 
-    /**
-     * A 401 is not a verdict about the match.
-     *
-     * The session expired, or the server was redeployed and swept its sessions. The transcript is
-     * still honest, so the answer has to be one `TranscriptQueue` will hold rather than one it
-     * treats as judged and drops.
-     */
     @Test
     fun anExpiredSessionIsUnauthenticatedRatherThanAFailure() = runTest {
         val submitter = submitterAnswering(
@@ -194,7 +153,6 @@ class KtorMatchSubmitterTest {
         assertEquals(SubmissionResult.Unauthenticated, submitter.submit(transcript))
     }
 
-    /** Nobody signed in: the same answer, without spending a round trip to be told so. */
     @Test
     fun noTokenIsUnauthenticatedWithoutAskingTheServer() = runTest {
         var asked = false
@@ -224,13 +182,6 @@ class KtorMatchSubmitterTest {
 
     // ---- Fixtures ---------------------------------------------------------
 
-    /**
-     * The envelope a verdict now travels in.
-     *
-     * The server answers `/matches/submit` with a receipt — the verdict plus what it credited — so
-     * a bare verdict is no longer a body any of these tests could receive. The other three fields
-     * are optional, which is what lets these cases stay about the verdict alone.
-     */
     private fun receipt(verdict: String) = """{"verdict":$verdict}"""
 
     private fun httpClient(engine: MockEngine) = HttpClient(engine) {
@@ -273,19 +224,11 @@ class KtorMatchSubmitterTest {
         moves = listOf(TranscriptMove(cardId = 1, position = 0)),
     )
 
-    /**
-     * The address, read per request.
-     *
-     * A lambda and not a string because the player can switch servers while the app is running,
-     * and a client holding the address it was built with would keep talking to the one they left
-     * — see [ServerDirectory]. These tests only need it to be constant.
-     */
     private val address: suspend () -> String = { BASE_URL }
 
     private companion object {
         const val BASE_URL = "http://127.0.0.1:8080"
 
-        /** Opaque to the client and meaningless to the mock — it only has to arrive. */
         const val TOKEN = "test-session"
     }
 }

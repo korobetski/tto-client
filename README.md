@@ -2,8 +2,8 @@
 
 [![Build Status](https://github.com/korobetski/tto-client/actions/workflows/build.yml/badge.svg)](https://github.com/korobetski/tto-client/actions/workflows/build.yml)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Kotlin](https://img.shields.io/badge/kotlin-2.2.20-%237F52FF.svg?logo=kotlin)](https://kotlinlang.org)
-[![Compose Multiplatform](https://img.shields.io/badge/Compose_Multiplatform-1.9.3-4285F4.svg)](https://github.com/JetBrains/compose-multiplatform)
+[![Kotlin](https://img.shields.io/badge/kotlin-2.4.10-%237F52FF.svg?logo=kotlin)](https://kotlinlang.org)
+[![Compose Multiplatform](https://img.shields.io/badge/Compose_Multiplatform-1.11.1-4285F4.svg)](https://github.com/JetBrains/compose-multiplatform)
 
 **A modern, cross-platform implementation of the classic Triple Triad card game from Final Fantasy series.**
 
@@ -186,17 +186,25 @@ The client currently implements **7 core systems**:
 
 ## Toolchain
 
+**[`gradle/libs.versions.toml`](gradle/libs.versions.toml) is the authority.** This table is a
+copy and copies rot — it claimed Kotlin 2.2.20 and Compose 1.9.3 for several releases after the
+catalog had moved on. Read the catalog when the number matters.
+
 | Component | Version | Notes |
 |-----------|---------|-------|
 | **Gradle** | 9.6.1 | Via committed wrapper |
 | **JDK** | 17 | `jvmToolchain(17)` in all modules |
-| **Kotlin** | 2.2.20 | With Compose Multiplatform plugin |
-| **Compose Multiplatform** | 1.9.3 | Material 3 components |
-| **kotlinx.serialization** | 1.9.0 | JSON parsing |
+| **Kotlin** | 2.4.10 | With Compose Multiplatform plugin |
+| **Compose Multiplatform** | 1.11.1 | |
+| **Material 3** | 1.9.0 | Versions separately from the rest of Compose since 1.11 |
+| **`com.tripletriad:core`** | 0.7.3 | The rules engine; the server pins the same number |
+| **Ktor** | 3.5.2 | Same version the server runs |
+| **kotlinx.serialization** | 1.11.0 | JSON parsing |
+| **kotlinx.coroutines** | 1.11.0 | |
 | **Android Gradle Plugin** | 9.3.1 | For Android target |
-| **ktlint** | 12.1.2 | Code formatting (configured via .editorconfig) |
+| **ktlint** | 12.1.2 | Code formatting (configured via .editorconfig); held back deliberately — see the catalog |
 | **detekt** | 1.23.8 | Static analysis (maxIssues = 0) |
-| **JaCoCo** | Built-in | Code coverage (96.8% line, 78.9% branch) |
+| **JaCoCo** | Built-in | Code coverage, desktop target only — see [§ JaCoCo, not Kover](#jacoco-not-kover) |
 
 ---
 
@@ -246,7 +254,7 @@ adb shell am start -n com.tripletriad.android/.MainActivity
 # Full build: compile, test, lint, format check
 ./gradlew build
 
-# Fast test loop (523 tests, ~22s from scratch)
+# Fast test loop (856 tests, measured 2026-08-17)
 ./gradlew :shared:desktopTest
 
 # Static analysis
@@ -401,14 +409,20 @@ adb uninstall com.tripletriad.android
 
 | Platform | Command | Result |
 |----------|---------|--------|
-| All | `./gradlew clean build` | **BUILD SUCCESSFUL** (264 tasks) |
-| Android Debug | `:androidApp:assembleDebug` | **BUILD SUCCESSFUL** (19,070 KB) |
-| Android Release | `:androidApp:assembleRelease` | **BUILD SUCCESSFUL** (16,141 KB) |
-| Desktop | `:desktopApp:build` | **BUILD SUCCESSFUL** |
-| Shared Tests | `:shared:desktopTest` | **523 tests, 0 failures** |
-| All Tests | `:shared:build` | **786 executions, 0 failures** |
-| Lint | `ktlintCheck detekt` | **BUILD SUCCESSFUL** (0 issues) |
-| Coverage | `:shared:coverageReport` | **96.8% line, 78.9% branch** |
+| Shared Tests | `:shared:desktopTest` | **856 tests, 0 failures** (measured 2026-08-17) |
+| Android host tests | `:shared:testAndroidHostTest` | **396 tests, 0 failures** (measured 2026-08-17) |
+| Coverage | `:shared:coverageReport` | **95.0% line, 75.8% branch**, desktop target only (measured 2026-08-17) |
+
+**Not verified in this pass** — the row below was last confirmed at the cited numbers and has not
+been re-run since; APK sizes and full-build task counts drift with every dependency bump and are
+not worth pinning in prose:
+
+| Platform | Command | Result |
+|----------|---------|--------|
+| All | `./gradlew clean build` | BUILD SUCCESSFUL last confirmed, task/size figures not re-measured |
+| Android Debug / Release | `:androidApp:assembleDebug` / `assembleRelease` | BUILD SUCCESSFUL last confirmed |
+| Desktop | `:desktopApp:build` | BUILD SUCCESSFUL last confirmed |
+| Lint | `ktlintCheck detekt` | BUILD SUCCESSFUL last confirmed (0 issues) |
 
 ### Device Testing
 
@@ -635,7 +649,7 @@ Three warnings from plugin internals (all scheduled for Gradle 10):
 
 ### ✅ Proven by Execution
 
-- Kotlin 2.2.20 + Compose Multiplatform 1.9.3 + Ktor stack works
+- Kotlin 2.4.10 + Compose Multiplatform 1.11.1 + Ktor stack works
 - Single `commonMain` UI runs on Android and JVM
 - All 28 of original's 32 screens implemented
 - Complete rules engine with server-side verification
@@ -644,11 +658,13 @@ Three warnings from plugin internals (all scheduled for Gradle 10):
 - Local Docker/Postgres container integration
 - Original artwork (263 cards, 27 avatars, 84 portraits, 20 captions)
 - 4-language localization
-- 96.8% line coverage, 0 detekt issues
+- 95.0% line coverage / 75.8% branch, desktop target (measured 2026-08-17)
 
 ### 📋 Remaining
 
-1. **Local PvP** — `MatchView` and peer protocol (transport undecided)
+1. **Local PvP** — the online path is built and server-mediated (`net/PvpClient.kt`: tables, queue,
+   challenges, moves, claims). What is *not* built is a peer-to-peer or same-device transport; that
+   is still undecided.
 2. **iOS app** — Framework compiles, needs Xcode project setup
 3. **Store release** — Out of scope by decision
 

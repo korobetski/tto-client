@@ -24,25 +24,10 @@ import androidx.compose.ui.unit.dp
 import com.tripletriad.i18n.LocalStrings
 import androidx.compose.foundation.Image as ComposeImage
 
-/** The phase line, so a test can read what the splash claims to be doing. */
 const val SPLASH_PHASE_TEST_TAG: String = "splash-phase"
 
-/** The logo, so a test can assert it arrived without comparing pixels. */
 const val SPLASH_LOGO_TEST_TAG: String = "splash-logo"
 
-/**
- * Shown until [StartupState.isReady].
- *
- * The AS3 build had nothing like this — Flash's own preloader covered the wait, and `MenuScreen`
- * was the first thing the app drew. So this is not a port of anything; it exists because an
- * installed APK has no preloader, and because the update check that is coming needs somewhere
- * visible to live.
- *
- * Deliberately **not** a `Dialog` or an overlay: it is a screen in the same slot the menu and the
- * match occupy, so there is no window to dismiss and no z-order to get wrong.
- *
- * @param state which phase to describe and how far along the bar sits.
- */
 @Composable
 internal fun SplashScreen(state: StartupState) {
     val strings = LocalStrings.current
@@ -99,6 +84,5 @@ internal fun SplashScreen(state: StartupState) {
     }
 }
 
-/** 512x128 art, so this keeps its aspect ratio and never upscales past it. */
 private val LogoMaxWidth = 512.dp
 private val LogoHeight = 128.dp

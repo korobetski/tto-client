@@ -29,19 +29,11 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/**
- * Choosing which deck to play — the original's `DeckSelector`.
- *
- * The two things worth pinning are both about *when* it appears: it is a step inside the match, so
- * the match is already counted as started while it is on screen, and it is skipped entirely under
- * `RULE_RANDOM`. Both come straight from `BaseMatchScreen.deckSelectionPhase`.
- */
 @OptIn(ExperimentalTestApi::class)
 class DeckSelectorUiTest {
     private val cards = runBlocking { loadCardCatalog() }
     private val english = runBlocking { loadStrings(AppLocale.EN_US) }
 
-    /** A profile with two complete decks that share no card, plus a partial one. */
     private fun withDecks(): GameSave = GameSave.new(createdAt = 0L).copy(
         cards = (STARTER + EXTRA).associateWith { 1 },
         decks = listOf(
@@ -59,19 +51,16 @@ class DeckSelectorUiTest {
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_SELECT_CHOOSE_TEST_TAG) }
     }
 
-    /** The English name of an ff14 card, which is what a hand shows once a card is picked up. */
     private fun nameOf(cardId: Int): String {
         val card = cards.block(FF14_BLOCK).first { it.id == cardId }
         return english[card.nameKey]
     }
 
-    /** The turn line, which names the card currently in hand. */
     private fun ComposeUiTest.turnLine(): String {
         val node = onNodeWithTag(TURN_TEST_TAG).fetchSemanticsNode()
         return node.config[SemanticsProperties.Text].joinToString("") { it.text }
     }
 
-    /** Only complete decks are offered — `DeckSelector.as:79` adds a row only `if (fullDeck)`. */
     @Test
     fun onlyCompleteDecksAreOffered() = runComposeUiTest {
         val documents = seeded(withDecks())
@@ -86,13 +75,6 @@ class DeckSelectorUiTest {
         assertFalse(isVisible("Halfling"), "a partial deck is not playable")
     }
 
-    /**
-     * The deck picked is the deck dealt.
-     *
-     * Read off the **turn line**, which names the card the player has picked up, because a hand is
-     * drawn art and carries no text of its own. Tapping the first slot and finding a `Heavies` card
-     * there is what says the selection reached the deal rather than only highlighting a row.
-     */
     @Test
     fun theChosenDeckIsTheHandThatIsDealt() = runComposeUiTest {
         val documents = seeded(withDecks())
@@ -120,12 +102,6 @@ class DeckSelectorUiTest {
         )
     }
 
-    /**
-     * A deck's label follows its **save slot**, not its position in the offered list.
-     *
-     * Filtering the incomplete decks out would otherwise rename the survivors: an unnamed deck in
-     * slot 5 must still read `Deck 5` when it is the second row shown.
-     */
     @Test
     fun anUnnamedDeckIsLabelledByItsSaveSlotAndNotItsRow() = runComposeUiTest {
         val profile = GameSave.new(createdAt = 0L).copy(
@@ -147,12 +123,6 @@ class DeckSelectorUiTest {
         assertFalse(isVisible("Deck 2"), "and is not renumbered to the row it happens to sit on")
     }
 
-    /**
-     * The first offered deck starts selected.
-     *
-     * `chooseBtn.isEnabled = false` with nothing picked in the original (`:117`), so playing always
-     * cost two taps. One deck is the common case and it should be one tap.
-     */
     @Test
     fun theFirstDeckIsAlreadySelected() = runComposeUiTest {
         val documents = seeded(withDecks())
@@ -162,13 +132,6 @@ class DeckSelectorUiTest {
         onNodeWithTag(DECK_SELECT_CHOOSE_TEST_TAG).assertIsEnabled()
     }
 
-    /**
-     * With no complete deck the list says so, and Random is the way through.
-     *
-     * `if (deckCollection.length == 0) { }` in the original — an empty block, so the panel showed
-     * an empty list and no reason for it. Random always works: it draws from the collection, and
-     * every profile owns at least five cards ([STARTER_CARDS]).
-     */
     @Test
     fun withNoCompleteDeckTheListSaysSoAndRandomStillPlays() = runComposeUiTest {
         val profile = GameSave.new(createdAt = 0L)
@@ -187,14 +150,6 @@ class DeckSelectorUiTest {
         assertEquals(HAND_SIZE, handSize(CardColor.BLUE))
     }
 
-    /**
-     * Under `RULE_RANDOM` the selector never opens.
-     *
-     * `deckSelectionPhase` branches on `RULES.RANDOM` *before* it constructs the panel and deals
-     * from the whole collection instead — so a chosen deck would have been ignored, and asking
-     * would be a question with no answer. This is why the rules are resolved before the deck is
-     * asked for: see `PveMatches.rulesFor`.
-     */
     @Test
     fun theRandomRuleSkipsTheSelectorEntirely() = runComposeUiTest {
         val documents = seeded(freshSave(createdAt = 0L, block = FF8_BLOCK))
@@ -211,7 +166,6 @@ class DeckSelectorUiTest {
         assertFalse(exists(DECK_SELECT_CHOOSE_TEST_TAG), "Random must not ask for a deck")
     }
 
-    /** The fixture's premise: that opponent really does impose Random, and without a roulette. */
     @Test
     fun theRandomOpponentIsTheOneTheFixtureAssumes() {
         val npcs = runBlocking { loadNpcCatalog() }
@@ -222,13 +176,6 @@ class DeckSelectorUiTest {
         assertFalse(npc.gameRules().roulette, "and should not draw more rules on top")
     }
 
-    /**
-     * The match is already counted as started while the selector is up.
-     *
-     * `PVEScreen.as:244` increments `STARTED_MATCHES` when the match screen is launched, which in
-     * the original is before the selector opens — the panel is a child of the match screen. Backing
-     * out from here is therefore a forfeit, which is what that counter is for.
-     */
     @Test
     fun backingOutOfTheSelectorStillCountsAsAForfeit() = runComposeUiTest {
         val documents = seeded(withDecks())
@@ -246,20 +193,14 @@ class DeckSelectorUiTest {
     }
 
     private companion object {
-        /** The five a fresh profile owns. */
-/** The starter's **opening deck** — five cards, so a `Deck` built from it is complete. */
         val STARTER = starterFor(FF14_BLOCK).deck
 
-        /** Five ff14 cards outside the starter set, so the two decks share nothing. */
         val EXTRA = listOf(44, 45, 51, 63, 74).map { Card.idFor(block = 1, number = it) }
 
-        /** `ma-dincht` imposes All Open, Random and Elemental, and declares no roulette. */
         const val RANDOM_OPPONENT = "ma-dincht"
 
-        /** `FixedClock.DEFAULT_HOUR`, which is when every test without its own clock plays. */
         const val NOON = 12
 
-        /** Fewer than [HAND_SIZE], so the deck is not playable. */
         const val HALF_A_DECK = 3
     }
 }

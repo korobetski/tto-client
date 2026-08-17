@@ -18,21 +18,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * The glue between the durable queue and the submitter — and **what a drain credits**.
- *
- * ### Why this file did not exist, and why that mattered
- *
- * [QueuedMatchReporter] is four short methods over two collaborators that each have their own
- * tests, which is exactly the shape that looks too thin to be worth testing. It is not: it is the
- * only thing that decides what happens to the profile the server writes when it credits a match,
- * and for as long as that answer was a constructor callback, **nothing anywhere passed one**. A
- * test asking "what does a drain hand back" would have found that on the day it was written; the
- * player found it instead, as a card that could be seen in the bag and not spent.
- *
- * So the assertions here are mostly about the return value, and each one names a receipt shape the
- * server really produces.
- */
 class QueuedMatchReporterTest {
 
     @Test
@@ -45,10 +30,6 @@ class QueuedMatchReporterTest {
         assertEquals(listOf(1), TranscriptQueue(store).pending(PROFILE).map { it.seed })
     }
 
-    /**
-     * Nothing here throws: a match is already over, and a full disk must not take the screen
-     * down with it.
-     */
     @Test
     fun aQueueThatCannotBeWrittenIsLoggedRatherThanThrown() = runTest {
         val reporter = reporterOver(FailingStore()) { judged(accepted) }
@@ -58,12 +39,6 @@ class QueuedMatchReporterTest {
         assertNull(reporter.drain(PROFILE), "a broken store must not throw out of a drain either")
     }
 
-    /**
-     * The one that matters: a drain hands back the profile the server credited.
-     *
-     * `AccountSession` adopts it and `MatchSettlement` is what asks — see both for why a client
-     * that ignores this ends up spending items the server does not hold.
-     */
     @Test
     fun aDrainReturnsTheCreditedProfile() = runTest {
         val store = InMemoryDocumentStore()
@@ -73,13 +48,6 @@ class QueuedMatchReporterTest {
         assertEquals(credited(mgp = 500), reporter.drain(PROFILE))
     }
 
-    /**
-     * With several credited at once, the **newest** wins and the rest are not applied in turn.
-     *
-     * Each receipt's profile already includes every match credited before it, so replaying them
-     * would show the player their progression flickering through states the server considers
-     * superseded.
-     */
     @Test
     fun aDrainOfSeveralReturnsOnlyTheNewestProfile() = runTest {
         val store = InMemoryDocumentStore()
@@ -94,12 +62,6 @@ class QueuedMatchReporterTest {
         assertEquals(credited(mgp = 200), reporter.drain(PROFILE), "an older profile was adopted")
     }
 
-    /**
-     * A duplicate carries a profile and is still skipped.
-     *
-     * It is the state the server already had — a receipt it kept from the first time this match was
-     * submitted — so adopting it would undo whatever was credited *after* it in the same drain.
-     */
     @Test
     fun aDuplicateReceiptCreditsNothingEvenThoughItCarriesAProfile() = runTest {
         val store = InMemoryDocumentStore()
@@ -111,7 +73,6 @@ class QueuedMatchReporterTest {
         assertNull(reporter.drain(PROFILE), "a duplicate is not new information")
     }
 
-    /** A rejected transcript credits nothing, and carries no profile to credit. */
     @Test
     fun aRejectedTranscriptCreditsNothing() = runTest {
         val store = InMemoryDocumentStore()
@@ -122,7 +83,6 @@ class QueuedMatchReporterTest {
         assertNull(reporter.drain(PROFILE))
     }
 
-    /** An unreachable server credits nothing and keeps the queue for the next launch. */
     @Test
     fun anOfflineDrainCreditsNothingAndKeepsTheQueue() = runTest {
         val store = InMemoryDocumentStore()
@@ -133,12 +93,6 @@ class QueuedMatchReporterTest {
         assertEquals(listOf(1), TranscriptQueue(store).pending(PROFILE).map { it.seed })
     }
 
-    /**
-     * No session holds the queue too — the case a player who played offline is in.
-     *
-     * Distinct from being offline in what it says about *why*, and identical in what it does: the
-     * transcripts stay, because signing in is exactly what makes them creditable.
-     */
     @Test
     fun anUnauthenticatedDrainCreditsNothingAndKeepsTheQueue() = runTest {
         val store = InMemoryDocumentStore()
@@ -149,14 +103,6 @@ class QueuedMatchReporterTest {
         assertEquals(listOf(1), TranscriptQueue(store).pending(PROFILE).map { it.seed })
     }
 
-    /**
-     * The two answers that are not verdicts and are still answers.
-     *
-     * A server on a newer protocol and a request it could not read both consume the transcript —
-     * see `TranscriptQueue.drain` for why — and neither credits anything. They are here because
-     * this class has to survive being handed one: they carry no receipt at all, so the mapping that
-     * picks a credited profile has nothing to read on them.
-     */
     @Test
     fun anAnswerWithNoReceiptCreditsNothing() = runTest {
         for (answer in listOf(
@@ -172,10 +118,6 @@ class QueuedMatchReporterTest {
         }
     }
 
-    /**
-     * Draining with nothing queued is a no-op, which is what makes it safe to call on every exit
-     * from a board — see `MatchSettlement`.
-     */
     @Test
     fun drainingAnEmptyQueueAsksNothingAndCreditsNothing() = runTest {
         var submissions = 0
@@ -223,13 +165,6 @@ class QueuedMatchReporterTest {
         override suspend fun submit(transcript: MatchTranscript): SubmissionResult = answer()
     }
 
-    /**
-     * A store where every operation fails, which is what a full disk or a revoked permission is.
-     *
-     * The whole point of the `try`/`catch` in [QueuedMatchReporter]: the platform decides what a
-     * failed write throws, so the reporter catches broadly and carries on. This proves it carries
-     * on rather than merely that it compiles.
-     */
     private class FailingStore : DocumentStore {
         override suspend fun read(key: String): String? = error("no")
         override suspend fun write(key: String, text: String): Unit = error("no")

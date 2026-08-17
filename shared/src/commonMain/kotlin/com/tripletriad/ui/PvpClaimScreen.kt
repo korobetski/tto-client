@@ -26,7 +26,6 @@ import androidx.compose.ui.text.font.FontWeight
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.Card
-import com.tripletriad.protocol.PvpMatchView
 import com.tripletriad.ui.theme.LocalTtoColors
 import kotlinx.coroutines.launch
 
@@ -34,38 +33,12 @@ const val PVP_CLAIM_TEST_TAG: String = "pvp-claim"
 const val PVP_CLAIM_CONFIRM_TEST_TAG: String = "pvp-claim-confirm"
 const val PVP_CLAIM_EMPTY_TEST_TAG: String = "pvp-claim-empty"
 
-/** Shown while the prizes have not come back yet — see [PVP_CLAIM_EMPTY_TEST_TAG] for the other. */
 const val PVP_CLAIM_LOADING_TEST_TAG: String = "pvp-claim-loading"
 const val PVP_CLAIM_FAILED_TEST_TAG: String = "pvp-claim-failed"
 const val PVP_CLAIM_PROMPT_TEST_TAG: String = "pvp-claim-prompt"
 
-/** `pvp-prize-<cardId>` — one of the loser's cards, offered as a prize. */
 fun prizeTestTag(cardId: Int): String = "pvp-prize-$cardId"
 
-/**
- * Choosing what you won.
- *
- * ### The screen the wager was always missing
- *
- * A card stake used to be two ids agreed before the match, which meant the interesting half of the
- * wager — *which* card — was decided before a card had been played. Under One and Diff the winner
- * names it afterwards, out of the five the loser actually brought, and that decision needs
- * somewhere to happen.
- *
- * ### Why the whole card is drawn and not a thumbnail
- *
- * This is the one screen in the game where a choice is irreversible and the difference between the
- * options is arithmetic. A 44dp thumbnail renders the four powers at a size nobody reads — the
- * deck editor works around it with `CardStatsLine` underneath — so here the card is drawn at full
- * size, faces and all, because "which of these is better" is the only question being asked.
- *
- * ### A deadline that picks for you
- *
- * The server settles an unclaimed match once [PvpMatchView] says the deadline has passed, taking
- * the strongest card of the five. That is deliberately generous and still not what most players
- * want, so the countdown is on screen: a choice quietly made on your behalf is worse than a choice
- * you were rushed into.
- */
 @Composable
 internal fun PvpClaimScreen(
     session: PvpSession,
@@ -140,19 +113,6 @@ internal fun PvpClaimScreen(
     }
 }
 
-/**
- * What there is to choose from, as a row of tappable cards.
- *
- * Shared with the board's own claim panel — see `PvpMatchScreen.ClaimPhase`. There are two routes
- * to this choice: the ordinary one, on the board the match was just played on, and this screen,
- * which is what the lobby's banner leads to when the app was killed before the winner picked. They
- * must offer the same five cards under the same rules, so they draw them with the same function
- * rather than with two copies of it.
- *
- * @param owed how many are still to be named. Once that many are picked the rest stop responding,
- *   because the server counts them: a sixth tap that silently replaced an earlier choice would be
- *   worse feedback than one that does nothing.
- */
 @Composable
 internal fun PrizeRow(
     ids: List<Int>,
@@ -180,7 +140,6 @@ internal fun PrizeRow(
     }
 }
 
-/** One of the loser's cards, tappable, ringed when chosen. */
 @Composable
 private fun Prize(card: Card, selected: Boolean, enabled: Boolean, onTap: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -213,16 +172,6 @@ private fun Prize(card: Card, selected: Boolean, enabled: Boolean, onTap: () -> 
     }
 }
 
-/**
- * What is left to choose, and how long there is to choose it.
- *
- * The countdown is stated in whole seconds and stops at zero rather than going negative, for the
- * reason `PvpMatchScreen.turnLine` gives: a clock reading "-4s" says the game is broken, where a
- * clock at zero says the server is about to act.
- *
- * Shared with the board's claim panel for the reason [PrizeRow] is: one choice, two routes to it,
- * and the sentence above it should not depend on which one the player took.
- */
 internal fun claimPrompt(
     owed: Int,
     chosen: Int,

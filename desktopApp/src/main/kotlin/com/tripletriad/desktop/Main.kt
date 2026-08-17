@@ -21,10 +21,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlin.system.exitProcess
 
-/**
- * Desktop entry point. Not a migration target — it exists so the shared Compose
- * UI can be built and run on a developer machine without an emulator or Xcode.
- */
 fun main() {
     installCrashLog()
     val settings = DesktopSettingsStore()
@@ -56,20 +52,6 @@ fun main() {
     exitProcess(0)
 }
 
-/**
- * Keeps the last few serious lines on disk, and goes on printing them.
- *
- * ### Why the desktop needs this as much as the phone
- *
- * A packaged build — the `.deb`, `.msi` and `.dmg` this project produces — is launched from a
- * desktop icon, and its stdout goes to whatever the desktop environment does with stdout, which is
- * usually nothing. So the argument is the same one the Android host makes: without a file, a player
- * whose game closed itself has nothing to send.
- *
- * The scope is the process. `CrashLog` writes from a single collector and the JVM ends at
- * `exitProcess` below, so there is nothing to cancel and nothing to wait for — the last snapshot
- * either reached the file before the exit or did not, which is the limitation its own KDoc names.
- */
 private fun installCrashLog() {
     Log.install(
         CrashLog(
@@ -80,26 +62,6 @@ private fun installCrashLog() {
     )
 }
 
-/**
- * The server connection, or null when no server is configured.
- *
- * ### Where the addresses come from
- *
- * `-Dtto.servers=…`, then `TTO_SERVERS`, then the local container. Comma-separated, each entry
- * either an address or `Label=address` — the parsing is `serverEntries` in `:shared`, so this host
- * and the Android one derive the same ids from the same text and a player switching devices stays
- * signed in to the same servers.
- *
- * The default lists both the local container and the deployed host, in that order, and the order is
- * the decision. This target exists so the shared UI can be run on a developer machine, and
- * requiring a flag to exercise Phase 5 would mean it mostly went unexercised — so the container
- * `tto-server` brings up stays first and stays the default. The deployed server is there to be
- * switched to, not to receive whatever an uncommitted engine change produces. Set `TTO_SERVERS` to
- * an empty value to turn both off.
- *
- * The queue, the session and the chosen server each get their **own** store — see [ServerStores]
- * for why none of them may be the saves directory.
- */
 private fun buildServerConnection(): ServerConnection? {
     val configured = System.getProperty("tto.servers")
         ?: System.getenv("TTO_SERVERS")
@@ -122,7 +84,6 @@ private fun buildServerConnection(): ServerConnection? {
     )
 }
 
-/** The container `tto-server`'s `compose.yaml` publishes, then the host it deploys to. */
 private const val DEFAULT_SERVERS =
     "Local=http://127.0.0.1:8080, Moebius=https://tto.moebiuscore.fr"
 

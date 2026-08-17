@@ -31,26 +31,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * The lobby: finding an opponent, and answering an invitation.
- *
- * ### The state is seeded, not polled
- *
- * `PvpScreen` runs a poll loop for as long as it is on screen. A test that waited for it would be
- * asserting on a timer; every case below instead drives the [PvpSession] to the state under test
- * **before** the screen is composed, and then asserts what is drawn. What the loop does is
- * [PvpSessionTest]'s business, and it is tested there without a screen at all.
- *
- * ### The assertion that matters
- *
- * [anInvitationYouSentOffersNoAcceptButton]. Both directions are listed in one place, and an
- * invitation this player *sent* has nothing to accept — offering the button would be offering them
- * a match against themselves, which the server would refuse with nothing on screen to explain it.
- */
 @OptIn(ExperimentalTestApi::class)
 class PvpLobbyUiTest {
 
-    /** An invitation received offers both Accept and Decline. */
     @Test
     fun anInvitationReceivedCanBeAccepted() = lobby(challenges = listOf(fromKuplu())) {
         onNodeWithTag(challengeRowTestTag(INVITE_ID)).assertExists()
@@ -58,18 +41,12 @@ class PvpLobbyUiTest {
         onNodeWithTag(PVP_NO_CHALLENGE_TEST_TAG).assertDoesNotExist()
     }
 
-    /**
-     * An invitation this player sent has no Accept.
-     *
-     * See the class KDoc: accepting your own invitation is a match against yourself.
-     */
     @Test
     fun anInvitationYouSentOffersNoAcceptButton() = lobby(challenges = listOf(toKuplu())) {
         onNodeWithTag(challengeRowTestTag(INVITE_ID)).assertExists()
         onNodeWithTag(challengeAcceptTestTag(INVITE_ID)).assertDoesNotExist()
     }
 
-    /** Accepting posts to the server, naming that invitation. */
     @Test
     fun acceptingPostsToTheServer() {
         val paths = mutableListOf<String>()
@@ -85,7 +62,6 @@ class PvpLobbyUiTest {
         )
     }
 
-    /** The Invite button is dead until a name is typed — an empty challenge names nobody. */
     @Test
     fun invitingNeedsAName() = lobby(onInvites = true) {
         onNodeWithTag(PVP_CHALLENGE_TEST_TAG).assertIsNotEnabled()
@@ -95,12 +71,6 @@ class PvpLobbyUiTest {
         onNodeWithTag(PVP_CHALLENGE_TEST_TAG).assertExists()
     }
 
-    /**
-     * A typed name is trimmed before it is sent.
-     *
-     * The server trims too. This is here so a trailing space costs nothing rather than a round trip
-     * and a "no such player" — the same argument `Credentials.looksValid` makes.
-     */
     @Test
     fun aTypedNameIsTrimmedBeforeItIsSent() {
         lobby(onInvites = true) {
@@ -112,13 +82,6 @@ class PvpLobbyUiTest {
         assertEquals(listOf("Kuplu"), invited)
     }
 
-    /**
-     * Renders the lobby with [challenges] listed and the queue in state [queued].
-     *
-     * The session is driven into that state before composition — see the class KDoc — by answering
-     * the two requests it makes and then letting the screen render what it holds.
-     */
-    /** Names handed on to the terms screen, in order. */
     private val invited = mutableListOf<String>()
 
     @Suppress("LongParameterList")
@@ -196,10 +159,8 @@ class PvpLobbyUiTest {
         )
     }
 
-    /** An invitation somebody sent to this player. */
     private fun fromKuplu() = challengeJson(from = "Kuplu", to = ME)
 
-    /** One this player sent. `fromName` is theirs, which is how the row tells the two apart. */
     private fun toKuplu() = challengeJson(from = ME, to = "Kuplu")
 
     private fun challengeJson(from: String, to: String) = json.encodeToString(
@@ -235,7 +196,6 @@ class PvpLobbyUiTest {
     private companion object {
         const val ME = "Tester"
 
-        /** Fixed, so a countdown reads the same on every run. */
         const val NOW = 0L
         const val TABLE_ID = "t-1"
         const val INVITE_ID = "inv-1"

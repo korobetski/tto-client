@@ -11,13 +11,6 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * Covers the **real** `campaigns.json` in the Compose resource bundle.
- *
- * Same bargain as [NpcBundleTest]: `tools/extract_campaigns.py` asserts these counts on the way
- * out, and they are asserted again on the way in because the extractor is run by hand. A stale
- * bundle is exactly the failure this catches and the extractor cannot.
- */
 class CampaignBundleTest {
     private val catalog = runBlocking { loadCampaignCatalog() }
     private val cards = runBlocking { loadCardCatalog() }
@@ -29,13 +22,6 @@ class CampaignBundleTest {
         assertEquals(GOLD_SAUCER_RUNGS, assertNotNull(catalog.byKey("gs")).steps.size)
     }
 
-    /**
-     * One ladder per collection, and never both.
-     *
-     * `PVEScreen.as:84,91` gates each on `MODE`, so an `ff8_` character sees the Card Club and an
-     * `ff14_` one the Gold Saucer. Asserted as a property of the data rather than of the screen,
-     * because the screen reading it is what the port replaced.
-     */
     @Test
     fun eachSingleSetFormatHasExactlyOneLadder() {
         val formats = runBlocking { loadFormatCatalog() }
@@ -46,7 +32,6 @@ class CampaignBundleTest {
         }
     }
 
-    /** 500 MGP, both of them, which is what makes losing the last rung expensive. */
     @Test
     fun enteringCostsFiveHundred() {
         for (campaign in catalog.all) {
@@ -54,13 +39,6 @@ class CampaignBundleTest {
         }
     }
 
-    /**
-     * Every rung can field a hand of five in its own collection.
-     *
-     * The invariant [NpcBundleTest] holds the catalogue to, restated here because these are
-     * *different* opponent records — the ladders declare their own pools, so a pool that has gone
-     * stale against `cards.json` would not be caught over there.
-     */
     @Test
     fun everyRungCanFieldAHand() {
         val formats = runBlocking { loadFormatCatalog() }
@@ -77,15 +55,6 @@ class CampaignBundleTest {
         }
     }
 
-    /**
-     * The entry fee is the only fee — with one exception, which is kept.
-     *
-     * Twelve of the thirteen rungs declare `matchFee: 0`, the 500 having been paid up front.
-     * `CCGroupMatchScreen.as:70` gives Spade a `matchFee` of 15, and **nothing charges it**: the
-     * ladder's own screens never read `matchFee`, only `PVEScreen` does. So it is dead data in the
-     * original, carried through rather than tidied away, and pinned here so that porting it into
-     * something that *does* charge is a deliberate act.
-     */
     @Test
     fun onlyOneRungDeclaresAFeeAndNothingCollectsIt() {
         val charging = catalog.all.flatMap { campaign ->
@@ -94,12 +63,6 @@ class CampaignBundleTest {
         assertEquals(listOf("cc/spade"), charging)
     }
 
-    /**
-     * Three rungs speak, all of them in the Gold Saucer, and no rung has anything to say on a draw.
-     *
-     * The Card Club is **entirely silent**: all seven of its `messages` are empty strings, which is
-     * why the `TalkAnim` import at the top of `CCGroupMatchScreen` is dead.
-     */
     @Test
     fun onlyTheGoldSaucerSpeaks() {
         val speaking = catalog.all.flatMap { campaign ->
@@ -112,12 +75,6 @@ class CampaignBundleTest {
         )
     }
 
-    /**
-     * A ladder is walked by winning, restarted by losing, and repeated by drawing.
-     *
-     * The three `NEXT_STEP` values of `endGame`, read off the shipped data so that the end of the
-     * ladder — the point where the panel's Next Match disappears — is asserted rather than assumed.
-     */
     @Test
     fun winningWalksTheLadderAndLosingSendsYouBack() {
         val campaign = assertNotNull(catalog.byKey("gs"))
@@ -132,13 +89,6 @@ class CampaignBundleTest {
         )
     }
 
-    /**
-     * The single block a ladder's format admits.
-     *
-     * A ladder is played in one format, and every shipped format so far admits one block or all of
-     * them — so this takes the first, and says so rather than pretending to handle a mixed ladder
-     * that does not exist.
-     */
     private fun blockOf(formatId: String, formats: FormatCatalog): Int =
         requireNotNull(formats[formatId]) { "no such format: $formatId" }.blocks.first()
 

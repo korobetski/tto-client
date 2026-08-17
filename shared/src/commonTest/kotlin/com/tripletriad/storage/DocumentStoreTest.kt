@@ -7,14 +7,6 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * [InMemoryDocumentStore] and [sanitizeKey].
- *
- * The host stores are not covered, for the reason `UserSettingsTest` gives for the settings ones:
- * they are `java.io.File` calls in modules that do not ship a test source set. What matters is that
- * the in-memory store enforces the same key rule they do, so a test written against it means
- * something — which is why [sanitizeKey] is shared code rather than duplicated per implementation.
- */
 class DocumentStoreTest {
     @Test
     fun readsBackWhatWasWritten() = runTest {
@@ -31,7 +23,6 @@ class DocumentStoreTest {
         assertNull(InMemoryDocumentStore().read("nothing here"))
     }
 
-    /** A stored empty string is not the same as nothing stored — that distinction is the API. */
     @Test
     fun anEmptyDocumentIsDistinctFromAMissingOne() = runTest {
         val store = InMemoryDocumentStore()
@@ -83,10 +74,6 @@ class DocumentStoreTest {
         assertFailsWith<IllegalStateException> { store.delete("k") }
     }
 
-    /**
-     * Keys become filenames, so anything that could escape the directory is refused at the boundary
-     * — where the caller still knows which profile it was and can say so.
-     */
     @Test
     fun rejectsKeysThatWouldEscapeTheDirectory() = runTest {
         val store = InMemoryDocumentStore()

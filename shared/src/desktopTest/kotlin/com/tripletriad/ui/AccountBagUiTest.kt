@@ -58,26 +58,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * The bag **on an account**, which had no test at all until a player lost items to it.
- *
- * ### Why the gap existed, and why it is exactly here
- *
- * `InventoryUiTest` drives the same screen against a local `.sav`, where the whole transaction is
- * `Inventory.use` on a profile the client owns. On an account none of that is true: the roll is the
- * server's, the answer comes back over the wire, and the screen adopts a `PlayerState` it did not
- * compute. Every step of that is a step the local test cannot exercise, and the one that a player
- * reported losing items to — opening a pack — is the step with the most moving parts, because a
- * pack both *removes* an item and *adds* several.
- *
- * ### The server here is a real one, minus the socket
- *
- * The mock runs `Inventory.use` — the same `:core` function `AccountRoutes` calls — and answers
- * `ItemUsed` the way the route does. So this is not a stub agreeing with the client: it is the
- * server's own arithmetic, exercised through the client's own encoding, decoding and adoption. What
- * it cannot catch is a *deployed* server that is older than this build, which is the other half of
- * the diagnosis and not something a test can reach.
- */
 @OptIn(ExperimentalTestApi::class)
 class AccountBagUiTest {
 
@@ -85,13 +65,6 @@ class AccountBagUiTest {
     private val formats = runBlocking { loadFormatCatalog() }
     private val strings = runBlocking { loadStrings(AppLocale.EN_US) }
 
-    /**
-     * Opening a pack keeps everything else in the bag.
-     *
-     * The reported symptom, as an assertion: a pack is opened while other things are held, and the
-     * other things must still be there afterwards — in the profile the screen is now rendering, not
-     * merely in the response.
-     */
     @Test
     fun openingAPackKeepsTheRestOfTheBag() = runComposeUiTest {
         val session = signedIn()
@@ -116,7 +89,6 @@ class AccountBagUiTest {
         )
     }
 
-    /** And the cards it dealt are in there too, which is what a pack is for. */
     @Test
     fun openingAPackAddsWhatItDealt() = runComposeUiTest {
         val session = signedIn()
@@ -130,12 +102,6 @@ class AccountBagUiTest {
         assertTrue(cardStacks > CARDS, "a pack was opened and dealt nothing: $cardStacks")
     }
 
-    /**
-     * Leaving the reveal shows the bag again, with every row on it.
-     *
-     * The half a player sees. The two above assert the *profile*; this one asserts the **screen**,
-     * because "the items disappeared" is a claim about what is drawn and the two can differ.
-     */
     @Test
     fun theBagComesBackAfterTheReveal() = runComposeUiTest {
         val session = signedIn()
@@ -185,7 +151,6 @@ class AccountBagUiTest {
         }
     }
 
-    /** A session already signed in, holding a pack and two other things. */
     private fun signedIn(): AccountSession {
         stored = PlayerState(
             save = GameSave.new(createdAt = 0L).copy(
@@ -227,12 +192,6 @@ class AccountBagUiTest {
         }
     }
 
-    /**
-     * `GET /me` and `POST /me/bag/use`, answered the way `AccountRoutes` answers them.
-     *
-     * The seed is fixed so the pack's contents are the same on every run — a test whose fixture
-     * rolls its own dice reports a different failure each time it fails.
-     */
     private fun server() = MockEngine { request ->
         when (request.url.encodedPath) {
             "/me/bag/use" -> {
@@ -254,7 +213,6 @@ class AccountBagUiTest {
         headers = headersOf("Content-Type", ContentType.Application.Json.toString()),
     )
 
-    /** The profile this stand-in holds, mutated by the route as the real one mutates its row. */
     private var stored: PlayerState = PlayerState(save = GameSave.new(createdAt = 0L))
 
     private val home = ServerEntry(id = "home", label = "Home", baseUrl = "https://example.invalid")
@@ -267,7 +225,6 @@ class AccountBagUiTest {
         const val SEED = 7
         val PACK = BoosterType.BRONZE
 
-        /** Enough taps to turn over any pack this game deals, and not an infinite loop. */
         const val REVEAL_TAP_LIMIT = 20
 
         val WIDTH = 360.dp

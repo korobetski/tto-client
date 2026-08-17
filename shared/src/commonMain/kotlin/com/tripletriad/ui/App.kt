@@ -52,34 +52,6 @@ import com.tripletriad.ui.theme.TripleTriadTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/**
- * The whole app: splash while it loads, then the menu, then a match or the options.
- *
- * @param store where `UserSettings.json` lives. Supplied by the host, because `:shared` has no
- *   platform file access of its own — see `SettingsStore`. Defaults to an in-memory store so a
- *   preview or a test needs no filesystem, and so that a test can pin the language by handing in
- *   `InMemorySettingsStore("""{"language":"en_US"}""")` rather than inheriting whatever locale the
- *   machine running it happens to be set to.
- * @param documents where the `.sav` profiles live, for the same reason and from the same host. The
- *   in-memory default means a test gets a working, empty profile list rather than the machine's
- *   real saves — and that a preview cannot delete anybody's character.
- * @param clock the wall clock. Injected so a test can pin both the save timestamps and the hour
- *   that decides which opponents are available. **Defaults to a stopped clock**, not a real one:
- *   `:shared` has no `SystemClock` — see `Clock` — and a frozen 2026-01-01T12:00 is a working,
- *   obvious default for a preview or a test, the same bargain `InMemorySettingsStore` and
- *   `SilentAudioPlayer` make. Both real hosts pass one.
- * @param audio plays the sounds. Silent by default, which is also what the desktop host installs —
- *   see `AudioPlayer`.
- * @param onQuit what the Quit action does. Nothing, by default: a host that cannot express quitting
- *   (iOS) or does not want to (a preview) is a legitimate host, and the button being inert is
- *   better than `:shared` guessing.
- * @param server the connection to the account server, or null for an offline build. **Null is a
- *   supported configuration and not a degraded one**: without a server the game plays exactly as it
- *   did before accounts existed, off local `.sav` profiles, and every preview, screenshot and UI
- *   test gets that for free. With one, the character comes from the server instead and the local
- *   profile list is not reachable — see [ProfileGate]. The base URL and the HTTP engine are the
- *   host's business, as the file paths are.
- */
 // `BackHandler` is still `@ExperimentalComposeUiApi` in Compose 1.9.3. Opted into here rather than
 // project-wide, so the day it moves or changes shape there is exactly one call site to fix.
 @OptIn(ExperimentalComposeUiApi::class)
@@ -251,18 +223,6 @@ fun App(
     }
 }
 
-/**
- * The three things that have to happen once, in order, before the menu is shown.
- *
- * Separate from [App] because they are a sequence with a reason — the server, then the session on
- * it, then the local profiles if there is no session — and because [App] is otherwise the shell:
- * theme, locale, audio, back gesture. A reader asking why the splash ends when it does should not
- * have to find three effects among the volume plumbing.
- *
- * @param onReady called when every phase has completed and a stored session, if any, has been
- *   tried. A callback and not a returned flag because the destination is [App]'s decision: from
- *   then on the *user* decides where they are and startup must stop having an opinion.
- */
 @Composable
 @Suppress("LongParameterList")
 private fun StartupEffects(
@@ -320,44 +280,6 @@ private fun StartupEffects(
     }
 }
 
-/**
- * Waiting for somebody to sit down at the table this player opened — from **wherever they are**.
- *
- * ### What was wrong
- *
- * `PvpScreen` is the only thing in the app that ever asked whether a match had started, and it asks
- * only while it is on screen: its `watchLobby` loop is cancelled the moment the player navigates
- * away. So a host would open a table, go and do something else — the shop, their collection, a
- * match against a program — and the opponent who joined thirty seconds later would sit in front of
- * a board playing against nobody until the server's grace expired. The host was told nothing, and
- * the only way to find out was to walk back into the lobby, where the first poll would report the
- * match that had been waiting the whole time.
- *
- * A table is a **standing offer**, and this is the effect that treats it as one: while an offer of
- * this player's stands, the client keeps asking whether it has been taken up, whatever screen they
- * happen to be on.
- *
- * ### What it deliberately does not do
- *
- * **It does not poll all the time.** The condition is a table of this player's own — an offer they
- * made — and it stops at that table's own `expiresAt`, so an offer nobody took costs five minutes
- * of requests and not the rest of the session. This is the same argument [PvpSession] makes for
- * writing its loops as something a screen launches rather than something the session starts: a
- * request a second for a match nobody is waiting for is exactly what is not wanted here either.
- *
- * `tables` is not refreshed while the player is away, which is what keeps `myTable` readable at
- * all — the lobby's own refresh is what would clear it, and the lobby is not running.
- *
- * **It does not trap the player on the board.** The match id is remembered once it has been shown,
- * so backing out of a match goes back and stays back. The lobby's own effect still bounces a player
- * standing in the lobby, which is the behaviour it has always had and is not this function's to
- * change.
- *
- * **It does not interrupt a board.** A host who started a match against a program keeps it: being
- * yanked out mid-placement would lose that match to save a PvP one that still has two minutes of
- * grace on it. The effect is keyed on the screen as well as the match, so it fires the moment they
- * leave the board they were on.
- */
 @Composable
 private fun HostedTableWatch(
     pvp: PvpSession?,
@@ -385,17 +307,8 @@ private fun HostedTableWatch(
     }
 }
 
-/** The lobby's own interval — see [PvpSession]; a turn lasts thirty seconds. */
 private const val TABLE_POLL_MILLIS = 1_000L
 
-/**
- * Where the character in play comes from.
- *
- * The one place in the app that answers "account or local profile", so that everything below it —
- * the routing table, the thirteen screens, the drain — is written against [ProfileGate] and does
- * not know which. A function rather than two lines inside [App] because it is the decision, not
- * plumbing: naming it is what makes it findable.
- */
 @Composable
 private fun rememberGate(
     session: ProfileSession,
@@ -412,22 +325,6 @@ private fun rememberGate(
         rememberLocalGate(session, cards?.byId.orEmpty(), clock)
     }
 
-/**
- * The account the menu should offer to resume, or null when there is nothing to offer.
- *
- * Null on an offline build — no account, nothing to remember — and null once the app has looked and
- * found no name. [AccountSession.lastUsername] is the whole test: it is written by a successful
- * sign-in, survives the token expiring, and is cleared by signing out. So the card appears exactly
- * when the app knows who the player is, whether or not it can still prove it.
- *
- * The three states are read from the session rather than stored: [AccountSession.player] is set
- * when a token was accepted, [AccountSession.isBusy] is true while the round trip is out, and what
- * is left is a name with no usable token.
- *
- * `onSwitch` navigates *before* signing out, deliberately. Signing out clears `lastUsername`, which
- * removes this card — and a player who tapped it and watched the menu quietly rearrange itself
- * would have no idea whether anything happened.
- */
 @Composable
 private fun rememberedAccount(
     account: AccountSession?,
@@ -458,17 +355,6 @@ private fun rememberedAccount(
     )
 }
 
-/**
- * One screen.
- *
- * Split out of [App] so that `App` is the shell — theme, startup, locale, audio, back gesture — and
- * this is the routing table: where "Play" goes should not be found by scrolling past the volume
- * plumbing.
- *
- * @param onNavigate where a screen asks to go next. A single callback rather than one per
- *   destination: the transitions are `screen = x` and nothing else, and seven lambdas that each
- *   assign a constant would be seven places for a wrong constant to hide.
- */
 @Composable
 @Suppress("LongParameterList")
 private fun Destination(
@@ -593,13 +479,6 @@ private fun Destination(
     }
 }
 
-/**
- * The sign-in form and the server list.
- *
- * Both need an [AccountSession] and a [Connectivity], and both come from the same `server`, so
- * neither can be present without the other — the `?.let` pair is Kotlin's requirement rather than a
- * state the app can reach. Rendering nothing if it ever were is the honest answer.
- */
 @Composable
 private fun AccountDestination(
     destination: Screen,
@@ -633,18 +512,6 @@ private fun AccountDestination(
     }
 }
 
-/**
- * One of the nine screens behind the dashboard.
- *
- * Split from [Destination] because they share a prerequisite — a loaded character — and checking it
- * once is what keeps the eight call sites from each writing their own `?.let`. It is also what
- * keeps either function under the complexity detekt rejects: the two together are the routing table
- * the original spread across a `gotoScreen` string switch in `Game.as`.
- *
- * The card catalog is the second prerequisite and is *not* hoisted the same way: the dashboard, the
- * statistics and the help screen do not need it, and gating them on it would leave them blank while
- * `cards.json` loads.
- */
 @Composable
 @Suppress("LongParameterList")
 private fun CharacterDestination(
@@ -799,13 +666,6 @@ private fun CharacterDestination(
     }
 }
 
-/**
- * The rules, and the lobby.
- *
- * An odd couple on the face of it, and a real one underneath: both need nothing but the character,
- * both return to the dashboard, and neither reads the card table. Together they are one arm of
- * [CharacterDestination] instead of two, which is what keeps it under the complexity gate.
- */
 @Composable
 @Suppress("LongParameterList")
 private fun SocialDestination(
@@ -859,15 +719,6 @@ private fun SocialDestination(
     }
 }
 
-/**
- * The four screens that are a board.
- *
- * A pass-through, and worth its existence for two reasons: it names the group — an ordinary match,
- * the tutorial, a ladder step and a match against a person are one board with different opponents
- * behind it — and it keeps
- * [CharacterDestination] under the complexity gate, which is the same trade [RecordDestination]
- * makes one function below.
- */
 @Composable
 @Suppress("LongParameterList")
 private fun MatchDestinations(
@@ -967,22 +818,6 @@ private fun MatchDestinations(
     }
 }
 
-/**
- * The record, the day's quests, and the two screens that edit the character they describe.
- *
- * Grouped because they are one subject — who this character *is* and how they are doing, as opposed
- * to what they own or who they play — and because the arms together were what pushed
- * [CharacterDestination] past the complexity detekt allows.
- *
- * Both edits go through [ProfileGate.persist], so neither knows whether it is writing a local
- * `.sav` or an account the server holds. The quests screen writes nothing at all: a match credits
- * them, and this only reads.
- *
- * @param at the instant the quest day is read from, passed down rather than read here so the
- *   dashboard's badge and the screen cannot disagree about what day it is.
- * @param opponents only to name the opponent a `BeatOpponent` quest asks for. Behind the splash, so
- *   null is unreachable rather than a degraded mode; the label falls back to the icon id.
- */
 @Composable
 @Suppress("LongParameterList")
 private fun RecordDestination(
@@ -1030,14 +865,6 @@ private fun RecordDestination(
     }
 }
 
-/**
- * An ordinary PvE match.
- *
- * Its own function for the same reason the two scripted ones are: a `?.let` on the chosen opponent
- * nested inside one on the card table is what pushed [CharacterDestination] past the complexity
- * detekt allows, and the three match screens read better side by side than as three arms of a
- * `when`.
- */
 @Composable
 @Suppress("LongParameterList")
 private fun MatchDestination(
@@ -1071,17 +898,6 @@ private fun MatchDestination(
     }
 }
 
-/**
- * A ladder: its entry screen, then its rungs.
- *
- * Both destinations in one function because they share the ladder that neither has without the
- * other — and because they are one screen in the original too, `CCGroupScreen` dispatching straight
- * into `CCGroupMatchScreen`.
- *
- * The transcript is not reported from here. Every rung is a [MatchScript], and [MatchScreen]
- * refuses to submit a scripted match — the script changes the deal and the opening, neither of
- * which the seed carries, so a server could not replay it.
- */
 @Composable
 @Suppress("LongParameterList")
 private fun CampaignDestination(
@@ -1139,17 +955,6 @@ private fun CampaignDestination(
     }
 }
 
-/**
- * The two composition locals every match screen wants.
- *
- * [LocalCardArt] is provided even when null: a card composes correctly with no textures at all —
- * flat colour quad, empty layers — so a failed art load costs appearance, not playability.
- *
- * [LocalBannerArt] is built here rather than in [rememberStartup] because it loads nothing until a
- * caption is asked for, and because it is keyed on the language — a rule caption is a picture of a
- * word. The locale comes from [LocalStrings] rather than from the settings holder, so the captions
- * cannot disagree with the text on screen: both read the same value. See `BannerArt`.
- */
 @Composable
 private fun MatchArt(startup: StartupState, content: @Composable () -> Unit) {
     CompositionLocalProvider(
@@ -1159,46 +964,19 @@ private fun MatchArt(startup: StartupState, content: @Composable () -> Unit) {
     )
 }
 
-/**
- * What the player has picked to play: an opponent, or a ladder.
- *
- * One holder rather than two `remember`ed values threaded through [Destination] and
- * [CharacterDestination] as four parameters. Neither field is cleared on the way out: the next
- * choice overwrites it, and the screen that reads one is only reachable by having just made it.
- */
 @Stable
 internal class Choice {
     var opponent: Npc? by mutableStateOf(null)
     var campaign: Campaign? by mutableStateOf(null)
 
-    /**
-     * Who an invitation is being written for, or null when the terms screen is opening a table.
-     *
-     * Here rather than as a `Screen` parameter for the reason this class exists at all: the
-     * navigation is an enum and a `when`, so a screen that needs an argument needs somewhere to
-     * leave it. Not cleared on the way out — the next choice overwrites it, and the screen that
-     * reads it is only reachable by having just made one.
-     */
     var invitee: String? by mutableStateOf(null)
 
-    /** Which lesson the course list opened, for the same reason [invitee] is here. */
     var lesson: Int by mutableStateOf(0)
 }
 
-/** Where the match music plays — `BaseMatchScreen`, and every screen that is one. */
 internal val PLAYING_SCREENS =
     setOf(Screen.MATCH, Screen.TUTORIAL, Screen.CAMPAIGN_MATCH, Screen.PVP_MATCH)
 
-/**
- * The lesson, which needs three things at once: the card table, the opponent table, and an opponent
- * in it to teach.
- *
- * Its own function rather than another arm of [CharacterDestination]'s `when`, because three nested
- * `?.let` on top of that one pushed it past both the complexity and the nesting depth detekt
- * allows — and because the lesson **picks its own opponent**. It deliberately does not go through
- * [Choice]: nothing here may leave the tutor sitting in the chosen-opponent slot, where the next
- * ordinary match would find it.
- */
 @Composable
 @Suppress("LongParameterList")
 private fun TutorialDestination(
@@ -1232,14 +1010,6 @@ private fun TutorialDestination(
     }
 }
 
-/**
- * Which queue a finished match belongs in.
- *
- * The two sources key it differently and both are stable across a match — the local one by name and
- * creation date, the account one by the server and the account name — so this is a choice of
- * *which* stable key, not a computation. Written as a function rather than read off the gate so the
- * call site can pass the profile the match was actually played with; see its comment.
- */
 private fun queueKeyFor(
     profile: GameSave,
     account: AccountSession?,
@@ -1250,15 +1020,6 @@ private fun queueKeyFor(
         SaveRepository.keyFor(profile)
     }
 
-/**
- * The four destinations that read the card table — which are **two screens**.
- *
- * [Screen.CARDS] and [Screen.DECKS] are the two tabs of [CollectionScreen]; [Screen.SHOP] and
- * [Screen.INVENTORY] are the two tabs of [StoreScreen]. The enum still has four entries because
- * four things are still openable by name, and a caller that wants the bag should be able to say so
- * — what changed is that arriving at one of a pair now puts the other one tab away instead of two
- * screens and a dashboard away. See [CollectionScreen] for why these four were the ones to pair.
- */
 @Composable
 @Suppress("LongParameterList")
 private fun CollectionDestination(
@@ -1306,12 +1067,6 @@ private fun CollectionDestination(
     }
 }
 
-/**
- * Wraps the loaded settings in something the options screen can mutate.
- *
- * Null until startup has read the file. Keyed on nothing but the store, so the holder — and any
- * change the user has since made — survives recomposition; `initial` seeds it once.
- */
 @Composable
 private fun rememberSettingsHolder(
     store: SettingsStore,

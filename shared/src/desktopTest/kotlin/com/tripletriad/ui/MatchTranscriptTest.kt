@@ -26,51 +26,20 @@ import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-/**
- * The test the whole of Phase 5 rests on: a match played in the UI must replay in the engine.
- *
- * ### Why it has to be an end-to-end test
- *
- * Every part of this is already unit-tested — [TranscriptVerifier] against hand-written
- * transcripts, `KtorMatchSubmitter` against a mock engine, `TranscriptQueue` against a fake store.
- * None of that can catch the failure that actually matters, which is the client and the server
- * disagreeing about *what happened*. A transcript is only a claim about a replayable game if the
- * screen that produced it drew from the generator in exactly the order the verifier re-runs it.
- *
- * That invariant is fragile in a way nothing else here is: it is broken not by wrong code but by
- * **any** extra draw from the match generator on the player's turn. Three call sites already had to
- * be fixed for this test to pass at all — the deck selector's Random button and the turn timer's
- * auto-play, both moved onto a second generator, and a seed that was derived twice rather than
- * kept. A fourth would break it silently, and would surface in production as honest players'
- * matches being rejected.
- *
- * So: play a whole match through the real screen, take the transcript it emits, and hand it to the
- * same verifier the server runs. If they disagree, this fails — which is the only place they can be
- * made to disagree cheaply.
- */
 @OptIn(ExperimentalTestApi::class)
 class MatchTranscriptTest {
     private val cards = runBlocking { loadCardCatalog() }
 
-    /** The shipped formats, as the app loads them, narrowed to the FFXIV rule pool. */
     private val formats = runBlocking { loadFormatCatalog() }
     private val format = formats[FF14_FORMAT]!!
 
     private val npcs = runBlocking { loadNpcCatalog() }
     private val english = runBlocking { loadStrings(AppLocale.EN_US) }
 
-    /** `tt-master`: All Open and nothing else, so no rule narrows what may be played. */
     private val opponent = npcs
         .available(FF14_FORMAT, FixedClock.DEFAULT_HOUR, ANY_LEVEL)
         .first { it.iconId == "tt-master" }
 
-    /**
-     * The whole claim, in one test.
-     *
-     * The verdict is asserted to be [MatchVerdict.Accepted] and **not** to any particular score:
-     * who wins depends on the deal, and pinning it would make this a golden test of the generator
-     * instead of a test of the agreement between the two implementations.
-     */
     @Test
     fun aMatchPlayedInTheUiReplaysInTheEngine() = runComposeUiTest {
         val transcript = playAMatch()
@@ -83,7 +52,6 @@ class MatchTranscriptTest {
         )
     }
 
-    /** The score the server recomputes is a real score of a full board, not a partial replay. */
     @Test
     fun theReplayedScoreAccountsForEveryCard() = runComposeUiTest {
         val transcript = playAMatch()
@@ -95,7 +63,6 @@ class MatchTranscriptTest {
         assertEquals(TOTAL_CARDS, accepted.blue + accepted.red)
     }
 
-    /** What the player chose, and only that — the opponent's moves are the server's to derive. */
     @Test
     fun theTranscriptCarriesOnlyThePlayersOwnPlacements() = runComposeUiTest {
         val transcript = playAMatch()
@@ -112,14 +79,6 @@ class MatchTranscriptTest {
         assertEquals(HAND_SIZE, transcript.deck.size)
     }
 
-    /**
-     * Plays a match through the real screen and returns the transcript it emitted.
-     *
-     * A `FixedClock` pins the seed, so the same match is played on every run and a failure here is
-     * reproducible rather than a coin flip. That is not what makes the test meaningful, though —
-     * what does is that the transcript is whatever `MatchScreen` decided to emit, not something
-     * assembled by this file.
-     */
     private fun ComposeUiTest.playAMatch(): MatchTranscript {
         var emitted: MatchTranscript? = null
         setContent {
@@ -148,7 +107,6 @@ class MatchTranscriptTest {
     }
 
     private companion object {
-        /** Nine placements, split by the coin flip: whoever moves first plays five. */
         const val PLAYER_MOVES_MIN = 4
         const val PLAYER_MOVES_MAX = 5
     }

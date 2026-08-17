@@ -29,20 +29,9 @@ import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
-/**
- * Choosing what you won.
- *
- * ### The claim worth a screen test
- *
- * [confirmingIsDeadUntilExactlyEnoughArePicked]. The server counts the ids and refuses a claim of
- * the wrong size, so a button that could be pressed with two of one owed would produce a refusal
- * the player cannot act on — and this is the one screen in the game where the decision behind the
- * button is irreversible.
- */
 @OptIn(ExperimentalTestApi::class)
 class PvpClaimUiTest {
 
-    /** The loser's cards are all offered, one node each. */
     @Test
     fun everyOfferedCardIsDrawn() = claim {
         for (id in PRIZES) {
@@ -52,7 +41,6 @@ class PvpClaimUiTest {
         onNodeWithTag(PVP_CLAIM_EMPTY_TEST_TAG).assertDoesNotExist()
     }
 
-    /** Confirming is dead until exactly as many are picked as are owed. */
     @Test
     fun confirmingIsDeadUntilExactlyEnoughArePicked() = claim(owed = 2) {
         onNodeWithTag(PVP_CLAIM_CONFIRM_TEST_TAG).assertIsNotEnabled()
@@ -64,7 +52,6 @@ class PvpClaimUiTest {
         onNodeWithTag(PVP_CLAIM_CONFIRM_TEST_TAG).assertIsEnabled()
     }
 
-    /** A pick can be taken back, so a mis-tap is not a lost card. */
     @Test
     fun aPickCanBeUndone() = claim {
         onNodeWithTag(prizeTestTag(PRIZES[0])).performClick()
@@ -75,12 +62,6 @@ class PvpClaimUiTest {
         onNodeWithTag(PVP_CLAIM_CONFIRM_TEST_TAG).assertIsNotEnabled()
     }
 
-    /**
-     * Once enough are picked the rest stop responding.
-     *
-     * A sixth tap that silently swapped one choice for another would be worse feedback than one
-     * that does nothing — and the server counts the ids, so an over-long claim is refused outright.
-     */
     @Test
     fun anExtraPickIsIgnoredOnceEnoughAreChosen() = claim {
         onNodeWithTag(prizeTestTag(PRIZES[0])).performClick()
@@ -91,7 +72,6 @@ class PvpClaimUiTest {
         onNodeWithTag(PVP_CLAIM_CONFIRM_TEST_TAG).assertIsEnabled()
     }
 
-    /** Confirming posts the chosen ids and leaves. */
     @Test
     fun confirmingPostsTheChoice() {
         val bodies = mutableListOf<String>()
@@ -108,7 +88,6 @@ class PvpClaimUiTest {
         assertTrue(left, "the screen did not return to the lobby")
     }
 
-    /** With nothing owed the screen says so rather than drawing an empty grid. */
     @Test
     fun nothingOwedSaysSo() = claim(claims = emptyList()) {
         onNodeWithTag(PVP_CLAIM_EMPTY_TEST_TAG).assertExists()
@@ -154,7 +133,6 @@ class PvpClaimUiTest {
         block()
     }
 
-    /** A finished match owing this player [owed] of the loser's five. */
     private fun claimJson(owed: Int): String {
         val offered = PRIZES.joinToString(",")
         val deadline = NOW + DEADLINE_MILLIS
@@ -180,7 +158,6 @@ class PvpClaimUiTest {
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    /** The shipped table, so the offered ids resolve the way the app resolves them. */
     private val catalogue: Map<Int, Card> =
         runBlocking { loadCardCatalog() }.all.associateBy { it.id }
 
@@ -189,10 +166,8 @@ class PvpClaimUiTest {
     private companion object {
         const val NOW = 1_767_268_800_000L
 
-        /** Far enough ahead that the countdown reads as time remaining rather than as zero. */
         const val DEADLINE_MILLIS = 60_000L
 
-        /** Five real ids from the shipped FFXIV block — the loser's hand. */
         val PRIZES: List<Int> = (1..5).map { Card.idFor(block = 1, number = it) }
     }
 }

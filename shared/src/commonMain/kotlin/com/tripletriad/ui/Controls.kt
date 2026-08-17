@@ -79,34 +79,10 @@ import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.GameSave
 import com.tripletriad.ui.theme.LocalTtoColors
 
-/** The back chevron of any [ScreenScaffold]. Only one is on screen at a time. */
 const val SCREEN_BACK_TEST_TAG: String = "screen-back"
 
-/** The [CharacterActions]. Their presence is what says a screen is behind the dashboard. */
 const val CHARACTER_BAR_TEST_TAG: String = "character-bar"
 
-/**
- * A full-width action button.
- *
- * The menu's stack and every screen's primary action are the same control, so it is one composable.
- * `softWrap = false` with ellipsis rather than a second line: `STR_BACKGROUND_VOLUME` in German is
- * `Hintergrundlautstärke`, and a stack whose rows change height by language is a stack that jumps
- * when the language does. A truncated label is a visible problem; a layout that shifts between
- * languages is a subtle one.
- *
- * ### Why this is two Material components and no longer one recoloured one
- *
- * It used to be a [Button] whose container was swapped between `primary` and `surfaceVariant` by
- * hand, which is the shape of a design system that has not been given the roles it needs: Material
- * already ships the quiet half of a pair as [FilledTonalButton], and hand-colouring one to imitate
- * it means the disabled state, the elevation and the ripple all have to be imitated too — and each
- * is a place the two can drift apart. With the scheme now complete, `filled = false` can simply
- * *be* the tonal button.
- *
- * @param filled false for the quiet half of a pair. Two filled buttons side by side ask the player
- *   to choose between two equally loud things; Material's own dialog pairs one filled action with
- *   one that is not.
- */
 @Composable
 internal fun WideButton(
     label: String,
@@ -156,49 +132,8 @@ internal fun WideButton(
     }
 }
 
-/** Material's height for a screen's primary action. */
 private val ButtonHeight = 56.dp
 
-/**
- * Clickable, at the size a finger needs, announcing what it is.
- *
- * ### The gap this closes
- *
- * There were twenty-two bare `Modifier.clickable` call sites in `ui/` and **not one `Role`,
- * `selected`, `toggleable` or `stateDescription` in the whole package**. A screen reader met every
- * list row in this app as an unlabelled node with no role and no state: it could not say that a row
- * was a button, and on the screens where one row is the current choice — a deck, a server, a locale
- * — it could not say which. That is not a rough edge, it is the app being unusable without sight.
- *
- * Fixing it at twenty-two call sites would have fixed it until the twenty-third. Fixing it here
- * fixes it for every row that is built this way, including the ones not written yet, which is the
- * same argument `WideButton` makes about its click sound and `rowSurface` about its border.
- *
- * ### Two things, because they are always wanted together
- *
- * - **The semantics.** [role] and, where the caller has one, [selected].
- * - **The focus ring.** The desktop build is driven by keyboard as well as by mouse, and had no
- *   visible focus anywhere — tabbing through a screen moved an invisible cursor. Drawn in
- *   `secondary`, which is the app's state colour, and only while focused.
- *
- * ### It does *not* grow the touch target, and that is a correction
- *
- * It called [androidx.compose.material3.minimumInteractiveComponentSize] for a while, on the
- * understanding — taken from `TouchTargetTest`'s own note — that "nothing enforces the 48 dp
- * minimum on `Modifier.clickable`". Measuring it says otherwise: the `×` in the profile list draws
- * 34 dp tall and reports **48 dp of touch bounds** with that call removed, and so does the help
- * screen's rule row at 38 dp. `clickable` already extends its own pointer bounds to the minimum.
- *
- * The old note was not wrong, it was about something else: `assertHeightIsAtLeast` reads *layout*
- * bounds, so what it measured was how tall a row **looks**, which is a real concern and a different
- * one. The call was doing nothing, and a line of code that documents itself as doing something it
- * does not is worse than no line at all.
- *
- * @param sound null for a control with a voice of its own — a board cell plays a card being placed,
- *   and a UI click underneath it is one sound too many.
- * @param selected null for a row that is merely tappable rather than one of a set of choices. The
- *   distinction is what a screen reader announces, so guessing it would be worse than omitting it.
- */
 @Composable
 internal fun Modifier.ttoClickable(
     role: Role = Role.Button,
@@ -231,31 +166,8 @@ internal fun Modifier.ttoClickable(
         .semantics { selected?.let { this.selected = it } }
 }
 
-/** Thick enough to see against a row's own one-dp border without being mistaken for it. */
 private val FocusRingWidth = 2.dp
 
-/**
- * A grouped panel: rounded, outlined, and holding a column of related things.
- *
- * ### Why this is one composable and was five
- *
- * "Rounded surface, `surfaceVariant` fill, one-dp outline" was written out by hand in five places —
- * `rowSurface` here, the settings group, the menu's resume card, the match's rule chip and its
- * outcome panel — and the five had already begun to disagree about their radius. Material ships the
- * pattern as [OutlinedCard]; what was being hand-rolled was a card with the parts that make it a
- * card left off.
- *
- * The fill is `surfaceContainerHigh` and not `surfaceVariant`, which is the correction the whole
- * palette rewrite turns on: `surfaceVariant` is Material's *de-emphasis* role, several tones
- * lighter than the surface, and dimmed text on it measures 3.77:1 — under AA. See `ContrastTest`.
- *
- * @param onClick present only for a card that is itself a destination. A card that does nothing
- *   should not report a role to a screen reader, so the clickable path is taken only when there is
- *   something to click.
- * @param selected null for a card that is not one of a set of choices — which is most of them. The
- *   three states are meaningfully different to a screen reader: *chosen*, *not chosen*, and *not
- *   the kind of thing that gets chosen*. A boolean could only say the first two.
- */
 @Composable
 internal fun TtoCard(
     modifier: Modifier = Modifier,
@@ -293,17 +205,6 @@ internal fun TtoCard(
     )
 }
 
-/**
- * The label above a group of settings, rules or statistics.
- *
- * Promoted out of `OptionsScreen`, which was the only screen that had one — the other dense screens
- * wrote a bare `Text` and each picked its own colour and case. What it gains on the way is
- * `semantics { heading() }`, which is how a screen reader offers "jump to next heading"; without it
- * the only way through a long settings column is to read every row of it.
- *
- * `tertiary` is the affirmative accent and deliberately not `primary`: a heading is not an action,
- * and a column of amber labels would compete with the button at the bottom of it.
- */
 @Composable
 internal fun SectionHeader(text: String, modifier: Modifier = Modifier) {
     Text(
@@ -314,21 +215,6 @@ internal fun SectionHeader(text: String, modifier: Modifier = Modifier) {
     )
 }
 
-/**
- * One filter, format, rule or locale — the app's only chip.
- *
- * ### Why there were three of these
- *
- * Because nothing said there should be one. `CardListBody` drew a `Text` on a `rowSurface` and
- * called it a chip; `PvpScreen` and `PvpTableScreen` used Material's [FilterChip] with its
- * defaults; `OptionsScreen` used [FilterChip] with eight lines of hand-written colours. The three
- * looked like three different controls, and two of them were **visibly wrong** — with
- * `secondaryContainer` unfilled in the old scheme, a selected chip on the two PvP screens came out
- * in Material's baseline purple.
- *
- * Now there is one, its selected state is `secondaryContainer` — the state family, which is what
- * Material means that role for — and the chips on five screens are the same object.
- */
 @Composable
 internal fun TtoFilterChip(
     label: String,
@@ -374,33 +260,6 @@ internal fun TtoFilterChip(
     )
 }
 
-/**
- * An app bar, an optional snackbar, and a column for the screen's own content.
- *
- * Extracted because the profile, creation and opponent screens would otherwise repeat the same
- * header, the same max width and the same padding, and the first one to be edited alone is the one
- * that starts looking different.
- *
- * ### Why a real [TopAppBar] and not a two-`Text` row
- *
- * A row has no touch target worth the name — a 20 sp glyph with 4 dp of padding is 28 dp of
- * tappable width against Material's 48 — no elevation when content scrolls beneath it, and no slot
- * for anything but the title. The bar needs all three the moment a screen wants an action in the
- * corner, and the purse is that action on eleven screens.
- *
- * The bar is held to the content's own width and centred rather than spanning the window, so its
- * title sits over the column it belongs to. A full-bleed bar is the phone-shaped answer; on a
- * desktop window three times as wide it would strand the title a hand's width from its own list.
- *
- * @param actions the corner of the bar — the purse, on every screen behind the dashboard.
- * @param snackbar where transient confirmations land, or null on a screen that has none. Hoisted
- *   rather than created here because the message comes from the screen: only it knows what was
- *   bought, saved or refused.
- * @param bottomBar a screen's one committing action — Buy, Confirm — pinned below the content.
- *   Worth a slot of its own rather than being the last row of [content] because a snackbar is
- *   placed *above* the bottom bar and *over* the content: with the button in the column, the
- *   confirmation for a purchase lands on top of the button that makes the next one.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ScreenScaffold(
@@ -529,21 +388,8 @@ internal fun ScreenScaffold(
     }
 }
 
-/** `tab-<key>` — one per tab of a screen that has them, and no screen has two of a name. */
 fun screenTabTestTag(key: String): String = "tab-$key"
 
-/**
- * The two halves of a screen that holds two.
- *
- * Material's own [PrimaryTabRow], with the labels and the tags supplied by the caller. Two screens
- * use it — the collection and the store — and both hold **things that are the same kind of thing**:
- * cards you own and decks you build them into, what is for sale and what you bought. That is the
- * test for whether a tab row is the right control rather than a second destination; the record and
- * the rules are not tabs of each other and are not on one.
- *
- * @param tabs the label and the tag of each, in order.
- * @param selected which is showing, as an index into [tabs].
- */
 @Composable
 internal fun ScreenTabs(
     tabs: List<Pair<String, String>>,
@@ -589,23 +435,6 @@ internal fun ScreenTabs(
     }
 }
 
-/**
- * A value on a range — the volumes, and the wager on a PvP table.
- *
- * ### The third of these, and the same story as the chips
- *
- * There were two sliders and they looked like two different controls. `OptionsScreen` hand-wrote
- * three colours; `PvpTableScreen` took Material's defaults — and in Material 3 an inactive track
- * defaults to `secondaryContainer`, which in this palette is a **strong blue**. So a wager slider
- * sitting at zero drew a full-width bar of solid blue with the thumb at the far left, which reads
- * as *full* to anybody who does not stop to work out which end is which. A control whose empty
- * state looks like its full state is worse than no control.
- *
- * `tertiary` for the filled part, which is the reading this app gives that role everywhere: a
- * filled progress bar, an affordable price, a complete deck. `surfaceContainerHighest` behind it,
- * which is Material's own track role and is what the splash's progress bar was moved to for the
- * same reason.
- */
 @Composable
 internal fun TtoSlider(
     value: Float,
@@ -627,17 +456,6 @@ internal fun TtoSlider(
     )
 }
 
-/**
- * A screen's transient confirmations, and the tag they are found by.
- *
- * A [SnackbarHostState] with a name attached, because the two always travel together: the host is
- * useless to a test that cannot find what it showed, and every screen that has one has exactly one.
- *
- * [show] replaces rather than queues. Material's default is a queue — a second `showSnackbar`
- * suspends until the first has run its four seconds — which is right for messages that must each be
- * read and wrong for these: buying three packs in a row should say what the *third* one was, not
- * make the player wait twelve seconds to be told.
- */
 @Stable
 internal class NoteHost(val tag: String) {
     val state: SnackbarHostState = SnackbarHostState()
@@ -651,21 +469,6 @@ internal class NoteHost(val tag: String) {
 @Composable
 internal fun rememberNoteHost(tag: String): NoteHost = remember(tag) { NoteHost(tag) }
 
-/**
- * The character's level, purse and active boosts, for the corner of the app bar.
- *
- * `display/UserBar.as`, which every dashboard screen put in its top-right corner — which is where
- * this is again, after a spell as a full-width band under the title. Two things of the original's
- * are still not here: the **jump menu** it opened on tap, which listed every dashboard screen
- * except the current one and existed because the original had no back button, and the character's
- * **name**, which is the app bar's own title on the one screen where it is the subject.
- *
- * The boon markers were the letters `MGP ×n` / `XP ×n`, because the original's two icons said only
- * that there was at least one and a boon is a **count of boosted matches** — see
- * [com.tripletriad.model.Boons.spending]. They are the plaque again now that the plaque is a glyph
- * rather than a 24x32 bitmap ([TtoIcons.MgpBoon]), and the count stays beside it: the objection was
- * never to the picture, it was to a picture *instead of* the number.
- */
 @Composable
 internal fun CharacterActions(save: GameSave) {
     val strings = LocalStrings.current
@@ -703,14 +506,6 @@ internal fun CharacterActions(save: GameSave) {
     }
 }
 
-/**
- * One boon: its plaque and how many matches it still covers, or nothing at all when it is spent.
- *
- * Nothing at all, rather than `×0`: a boon a player does not have is not a fact about their bar.
- *
- * @param label the boon's own name, which is the icon's description — a screen reader gets "MGP,
- *   2" and not "picture, 2".
- */
 @Composable
 private fun BoonMarker(icon: ImageVector, label: String, matches: Int) {
     if (matches <= 0) return
@@ -735,7 +530,6 @@ private fun BoonMarker(icon: ImageVector, label: String, matches: Int) {
     }
 }
 
-/** [ScreenScaffold] with the purse in its corner — every screen behind the dashboard. */
 @Composable
 internal fun CharacterScaffold(
     profile: GameSave,
@@ -757,13 +551,6 @@ internal fun CharacterScaffold(
     )
 }
 
-/**
- * A centred "there is nothing here" line.
- *
- * Its own composable because the tag is the assertion: `assertDoesNotExist` on a list is not the
- * same claim as "the screen says it is empty", and the four screens that can be empty should all
- * make the second one.
- */
 @Composable
 internal fun EmptyNote(text: String, tag: String) {
     Text(
@@ -774,25 +561,6 @@ internal fun EmptyNote(text: String, tag: String) {
     )
 }
 
-/**
- * A centred "we are still asking" spinner — the waiting counterpart of [EmptyNote].
- *
- * ### Why a list needs both
- *
- * Because an empty list and an unread list look identical, and rendering them the same way tells
- * the player something false. "Nobody is here" is an *answer*: somebody who reads it leaves. Half a
- * second later four tables arrive. `ProfileScreen` has always drawn this distinction for the local
- * profile list; this is the shape for the ones that come over the network.
- *
- * ### The same vertical padding as [EmptyNote], deliberately
- *
- * So the two states occupy the same space and the screen does not jump when one replaces the other.
- * A layout that shifts as an answer arrives is how a player ends up tapping the wrong row.
- *
- * Circular rather than the linear bar `AccountScreen` uses, and the difference is where they sit: a
- * bar belongs at the top of a form that is submitting, and a spinner belongs in the middle of a
- * space that is about to hold something.
- */
 @Composable
 internal fun LoadingNote(tag: String) {
     val strings = LocalStrings.current
@@ -815,51 +583,17 @@ internal fun LoadingNote(tag: String) {
     }
 }
 
-/** Big enough to read as a spinner, small enough not to read as the content. */
 private val SpinnerSize = 28.dp
 private val SpinnerStroke = 3.dp
 
-/**
- * Where a fetched list has got to. **Three states, because a list has three.**
- *
- * The one it used to have was "the list I am holding", which conflates two answers and a question:
- * an empty list means *nothing is there*, *nothing has arrived yet*, or *nothing could be fetched*,
- * and only the first of those is something to tell a player. Showing the second as the first sends
- * them away half a second early; showing the third as either leaves them waiting on a server that
- * is not coming.
- */
 enum class ListState {
-    /** Asked, nothing back. [LoadingNote]. */
     LOADING,
 
-    /** Answered. The list is now the truth, empty or not. */
     READY,
 
-    /** Asked and refused, or not reached at all. [FailedNote]. */
     FAILED,
 }
 
-/**
- * A text button that sits inside a list row, at the size a finger actually needs.
- *
- * ### Why this exists rather than a bare `TextButton`
- *
- * Because a bare one is **40dp tall**, measured — `ButtonDefaults.MinHeight` — and Material's
- * minimum-touch-target enforcement does not lift it here. 40dp is below the 48dp both Material 3
- * and Android's own accessibility guidance ask for, and these are the buttons that matter most for
- * it: Join, Accept, Decline, Claim all sit in a crowded row beside *other* tap targets, which is
- * exactly where an undersized one gets mis-hit.
- *
- * It was a guess until it was measured. `TouchTargetTest` is what turned it into a number, and is
- * what will say so again if a future Material release changes the default underneath this.
- *
- * The **visual** size is untouched: `heightIn` sets a minimum on the layout, so the label and its
- * padding look exactly as they did and the tappable area grows to meet the hand.
- *
- * @param color the label's colour, or null for the button's own. Passed only by the destructive
- *   ones — `error` is the theme's word for "this went badly", and a row that ends an account
- *   looking like a row that opens a list is a row nobody reads twice.
- */
 @Composable
 internal fun RowButton(
     label: String,
@@ -879,20 +613,6 @@ internal fun RowButton(
     }
 }
 
-/**
- * One credential field, shared by the sign-in form and the delete-account confirmation.
- *
- * Extracted from `AccountScreen`, whose own note explains why it may not be copied: the two differ
- * in whether the characters are shown, and "a second copy of the eight-line `colors` block is how
- * the two forms would start looking different". A third copy would have been worse — the password
- * box that ends an account should not be able to drift from the one that opens a session.
- *
- * @param contentType what the platform's password manager should make of this field. Declaring it
- *   is what lets the OS offer to save the password and fill it back in — which is the *right* place
- *   for a password to be remembered, and the reason this app stores none of its own. Without the
- *   hint, autofill falls back to guessing from labels and mostly does not offer at all. Inert on
- *   desktop, where Compose has no autofill backend yet.
- */
 @Composable
 internal fun CredentialField(
     value: String,
@@ -931,17 +651,6 @@ internal fun CredentialField(
     )
 }
 
-/**
- * A centred "that did not work" line with something to press — the third of [ListState].
- *
- * ### Why it has a button and [EmptyNote] does not
- *
- * Because it is the only one of the three states the player can do something about. An empty lobby
- * is not a problem to solve, and a loading one solves itself; a failed read is a dead end unless
- * something offers a way out of it. A screen that reports a failure and offers nothing is a screen
- * the player has to leave and re-enter to retry — which they will do, so the only question is
- * whether the app looks like it knows.
- */
 @Composable
 internal fun FailedNote(text: String, tag: String, onRetry: () -> Unit) {
     val strings = LocalStrings.current
@@ -960,32 +669,6 @@ internal fun FailedNote(text: String, tag: String, onRetry: () -> Unit) {
     }
 }
 
-/**
- * The shared list-row surface: rounded, filled, outlined, and tappable.
- *
- * Six screens draw this same box. A modifier rather than a wrapper composable so a row keeps
- * control of its own layout — some are a `Row`, some a `Column`, and one is a grid cell. Where a
- * whole group is being drawn rather than one row, [TtoCard] is the same thing as a container.
- *
- * `@Composable` because it reads the theme, which is what a `Modifier` extension may do as long as
- * it is called from a composition — every call site here is inside one.
- *
- * ### The fill moved, and it is the point of the palette rewrite
- *
- * It was `surfaceVariant`, which in Material 3 is a **de-emphasis** role several tones lighter than
- * the surface — not the thing a row sits on. That is `surfaceContainerHigh`, and the difference is
- * measurable rather than nominal: `FAINT` text on `surfaceVariant` is 3.77:1, under WCAG AA, and on
- * `surfaceContainerHigh` it is 5.04. Nearly every row in this app carries a dimmed secondary line.
- * See `ContrastTest`, which measures both.
- *
- * The tone it lands on — `#2D2926` — is within a step of the `#2E2A26` the rows were already drawn
- * in, so the screens keep their appearance and gain a role that explains it.
- *
- * @param armed draws the destructive-confirmation outline instead of the ordinary one.
- * @param selected draws the state outline and tints the fill, for a row that is the current choice
- *   rather than merely tappable. **Marking it visually is half the job** — pass the same flag to
- *   [ttoClickable] so a screen reader is told too.
- */
 @Composable
 internal fun Modifier.rowSurface(
     armed: Boolean = false,

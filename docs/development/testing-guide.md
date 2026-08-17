@@ -13,15 +13,15 @@ Phase 1, Task 1.13. How to run the tests, and how to write one that belongs here
 ## 1. Running them
 
 ```bash
-./gradlew :shared:desktopTest            # the loop: all 165 tests, 22 s from cold caches
+./gradlew :shared:desktopTest            # the loop: all 856 tests
 ```
 
-Measured with `--rerun-tasks`, so 22 s is the pessimistic figure; unchanged code is up-to-date and
-returns immediately, and a single filtered class is ~8 s.
+Unchanged code is up-to-date and returns immediately; a single filtered class is a few seconds.
 
 That single task is the whole suite as one developer experiences it: `desktopTest` compiles
-`commonTest` **and** `desktopTest`, so it runs the 110 common tests plus the 55 that need a Compose
-tree.
+`commonTest` **and** `desktopTest`, so it runs the 396 common tests plus the 460 that need
+something only the JVM desktop target has — a Compose test harness, the packaged resource bundle,
+or a nanosecond clock.
 
 | Task | Runs | Why it exists |
 |---|---|---|
@@ -31,10 +31,15 @@ tree.
 | `:shared:iosSimulatorArm64Test` | `commonTest` on Kotlin/Native | **macOS only** — silently skipped elsewhere |
 | `./gradlew build` | all of the above plus coverage, lint, ktlint, detekt | what CI runs |
 
-**165 distinct tests, 275 executions** — the 110 in `commonTest` run once per target. That is not
-double-counting for its own sake: `commonTest` is where the model, rules, i18n, settings, logging
-and audio mapping live, and running it on two runtimes is how a Kotlin stdlib difference gets
-caught.
+**856 distinct tests, 1,252 executions** on a host that cannot build for Apple — the 396 in
+`commonTest` run once per target. That is not double-counting for its own sake: `commonTest` is
+where the storage, i18n, settings, logging, networking and audio mapping live, and running it on
+two runtimes is how a Kotlin stdlib difference gets caught.
+
+Measured 2026-08-17: `:shared:desktopTest` 856 tests across 93 classes, 0 failures;
+`:shared:testAndroidHostTest` 396, 0 failures. **Re-run rather than quoting this** — the numbers in
+this repository's docs have disagreed with each other before, which is why each one now names the
+task that produced it and the day it was measured.
 
 ### Filtering
 

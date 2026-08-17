@@ -19,33 +19,8 @@ import com.tripletriad.model.Card
 import com.tripletriad.model.CardColor
 import kotlinx.coroutines.delay
 
-/** The reveal while it is on screen. */
 const val UNLOCKED_CARD_TEST_TAG: String = "unlocked-card"
 
-/**
- * `UnlockCardAnim` — the card you just added to your collection, shown to you.
- *
- * It flies in from the upper right at a tilt, settles enlarged in the middle, holds 1.4s, then
- * slides away to the lower left. `InventoryScreen.useBtnHandler` (`:236-245`) plays it in exactly
- * one branch: a **card item** being used, which is the moment a card enters `CARDS`. Opening a
- * pack does not play it, because a pack yields another bag item rather than a card — see
- * [com.tripletriad.data.ItemUse.PackOpened] for why that indirection is deliberate.
- *
- * ### Why it is bigger than a card ever is elsewhere
- *
- * `scaleX: 1.5` at rest, against 1.0 everywhere else in the game. This is the one place a card is
- * not a game piece but a prize, and the original says so by drawing it half again as large.
- *
- * ### Why the geometry is relative
- *
- * Fractions of the card's own size rather than the original's stage pixels, for the reason
- * [CoinFlipCards] gives: those numbers are absolute on a fixed 1136x640 stage, and this port draws
- * on whatever the device is.
- *
- * @param card the card that was won, drawn face up. Blue, as `card.color = "BLUE"` — a card in
- *   your collection has no opponent to belong to.
- * @param onFinished the reveal is over. Called once, from this composable's own coroutine.
- */
 @Composable
 internal fun UnlockedCard(card: Card, onFinished: () -> Unit) {
     val entry = remember(card.id) { Animatable(0f) }
@@ -90,28 +65,20 @@ internal fun UnlockedCard(card: Card, onFinished: () -> Unit) {
 
 private fun lerp(from: Float, to: Float, fraction: Float): Float = from + (to - from) * fraction
 
-/** `Starling.juggler.tween(card, 0.3, ...)` — in from the upper right. */
 private const val ENTER_MILLIS = 300
 
-/** The exit tween's `delay: 1.4` — long enough to read a card you have not seen before. */
 private const val HOLD_MILLIS = 1_400
 
-/** `Starling.juggler.tween(card, 0.2, ...)` in `predispose`. */
 private const val EXIT_MILLIS = 200
 
-/** `x: stage.width * 0.75, y: 0` — up and to the right of where it lands. */
 private const val ENTER_X = 3f
 private const val ENTER_Y = -3f
 
-/** `x: 0, y: stage.height * 0.75` — down and to the left. */
 private const val EXIT_X = -3f
 private const val EXIT_Y = 3f
 
-/** `rotation: 55 * Math.PI / 180`, straightening to 0 as it lands. */
 private const val ENTER_DEGREES = 55f
 
-/** `card.scaleX = card.scaleY = 1.2` before the tween takes over. */
 private const val ENTER_SCALE = 1.2f
 
-/** `scaleX: 1.5` at rest — see the KDoc. */
 private const val REST_SCALE = 1.5f

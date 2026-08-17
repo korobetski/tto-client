@@ -21,60 +21,21 @@ import com.tripletriad.settings.SettingsStore
 import com.tripletriad.settings.UserSettings
 import com.tripletriad.settings.UserSettingsRepository
 
-/**
- * What the splash is waiting for, in the order it waits.
- *
- * Declared as an ordered enum rather than a boolean pair so the splash can *say* what it is doing
- * and show honest progress. That matters for what comes next: an update check has to run before
- * assets load, can be slow, and can fail — a spinner with no phase would have nowhere to put it.
- * Adding it is one entry here, one branch in [rememberStartup] and one string.
- *
- * @property labelKey the line shown under the logo while this phase runs.
- */
 enum class StartupPhase(val labelKey: String) {
-    /** Read `UserSettings.json`, which decides the language everything after this is shown in. */
     SETTINGS(StringKeys.STARTUP_SETTINGS),
 
-    /** `cards.json`: 263 records, ~60 KB. */
     CARDS(StringKeys.LOADING_CARDS),
 
-    /**
-     * The nineteen shared card textures — back, digit atlas, rarity rows, type icons — and the
-     * interface artwork behind them: the three thumbnail sheets and the bag icons ([UiArt]).
-     * Avatars and opponent portraits are not here; they load as a screen asks for one.
-     */
     ART(StringKeys.STARTUP_ART),
 
-    /** `npcs.json`: the 85 PvE opponents of both collections, then `campaigns.json`'s thirteen. */
     OPPONENTS(StringKeys.STARTUP_OPPONENTS),
 
-    /** Nothing left to wait for. Terminal. */
     READY(StringKeys.STARTUP_READY),
     ;
 
-    /** 0f on the first phase, 1f on [READY]. */
     val progress: Float get() = ordinal / (entries.size - 1f)
 }
 
-/**
- * Everything the app needs before it can show a menu, and how far along it is.
- *
- * @property settings null until [StartupPhase.SETTINGS] completes.
- * @property catalog null until [StartupPhase.CARDS] completes. Non-null once [isReady].
- * @property art may be null even when [isReady] — see [rememberStartup].
- * @property ui the interface artwork, on the same footing as [art]: a screen composes without it,
- *   drawing its fallbacks, so a failed load costs appearance and not use.
- * @property opponents null until [StartupPhase.OPPONENTS] completes. Non-null once [isReady].
- * @property campaigns the tournament ladders, loaded with the opponents and on the same footing:
- *   null until that phase completes, non-null once [isReady].
- * @property starters the boxes a character can open with — `starters.json`, and document 19's
- *   replacement for `GameSave.DEFAULT_CARDS`. Loaded with the cards rather than with the opponents,
- *   because a character can be created before an opponent is ever listed.
- * @property formats what a match may be played with — `formats.json`. Loaded beside the cards for
- *   the same reason: a format is a property of the card pool, not of who is offering the match.
- *   Nothing reads it yet — the engine still draws from `Roulette.pools`, and `FormatBundleTest`
- *   holds the two to being identical until that moves. See [com.tripletriad.data.FormatCatalog].
- */
 data class StartupState(
     val phase: StartupPhase = StartupPhase.SETTINGS,
     val settings: UserSettings? = null,
@@ -89,20 +50,6 @@ data class StartupState(
     val isReady: Boolean get() = phase == StartupPhase.READY
 }
 
-/**
- * Runs the startup sequence once and republishes as each phase completes.
- *
- * **Sequential, unlike what this replaced.** The two loads used to run as concurrent
- * `produceState`s with the match gated on neither: cards appeared, then artwork popped in over
- * them. That was the right call with no splash — the board was usable a fraction of a second
- * sooner. With a splash it is the wrong one, because the pop-in happens *in front of the user*
- * instead of behind a progress line, and because an update check will have to be strictly ordered
- * anyway.
- *
- * What has *not* changed: [CardArt] is still nullable everywhere downstream and a card still
- * composes without it. So if artwork ever fails to load, the match is reached and playable, drawn
- * as flat coloured quads. The splash waits for it; the app does not depend on it.
- */
 @Composable
 fun rememberStartup(store: SettingsStore): StartupState {
     // Read here rather than inside the producer: `Locale.current` is a composition-local read and
@@ -140,13 +87,6 @@ fun rememberStartup(store: SettingsStore): StartupState {
     return state
 }
 
-/**
- * Holds the loaded settings and writes every change back.
- *
- * The options screen mutates this and the whole tree recomposes, which is what makes changing the
- * language take effect on the spot rather than on the next launch. Saving is fire-and-forget: the
- * new value is already on screen, and [UserSettingsRepository.save] logs its own failures.
- */
 class SettingsHolder internal constructor(
     initial: UserSettings,
     private val save: (UserSettings) -> Unit,
@@ -154,7 +94,6 @@ class SettingsHolder internal constructor(
     var value: UserSettings by mutableStateOf(initial)
         private set
 
-    /** Applies [transform], normalises it, shows it, and persists it. */
     fun update(transform: (UserSettings) -> UserSettings) {
         val next = transform(value).sane()
         if (next != value) {

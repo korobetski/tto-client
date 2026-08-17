@@ -36,24 +36,8 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * [PvpSession] — the client half of a server-refereed match.
- *
- * ### The behaviour worth pinning
- *
- * Two things, and neither is about the happy path.
- *
- * **A refused move polls instead of complaining.** The server is the referee, so a 409 means this
- * client was working from a view that has since moved on. Reporting it would blame the player for a
- * tap that was legal when they made it, and leave the screen showing a state the server has already
- * left behind.
- *
- * **A match survives the application dying.** [PvpSession.resume] is the first question this client
- * asks, because mobile kills applications without asking and the player did not choose to leave.
- */
 class PvpSessionTest {
 
-    /** Resuming finds the match the server is holding, and says it has looked. */
     @Test
     fun resumingFindsTheMatchTheServerIsHolding() = runTest {
         val session = sessionOver(answering(HttpStatusCode.OK, encode(playing())))
@@ -65,7 +49,6 @@ class PvpSessionTest {
         assertFalse(session.isOver)
     }
 
-    /** And a player in no match is told so without it looking like a failure. */
     @Test
     fun noMatchIsAnAnswerAndNotAFailure() = runTest {
         val session = sessionOver(answering(HttpStatusCode.NoContent, ""))
@@ -77,13 +60,6 @@ class PvpSessionTest {
         assertNull(session.failure, "not being in a match is not a failure")
     }
 
-    /**
-     * A refused move re-reads the match rather than publishing an error.
-     *
-     * The assertion is on both halves: nothing is reported to the player, **and** the view is the
-     * one the server has now. Only the first would pass just as well if the client silently did
-     * nothing at all.
-     */
     @Test
     fun aRefusedMoveRereadsTheMatchAndReportsNothing() = runTest {
         val moved = playing(placement = 3)
@@ -106,7 +82,6 @@ class PvpSessionTest {
         assertEquals(3, session.match?.placement)
     }
 
-    /** An accepted move takes the returned view, with no second round trip to fetch it. */
     @Test
     fun anAcceptedMoveTakesTheViewItIsGiven() = runTest {
         var reads = 0
@@ -134,7 +109,6 @@ class PvpSessionTest {
         assertEquals(1, reads, "the accepted move was followed by a needless read")
     }
 
-    /** Joining a table takes the player straight into the match it opened. */
     @Test
     fun joiningATableEntersTheMatch() = runTest {
         val engine = MockEngine { request ->
@@ -154,7 +128,6 @@ class PvpSessionTest {
         assertEquals(MATCH_ID, session.match?.matchId)
     }
 
-    /** The lobby is read as a list, terms and all. */
     @Test
     fun theLobbyIsReadAsAList() = runTest {
         val session = sessionOver(answering(HttpStatusCode.OK, encode(listOf(table()))))
@@ -166,13 +139,6 @@ class PvpSessionTest {
         assertEquals(TradeRule.ONE, session.tables.first().stake.trade)
     }
 
-    /**
-     * This player's own table is told apart from everybody else's.
-     *
-     * The lobby needs it to offer Withdraw where it would otherwise offer Join — and the server
-     * refuses a host joining their own table, so getting this wrong is a button that only ever
-     * produces an error.
-     */
     @Test
     fun yourOwnTableIsRecognised() = runTest {
         val session = sessionOver(
@@ -185,13 +151,6 @@ class PvpSessionTest {
         assertEquals("t-1", session.myTable?.id)
     }
 
-    /**
-     * Withdrawing a table takes effect locally even when the server cannot be reached.
-     *
-     * The same reasoning sign-out uses, and the same the old "leave the queue" used: the player
-     * pressed a button, and leaving them advertising a match until the network comes back would be
-     * a strange answer to it.
-     */
     @Test
     fun withdrawingATableTakesEffectEvenOffline() = runTest {
         val session = sessionOver(answering(HttpStatusCode.OK, encode(listOf(table()))))
@@ -204,14 +163,6 @@ class PvpSessionTest {
         assertTrue(offline.tables.isEmpty())
     }
 
-    /**
-     * And it is **reported**, which is the half that was missing.
-     *
-     * The local removal above is optimistic, and this screen polls: a table the server still holds
-     * comes back on the next `refreshTables` a second later, so the Host button turns into Cancel
-     * again and the player is left pressing a control that visibly does nothing. The result used to
-     * be logged and dropped, which is why they were told nothing about it.
-     */
     @Test
     fun aRefusedWithdrawalIsReported() = runTest {
         val offline = sessionOver(MockEngine { error("connection refused") })
@@ -221,7 +172,6 @@ class PvpSessionTest {
         assertTrue(offline.failure != null, "the refusal was swallowed")
     }
 
-    /** A finished match reads as over, which is what stops the board accepting taps. */
     @Test
     fun aFinishedMatchReadsAsOver() = runTest {
         val session = sessionOver(
@@ -233,15 +183,6 @@ class PvpSessionTest {
         assertTrue(session.isOver)
     }
 
-    /**
-     * A match waiting on the winner's choice is over **and not settled**, which is the distinction
-     * the board polls on.
-     *
-     * The board used to watch until `isOver`, so it stopped asking at exactly the moment the last
-     * question was about to be answered: the loser watched a dead board while a card was taken out
-     * of their hand somewhere they could not see it happen, and the winner's own claim never
-     * reached the board they made it from.
-     */
     @Test
     fun aMatchAwaitingAClaimIsOverButNotSettled() = runTest {
         val session = sessionOver(
@@ -255,7 +196,6 @@ class PvpSessionTest {
         assertFalse(session.isSettled, "so the poll must keep running")
     }
 
-    /** With no token, nothing is sent at all — an offline profile has no PvP to poll for. */
     @Test
     fun withNoTokenNothingIsSent() = runTest {
         var asked = false
@@ -274,14 +214,6 @@ class PvpSessionTest {
         assertTrue(session.isResumed)
     }
 
-    /**
-     * A settled match refreshes the profile, and does it **once**.
-     *
-     * The server owns the save in a refereed match, so a client that never re-read it showed a
-     * purse and a collection that were wrong from the moment the board ended — which is what
-     * happened for the whole life of this feature. Firing on every poll of a finished match would
-     * be the opposite mistake: a request a second for a number that has stopped changing.
-     */
     @Test
     fun aSettlementRefreshesTheProfileOnce() = runTest {
         var refreshes = 0
@@ -302,7 +234,6 @@ class PvpSessionTest {
         assertEquals(1, refreshes, "the settlement refreshed the profile $refreshes times")
     }
 
-    /** Claiming a prize refreshes the profile too — that is when the cards actually move. */
     @Test
     fun claimingRefreshesTheProfile() = runTest {
         var refreshes = 0
@@ -316,13 +247,6 @@ class PvpSessionTest {
         assertEquals(1, refreshes)
     }
 
-    /**
-     * A refusal reaches the caller as a code, not as a status number.
-     *
-     * The server writes its reasons in English and the game ships in four languages, so a client
-     * that only had the sentence had nothing it could show — which is why refusals were silently
-     * dropped for the whole first life of this feature.
-     */
     @Test
     fun aRefusalArrivesAsACode() = runTest {
         val session = sessionOver(
@@ -339,12 +263,6 @@ class PvpSessionTest {
         assertEquals(PvpRefusal.CANNOT_AFFORD, failure.code)
     }
 
-    /**
-     * Resuming asks what is owed as well as what is being played.
-     *
-     * A won match can owe its winner a card on a deadline the server settles for them, so "am I in
-     * a match" is no longer the whole question a client has to ask at launch.
-     */
     @Test
     fun resumingAlsoAsksWhatIsOwed() = runTest {
         val asked = mutableListOf<String>()
@@ -367,14 +285,6 @@ class PvpSessionTest {
         assertTrue(asked.any { it.endsWith("/pvp/claims") }, "asked $asked")
     }
 
-    /**
-     * A dismissed match does not come back.
-     *
-     * The server keeps a settled match readable for a couple of minutes so the player who did not
-     * place the last card is still told how it ended. The cost is that the lobby polls it straight
-     * back — and the lobby's "a match exists, go to the board" effect would then bounce the player
-     * into a result screen they had just closed, once a second, until the window ran out.
-     */
     @Test
     fun aDismissedMatchIsNotPickedUpAgain() = runTest {
         val session = sessionOver(
@@ -389,7 +299,6 @@ class PvpSessionTest {
         assertNull(session.match, "the finished match was handed back after being dismissed")
     }
 
-    /** And a *different* match still arrives, so dismissing one does not deafen the client. */
     @Test
     fun aNewMatchArrivesAfterOneWasDismissed() = runTest {
         var id = MATCH_ID
@@ -405,7 +314,6 @@ class PvpSessionTest {
         assertEquals("m-2", session.match?.matchId)
     }
 
-    /** A card id the catalogue does not know refuses the whole view rather than drawing a hole. */
     @Test
     fun anUnknownCardRefusesTheRenderedView() = runTest {
         val session = sessionOver(answering(HttpStatusCode.OK, encode(playing())))
@@ -414,15 +322,6 @@ class PvpSessionTest {
         assertNull(session.view(emptyMap()), "a view was rendered from cards nobody has")
     }
 
-    /**
-     * The board is drawn from this player's side whichever colour the server dealt them.
-     *
-     * Half of all PvP players are red, and drawing that literally would hand them their own cards
-     * in the colour the rest of the game uses for the opponent. So a red view comes back blue —
-     * side, both hands, the placed cards' owners, the `Card.owner` the fill is actually read from,
-     * and the turn order, all together. Asserting only the side would pass on the bug this fixes,
-     * where the hands were blue and the board was not.
-     */
     @Test
     fun theViewIsAlwaysBlueWhicheverSideTheServerDealt() = runTest {
         val session = sessionOver(answering(HttpStatusCode.OK, encode(dealtRed())))
@@ -445,13 +344,6 @@ class PvpSessionTest {
         assertEquals(CardColor.RED, theirs.owner)
     }
 
-    /**
-     * Mirroring the colours does not mirror whose turn it is, nor the score.
-     *
-     * Both are derived from `side` against `order`, so flipping one without the other would hand a
-     * red player the opponent's turns. The server deals red the first move here: after mirroring,
-     * an even placement must still be this player's.
-     */
     @Test
     fun mirroringKeepsTheTurnAndTheScoreThisPlayersOwn() = runTest {
         val session = sessionOver(answering(HttpStatusCode.OK, encode(dealtRed())))
@@ -466,7 +358,6 @@ class PvpSessionTest {
         assertEquals(5, view.score.red)
     }
 
-    /** A blue view is returned untouched, so the common case pays nothing for the mirror. */
     @Test
     fun aBlueViewIsNotMirrored() = runTest {
         val session = sessionOver(answering(HttpStatusCode.OK, encode(playing())))
@@ -480,20 +371,6 @@ class PvpSessionTest {
 
     // ---- Helpers ----------------------------------------------------------
 
-    /**
-     * A match the server dealt this player as red, one card down each side.
-     *
-     * Red moves first and two cards are placed, so `placement` is even and it is red's turn again —
-     * which is what makes the mirrored turn assertable rather than accidentally right.
-     */
-    /**
-     * The last placement is mirrored with everything else, so no colour in the view is the
-     * server's.
-     *
-     * Nothing reads `lastPlay.player` today — `MatchBanner` wants the captures and the card's type.
-     * It is asserted anyway because the rule this view states is that *every* colour in it is this
-     * player's, and the field that quietly was not would be found by whoever reads it next.
-     */
     @Test
     fun theLastPlacementIsMirroredWithTheRestOfTheView() = runTest {
         val session = sessionOver(answering(HttpStatusCode.OK, encode(dealtRed())))
@@ -535,7 +412,6 @@ class PvpSessionTest {
         ),
     )
 
-    /** Every card the two fixtures name, at the catalogue's default of blue. */
     private val catalogue: Map<Int, Card> = (257..263).associateWith { id ->
         Card(id = id, nameKey = "STR_FF14_CARD_$id", name = "Card $id", 1, 2, 3, 4, rarity = 1)
     }

@@ -61,28 +61,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * Using a bag item **the server does not agree the account holds**.
- *
- * ### The state this is about, and why it is ordinary rather than exotic
- *
- * A match against an NPC is credited by the client — `MatchScreen` calls `MatchRewards.credit` and
- * hands the result to `ProfileGate.persist` — and on an account that write is a `PUT /me/save`,
- * which the server applies through `GameSave.withServerOwnedFrom`: **`bag`, `cards` and `mgp` are
- * taken from the stored profile and the client's are discarded.** The drop the player was just
- * shown therefore exists only in the copy on screen until the match's transcript has been submitted
- * and replayed.
- *
- * So the bag on screen can legitimately list a card the server's bag does not, and the player who
- * taps Use on it is asking for something the server will refuse. The refusal is
- * [com.tripletriad.protocol.ItemEffect.NotUseable].
- *
- * ### What is asserted
- *
- * Not that the use succeeds — it cannot, and the server is right to refuse. What the screen owes
- * the player is an **answer**: either the card is in the collection, or they are told why it is
- * not. A tap that silently removes the row and adds nothing is the shape the bug was reported in.
- */
 @OptIn(ExperimentalTestApi::class)
 class AccountBagSyncTest {
 
@@ -90,9 +68,6 @@ class AccountBagSyncTest {
     private val formats = runBlocking { loadFormatCatalog() }
     private val strings = runBlocking { loadStrings(AppLocale.EN_US) }
 
-    /**
-     * The reported bug: Use on a card the server has never heard of does nothing and says nothing.
-     */
     @Test
     fun usingACardTheServerHasNotCreditedYetSaysSo() = runComposeUiTest {
         val session = signedIn()
@@ -109,14 +84,6 @@ class AccountBagSyncTest {
         )
     }
 
-    /**
-     * And a use that could not be attempted at all says a **different** thing.
-     *
-     * Null from the gate is not a refusal: it is no session, or a request that never came back. The
-     * player's next move differs — try again rather than try something else — so the two answers
-     * are two sentences and neither of them is silence. See `ProfileGate.useItem`, whose null this
-     * is, and which the screen used to treat as an early return.
-     */
     @Test
     fun aUseThatCouldNotBeAttemptedSaysSoToo() = runComposeUiTest {
         val profile = Inventory.add(
@@ -135,14 +102,6 @@ class AccountBagSyncTest {
         )
     }
 
-    /**
-     * A **sale** the server refuses says so, where it used to say nothing at all.
-     *
-     * The same window as the use above, one button along and worse: `ProfileGate.perform` answered
-     * `Unit`, so the bag could not tell a sale from a refusal — and on an account a refusal also
-     * replaces the client's bag with the server's, so the row vanished, no MGP arrived, and nothing
-     * on screen accounted for either. See `sellNote`.
-     */
     @Test
     fun aSellTheServerRefusesSaysSo() = runComposeUiTest {
         setContent {
@@ -157,7 +116,6 @@ class AccountBagSyncTest {
         )
     }
 
-    /** And one that never reached the server says the other thing — as a use does. */
     @Test
     fun aSellThatCouldNotBeAttemptedSaysSoToo() = runComposeUiTest {
         setContent {
@@ -172,18 +130,6 @@ class AccountBagSyncTest {
         )
     }
 
-    /**
-     * A second tap while the first request is out is not a second sale.
-     *
-     * Nothing disabled these buttons while an operation was in flight, and every one of them is a
-     * round trip on an account. Two taps were **two intents with two operation ids**, which is
-     * exactly what `Idempotent` does not deduplicate: the server sees two different requests and
-     * carries out both. On Sell all that meant selling a stack that was no longer there and being
-     * paid nothing for it; on Use it meant a pack really opened twice.
-     *
-     * The tap is delivered rather than merely asserted against, because `assertIsNotEnabled` alone
-     * would pass against a button that was disabled *and* still wired to the same handler.
-     */
     @Test
     fun aSecondTapWhileTheFirstIsOutDoesNothing() = runComposeUiTest {
         val answered = CompletableDeferred<Unit>()
@@ -221,13 +167,11 @@ class AccountBagSyncTest {
 
     // ---- Harness -----------------------------------------------------------
 
-    /** A local profile holding the card the match dropped, and nothing else. */
     private fun withWonCard(): GameSave = Inventory.add(
         GameSave.new(username = NAME, createdAt = 0L),
         CardItem(WON_CARD),
     )
 
-    /** Select the won card and tap Sell, then wait for whatever the screen has to say. */
     private fun ComposeUiTest.sell() {
         onNodeWithTag(inventoryRowTestTag(CardItem(WON_CARD))).performClick()
         onNodeWithTag(INVENTORY_SELL_TEST_TAG).performClick()
@@ -241,7 +185,6 @@ class AccountBagSyncTest {
         Bag(profile, onUse = gate.useItem, onIntent = gate.perform)
     }
 
-    /** The bag alone, over whatever answer a use is to get. */
     @Composable
     private fun Bag(
         profile: GameSave,
@@ -266,15 +209,6 @@ class AccountBagSyncTest {
         }
     }
 
-    /**
-     * A signed-in account whose bag is empty on the server, and whose **client** copy holds the
-     * card a match against an NPC just dropped.
-     *
-     * Built the way the app builds it rather than by assignment: `persist` is the call
-     * `MatchScreen` makes with the credited profile, and the stand-in server discards what a real
-     * one discards. So the divergence here is produced by the same two lines that produce it on a
-     * device.
-     */
     private fun signedIn(): AccountSession {
         stored = PlayerState(save = GameSave.new(username = NAME, createdAt = 0L))
 
@@ -307,7 +241,6 @@ class AccountBagSyncTest {
         }
     }
 
-    /** `AccountRoutes`, minus the socket: the three routes this flow touches. */
     private fun server() = MockEngine { request ->
         when (request.url.encodedPath) {
             // The real route's own rule: everything a match decides is taken from the stored
@@ -346,7 +279,6 @@ class AccountBagSyncTest {
     private companion object {
         const val NAME = "winner"
 
-        /** An ff14 card no starter collection holds, so owning it can only come from the use. */
         const val WON_CARD = 300
         const val SEED = 7
 

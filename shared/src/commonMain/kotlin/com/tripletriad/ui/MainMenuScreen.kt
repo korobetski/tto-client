@@ -39,86 +39,26 @@ const val MENU_SERVERS_TEST_TAG: String = "menu-servers"
 const val MENU_OPTIONS_TEST_TAG: String = "menu-options"
 const val MENU_QUIT_TEST_TAG: String = "menu-quit"
 
-/** The line naming the loaded character, or saying there is none. */
 const val MENU_PROFILE_TEST_TAG: String = "menu-profile"
 
-/** The server line. Absent entirely on an offline build, which has no server to have a state. */
 const val MENU_SERVER_TEST_TAG: String = "menu-server"
 
-/**
- * The card offering the account the app remembers. Absent when it remembers none.
- *
- * Its presence is the assertion the whole of [SessionState] exists to make: something was restored,
- * or something lapsed. Before it, both looked identical from the menu — a form that did not appear.
- */
 const val MENU_RESUME_TEST_TAG: String = "menu-resume"
 
-/** What the remembered account's session is currently doing. One of [SessionState]'s labels. */
 const val MENU_RESUME_STATE_TEST_TAG: String = "menu-resume-state"
 
-/** The resume card's primary action: continue, or sign in again. */
 const val MENU_RESUME_GO_TEST_TAG: String = "menu-resume-go"
 
-/** Forget this account and sign in as somebody else. */
 const val MENU_RESUME_SWITCH_TEST_TAG: String = "menu-resume-switch"
 
-/**
- * What the app knows about the remembered account, and therefore what the card offers.
- *
- * Three states and not two, because "we are still asking the server" is a real one: [restore] runs
- * a round trip on every launch and on a slow network the card would otherwise claim the session had
- * lapsed for as long as that took.
- *
- * @property labelKey the app-owned string that names it.
- */
 internal enum class SessionState(val labelKey: String) {
-    /** A stored token was accepted. The player is signed in and never saw a form. */
     RESTORED(StringKeys.SESSION_RESTORED),
 
-    /** [AccountSession.restore] is in flight. */
     CONNECTING(StringKeys.SESSION_CONNECTING),
 
-    /**
-     * The name is remembered and the token is not usable — expired, or refused.
-     *
-     * The app stores no password (see `AccountScreen`), so there is nothing it could try. What it
-     * can do is say so and take the player to a form with their name already in it.
-     */
     LAPSED(StringKeys.SESSION_LAPSED),
 }
 
-/**
- * The main menu: logo, whoever the app remembers, then one card per action.
- *
- * Follows `MenuScreen.as` in shape — the `logo_white_512` wordmark centred above a stack — and in
- * contents: the original offered Continue / New Game / Load Game / Options / Quit, and with
- * profiles in place this is **Play** (Continue when a character is loaded, Load Game when none
- * is), **Characters**, Servers, Options and Quit, in `MenuScreen.as:52-58`'s order.
- *
- * ### The cards, and the one part of the shell this screen does not take
- *
- * The buttons are [HomeCard]s, which is what the dashboard behind them has been since the Material
- * 3 shell landed — a menu that looked like a different app from the screen one tap away was the
- * last of that. What it does **not** take is [ScreenScaffold]: this screen is the root, so there is
- * no up to draw, and its title is the wordmark rather than a line of text. A `TopAppBar` here would
- * be an empty bar with a back arrow that quit the game.
- *
- * The server line stays where it was, under the character and above the actions: it is context for
- * what the actions are about to do, and the player about to press Play is the one who wants it.
- *
- * @param active the loaded character, or null. Shown under the logo rather than folded into the
- *   Play label: "Play" has to stay one short word in four languages, and *which* character is about
- *   to be played is the thing a player needs to see before pressing it.
- * @param remembered the account the app has a name for, with what its session is doing — or null on
- *   an offline build, or when nothing is remembered. See [SessionState].
- * @param connectivity what is known about the servers, or null on a build with none. Null removes
- *   the line rather than showing it as "offline": an offline build is not a build whose server is
- *   down, and telling a player their connection has a problem when the game never had one is the
- *   sort of message that gets a bug report.
- * @param onQuit supplied by the host, because leaving is platform business: `finish()` on Android,
- *   `exitApplication` on desktop, and on iOS nothing at all — Apple's guidelines have no "quit".
- *   `:shared` has no way to express any of that, and should not pretend to.
- */
 @Composable
 @Suppress("LongParameterList")
 internal fun MainMenuScreen(
@@ -239,20 +179,6 @@ internal fun MainMenuScreen(
     }
 }
 
-/**
- * The account the app remembers, and what to do about it.
- *
- * A parameter object rather than five parameters on [MainMenuScreen], because they are only ever
- * meaningful together: a state with no name, or a "sign in again" action on a session that was
- * restored, are combinations that should not be expressible.
- *
- * @property username who is remembered. Never blank — a null [RememberedAccount] is how "nobody" is
- *   said.
- * @property onGo continue, or open the sign-in form with the name already filled in. Which one it
- *   is follows from [state] and is the caller's to decide.
- * @property onSwitch sign out and sign in as somebody else. Signing out is what clears
- *   [AccountSession.lastUsername], which is what makes this card disappear.
- */
 @Immutable
 internal class RememberedAccount(
     val username: String,
@@ -261,17 +187,6 @@ internal class RememberedAccount(
     val onSwitch: () -> Unit,
 )
 
-/**
- * "This is who you were, and here is what happened to it."
- *
- * The visible half of a feature that has worked silently since sessions landed: a stored token is
- * restored on launch and the form is simply never shown, which is indistinguishable from the form
- * being broken. A [SessionState.LAPSED] card is the same statement in the other direction — the app
- * has not forgotten the player, it has run out of the thirty days the token was good for.
- *
- * Outlined rather than filled, and above the actions rather than among them: it is a statement with
- * two things to do about it, not a sixth destination.
- */
 @Composable
 private fun ResumeCard(account: RememberedAccount, active: GameSave?) {
     val strings = LocalStrings.current
@@ -350,15 +265,12 @@ private fun ResumeCard(account: RememberedAccount, active: GameSave?) {
     }
 }
 
-/** Two across, as the dashboard's grid is — the one full-width card is the one that matters. */
 private const val MENU_COLUMNS = 2
 
-/** The primary action gets twice the width of "sign in as somebody else". */
 private const val RESUME_GO_WEIGHT = 2f
 
 private val LogoMaxWidth = 512.dp
 private val LogoHeight = 128.dp
 
-/** [ContentMaxWidth] would let the two-column grid grow cards wider than they read well. */
 private val MenuMaxWidth = 380.dp
 private val ResumeAvatarSize = 40.dp

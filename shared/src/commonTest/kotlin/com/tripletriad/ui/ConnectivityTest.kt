@@ -40,15 +40,6 @@ import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * What the screens read: the state of every configured server, and this build's standing with the
- * one in play.
- *
- * The two things worth pinning down are that the servers are kept **apart** — one host being down
- * must not colour another's row — and that the update advice distinguishes "you cannot play here"
- * from "there is a newer build". The second decides whether the sign-in form is replaced or merely
- * annotated, which is the difference between a helpful notice and a locked-out player.
- */
 class ConnectivityTest {
 
     @Test
@@ -71,13 +62,6 @@ class ConnectivityTest {
         assertFalse(connectivity.isProbing)
     }
 
-    /**
-     * One host being down does not colour another's row.
-     *
-     * This is the reason the states are a map and not a field: a player looking at the list is
-     * choosing *between* servers, and a screen that showed them all as whatever the last answer was
-     * would be a screen that makes the choice for them, wrongly.
-     */
     @Test
     fun eachServerKeepsItsOwnState() = runTest {
         val connectivity = connectivityOver { request ->
@@ -119,13 +103,6 @@ class ConnectivityTest {
         assertNull(connectivity.update)
     }
 
-    /**
-     * A server that will not serve this build produces *required* advice.
-     *
-     * Required is what replaces the sign-in form. It has to, because the form cannot work: the same
-     * gate that refused the probe's build will refuse the sign-in, and leaving the fields there
-     * would invite a password to be typed into something guaranteed to fail.
-     */
     @Test
     fun aServerThisBuildIsTooOldForRequiresAnUpdate() = runTest {
         val next = AppVersion(CURRENT_VERSION.major + 1, 0, 0)
@@ -140,7 +117,6 @@ class ConnectivityTest {
         assertEquals(next, advice.target)
     }
 
-    /** With nothing published, the version being asked for is the minimum the server demands. */
     @Test
     fun withNoPublishedBuildTheTargetIsWhatTheServerDemands() = runTest {
         val next = AppVersion(CURRENT_VERSION.major + 1, 0, 0)
@@ -151,12 +127,6 @@ class ConnectivityTest {
         assertEquals(next, assertNotNullAdvice(connectivity.update).target)
     }
 
-    /**
-     * A newer build the server will still serve is a suggestion, never a wall.
-     *
-     * Standing in the way here would be locking a player out of a server that is perfectly happy to
-     * have them, which is a self-inflicted outage.
-     */
     @Test
     fun aNewerPublishedBuildIsOnlySuggested() = runTest {
         val newer = CURRENT_VERSION.copy(minor = CURRENT_VERSION.minor + 1)
@@ -171,18 +141,6 @@ class ConnectivityTest {
         assertEquals(newer, advice.target)
     }
 
-    /**
-     * A deployment announcing **the build that is running** says nothing.
-     *
-     * The regression `tto-core`'s `docs/RELEASING.md` § 7 parks. The comparison used to be against
-     * `CURRENT_VERSION` — the protocol version, 1.0.0 — so a deployment that set
-     * `TTO_CLIENT_VERSION` to the app's own release number told every client it was out of date,
-     * including one already running it. The documented workaround was to put the protocol version
-     * in that variable instead, which left the notice unable to announce an app release at all.
-     *
-     * Pinned with [runningVersion] rather than a literal so it keeps testing the claim after the
-     * next `clientVersion` bump — a hard-coded 1.0.3 would start passing for the wrong reason.
-     */
     @Test
     fun aDeploymentAnnouncingThisVeryBuildAdvisesNothing() = runTest {
         val running = requireNotNull(runningVersion) { "this build must know its own version" }
@@ -195,7 +153,6 @@ class ConnectivityTest {
         assertNull(connectivity.update)
     }
 
-    /** And one publishing a genuinely newer app *does* — which is the notice's whole purpose. */
     @Test
     fun aDeploymentAnnouncingANewerAppSuggestsIt() = runTest {
         val running = requireNotNull(runningVersion)
@@ -211,7 +168,6 @@ class ConnectivityTest {
         assertEquals(next, advice.target)
     }
 
-    /** A deployment publishing an *older* build than this one is not a reason to say anything. */
     @Test
     fun anOlderPublishedBuildIsNotAnUpdate() = runTest {
         // The lowest version that can be expressed, so it is at or below this build whatever this
@@ -226,7 +182,6 @@ class ConnectivityTest {
         assertNull(connectivity.update)
     }
 
-    /** And a server that could not be reached has nothing to advise about. */
     @Test
     fun anUnreachableServerAdvisesNothing() = runTest {
         val connectivity = connectivityOver { throw IOException("Connection refused") }
@@ -237,13 +192,6 @@ class ConnectivityTest {
         assertNull(connectivity.update)
     }
 
-    /**
-     * The releases page answers when the deployment has nothing to say.
-     *
-     * Which is the usual state for the first hours of a release: the APK is published and the
-     * server's `TTO_CLIENT_VERSION` is still whatever it was, because that is a line somebody
-     * copies out of a workflow summary by hand.
-     */
     @Test
     fun theReleasesPageIsAskedWhenTheServerIsContent() = runTest {
         val newer = AppVersion(99, 0, 0)
@@ -262,12 +210,6 @@ class ConnectivityTest {
         assertFalse(advice.isRequired, "a published artifact cannot refuse anybody")
     }
 
-    /**
-     * A refusal is never replaced by a suggestion.
-     *
-     * Only a deployment can say "this build cannot be served", and letting the releases page take
-     * that slot would turn a wall the player has to act on into a note they can dismiss.
-     */
     @Test
     fun theServerWinsWhenItRefusesThisBuild() = runTest {
         val next = AppVersion(CURRENT_VERSION.major + 1, 0, 0)
@@ -287,7 +229,6 @@ class ConnectivityTest {
         assertEquals(next, advice.target, "the server's target, not the releases page's")
     }
 
-    /** A release at or below this build is not an update, whatever the page says. */
     @Test
     fun aPublishedReleaseNoNewerThanThisBuildAdvisesNothing() = runTest {
         val connectivity = connectivityOver(
@@ -300,7 +241,6 @@ class ConnectivityTest {
         assertNull(connectivity.update)
     }
 
-    /** Asked once a launch: it is somebody else's rate limit, and the answer changes yearly. */
     @Test
     fun theReleasesPageIsAskedOnlyOnce() = runTest {
         var asked = 0
@@ -367,7 +307,6 @@ class ConnectivityTest {
         serverEntries("A=https://a.example.org, B=https://b.example.org")
 
     private companion object {
-        /** Stands in for whatever the releases page offers this platform. */
         const val PAGE = "https://github.com/korobetski/tto-client/releases/tag/v99.0.0"
     }
 }

@@ -40,19 +40,9 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.io.IOException
 import kotlin.test.Test
 
-/**
- * Choosing a server, and being told to update.
- *
- * These are the two things the player can actually *do* about connectivity, so they are what is
- * tested through the real screens rather than through [Connectivity] — which
- * `ConnectivityTest` already covers. What is being pinned down here is the wiring: that the menu
- * leads to the list, that the list can move the account, and that a build the server will not serve
- * is told so instead of being shown a form that cannot work.
- */
 @OptIn(ExperimentalTestApi::class)
 class ServersUiTest {
 
-    /** The indicator is on the menu from the first frame, not only when something is wrong. */
     @Test
     fun theMenuNamesTheServerInPlay() = runComposeUiTest {
         setContent { App(store = english(), server = connection()) }
@@ -62,7 +52,6 @@ class ServersUiTest {
         assertVisible("Alpha", "the menu did not name the server it is on")
     }
 
-    /** And it is the way in — the whole reason it is tappable. */
     @Test
     fun theIndicatorOpensTheList() = runComposeUiTest {
         setContent { App(store = english(), server = connection()) }
@@ -74,12 +63,6 @@ class ServersUiTest {
         assertVisible("Beta", "the list did not offer the other configured server")
     }
 
-    /**
-     * A server that is down is shown as down, next to one that is up.
-     *
-     * The point of the list: the player is choosing *between* hosts, and both readings have to
-     * be on screen at once for that to be a choice.
-     */
     @Test
     fun theListShowsEachServersOwnState() = runComposeUiTest {
         setContent { App(store = english(), server = connection(secondIsDown = true)) }
@@ -90,14 +73,6 @@ class ServersUiTest {
         assertVisible("online", "the healthy server stopped being shown as healthy")
     }
 
-    /**
-     * Choosing another server moves the app onto it.
-     *
-     * The menu is the assertion rather than the row's own highlight, because the menu reads the
-     * directory through a different path — the indicator asks [Connectivity], the list asked
-     * `AccountSession.useServer` — and agreeing is the property worth having. That the switch also
-     * signs the player out is `AccountSessionTest`'s claim; this is the wiring that reaches it.
-     */
     @Test
     fun choosingAnotherServerMovesTheAppOntoIt() = runComposeUiTest {
         setContent { App(store = english(), server = connection()) }
@@ -110,7 +85,6 @@ class ServersUiTest {
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { isVisible("Beta") }
     }
 
-    /** And with a server in play, Play still leads to that server's sign-in form. */
     @Test
     fun theSignInFormIsReachedOnWhicheverServerIsChosen() = runComposeUiTest {
         setContent { App(store = english(), server = connection()) }
@@ -126,13 +100,6 @@ class ServersUiTest {
 
     // ---- Updates ------------------------------------------------------------
 
-    /**
-     * A server that will not serve this build replaces the form rather than annotating it.
-     *
-     * Leaving the fields there would invite the player to type their password into something
-     * guaranteed to fail and then read an error about credentials, which is the wrong diagnosis of
-     * a problem the app already knows the answer to.
-     */
     @Test
     fun aBuildTheServerWillNotServeIsToldToUpdateInsteadOfSigningIn() = runComposeUiTest {
         setContent { App(store = english(), server = connection(info = tooNewForThisBuild)) }
@@ -144,7 +111,6 @@ class ServersUiTest {
         check(!exists(ACCOUNT_SUBMIT_TEST_TAG)) { "the form that cannot work was left on screen" }
     }
 
-    /** With a download published for this platform, there is one tap to it. */
     @Test
     fun aPublishedDownloadForThisPlatformIsOfferedAsAButton() = runComposeUiTest {
         setContent { App(store = english(), server = connection(info = tooNewForThisBuild)) }
@@ -155,12 +121,6 @@ class ServersUiTest {
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(UPDATE_DOWNLOAD_TEST_TAG) }
     }
 
-    /**
-     * And without one, there is no button at all.
-     *
-     * Absent rather than disabled: a greyed-out button implies the player is doing something wrong,
-     * when the truth is that there is nothing on the other end of it.
-     */
     @Test
     fun aDeploymentThatPublishesNothingOffersNoButton() = runComposeUiTest {
         val bare = tooNewForThisBuild.copy(release = null)
@@ -175,7 +135,6 @@ class ServersUiTest {
 
     // ---- Fixtures ------------------------------------------------------------
 
-    /** Menu → the server list, the way the player gets there. */
     private fun ComposeUiTest.openServers() {
         awaitMenu()
         onNodeWithTag(MENU_SERVERS_TEST_TAG).performClick()
@@ -227,7 +186,6 @@ class ServersUiTest {
         minimumClient = CURRENT_VERSION,
     )
 
-    /** A deployment a major ahead, publishing a build for every platform. */
     private val tooNewForThisBuild: ServerInfo
         get() {
             val next = AppVersion(CURRENT_VERSION.major + 1, 0, 0)

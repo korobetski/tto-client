@@ -13,12 +13,6 @@ import com.tripletriad.settings.InMemorySettingsStore
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
-/**
- * The options screen, through the real [App] and a real settings store.
- *
- * The point of going through the store rather than a fake holder: "the option changed" and "the
- * option was written to disk" are different claims, and only one of them survives a relaunch.
- */
 @OptIn(ExperimentalTestApi::class)
 class OptionsUiTest {
     @Test
@@ -67,10 +61,6 @@ class OptionsUiTest {
         assertTrue(isVisible("Sprache"), "the German label is gone, so the choice was lost")
     }
 
-    /**
-     * The menu is the visible proof that a language change reaches the *whole* tree and not just
-     * the screen that made it.
-     */
     @Test
     fun theMenuFollowsTheLanguageChosenInTheOptions() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -103,7 +93,6 @@ class OptionsUiTest {
         )
     }
 
-    /** Says out loud that the sliders do nothing yet, rather than letting them look broken. */
     @Test
     fun theAudioSectionAdmitsNothingPlaysYet() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -112,7 +101,6 @@ class OptionsUiTest {
         assertTrue(isVisible("saved, but nothing plays yet"))
     }
 
-    /** Both AS3 labels, so a rename in the bundles cannot silently blank the section. */
     @Test
     fun bothVolumesAreOnTheScreenWithTheirAs3Labels() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }

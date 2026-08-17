@@ -32,23 +32,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * Opening a table: choosing the rules and what the match is played for.
- *
- * ### The two claims worth a screen test
- *
- * **A rule the format does not allow is not offered.** The server refuses one, and a chip that can
- * be ticked into a refusal is a chip that lies about what it does. The pool is the menu.
- *
- * **The Roulette box does not tick a rule.** `RULE_ROULETTE` is one of the sixteen keys and is
- * deliberately absent from the grid: `GameRules.roulette` is what the Wheel of Fortune achievements
- * count, so it means *a draw happened* — a claim only the server may make. The box sets a separate
- * flag on the request, which is what this asserts against the body actually sent.
- */
 @OptIn(ExperimentalTestApi::class)
 class PvpTableUiTest {
 
-    /** Only the format's own rules are on the menu. */
     @Test
     fun aRuleOutsideTheFormatIsNotOffered() = editor {
         onNodeWithTag(ruleToggleTestTag("RULE_SAME")).assertExists()
@@ -57,14 +43,12 @@ class PvpTableUiTest {
         onNodeWithTag(ruleToggleTestTag("RULE_ELEMENTAL")).assertDoesNotExist()
     }
 
-    /** And Roulette is never a chip, even though it is a rule key. */
     @Test
     fun rouletteIsNotOneOfTheChips() = editor {
         onNodeWithTag(ruleToggleTestTag("RULE_ROULETTE")).assertDoesNotExist()
         onNodeWithTag(PVP_TABLE_ROULETTE_TEST_TAG).assertExists()
     }
 
-    /** A chip ticks on and off again, which is what `withoutRuleKey` exists for. */
     @Test
     fun aRuleTicksBothWays() = editor {
         onNodeWithTag(ruleToggleTestTag("RULE_SAME")).assertIsNotSelected()
@@ -76,12 +60,6 @@ class PvpTableUiTest {
         onNodeWithTag(ruleToggleTestTag("RULE_SAME")).assertIsNotSelected()
     }
 
-    /**
-     * The three enum slots are exclusive: ticking one member unticks its sibling.
-     *
-     * All Open and Three Open share one field, so a grid that treated them as independent flags
-     * would let a player ask for a rule set the engine cannot represent.
-     */
     @Test
     fun theEnumSlotsAreExclusive() = editor {
         onNodeWithTag(ruleToggleTestTag("RULE_ALL_OPEN")).performClick()
@@ -93,7 +71,6 @@ class PvpTableUiTest {
         onNodeWithTag(ruleToggleTestTag("RULE_ALL_OPEN")).assertIsNotSelected()
     }
 
-    /** A trade rule replaces the last rather than adding to it: a match has one, or none. */
     @Test
     fun theTradeRulesAreExclusive() = editor {
         onNodeWithTag(tradeToggleTestTag(TradeRule.NONE)).assertIsSelected()
@@ -104,7 +81,6 @@ class PvpTableUiTest {
         onNodeWithTag(tradeToggleTestTag(TradeRule.NONE)).assertIsNotSelected()
     }
 
-    /** What the host ticked is what is sent — rules in the set, roulette as its own flag. */
     @Test
     fun theRequestCarriesTheChosenTerms() {
         val bodies = mutableListOf<String>()
@@ -126,12 +102,6 @@ class PvpTableUiTest {
         assertTrue(""""rules":{"same":true}""" in sent, "the rule set was not sent bare: $sent")
     }
 
-    /**
-     * The chosen format is what gets sent.
-     *
-     * Two of the three authored formats were unreachable before this picker existed: the server
-     * has always taken a `formatId` and the client has always sent `FormatCatalog.default`.
-     */
     @Test
     fun theChosenFormatIsSent() {
         val bodies = mutableListOf<String>()
@@ -146,13 +116,6 @@ class PvpTableUiTest {
         assertTrue(""""formatId":"other-format"""" in sent, "the format was not sent: $sent")
     }
 
-    /**
-     * Switching format drops a rule the new one does not allow.
-     *
-     * Otherwise the request carries a rule the server refuses, for a reason the screen had already
-     * stopped showing — the chip disappears with the format, so the player cannot see what is
-     * wrong with what they are sending.
-     */
     @Test
     fun switchingFormatDropsRulesTheNewOneForbids() = editor {
         onNodeWithTag(ruleToggleTestTag("RULE_SAME")).performClick()
@@ -166,7 +129,6 @@ class PvpTableUiTest {
         onNodeWithTag(ruleToggleTestTag("RULE_SAME")).assertIsNotSelected()
     }
 
-    /** Opening the table posts once and leaves the screen. */
     @Test
     fun openingPostsTheTableAndLeaves() {
         val paths = mutableListOf<String>()
@@ -181,13 +143,6 @@ class PvpTableUiTest {
         assertTrue(left, "the editor did not return to the lobby")
     }
 
-    /**
-     * Aimed at somebody, the same screen sends an invitation instead of opening a table.
-     *
-     * The two propose the same four things and are checked by the same function on the server, so
-     * they are stated on the same screen. Naming your rules used to be something you could do for
-     * strangers browsing the lobby and not for a friend you invited by name.
-     */
     @Test
     fun namingAnInviteeSendsAChallengeOnTheSameTerms() {
         val paths = mutableListOf<String>()
@@ -251,13 +206,6 @@ class PvpTableUiTest {
     private fun bodyOf(request: HttpRequestData): String =
         (request.body as? OutgoingContent.ByteArrayContent)?.bytes()?.decodeToString().orEmpty()
 
-    /**
-     * A pool with two flags, both members of one enum slot, and Roulette.
-     *
-     * Elemental is left out on purpose: [aRuleOutsideTheFormatIsNotOffered] needs a rule that is
-     * real and not in this pool, and one the shipped FFXIV format also excludes.
-     */
-    /** A second format, so the picker has something to offer and a rule pool to differ on. */
     private val other = Format(
         id = "other-format",
         nameKey = "STR_TEST_OTHER",

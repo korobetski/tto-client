@@ -10,26 +10,6 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * The Android [DocumentStore], on the host JVM.
- *
- * ### Why this runs without Robolectric
- *
- * Because the store no longer takes a `Context`. The only thing it ever wanted from Android was
- * `filesDir`, which is a `File`, so the primary constructor takes the directory and the `Context`
- * overload delegates to it. A stubbed `android.jar` would have thrown on `context.filesDir`, and
- * the alternative — adding Robolectric — is a whole test framework for one property, in a project
- * that dropped `kotlinx-datetime` rather than carry a dependency it disagreed with.
- *
- * What this cannot cover is what only a device can: that `filesDir` is where the app may write,
- * that it survives an update and goes on uninstall. Those are Android's guarantees, not this
- * class's, and an instrumented test asserting them would be testing the platform.
- *
- * The sibling `DesktopDocumentStoreTest` covers the same contract against the other host. The two
- * are near-identical implementations of one interface and the duplication is deliberate: they are
- * the two places a player's saves really live, and a shared fixture would prove only that one of
- * them works.
- */
 class AndroidDocumentStoreTest {
     private val root: File = File.createTempFile("tto-files", "").let { file ->
         file.delete()
@@ -70,13 +50,6 @@ class AndroidDocumentStoreTest {
         assertEquals(listOf("kuplu"), store.keys())
     }
 
-    /**
-     * The write-then-rename path leaves no `.tmp` behind.
-     *
-     * The comment on it says `File.renameTo` is atomic within a directory on every Android
-     * filesystem, which is the reason the fallback below it should never run. Nothing had ever
-     * checked that the happy path cleans up after itself.
-     */
     @Test
     fun writingLeavesNoTemporaryFile() = runTest {
         val store = store()
@@ -117,7 +90,6 @@ class AndroidDocumentStoreTest {
         assertEquals(emptyList(), store.keys())
     }
 
-    /** Two collections are two directories — a profile cannot surface in the match history. */
     @Test
     fun twoSubdirectoriesDoNotSeeEachOther() = runTest {
         val saves = store("saves")
@@ -131,7 +103,6 @@ class AndroidDocumentStoreTest {
         assertEquals("a match", history.read("kuplu"))
     }
 
-    /** A profile key is built from a player-typed name, so this input is reachable. */
     @Test
     fun aKeyThatWouldEscapeTheDirectoryIsRefused() = runTest {
         val store = store()

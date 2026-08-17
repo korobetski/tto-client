@@ -14,32 +14,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/**
- * The real Compose tree driven through the real `App()`, which reads `cards.json` and `npcs.json`
- * out of the actual resource bundle. So these also cover resource packaging: they fail if either
- * JSON is dropped, if the generated `Res` accessor moves, or if a schema drifts from its model.
- *
- * ### What changed when the opponent started playing itself
- *
- * These tests used to drive *both* hands, because nothing else did. Now `MatchAi` takes the red
- * side after a short pause, which means a test can no longer assume the turn has come back to it by
- * the next line, nor that a chosen cell is still free. Two helpers absorb that: [awaitPlayer] waits
- * for the turn, and [playOneCard] probes for a free cell and confirms the placement by watching the
- * hand shrink. Everything below is written in terms of those.
- *
- * The deal is deterministic — `App` defaults to a `FixedClock`, and `MatchScreen` seeds its
- * generator from it — but the assertions are invariants rather than a particular board, so a
- * changed seed cannot quietly turn one of these into a tautology.
- */
 @OptIn(ExperimentalTestApi::class)
 class MatchUiTest {
-    /**
-     * Nine cells, a full hand for the player, and no sixth slot on either side.
-     *
-     * The opponent's hand is **four or five**, not five: the coin flip decides who moves first, and
-     * `startMatch` returns once it is the player's turn — so if red won the flip it has already
-     * played. Asserting five would have been asserting the flip.
-     */
     @Test
     fun theBoardHasNineCellsAndAFullPlayerHand() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -65,7 +41,6 @@ class MatchUiTest {
         onNodeWithTag(SCORE_TEST_TAG).assertTextEquals(LEVEL_SCORE)
     }
 
-    /** The opponent is named on the board, so a player knows who they are facing. */
     @Test
     fun theBoardNamesTheOpponent() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -74,10 +49,6 @@ class MatchUiTest {
         onNodeWithTag(MATCH_OPPONENT_TEST_TAG).assertTextEquals("Triple Triad Master")
     }
 
-    /**
-     * The rules in force are stated. `tt-master` imposes All Open and nothing else, so this asserts
-     * both that the strip appears and that it does not invent rules nobody chose.
-     */
     @Test
     fun theRulesInForceAreNamedOnTheBoard() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -86,14 +57,6 @@ class MatchUiTest {
         onNodeWithTag(MATCH_RULES_TEST_TAG).assertTextEquals("All Open")
     }
 
-    /**
-     * Tapping the strip explains the rules it names, and tapping it again puts them away.
-     *
-     * The bundles have carried `RULE_ALL_OPEN_HELP` since the import and nothing ever showed one
-     * during a match: naming Fallen Ace and explaining it are different services, and the strip
-     * only did the first. Closed is the default — asserted here, because a strip that opened
-     * itself would cost a phone's board four lines for a sentence read a hundred times already.
-     */
     @Test
     fun theRuleStripOpensToExplainWhatItNames() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -112,12 +75,6 @@ class MatchUiTest {
         assertFalse(existsUnmerged(help), "tapping it again should close it")
     }
 
-    /**
-     * The banner shows the face the player picked from the opponent list.
-     *
-     * `portraitTestTag` is the same tag that list uses, so this is the assertion that the two
-     * screens draw the *same* opponent — the board named one and pictured nobody until now.
-     */
     @Test
     fun theBoardShowsTheOpponentsPortrait() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -140,12 +97,6 @@ class MatchUiTest {
         assertEquals(HAND_SIZE - 1, handSize(CardColor.BLUE), "the card should have left the hand")
     }
 
-    /**
-     * The opponent takes its own turn, unprompted.
-     *
-     * The assertion is that **red's hand shrinks with no further input** — the one thing that
-     * separates an opponent from a second seat at the same keyboard.
-     */
     @Test
     fun theOpponentPlaysByItself() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -159,7 +110,6 @@ class MatchUiTest {
         assertTrue(handSize(CardColor.RED) < HAND_SIZE, "red never played")
     }
 
-    /** The player's cards are not selectable while the opponent is to move. */
     @Test
     fun theOpponentsHandIsNeverSelectable() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -188,15 +138,6 @@ class MatchUiTest {
         assertVisible("pick a cell", "the selection should survive an illegal placement")
     }
 
-    /**
-     * Captures move the score, and the two halves always total ten.
-     *
-     * Sampled **throughout** the match rather than at the end, which is what an earlier version
-     * did: a final 5-5 does not mean nothing was captured — captures either way can cancel out, and
-     * this deal happens to end level. Asserting on the last frame made the test fail on a
-     * legitimate draw while a genuinely capture-free engine would have passed it whenever the deal
-     * ended uneven.
-     */
     @Test
     fun capturesMoveTheScoreAndItAlwaysTotalsTen() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -265,12 +206,6 @@ class MatchUiTest {
         onNodeWithTag(opponentRowTestTag(TEST_OPPONENT)).assertExists()
     }
 
-    /**
-     * The localisation, through the real tree rather than through `Strings` in isolation.
-     *
-     * Without this, every other test in this file pins `EN_US` and the wiring could be serving one
-     * hard-coded bundle to everybody.
-     */
     @Test
     fun theUiIsInTheChosenLanguage() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.FR_FR)) }
@@ -284,11 +219,6 @@ class MatchUiTest {
         assertFalse(isVisible("pick a card"), "no English should be left on the board screen")
     }
 
-    /**
-     * The fallback, also through the real tree — and exercised by the shipped data rather than by a
-     * contrived table. `de_DE` is 44 keys short, so some controls resolve through English while the
-     * German it does have is used.
-     */
     @Test
     fun aMissingStringFallsBackToEnglishWithoutDisturbingTheRest() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.DE_DE)) }
@@ -307,7 +237,6 @@ class MatchUiTest {
     private companion object {
         const val CENTRE = 4
 
-        /** Five unplayed cards each. The score line is two numbers and a dash, no colour words. */
         const val LEVEL_SCORE = "5 — 5"
     }
 }

@@ -17,14 +17,6 @@ import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/**
- * The 600 dp threshold: a bar and a stack below it, or a rail and two panes beside it.
- *
- * The window is constrained by wrapping [App] in a fixed-width box rather than by asking the test
- * harness for a window size. That is the honest way to test it *and* the more useful one: what the
- * layout reads is `BoxWithConstraints`' incoming width, so this exercises the same measurement a
- * resized desktop window or a rotated phone produces, on any host.
- */
 @OptIn(ExperimentalTestApi::class)
 class AdaptiveUiTest {
     @Test
@@ -45,13 +37,6 @@ class AdaptiveUiTest {
         assertFalse(exists(NAV_BAR_TEST_TAG), "and not the bar as well")
     }
 
-    /**
-     * On a phone the card detail is a band **above** the grid; on a wide window it is a column
-     * **beside** it.
-     *
-     * Asserted on geometry rather than on presence, because both are on screen either way — which
-     * is exactly why a weaker test would have passed before the two-pane layout existed.
-     */
     @Test
     fun theCollectionStacksItsDetailOnAPhoneAndSetsItBesideTheGridOnAWindow() = runComposeUiTest {
         setContent { Sized(PHONE) }
@@ -80,12 +65,6 @@ class AdaptiveUiTest {
         )
     }
 
-    /**
-     * The match gets a side panel on a wide window and none on a phone.
-     *
-     * `matchLayout` has always adapted the *scale* — a desktop window produced a bigger board — so
-     * this is the assertion that the arrangement changes too, which is the part that was missing.
-     */
     @Test
     fun theMatchGetsASidePanelOnlyOnAWideWindow() = runComposeUiTest {
         setContent { Sized(DESKTOP) }
@@ -104,13 +83,6 @@ class AdaptiveUiTest {
         assertTrue(exists(MATCH_RULES_TEST_TAG), "so the rules go above the board instead")
     }
 
-    /**
-     * The log records **both** sides.
-     *
-     * The reason it is read off `MatchState.lastPlay` rather than off the transcript the screen
-     * keeps: the transcript only ever sees the player's own moves. A log that silently omitted the
-     * opponent's would look like a working log.
-     */
     @Test
     fun theMoveLogRecordsWhoeverPlayed() = runComposeUiTest {
         setContent { Sized(DESKTOP) }
@@ -128,10 +100,8 @@ class AdaptiveUiTest {
     }
 
     private companion object {
-        /** Under the threshold: a phone held upright. */
         val PHONE = 380.dp
 
-        /** Over it, with room for a rail and two panes. */
         val DESKTOP = 1100.dp
     }
 }

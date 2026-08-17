@@ -13,56 +13,16 @@ import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.GameSave
 
-/** The tab bar of the cards screen — the collection, and the decks built out of it. */
 const val COLLECTION_TABS_TEST_TAG: String = "collection-tabs"
 
-/**
- * What became of a sale, when it was not what the player asked for.
- *
- * The screen had no snackbar at all until now, which is why selling a card the server would not
- * part with was silent — the one refusal this screen can provoke and the one it could not report.
- */
 const val COLLECTION_NOTE_TEST_TAG: String = "collection-note"
 
-/**
- * The two halves of the cards screen, in the order they are shown.
- *
- * An enum and not two booleans because it is the *destination* a caller asks for: the dashboard's
- * two entries and, later, the navigation bar all open this screen at one tab or the other.
- */
 internal enum class CollectionTab {
-    /** Everything in the profile's table, owned and not. */
     CARDS,
 
-    /** The five deck slots, and the editor behind one. */
     DECKS,
 }
 
-/**
- * The collection and the decks, on one screen with two tabs.
- *
- * ### Why they were merged
- *
- * They were two of the dashboard's nine entries and they are one activity. A deck is built by
- * picking from the collection, so the question the browser answers — *what do I have?* — is the
- * question the editor asks, and the original made you leave one screen and enter another to carry
- * the answer in your head. `DecksScreen.as` even drew its own owned-card pager for exactly this
- * reason: it needed the collection, so it grew a second copy of it.
- *
- * The merge is also what makes a four-destination navigation bar possible without hiding anything:
- * eight entries do not fit a bar and six do not either, and these two plus the shop and the bag are
- * the four that were pairs all along.
- *
- * ### Back, which is the one thing this screen owns
- *
- * The deck editor is a state of the decks tab and not a screen, so back has to leave the editor
- * before it leaves the screen. That check lived in `DecksScreen` while it had its own app bar; the
- * bar is here now, so [DecksBody] takes its `editing` slot as a parameter and this decides what
- * back means. Nothing else about either tab moved.
- *
- * @param initial which tab to open on. The screen keeps its own selection from then on: a player
- *   who switched to the decks and went to play should come back to the decks.
- */
 @Composable
 internal fun CollectionScreen(
     profile: GameSave,

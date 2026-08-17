@@ -9,39 +9,6 @@ import com.tripletriad.audio.MUSIC_LOOP_START_MS
 import com.tripletriad.audio.Sound
 import com.tripletriad.log.Log
 
-/**
- * [AudioPlayer] on Android: `SoundPool` for the effects, `MediaPlayer` for the music.
- *
- * ### No Media3, no ExoPlayer
- *
- * The migration plan's Task 1.5 names Media3. It is not needed, and it is a large dependency:
- * `SoundPool` and `MediaPlayer` are platform classes, available since well before `minSdk 24`, and
- * between them they do everything the AS3's `SoundManager` did. Media3 would buy accurate seeking
- * and gapless concatenation; the one seek here is to a fixed point in a file that carries a
- * Xing header, and there is nothing to concatenate. See the
- * [README](../../../../../../../README.md#audio).
- *
- * ### Two engines, because they are for two different jobs
- *
- * `SoundPool` keeps short sounds decoded in memory and can overlap them, which is what an effects
- * channel is — three cards flipping in a combo must not cut each other off. It is the wrong
- * tool for a 64-second track: it would hold the whole thing as PCM (about 11 MB) and cannot
- * loop to a point.
- * `MediaPlayer` streams and seeks, and is the wrong tool for effects: one instance plays one thing,
- * and constructing them per tap is how audio latency happens.
- *
- * That split is also `SoundManager`'s: `NOISE_CHANNEL` against `BACKGROUND_CHANNEL`.
- *
- * ### Loading
- *
- * `SoundPool.load` is asynchronous, so all ten effects are queued in the constructor and a sound
- * asked for before its load completes is **dropped rather than queued**. Dropping is right: the
- * moment a sound belonged to has passed by the time it would arrive, and the window is the first
- * few hundred milliseconds of the app's life, spent on the splash.
- *
- * @param context any context; only `resources` is used, so an application context is fine and
- *   avoids holding an activity.
- */
 class AndroidAudioPlayer(context: Context) : AudioPlayer {
     private val resources = context.applicationContext.resources
 
@@ -56,14 +23,12 @@ class AndroidAudioPlayer(context: Context) : AudioPlayer {
         )
         .build()
 
-    /** `Sound` to `SoundPool` id, filled in as loads complete. */
     private val loaded = mutableMapOf<Sound, Int>()
     private val pending = mutableMapOf<Int, Sound>()
 
     private var music: MediaPlayer? = null
     private var playingMusic: Sound? = null
 
-    /** True only between [pauseMusic] and [resumeMusic], so a user-initiated stop is not undone. */
     private var pausedByLifecycle = false
 
     private var backgroundVolume = 1f
@@ -98,15 +63,6 @@ class AndroidAudioPlayer(context: Context) : AudioPlayer {
         pool.play(sampleId, noiseVolume, noiseVolume, PRIORITY, 0, 1f)
     }
 
-    /**
-     * Starts the music, or leaves it alone if this track is already the one playing.
-     *
-     * The guard is `SoundManager.playSound`'s `if (sound !== SoundManager._playingSound)`. What is
-     * *not* reproduced is its cross-fade, and deliberately: `fadeSoundChannel` was called with a
-     * 150 ms delay and stepped the volume by 0.01, so fading out from 1.0 took a hundred steps —
-     * **fifteen seconds**, not 150 ms. It also compared a float to `0` exactly. Reimplementing that
-     * faithfully would be reimplementing a defect; there is only one track, so nothing cross-fades.
-     */
     private fun playMusic(sound: Sound) {
         if (playingMusic == sound && music?.isPlaying == true) return
         stopMusic()
@@ -165,16 +121,6 @@ class AndroidAudioPlayer(context: Context) : AudioPlayer {
         music?.let { runCatching { it.setVolume(backgroundVolume, backgroundVolume) } }
     }
 
-    /**
-     * Pauses the music, remembering that it was playing. The host calls this from `onStop`.
-     *
-     * Pause and not [stopMusic]: stopping loses the position, and the composition does not change
-     * when the app is backgrounded, so the effect that started the music would not fire again on
-     * the way back — the match would come back silent. Paired with [resumeMusic] from `onStart`.
-     *
-     * Not on the [AudioPlayer] interface: a process lifecycle is an Android idea, and the desktop
-     * host has nothing to call this from.
-     */
     fun pauseMusic() {
         music?.let { player ->
             if (player.isPlaying) {
@@ -185,7 +131,6 @@ class AndroidAudioPlayer(context: Context) : AudioPlayer {
         }
     }
 
-    /** Resumes what [pauseMusic] paused, and nothing otherwise. */
     fun resumeMusic() {
         if (!pausedByLifecycle) return
         pausedByLifecycle = false
@@ -195,7 +140,6 @@ class AndroidAudioPlayer(context: Context) : AudioPlayer {
         }
     }
 
-    /** Releases both engines. The host calls this from `onDestroy`. */
     fun release() {
         stopMusic()
         pool.release()
@@ -208,15 +152,6 @@ class AndroidAudioPlayer(context: Context) : AudioPlayer {
         const val MAX_STREAMS = 6
         const val PRIORITY = 1
 
-        /**
-         * `Sound` to `R.raw`, written out rather than looked up by name.
-         *
-         * `Resources.getIdentifier` would do this in one line and is the wrong choice twice over:
-         * a rename becomes a runtime failure instead of a compile error, and R8 resource shrinking
-         * cannot see a resource that is only named in a string. Written by
-         * [`tools/import_sounds.py`](../../../../../../../tools/import_sounds.py)'s naming rule —
-         * the AS3 id with its dots turned into underscores.
-         */
         fun rawId(sound: Sound): Int = when (sound) {
             Sound.MATCH_MUSIC -> R.raw.shuffle_or_boogie
             Sound.MATCH_OPEN -> R.raw.se_ttriad_scd_2

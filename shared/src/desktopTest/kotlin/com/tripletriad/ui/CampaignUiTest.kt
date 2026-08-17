@@ -20,39 +20,15 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/**
- * The two tournament ladders — `CCGroupScreen` and `GSGroupScreen`, and the match screens behind
- * them, through the real app.
- *
- * **One ladder per collection**, which is easy to get backwards: the Card Club (`cc`, seven rungs)
- * is the FF8 one and the Gold Saucer tournament (`gs`, six) the FF14 one, so a character sees
- * exactly one. Where the rungs go is `CampaignCatalogTest`'s business; what only the app can show
- * is that the entry is reachable, that the fee gates it and is really taken, and that a rung is a
- * scripted match.
- */
 @OptIn(ExperimentalTestApi::class)
 class CampaignUiTest {
     private val campaigns = runBlocking { loadCampaignCatalog() }
     private val goldSaucer = campaigns.byKey(GOLD_SAUCER) ?: error("no $GOLD_SAUCER campaign")
     private val english = runBlocking { loadStrings(AppLocale.EN_US) }
 
-    /** A character who can afford the fee, which a new one cannot: [aFreshPurseCannotEnter]. */
     private fun withFee(): InMemoryDocumentStore =
         seeded(GameSave.new(createdAt = 0L).copy(mgp = goldSaucer.fee + POCKET_CHANGE))
 
-    /**
-     * **Both ladders are offered, whichever box the character opened.**
-     *
-     * `PVEScreen.as:83-96` builds each button behind its own `if (MODE == …)`, and the two tests
-     * this replaces pinned that filter in both directions: an FFXIV character saw the Gold Saucer
-     * and not the Card Club, and the reverse.
-     *
-     * `MODE` is gone and the filter with it. A ladder still *names* its format — the Card Club is
-     * played with FFVIII cards under the FFVIII pool, and entering it switches to that format (see
-     * `CampaignDestination`) — but which ladders you may *enter* is no longer decided by a field on
-     * your save. Filtering them by the format free matches use would have hidden every one of them,
-     * since that format is now the union of both.
-     */
     @Test
     fun bothLaddersAreOffered() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -63,7 +39,6 @@ class CampaignUiTest {
         assertTrue(exists(campaignRowTestTag(CARD_CLUB)), "the Card Club is the ff8 one")
     }
 
-    /** And the box a character opened changes none of that. */
     @Test
     fun anFf8CharacterSeesBothToo() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -74,13 +49,6 @@ class CampaignUiTest {
         assertTrue(exists(campaignRowTestTag(GOLD_SAUCER)))
     }
 
-    /**
-     * A new character cannot enter: 100 MGP against a 500 fee.
-     *
-     * `startCampaign.isEnabled = (Game.PROFILE_DATAS.MGP >= 500)` — disabled, not hidden, so the
-     * reason is readable next to the price. This also pins the two numbers against each other: if
-     * the starting purse ever covered the fee, the gate would stop meaning anything.
-     */
     @Test
     fun aFreshPurseCannotEnter() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -92,7 +60,6 @@ class CampaignUiTest {
         onNodeWithTag(CAMPAIGN_START_TEST_TAG).assertIsNotEnabled()
     }
 
-    /** Every rung is listed before a coin is spent — what the 500 buys, in the order it comes. */
     @Test
     fun theLadderShowsItsRungsBeforeTheFee() = runComposeUiTest {
         val documents = withFee()
@@ -109,12 +76,6 @@ class CampaignUiTest {
         )
     }
 
-    /**
-     * Start takes the fee, and the ladder opens on its first rung.
-     *
-     * Read off the file rather than off the screen: `MGP -= 500` has to survive the save, because
-     * paying again after a defeat is the only thing that makes a ladder a stake.
-     */
     @Test
     fun startingALadderChargesTheFee() = runComposeUiTest {
         val documents = withFee()
@@ -129,14 +90,6 @@ class CampaignUiTest {
         assertTrue(existsUnmerged(CAMPAIGN_STEP_TEST_TAG), "the ladder should say which rung it is")
     }
 
-    /**
-     * A ladder match is scripted, so it offers Next Match where an ordinary one offers Rematch.
-     *
-     * `CCGroupRematchPanel` builds its first button behind `if (_params.NEXT_STEP < 7)` and labels
-     * it Next Match — replacing Rematch rather than joining it, which is also what keeps a rung
-     * from being replayable for its reward. That a scripted match is never *submitted* is
-     * `MatchTranscriptTest`'s claim; this app has no server attached to observe it through.
-     */
     @Test
     fun aRungOffersTheNextRungRatherThanARematch() = runComposeUiTest {
         val documents = withFee()
@@ -151,7 +104,6 @@ class CampaignUiTest {
         assertTrue(exists(MATCH_DONE_TEST_TAG), "the way out is always offered")
     }
 
-    /** Loads the seeded character and opens the Gold Saucer's entry screen. */
     @OptIn(ExperimentalTestApi::class)
     private fun ComposeUiTest.openLadder(documents: InMemoryDocumentStore) {
         loadCharacter(documents)
@@ -161,13 +113,10 @@ class CampaignUiTest {
     }
 
     private companion object {
-        /** Six rungs, FF14, and the one whose title key only `fr_FR` defines. */
         const val GOLD_SAUCER = "gs"
 
-        /** Seven rungs, FF8, and the one whose title key no bundle defines at all. */
         const val CARD_CLUB = "cc"
 
-        /** What is left after the fee — small enough that no reward can produce it by chance. */
         const val POCKET_CHANGE = 7
     }
 }

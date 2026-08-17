@@ -11,13 +11,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * Covers the **real** `npcs.json` in the Compose resource bundle, as [NpcCatalogTest] does not.
- *
- * The counts and invariants here are the ones `tools/extract_npcs.py` asserts on the way out.
- * Stated again on the way in, because the extractor is run by hand: a stale `npcs.json` in the
- * bundle is exactly the failure this catches, and the extractor cannot.
- */
 class NpcBundleTest {
     private val catalog = runBlocking { loadNpcCatalog() }
 
@@ -30,12 +23,6 @@ class NpcBundleTest {
         assertEquals(FF8_NPCS, catalog.playing(FF8_FORMAT).size, "the FFVIII opponents")
     }
 
-    /**
-     * Every opponent names at least one format, and every format it names is one that ships.
-     *
-     * An opponent naming nothing is unreachable — no list would ever include them — and one naming
-     * a format that does not exist is the same thing with a typo instead of an omission.
-     */
     @Test
     fun everyOpponentPlaysAFormatThatExists() {
         val known = runBlocking { loadFormatCatalog() }.formats.mapTo(mutableSetOf()) { it.id }
@@ -47,9 +34,6 @@ class NpcBundleTest {
         }
     }
 
-    /**
-     * `NPC_W` is keyed by icon, so a collision inside one table would merge two opponents' records.
-     */
     @Test
     fun iconIdsAreUniqueWithinEachTable() {
         for (formatId in SINGLE_SET_FORMATS) {
@@ -72,12 +56,6 @@ class NpcBundleTest {
         }
     }
 
-    /**
-     * Every opponent must be able to field five cards.
-     *
-     * This is the invariant that makes the AS3 `getRandomCards()` infinite loop unreachable with
-     * the shipped data: fifteen entries have an empty pool, and all of them have five fetish cards.
-     */
     @Test
     fun everyOpponentCanFieldAFullHand() {
         for (npc in catalog.all) {
@@ -89,18 +67,6 @@ class NpcBundleTest {
         }
     }
 
-    /**
-     * Every rule key in the data must be one `gameRules()` maps; an unmapped one is silently
-     * dropped.
-     */
-    /**
-     * Every card an opponent can field exists in that opponent's own collection.
-     *
-     * `PveMatches.assemble` refuses a hand it cannot resolve rather than quietly playing four
-     * cards, so this is what keeps that refusal unreachable by playing. It also catches the cross-
-     * collection mistake the data invites: card ids are per-table indices, so an `ff8` opponent
-     * listing an `ff14` id would resolve to the wrong card rather than to none.
-     */
     @Test
     fun everyOpponentCardExistsInItsOwnCollection() {
         val cards = runBlocking { loadCardCatalog() }
@@ -117,7 +83,6 @@ class NpcBundleTest {
         }
     }
 
-    /** And a full hand resolves to five real cards, which is what a match actually needs. */
     @Test
     fun everyOpponentResolvesToAFullHandOfRealCards() {
         val cards = runBlocking { loadCardCatalog() }
@@ -163,7 +128,6 @@ class NpcBundleTest {
         )
     }
 
-    /** A rate of 0 would be a drop that can never happen — a transcription slip, not a design. */
     @Test
     fun everyItemRewardResolvesAndHasAUsableRate() {
         for (npc in catalog.all) {
@@ -191,7 +155,6 @@ class NpcBundleTest {
         }
     }
 
-    /** Whatever the hour, the opponent list is non-empty — otherwise PvE would be unreachable. */
     @Test
     fun someOpponentIsAvailableAtEveryHour() {
         for (hour in 0 until HOURS) {
@@ -204,15 +167,6 @@ class NpcBundleTest {
         }
     }
 
-    /**
-     * The entry whose pool is `cards.getCardsByRarities(...)` must have been resolved to ids.
-     *
-     * There were two. The FFVIII table declared a second Queen of Cards, the only `iconID` shared
-     * by both tables — see document 19, which flagged it as the one collision the icon-keyed win
-     * record could not tell apart. She is **deleted**: with `MODE` gone the roster is one roster,
-     * `NpcCatalog.byIcon` resolves an icon by taking the first match, and two opponents answering
-     * to one name is an ambiguity no lookup can settle. The FFXIV Queen stays.
-     */
     @Test
     fun theQueenOfCardsPoolWasResolvedAtExtractionTime() {
         val queens = catalog.npcs.filter { it.iconId == "queen-of-cards" }
@@ -231,10 +185,4 @@ class NpcBundleTest {
     }
 }
 
-/**
- * A level high enough that [com.tripletriad.data.NpcCatalog.available]'s gate cannot bite.
- *
- * The tests that pass it are about the **hour** window or about a named opponent, and would
- * otherwise be asserting the level rule by accident. `OpponentUiTest` tests the gate itself.
- */
 private const val ANY_LEVEL: Int = 99

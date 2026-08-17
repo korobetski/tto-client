@@ -46,58 +46,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
-/** The bubble while it is on screen. */
 const val TALK_BUBBLE_TEST_TAG: String = "talk-bubble"
 
-/** The panel alone, so a test can ask whether the line is inside it. */
 const val TALK_FRAME_TEST_TAG: String = "talk-frame"
 
-/**
- * `TalkAnim` — an NPC saying one line.
- *
- * The bubble scales up as it fades in, the speaker's name and their line appear once it has
- * arrived, both are up for five seconds, and then it shrinks away to half size. Its three callers
- * in the original are the two group ladders and `TutorialScreen`, which is what this unblocks: the
- * tutorial *is* a sequence of these over a scripted match.
- *
- * ### Why the frame is drawn and no longer `talk_basic.tex`
- *
- * The AS3 frame is a parchment lens authored at 544x144 for a 1024-wide desktop stage, and it was
- * always the wrong shape for this port: the tutorial's sixty lines run past three rendered lines in
- * French, so the texture had to be sliced into caps and a stretched seam band to grow with its
- * sentence (`CAP_PIXELS` and its neighbours, now gone). A drawn panel takes the theme's own
- * surface, border and elevation, grows to any height for free, needs no atlas at boot, and removes
- * one more piece of Square Enix artwork from the build — see the legal note in `CLAUDE.md`.
- *
- * The **text stays text**, as it always was: `TextField(450, 75, _message, 'Raleway', 16, …)`, one
- * frame for every language, the line arriving as a string rather than as a texture id. That is the
- * original's design and it is the better one; the twenty rule captions are pictures only because
- * they are stylised wordmarks.
- *
- * ### Why the text appears after the bubble
- *
- * `predispose()` — the entry tween's `onComplete` — is what constructs both `TextField`s. A line
- * readable while its bubble is still flying in would be readable while it is moving, which is where
- * the original's structure is making an argument rather than an accident.
- *
- * ### Tapping it moves it on
- *
- * The original has no such control: every bubble is up for its five seconds and the next is
- * scheduled behind it. That is fine for the nine lines it had and wrong for a curriculum — a fast
- * reader waits out four seconds of nothing, on every line, and there are sixty of them. The timer
- * stays as the fallback, so a bubble nobody touches behaves exactly as it always did.
- *
- * The tap target is the **bubble**, not the screen. The composable fills its parent so the bubble
- * can be placed against the top of it, and making that box clickable would swallow every tap meant
- * for the board underneath — a player who wanted to place a card while a line was up could not.
- *
- * @param message the line, already translated. Wrapped rather than clipped: the AS3 sizes its
- *   field 450x75 with `autoSize = VERTICAL`, so a long line grows downward instead of vanishing.
- * @param speaker who is talking. `RED_PLAYER_NAME` in a ladder match, `STR_NPC_TT_Master` in the
- *   tutorial.
- * @param onFinished the line is done. Called once, from this composable's own coroutine, so a
- *   caller can advance a script on it.
- */
 @Composable
 internal fun TalkBubble(message: String, speaker: String, onFinished: () -> Unit) {
     val strings = LocalStrings.current
@@ -182,14 +134,6 @@ internal fun TalkBubble(message: String, speaker: String, onFinished: () -> Unit
     }
 }
 
-/**
- * The panel the line sits in — the same clothes as the outcome panel, one step smaller.
- *
- * `surfaceContainerHigh` at `OutcomeElevation` is what `MatchChrome` dresses the result panel in,
- * and a bubble drawn over the board wants exactly that separation: the board is the app's darkest
- * surface, so anything lighter reads as sitting above it. The hairline outline is what stops the
- * corners dissolving into the backdrop on the screens whose background is nearly the same tone.
- */
 @Composable
 private fun Frame(content: @Composable () -> Unit) {
     Surface(
@@ -203,15 +147,6 @@ private fun Frame(content: @Composable () -> Unit) {
     )
 }
 
-/**
- * The speaker above their line, as a nameplate rather than as a first word.
- *
- * The AS3 draws the name in white 14 on the frame's dark lip, where the shape of the artwork is
- * what separates it from the sentence. There is no lip on a drawn panel, so the separation has to
- * come from the type: `primary` — the theme's amber, the colour nothing else in a match uses for
- * text — bold, tracked out, and a rule under it. Left-aligned against a centred sentence, which is
- * the other half of what tells a label from what it labels.
- */
 @Composable
 private fun Line(message: String, speaker: String, modifier: Modifier) {
     Column(
@@ -247,47 +182,22 @@ private fun Line(message: String, speaker: String, modifier: Modifier) {
     }
 }
 
-/**
- * `Starling.juggler.tween(gfx, 0.4, …)` — in, and out again.
- *
- * Shorter than the original's 0.4s, and much shorter than the 0.8s this actually ran at: sixty
- * lines is sixty entries, and the entry is time in which there is nothing to read. The hold is
- * untouched — that is the part a reader spends.
- */
 private const val ENTER_MILLIS = 240
 private const val EXIT_MILLIS = 280
 
-/** `delay: 5` on the exit tween, and the `setTimeout` that hides the text at the same moment. */
 private const val HOLD_MILLIS = 5_000
 
-/**
- * `gfx.scaleX = gfx.scaleY = 1.5` before the entry tween, and `0.5` after the exit one.
- *
- * 1.15 rather than 1.5 on the way in. A bubble that starts half again as wide as it ends covers the
- * board it is explaining, and at this speed that much travel reads as a jolt; the exit keeps its
- * 0.5, where nothing is being read any more.
- */
 private const val ENTER_SCALE = 1.15f
 private const val EXIT_SCALE = 0.5f
 
-/** Wider than the AS3's 272 dp half-scale, because nothing is tied to a texture's pixels now. */
 private val BubbleWidth = 300.dp
 
-/** The floor the AS3's 544x144 frame gave a three-word line. Kept: a lozenge is not a bubble. */
 private val BubbleHeight = 72.dp
 
-/** Round enough to read as speech, square enough to be the same family as the outcome panel. */
 private val BubbleCorner = 20.dp
 
-/**
- * How far down the screen it sits — `stage.height / 6` restated as a fraction that scales.
- *
- * The floor is the AS3's own 48 dp and the ceiling is the board's first row — see the call site,
- * where the reason a bigger number is not simply a nicer one is written down.
- */
 private const val BUBBLE_TOP_FRACTION = 0.14f
 private val BubbleTopMin = 48.dp
 private val BubbleTopMax = 72.dp
 
-/** Bold alone does not carry at `labelLarge`; tracked out, the name reads as a plate. */
 private val SpeakerTracking = 0.6.sp

@@ -45,36 +45,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * What a submitted match credits, reaching the screen the player is looking at.
- *
- * ### The bug this is the fixed half of
- *
- * A match against a program is credited by the **client** — see `MatchScreen` — and on an account
- * that write goes out as a `PUT /me/save`, which the server applies through
- * `GameSave.withServerOwnedFrom`: it keeps its own `bag`, `cards` and `mgp` and discards the
- * client's. So a card the opponent dropped exists only in the copy on screen until the match's
- * transcript has been submitted and replayed.
- *
- * Nothing closed that window. The drain ran once, when a character first came into play, and the
- * profile it credited was handed to a constructor callback **no host ever passed** — so the client
- * and the server disagreed about the bag for the rest of the session. Tapping Use on the drop asked
- * the server to spend an item it did not hold; the row vanished, the collection gained nothing, and
- * the screen said nothing at all.
- *
- * `AccountBagSyncTest` covers the screen's half — that the refusal is now spoken aloud. This covers
- * the half that matters more: that the disagreement is settled before the player can reach the bag.
- */
 @OptIn(ExperimentalTestApi::class)
 class AccountSettlementTest {
 
-    /**
-     * The reported story, end to end: a card won from an opponent can be used.
-     *
-     * The queue is drained at launch and again on the way off any board, and what it credits is
-     * adopted — so the bag on screen is the bag the server holds, and Use spends something that
-     * really is there.
-     */
     @Test
     fun aCardTheServerCreditedCanBeUsed() = runComposeUiTest {
         val sessions = signedInStore()
@@ -103,15 +76,6 @@ class AccountSettlementTest {
         )
     }
 
-    /**
-     * Leaving a board drains again, which is the case a launch-only drain could not serve.
-     *
-     * The board here never deals a card: this account holds no seed stock, so `MatchScreen` shows
-     * `NoSeedNotice` instead. That is deliberate rather than a shortcut — what is under test is the
-     * **navigation**, not the match. `Screen.MATCH` is a board as far as `PLAYING_SCREENS` is
-     * concerned, so walking into one and back out is exactly the transition a finished match makes,
-     * without nine placements in front of it.
-     */
     @Test
     fun leavingABoardDrainsWhatItLeftBehind() = runComposeUiTest {
         val sessions = signedInStore()
@@ -147,12 +111,6 @@ class AccountSettlementTest {
         openFromDashboard(DASHBOARD_INVENTORY_TEST_TAG, INVENTORY_LIST_TEST_TAG)
     }
 
-    /**
-     * A reporter that records every drain and answers with whatever [credit] says the server wrote.
-     *
-     * A lambda rather than a fixed profile, so a test can make the drain **be** the moment the
-     * account gains something — which is what a real one is.
-     */
     private class CreditingReporter(private val credit: () -> PlayerState?) : MatchReporter {
         val drained = mutableListOf<String>()
 
@@ -165,7 +123,6 @@ class AccountSettlementTest {
         override suspend fun forget(profileKey: String) = Unit
     }
 
-    /** A stored session, so Play is Continue and the sign-in form never appears. */
     private fun signedInStore(): InMemoryDocumentStore {
         val documents = InMemoryDocumentStore()
         runBlocking {
@@ -198,7 +155,6 @@ class AccountSettlementTest {
         )
     }
 
-    /** `AccountRoutes`, minus the socket. */
     private fun server() = MockEngine { request ->
         when (request.url.encodedPath) {
             "/server" -> respondJson(matchProtocolJson.encodeToString(serverInfo))
@@ -239,10 +195,8 @@ class AccountSettlementTest {
 
     private val home = ServerEntry(id = "home", label = "Home", baseUrl = "https://example.invalid")
 
-    /** The key this account's queue is drained under — server id and account name. */
     private val accountKey: String get() = com.tripletriad.net.accountQueueKey(home.id, NAME)
 
-    /** Healthy and of exactly this version, so no update notice replaces anything. */
     private val serverInfo = ServerInfo(
         name = "test",
         version = CURRENT_VERSION,
@@ -252,7 +206,6 @@ class AccountSettlementTest {
     private companion object {
         const val NAME = "winner"
 
-        /** An ff14 card no starter collection holds, so owning it can only come from the use. */
         const val WON_CARD = 300
         const val SEED = 7
     }

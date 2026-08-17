@@ -6,12 +6,6 @@ import com.tripletriad.log.Log
 import java.awt.Desktop
 import java.net.URI
 
-/**
- * The desktop's own browser, via AWT.
- *
- * `isDesktopSupported` is checked rather than assumed: a headless JVM has no browser to hand off
- * to, and this game runs in CI as well as on a desktop.
- */
 @Composable
 actual fun rememberUrlOpener(): (String) -> Unit = remember {
     { url -> browse(url) }

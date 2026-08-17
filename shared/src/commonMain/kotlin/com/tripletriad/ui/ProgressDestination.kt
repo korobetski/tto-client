@@ -6,19 +6,6 @@ import com.tripletriad.model.GameSave
 import com.tripletriad.time.Clock
 import kotlinx.coroutines.launch
 
-/**
- * The hub, and the course in front of it.
- *
- * One arm of [CharacterDestination] rather than two, for the reason `SocialDestination` gives:
- * both need nothing but the character and the progress counter, both are one call each, and the
- * pair is what keeps that `when` under the complexity gate.
- *
- * In its own file rather than beside the other destinations because `App.kt` is at the file-length
- * function count detekt allows; the badge below moved with it, being read from nowhere else.
- *
- * **Not verified:** no test drives this function directly — it is covered only through the
- * dashboard and lesson-list tests that navigate to those screens.
- */
 @Composable
 @Suppress("LongParameterList")
 internal fun ProgressDestination(
@@ -80,13 +67,6 @@ internal fun ProgressDestination(
     }
 }
 
-/**
- * What is waiting behind the Multiplayer card, or null when nothing is.
- *
- * Read from the session rather than fetched: `StartupEffects` has already asked at launch, and this
- * is the one place a player who is not thinking about multiplayer will still be told it wants them.
- * That matters because an uncollected prize has a deadline the server settles for them.
- */
 private fun pvpBadge(pvp: PvpSession?): String? = when {
     pvp == null -> null
     pvp.claims.isNotEmpty() -> "${pvp.claims.size}"

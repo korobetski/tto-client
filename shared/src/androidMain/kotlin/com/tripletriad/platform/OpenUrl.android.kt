@@ -8,10 +8,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import com.tripletriad.log.Log
 
-/**
- * An `ACTION_VIEW` intent, which resolves to the browser — or to the Play Store app when the URL
- * is a store link, which is the whole reason the download is a URL and not a file.
- */
 @Composable
 actual fun rememberUrlOpener(): (String) -> Unit {
     val context = LocalContext.current

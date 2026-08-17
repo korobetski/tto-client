@@ -27,14 +27,6 @@ import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * The client half of accounts, against a fake transport.
- *
- * The same bargain [KtorMatchSubmitterTest] makes, and for the same reason: the cases worth
- * stating are the ones a healthy server never produces. What matters throughout is that **nothing
- * throws** — a sign-in form has to render "the server is unreachable" in the same place it renders
- * "that name is taken", and it cannot do that if one of the two arrives as an exception.
- */
 class AccountClientTest {
 
     // ---- The ordinary outcomes --------------------------------------------
@@ -48,12 +40,6 @@ class AccountClientTest {
         assertEquals(session, assertIs<AccountResult.Ok<Session>>(result).value)
     }
 
-    /**
-     * A 200 to a registration is not a session.
-     *
-     * Registration answers 201 and only 201. Accepting any 2xx would mean decoding whatever a proxy
-     * or a redirect handler put there as if the account had been made.
-     */
     @Test
     fun aRegistrationAnsweredWithTwoHundredIsNotTreatedAsSuccess() = runTest {
         val client = clientAnswering(HttpStatusCode.OK, encode(session))
@@ -75,7 +61,6 @@ class AccountClientTest {
         assertEquals(player, client.me(TOKEN).valueOrNull())
     }
 
-    /** Both of the server's two ways of saying "stored" are success. */
     @Test
     fun savingAProfileAcceptsBothNoContentAndOk() = runTest {
         val save = GameSave(username = "kuplu")
@@ -110,10 +95,6 @@ class AccountClientTest {
         assertEquals(AccountError.USERNAME_TAKEN, refused.failure.error)
     }
 
-    /**
-     * The one refusal that has to be recognisable without reading prose: it is what tells a caller
-     * to throw the stored token away rather than to show the player an error.
-     */
     @Test
     fun aDeadSessionIsRecognisableAsSuch() = runTest {
         val client = clientAnswering(
@@ -150,12 +131,6 @@ class AccountClientTest {
         assertTrue(offline.cause.isNotBlank())
     }
 
-    /**
-     * A captive portal answering 200 with HTML.
-     *
-     * The body decode is inside the guard for exactly this: without it the exception escapes a
-     * caller that has handled every documented outcome.
-     */
     @Test
     fun aTwoHundredThatIsNotASessionDoesNotThrow() = runTest {
         val client = clientAnswering(
@@ -167,7 +142,6 @@ class AccountClientTest {
         assertNull(client.signIn(credentials).valueOrNull())
     }
 
-    /** A failure body that is not an `AccountFailure` degrades to the status it came with. */
     @Test
     fun anUnrecognisableFailureBodyKeepsTheStatus() = runTest {
         val client = clientAnswering(HttpStatusCode.BadGateway, "<html>502</html>")
@@ -212,7 +186,6 @@ class AccountClientTest {
         assertEquals("Bearer $TOKEN", seen?.headers?.get("Authorization"))
     }
 
-    /** Credentials go in the body, never in the path — a URL is logged by every proxy there is. */
     @Test
     fun credentialsAreNotPutInTheUrl() = runTest {
         var seen: HttpRequestData? = null
@@ -261,19 +234,11 @@ class AccountClientTest {
 
     private val session = Session(token = TOKEN, expiresAt = 1_770_086_400_000L, player = player)
 
-    /**
-     * The address, read per request.
-     *
-     * A lambda and not a string because the player can switch servers while the app is running,
-     * and a client holding the address it was built with would keep talking to the one they left
-     * — see [ServerDirectory]. These tests only need it to be constant.
-     */
     private val address: suspend () -> String = { BASE_URL }
 
     private companion object {
         const val BASE_URL = "http://127.0.0.1:8080"
 
-        /** Opaque to the client and meaningless to the mock — it only has to arrive. */
         const val TOKEN = "test-session"
     }
 }

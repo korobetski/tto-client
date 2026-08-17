@@ -12,36 +12,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-/**
- * The shipped `formats.json`.
- *
- * ### The assertion this file existed for is gone, and that is the good outcome
- *
- * Document 19 moves the rule pools out of `:core` and into data. For one release they were in both
- * places — `Roulette.pools` compiled into the engine, and this catalogue as the transcription — and
- * the central test here held them to being **identical, in order**. That is what made the switch a
- * deletion rather than a rewrite nobody could check, and what would have caught somebody tuning a
- * pool in one of the two places.
- *
- * `Roulette.pools` no longer exists. There is nothing left to compare against, so the assertion is
- * deleted rather than weakened: a test that outlives the duplication it was guarding is a test that
- * asserts a shipped file equals itself.
- *
- * What is kept is everything that is still a claim about the *content*: the pools differ from each
- * other in the ways the sets do, the authoring rules hold, every released set is playable, and a
- * card belongs to its own set's format.
- */
 class FormatBundleTest {
     private val formats = runBlocking { loadFormatCatalog() }
     private val cards = runBlocking { loadCardCatalog() }
 
-    /**
-     * Each shipped set still has a format that admits exactly its block, and it draws something.
-     *
-     * The ladders are what still need these: a campaign names the format its rungs are played
-     * under, and one that resolved to nothing would be an entry fee taken for a match that cannot
-     * be dealt. Ordinary matches use [FormatCatalog.default] and would survive their absence.
-     */
     @Test
     fun eachSetHasASingleSetFormatThatDrawsSomething() {
         for ((id, block) in listOf(FF14_FORMAT to FF14_BLOCK, FF8_FORMAT to FF8_BLOCK)) {
@@ -52,7 +26,6 @@ class FormatBundleTest {
         }
     }
 
-    /** And the transcription is not vacuous: the two pools really do differ from each other. */
     @Test
     fun theTwoPoolsAreNotTheSame() {
         val ff14 = assertNotNull(formats[FF14_FORMAT]).rules
@@ -71,7 +44,6 @@ class FormatBundleTest {
         assertTrue(problems.isEmpty(), "formats.json: ${problems.joinToString("; ")}")
     }
 
-    /** Every released set can be played, and every format names a set that ships. */
     @Test
     fun everyReleasedSetIsAdmittedBySomeFormat() {
         for (set in cards.releasedSets) {
@@ -82,7 +54,6 @@ class FormatBundleTest {
         }
     }
 
-    /** A card belongs to the format that admits its block, and to no other. */
     @Test
     fun aCardIsAdmittedByItsOwnSetsFormat() {
         val ff14 = assertNotNull(formats[FF14_FORMAT])
@@ -96,13 +67,6 @@ class FormatBundleTest {
         assertTrue(!ff8.admitsCard(dodo))
     }
 
-    /**
-     * Each format's name resolves.
-     *
-     * Data-driven like `Starter.nameKey`, so `StringsBundleTest` cannot see it. Nothing shows these
-     * yet — a format is not a thing a player picks while `MODE` still decides everything — and they
-     * are asserted now so the day one is shown it is not `APP_FORMAT_FF14_STANDARD`.
-     */
     @Test
     fun everyFormatNameResolves() {
         val english = runBlocking { loadStrings(AppLocale.EN_US) }
@@ -111,12 +75,6 @@ class FormatBundleTest {
         assertTrue(unresolved.isEmpty(), "unresolved: $unresolved")
     }
 
-    /**
-     * A catalogue that breaks the rules is caught on every count.
-     *
-     * Without this the suite above would pass just as happily against a `violations` that returned
-     * an empty list unconditionally.
-     */
     @Test
     fun aBrokenCatalogueIsRefusedOnEveryCount() {
         val broken = FormatCatalog(
@@ -157,7 +115,6 @@ class FormatBundleTest {
     }
 
     private companion object {
-        /** A block no set declares, so `violations` has something to refuse. */
         const val GHOST_BLOCK = 99
     }
 }

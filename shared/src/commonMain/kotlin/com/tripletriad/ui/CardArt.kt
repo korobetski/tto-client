@@ -19,20 +19,7 @@ import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.decodeToImageBitmap
 import tripletriad.shared.generated.resources.Res
 
-/**
- * Every texture `tto.display.Card` draws, read out of the Compose resource bundle.
- *
- * Imported by [`tools/import_card_art.py`](../../../../../../../tools/import_card_art.py),
- * which also records why the artwork is 263 individual files rather than the two sprite
- * sheets that ship with the AS3 source: the sheets are 2 MB smaller to download but cost
- * ~24 MB of permanently resident bitmap, and `ff14_cards.xml` only covers 80 of 153 cards.
- *
- * Card faces load **on demand and stay cached** — a match needs at most nineteen of them.
- * Everything else (the back, the digit atlas, five rarity rows, twelve type icons: 19 files,
- * 85 KB) is loaded once up front because every card needs some of it.
- */
 class CardArt internal constructor(
-    /** `back` — `Card.as:93`. Drawn over everything while a card is mid-flip. */
     val back: ImageBitmap,
     private val stars: Map<Int, ImageBitmap>,
     private val types: Map<CardType, ImageBitmap>,
@@ -43,22 +30,16 @@ class CardArt internal constructor(
     // mutex here would be protecting nothing worth protecting.
     private val faces = mutableMapOf<String, ImageBitmap>()
 
-    /** `{rarity}stars` at (9, 6) — `Card.as:176-178`. */
     fun starsFor(rarity: Int): ImageBitmap? = stars[rarity]
 
-    /** `type-{type}` at (80, 3) — `Card.as:181-183`. */
     fun typeIcon(type: CardType): ImageBitmap? = types[type]
 
-    /** The `cdbg` plate — `CardDigits.as:26-29`. */
     val digitPlate: Painter? get() = digits[PLATE_TEXTURE]
 
-    /** `cd1`…`cd9`, `cdA` — one per edge power. */
     fun digit(power: Int): Painter? = digits["cd${powerLabel(power)}"]
 
-    /** The face already decoded for [card], or null if it has not been asked for yet. */
     fun cachedFace(card: Card): ImageBitmap? = faces[card.textureId]
 
-    /** Decodes [card]'s artwork, or returns the cached copy. */
     suspend fun face(card: Card): ImageBitmap {
         val id = card.textureId
         // Card faces live in their own directory now that they are named by id alone: 263 files
@@ -68,67 +49,18 @@ class CardArt internal constructor(
     }
 }
 
-/**
- * The card's artwork name: its id as four lowercase hex digits, `013e`.
- *
- * Was `_collection + newID` — `Card.as:166` — which named `ff14_62.png`. Ids are global now, so the
- * prefix that disambiguated them is gone and the id alone is enough. Hex because it makes the two
- * halves readable at a glance (`01` is the set, `3e` is the number) and because it sorts a
- * directory by set and then by number for free. `docs/migration/19-CARD-SETS-AND-FORMATS.md`
- * § Card identifiers.
- *
- * Four digits covers blocks up to 255, which is every set this will ever ship; a wider id would
- * simply print wider, and the importer derives the same name from the same expression.
- */
 internal val Card.textureId: String get() = cardTextureId(id)
 
-/**
- * The atlas frame a card id names, for a caller holding the id and not the card.
- *
- * The starter preview is the one: it draws five cards off `starters.json` on a screen that has no
- * `CardCatalog` to resolve them through, and resolving one only to read its id back would be a
- * catalogue threaded through two screens for a string.
- */
 internal fun cardTextureId(cardId: Int): String =
     cardId.toString(HEX_RADIX).padStart(HEX_WIDTH, '0')
 
 private const val HEX_RADIX = 16
 private const val HEX_WIDTH = 4
 
-/**
- * `type-{type}` — `Card.as:181`. The AS3 type string is the lowercase enum name, which is
- * also `CardType`'s `@SerialName`; `CardBundleTest` asserts a file exists for all twelve.
- */
 internal val CardType.textureName: String get() = "type-${name.lowercase()}"
 
-/**
- * Makes [CardArt] ambient rather than threading it through four composables.
- *
- * Defaults to `null`, which is a working state and not a broken one: [CardFace] then draws
- * the flat coloured quad and nothing else, so a preview or a test can compose without the
- * 7 MB of artwork.
- */
 val LocalCardArt = staticCompositionLocalOf<CardArt?> { null }
 
-/**
- * [card]'s artwork, decoding it if this is the first time it has been seen.
- *
- * Returns the cached bitmap synchronously when there is one, so a card that has already
- * been drawn does not blink through a null frame on recomposition.
- *
- * ### Why this is `remember(art, id)` and not `produceState`
- *
- * It *was* `produceState(art.cachedFace(card), art, card.textureId)`, which showed the **wrong
- * card's picture**. `produceState` holds its value in an unkeyed `remember`, so changing the keys
- * restarts the producer but leaves the previous value in place — the initial value is only ever
- * used once, on first composition. The producer then found `value != null` and returned without
- * loading anything, so the slot kept whatever face it had first been given.
- *
- * That is invisible until a composable slot is reused for a different card, and a hand slot is
- * reused constantly: slots close up as cards are played, so playing the first card moves every
- * card behind it down one and each of those slots is asked for a new face. Keying the state on the
- * card resets it in the same composition the card changes in, so the face can never lag behind.
- */
 @Composable
 internal fun rememberCardFace(art: CardArt?, card: Card): ImageBitmap? {
     if (art == null) return null
@@ -141,16 +73,6 @@ internal fun rememberCardFace(art: CardArt?, card: Card): ImageBitmap? {
     return face
 }
 
-/**
- * Reads and decodes the 19 shared textures. Call once, at boot.
- *
- * Twenty until now, and the count above this class only ever listed nineteen of them: `talk.png` —
- * `talk_basic.tex`, the speech frame — is no longer decoded, because [TalkBubble] draws its own
- * panel. The file is still copied by `tools/import_card_art.py` and
- * still ships in `composeResources`; removing it there means editing the importer and re-running it
- * against the AS3 tree, which is a separate change (`CLAUDE.md`, "do not hand-edit generated
- * files").
- */
 suspend fun loadCardArt(): CardArt = CardArt(
     back = loadImage("back.png"),
     stars = Card.RARITY_RANGE.associateWith { loadImage("${it}stars.png") },
@@ -158,33 +80,12 @@ suspend fun loadCardArt(): CardArt = CardArt(
     digits = sliceDigitAtlas(loadImage("digits.png")),
 )
 
-/**
- * The order `sources/assets/digits/digits.xml` lists its glyphs in.
- *
- * `cdp` and `cdm` — the `+`/`-` of the Ascension modifier — and `cd0` are here because they
- * occupy grid slots and shift everything after them.
- *
- * None of the three is drawn. No card has a 0 and the board shows **printed** powers, so `cd0`
- * stays unreachable; `cdp` and `cdm` are the `+`/`−` of the modifier badge, which is a Material
- * `Text` instead — it has to scale with the board and carry the theme's bonus and penalty colours,
- * and an 18x18 bitmap does neither.
- */
 private val ATLAS_ORDER = listOf(
     "cdp", "cdm", "cd0", "cd1", "cd2",
     "cd3", "cd4", "cd5", "cd6", "cd7",
     "cd8", "cd9", "cdA",
 )
 
-/**
- * Where each glyph sits in `digits.png`.
- *
- * The atlas is a **regular grid** — a 2 px margin, then five 18x18 glyphs per row on a 20 px
- * pitch — so this derives the rectangles from [ATLAS_ORDER] rather than transcribing 26
- * numbers. Checked against every `<SubTexture>` in the XML, entry by entry; a wrong pitch
- * would draw the wrong digit on every card, which is visible immediately.
- *
- * `cdbg` is the exception: 28x28 at (0, 62), outside the grid and with no margin.
- */
 private fun digitFrames(): Map<String, IntRect4> = buildMap {
     ATLAS_ORDER.forEachIndexed { slot, name ->
         put(
@@ -200,15 +101,8 @@ private fun digitFrames(): Map<String, IntRect4> = buildMap {
     put(PLATE_TEXTURE, IntRect4(x = 0, y = PLATE_Y_PX, width = PLATE_PX, height = PLATE_PX))
 }
 
-/** A subtexture rectangle. Four ints, because that is what the atlas XML holds. */
 private data class IntRect4(val x: Int, val y: Int, val width: Int, val height: Int)
 
-/**
- * Turns the atlas into one [BitmapPainter] per entry.
- *
- * `BitmapPainter` takes a source rectangle, so the sheet is decoded once and every glyph is
- * a view onto it — no per-glyph bitmap and no cropping copy.
- */
 private fun sliceDigitAtlas(sheet: ImageBitmap): Map<String, Painter> =
     digitFrames().mapValues { (_, frame) ->
         BitmapPainter(
@@ -222,29 +116,17 @@ private fun sliceDigitAtlas(sheet: ImageBitmap): Map<String, Painter> =
 private suspend fun loadImage(name: String): ImageBitmap =
     Res.readBytes("$ART_PATH/$name").decodeToImageBitmap()
 
-/**
- * `logo_white_512` — the wordmark `MenuScreen.as:43` centres above its button stack.
- *
- * Not part of [loadCardArt] and not a [StartupPhase] of its own: it is 15 KB of chrome that the
- * splash wants on its *first* frame, before the phase it would otherwise be loaded in. The splash
- * asks for it separately and renders the phase line without it until it arrives.
- */
 suspend fun loadLogo(): ImageBitmap = loadImage("logo.png")
 
-/** Where [`import_card_art.py`](../../../../../../../tools/import_card_art.py) writes. */
-/** Where both importers write: `files/art`, and the subdirectories [UiArt] reads. */
 internal const val ART_PATH = "files/art"
 
-/** The subdirectory the card faces moved into, relative to [ART_PATH]. */
 internal const val CARDS_DIR = "cards"
 private const val PLATE_TEXTURE = "cdbg"
 
-/** Every `cd*` glyph in `digits.xml` is 18x18; `cdbg` is 28x28 at y = 62. */
 private const val DIGIT_PX = 18
 private const val PLATE_PX = 28
 private const val PLATE_Y_PX = 62
 
-/** The glyph grid: 2 px of margin, five across, 20 px from one glyph's left edge to the next. */
 private const val ATLAS_MARGIN_PX = 2
 private const val ATLAS_COLUMNS = 5
 private const val DIGIT_PITCH_PX = 20

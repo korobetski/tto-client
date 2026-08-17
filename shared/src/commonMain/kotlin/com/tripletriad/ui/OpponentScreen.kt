@@ -32,10 +32,8 @@ import kotlin.math.roundToInt
 const val OPPONENT_LIST_TEST_TAG: String = "opponent-list"
 const val OPPONENT_EMPTY_TEST_TAG: String = "opponent-empty"
 
-/** How many opponents the character's level is still holding back. Absent when none are. */
 const val OPPONENT_LOCKED_TEST_TAG: String = "opponent-locked"
 
-/** The campaign entry that opens the lesson. */
 /*
  * `TUTORIAL_ROW_TEST_TAG` used to be here, over a row this panel drew above the ladders —
  * `PVEScreen.as:79` draws the tutorial as a bare `tt_tuto` texture in exactly that place.
@@ -46,43 +44,10 @@ const val OPPONENT_LOCKED_TEST_TAG: String = "opponent-locked"
  * there is only one way in.
  */
 
-/** `opponent-row-<iconId>` — unique across both tables, which the NPC `id` is not. */
 fun opponentRowTestTag(iconId: String): String = "opponent-row-$iconId"
 
-/** `opponent-rewards-<iconId>` — the drop table's cards. Absent when the opponent drops none. */
 fun opponentRewardsTestTag(iconId: String): String = "opponent-rewards-$iconId"
 
-/**
- * Who the profile can challenge — the original's `PVEScreen`.
- *
- * Two filters, both from the data and neither invented here:
- *
- * - **the collection**, so an `ff14_` profile never meets an `ff8_` opponent. `NPCs.LIST` returns
- *   `NPCs[MODE.toUpperCase() + 'NPCS']`, so the tables are disjoint by construction.
- * - **the hour**, because 27 of the 60 ff14 opponents declare an availability window and half of
- *   those wrap midnight. This is the only thing in the app that reads a wall clock, which is why
- *   [com.tripletriad.time.Clock] exists.
- *
- * A row shows what the player needs in order to choose: the level band that sets the XP, the
- * difficulty, the fee, the MGP on a win, **the rules the opponent imposes** — that one matters
- * most, since Reverse or Fallen Ace changes how the whole match is played and the original only
- * revealed it once the board was already up — and **the cards that can drop**.
- *
- * ### Why the drop table is on the row
- *
- * Because it is the reason to play one opponent rather than another, and neither the original nor
- * this port had anywhere to read it: `NPC._itemRewards` decided what a win paid and was visible
- * only by winning. Sixty opponents paying MGP that differs by a few dozen are interchangeable; the
- * two or three cards each of them can drop are not, and a collection is built by choosing between
- * them.
- *
- * The rate is shown with the card. A 25% drop and a 2% drop are different offers, and a thumbnail
- * without one invites the reading that beating them once is enough.
- *
- * @param cards the profile's own collection, by id — the drop tables name ids and this screen has
- *   to draw them. Only card drops are listed: a potion has an icon and no picture, and the row is
- *   already four lines tall.
- */
 @Composable
 @Suppress("LongParameterList")
 internal fun OpponentScreen(
@@ -152,20 +117,8 @@ internal fun OpponentScreen(
     }
 }
 
-/** A `LazyColumn` key for the footnote, which is not an opponent and has no `iconId`. */
 private const val LOCKED_KEY = "locked-note"
 
-/**
- * `PVEScreen.as:72-96`'s Campaigns panel: the lesson, then this collection's tournament ladders.
- *
- * Above the list rather than in it, which is where the original puts it — a campaign is not an
- * opponent you pick, and putting these among sixty of them would make them ones.
- *
- * **One ladder each**, not two: the Card Club is the FF8 tournament and the Gold Saucer the FF14
- * one, and `PVEScreen` builds each button behind its own `if (MODE == …)`. Here the catalogue has
- * already filtered, so this takes whatever list it is handed — including an empty one, which is
- * what a collection with no ladder would give.
- */
 @Composable
 private fun CampaignPanel(
     campaigns: List<Campaign>,
@@ -183,11 +136,6 @@ private fun CampaignPanel(
     }
 }
 
-/**
- * One way in — `PVEScreen`'s `tttBtn`, `ccBtn` and `gsBtn`, which are bare textures (`tt_tuto` and
- * two group logos) with no text at all. They get captions here because this port's asset set has no
- * such textures, and a word is a better answer than a missing image.
- */
 @Composable
 private fun CampaignRow(label: String, tag: String, onClick: () -> Unit) {
     Text(
@@ -283,12 +231,6 @@ private fun OpponentRow(npc: Npc, cards: Map<Int, Card>, onClick: () -> Unit) {
     }
 }
 
-/**
- * The cards an opponent can drop, each under its chance of dropping.
- *
- * A `Row` and not a wrapping layout: no opponent in either table declares more than three card
- * drops, so this cannot overflow a phone at the thumbnail size the rest of the app uses.
- */
 @Composable
 private fun RewardCards(iconId: String, rewards: List<Pair<Card, Double>>) {
     val strings = LocalStrings.current
@@ -318,16 +260,8 @@ private fun RewardCards(iconId: String, rewards: List<Pair<Card, Double>>) {
     }
 }
 
-/** A drop rate is authored as a fraction — `0.25` — and read as a percentage. */
 private const val PERCENT = 100
 
-/**
- * `Difficulty 5 · Match Fee 20 · 47 MGP · 35 XP`.
- * The MGP and XP shown are the **base** payout for a win, before the random top-up
- * ([com.tripletriad.data.MatchRewards]) and before any boon. Showing a range would be more honest
- * still, but `47-67 MGP` invites the reading that the fee is subtracted somewhere in there, and it
- * is not — see [Npc.mgpFor].
- */
 private fun rewardLine(strings: Strings, npc: Npc): String = buildList {
     add("${strings[StringKeys.DIFFICULTY]} ${npc.difficulty}")
     if (npc.matchFee > 0) add("${strings[StringKeys.MATCH_FEE]} ${npc.matchFee}")

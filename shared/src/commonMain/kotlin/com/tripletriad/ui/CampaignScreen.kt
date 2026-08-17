@@ -31,36 +31,14 @@ import com.tripletriad.model.MatchResult
 import com.tripletriad.time.Clock
 import com.tripletriad.ui.theme.LocalTtoColors
 
-/** The ladder's entry screen — its opponent list and the Start that charges the fee. */
 const val CAMPAIGN_LIST_TEST_TAG: String = "campaign-list"
 
-/** Start. Disabled when the character cannot afford the entry fee. */
 const val CAMPAIGN_START_TEST_TAG: String = "campaign-start"
 
-/** How far up the ladder the player is, shown while one is being played. */
 const val CAMPAIGN_STEP_TEST_TAG: String = "campaign-step"
 
-/** `campaign-row-<key>` — the entry into one ladder, on the opponent list. */
 fun campaignRowTestTag(key: String): String = "campaign-row-$key"
 
-/**
- * A tournament ladder's entry screen — `CCGroupScreen` and `GSGroupScreen`, which are one screen.
- *
- * The two AS3 files are the same 121 lines with a different title and a different list of names, so
- * they are one composable over [Campaign] here. It shows what the player is paying for — the
- * opponents, in order, with the rules each imposes — and a Start disabled below the fee, exactly as
- * `startCampaign.isEnabled = (Game.PROFILE_DATAS.MGP >= 500)`.
- *
- * ### The fee is the only fee in the game
- *
- * `NPC.matchFee` is declared for all 85 opponents and **never charged** — see
- * [com.tripletriad.data.MatchRewards]. This 500 is: `Game.PROFILE_DATAS.MGP -= 500` in both entry
- * screens. So a ladder is the one thing in Triple Triad Online that costs money to attempt, which
- * is what makes losing the last rung mean something — a defeat sends the player back to the first
- * ([Campaign.nextStep]) and a second attempt is another 500.
- *
- * @param onStart charge taken, ladder open. The caller navigates; this decides *whether*.
- */
 @Composable
 internal fun CampaignScreen(
     campaign: Campaign,
@@ -98,13 +76,6 @@ internal fun CampaignScreen(
     }
 }
 
-/**
- * One rung: its number, who it is, and what they impose.
- *
- * Numbered, which the original's list is not — its `GroupedList` is seven labels and an icon. The
- * order is the whole point of a ladder, and a bare list of names does not say that the seventh is
- * played after the sixth.
- */
 @Composable
 private fun RungRow(step: Int, entry: CampaignStep) {
     val strings = LocalStrings.current
@@ -158,26 +129,6 @@ private fun RungRow(step: Int, entry: CampaignStep) {
     }
 }
 
-/**
- * A ladder in progress: one rung at a time, on the ordinary match screen.
- *
- * `CCGroupMatchScreen` and `GSGroupMatchScreen` are `PVEMatchScreen` with a step counter, an
- * opponent table and some dialogue. All three are [MatchScript] here, so what is left is the state
- * machine: which rung, and where the result sends it.
- *
- * ### Where a result sends you
- *
- * [Campaign.nextStep] holds the rule and its KDoc the citations: a win advances, **a loss returns
- * to the first rung**, and a draw replays the same one. Past the last rung there is no opponent, so
- * [ScriptExit] is null and the end panel shows only Back — which is how `CCGroupRematchPanel` ends
- * a ladder, by not building the button.
- *
- * A rung is a whole match: `nextLesson` increments `STARTED_MATCHES` and `PVE_MATCHES` before
- * dispatching, and [MatchScreen] does the same on the way in, so the counters agree without this
- * screen touching them.
- *
- * @param onFinished the ladder is over, or the player has left it.
- */
 @Composable
 @Suppress("LongParameterList")
 internal fun CampaignMatchScreen(
@@ -250,19 +201,6 @@ internal fun CampaignMatchScreen(
     }
 }
 
-/**
- * What to call a ladder — its AS3 key when a bundle defines it, and this port's when none does.
- *
- * Both original keys are broken, in different ways, and this is the smallest honest repair:
- *
- * - **`STR_CCGROUP` is in none of the four bundles.** The Card Club's own panel title has always
- *   rendered as the literal text `STR_CCGROUP`, in every language the game shipped in.
- * - **`STR_GSGROUP` is only in `fr_FR`** ("Carré des cartes du Gold Saucer"). English, German and
- *   Japanese showed the key.
- *
- * Preferring the AS3 key where it exists keeps the original's own wording — a French player still
- * reads the sentence Square Enix wrote — and the `APP_` fallback means nobody reads a key.
- */
 internal fun campaignTitle(strings: Strings, campaign: Campaign): String =
     if (strings.has(campaign.nameKey)) {
         strings[campaign.nameKey]

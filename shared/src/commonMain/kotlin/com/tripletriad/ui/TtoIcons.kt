@@ -12,42 +12,9 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
-/**
- * The glyphs the shell needs, drawn here rather than depended on.
- *
- * ### Why not Material's icon set
- *
- * `material-icons-extended` is a single artifact of some twelve hundred vectors, and Compose
- * Multiplatform's own guidance is to stop shipping it — R8 strips what an Android build does not
- * use, and nothing strips it from a desktop jar or an iOS framework. A dozen glyphs is not worth
- * that, and it is not worth a per-icon resource file either: these are eight to twelve path
- * segments each. Two of them are Material's own glyphs even so — copied, not depended on, which
- * is the distinction that matters here and is spelled out at [symbol].
- *
- * ### Why they look like this
- *
- * They are drawn as **cards** wherever a card will do — [Play] is a fanned hand, [Collection] is a
- * grid of them, [Quest] is one with a tick — because that is the one shape this game has and
- * Material's own set does not. The
- * rest ([Home], [Shop], [Person], [Help], [Options], [Logout], [Back]) follow Material's
- * conventions, since a bag that is not bag-shaped costs recognition and buys nothing.
- *
- * [Experience], [MgpBoon] and [XpBoon] follow a third rule: they are **the original's own subjects
- * at this set's weight**. A pentagonal wheel and the boost plaque are what the FFXIV art in
- * `art/icons/` draws, and a player who has seen them should recognise these.
- *
- * [Chip] and [Booster] are the exception to all of it — Material Symbols' `poker_chip` and
- * `playing_cards`, path data and all, for the reason [symbol] gives.
- *
- * Every path drawn here is stroked rather than filled, at 1.8 units on a 24-unit grid — Material
- * Symbols' outlined weight — so they sit beside the game's own 40x40 pixel-art icons without one
- * set shouting over the other. The two copied glyphs are filled, because that is how the source
- * draws an outline; [symbol] explains why they are not re-traced.
- */
 @Suppress("MagicNumber") // Path coordinates on a 24-unit grid. Naming them would say less.
 internal object TtoIcons {
 
-    /** The dashboard: a roof over the character's own screen. */
     val Home: ImageVector by lazy {
         icon("Home") {
             moveTo(3f, 10.5f)
@@ -63,7 +30,6 @@ internal object TtoIcons {
         }
     }
 
-    /** Playing a match: three cards fanned, the middle one upright. */
     val Play: ImageVector by lazy {
         icon("Play") {
             moveTo(9.2f, 5.4f)
@@ -80,7 +46,6 @@ internal object TtoIcons {
         }
     }
 
-    /** The collection: nine cards on a shelf. */
     val Collection: ImageVector by lazy {
         icon("Collection") {
             for (row in 0..2) {
@@ -97,7 +62,6 @@ internal object TtoIcons {
         }
     }
 
-    /** The shop: a bag with a handle. */
     val Shop: ImageVector by lazy {
         icon("Shop") {
             moveTo(4.5f, 8f)
@@ -113,7 +77,6 @@ internal object TtoIcons {
         }
     }
 
-    /** The record: head and shoulders. */
     val Person: ImageVector by lazy {
         icon("Person") {
             moveTo(12f, 4f)
@@ -128,7 +91,6 @@ internal object TtoIcons {
         }
     }
 
-    /** The rules: an open book, which is what the help screen is. */
     val Help: ImageVector by lazy {
         icon("Help") {
             moveTo(12f, 6.5f)
@@ -144,7 +106,6 @@ internal object TtoIcons {
         }
     }
 
-    /** The settings: three sliders, Material's `tune`. */
     val Options: ImageVector by lazy {
         icon("Options") {
             for ((index, y) in listOf(6.5f, 12f, 17.5f).withIndex()) {
@@ -159,7 +120,6 @@ internal object TtoIcons {
         }
     }
 
-    /** Leaving the character: a door and the way out of it. */
     val Logout: ImageVector by lazy {
         icon("Logout") {
             moveTo(14f, 4f)
@@ -174,7 +134,6 @@ internal object TtoIcons {
         }
     }
 
-    /** The chevron every screen's app bar carries. */
     val Back: ImageVector by lazy {
         icon("Back") {
             moveTo(15f, 4.5f)
@@ -183,13 +142,6 @@ internal object TtoIcons {
         }
     }
 
-    /**
-     * The same chevron pointing down — an accordion that can be opened.
-     *
-     * Drawn rather than rotated from [Back] at the call site, because the row rotates it *again* to
-     * point up when it is open, and a glyph that starts at 90° would make that second rotation
-     * read as 180° in the code for a quarter turn on screen.
-     */
     val Expand: ImageVector by lazy {
         icon("Expand") {
             moveTo(4.5f, 9f)
@@ -198,13 +150,6 @@ internal object TtoIcons {
         }
     }
 
-    /**
-     * The daily quests: a card with a tick in it.
-     *
-     * A card again rather than Material's checklist, for the reason the header gives — the upright
-     * rectangle is [Play]'s and [Collection]'s shape, and what a quest is *about* is matches. The
-     * tick is the only mark on it, because "done" is the one thing this destination reports.
-     */
     val Quest: ImageVector by lazy {
         icon("Quest") {
             moveTo(5f, 3f)
@@ -218,13 +163,6 @@ internal object TtoIcons {
         }
     }
 
-    /**
-     * A tick, alone — a lesson that has been finished.
-     *
-     * The same stroke [Quest] draws inside its card, without the card. What it marks here is a row
-     * in a list rather than a destination, so the shape that identifies the *subject* would be
-     * repeated eight times down the screen and identify nothing.
-     */
     val Done: ImageVector by lazy {
         icon("Done") {
             moveTo(5f, 12.5f)
@@ -233,27 +171,6 @@ internal object TtoIcons {
         }
     }
 
-    /**
-     * The purse: Material Symbols' **`poker_chip`**, copied rather than redrawn — see [symbol].
-     *
-     * This is the one glyph here that replaces a picture rather than filling a gap. The purse was
-     * `icons/PGS.png`, the FFXIV MGP token — 29 px of pixel art drawn at 16 dp beside a label in
-     * the app bar's own type, which is the size a 29 px bitmap looks worst at: it is neither
-     * sharp, since it is being scaled, nor legible, since the token's detail is its concentric
-     * rings and they close up.
-     *
-     * ### Why a chip
-     *
-     * It was a stack of coins first, and a stack of coins in outline **is the database icon**: a
-     * cylinder with two seams is the shape every tool in the industry uses for storage, and a mint
-     * mark on the top face was not enough to take that reading away.
-     *
-     * A chip has no such twin, and it is the better answer anyway. MGP is the **Manderville Gold
-     * Saucer**'s currency — it is won at a casino and spent at one — so the token that says what
-     * this number is happens also to say where it comes from. `paid` (a coin with a currency sign)
-     * would have been the other choice and is worse here for the same reason: the sign would be a
-     * dollar, and MGP is not money.
-     */
     val Chip: ImageVector by lazy {
         symbol("Chip") {
             moveTo(12f, 22f)
@@ -357,35 +274,12 @@ internal object TtoIcons {
         }
     }
 
-    /**
-     * Experience: the **five-spoked pentagon** the original marks XP with.
-     *
-     * Not an arrow and not a star, which are what an icon set would offer. `icons/XP.png` is a
-     * pentagonal wheel and the player has been looking at it since the AS3 build; a star would
-     * also collide with the star every card wears for its rarity. So the shape is the original's,
-     * redrawn at this set's weight — the same trade [Chip] makes, one subject along.
-     */
     val Experience: ImageVector by lazy {
         icon("Experience") {
             wheel(WHEEL_R, ring = true)
         }
     }
 
-    /**
-     * A **boosted-MGP** potion: [Chip]'s face, on the plaque the FFXIV boost items wear.
-     *
-     * ### Why the plaque is kept and the picture is not
-     *
-     * `mgp_boost_icon.png` and `xp_boost_icon.png` are one design in two subjects — a peaked
-     * badge with a base band, holding the coin in one and the XP wheel in the other — and that
-     * design is worth keeping: it is what tells a player at a glance that a row in the bag is a
-     * *booster of something* rather than the something itself. What is not worth keeping is 24x32
-     * of pixel art rendered at 16 dp beside vector text.
-     *
-     * So the badge is redrawn and the subject inside it is the same glyph the rest of the app now
-     * uses, reduced to what survives at this size: the chip's two rings **without its edge spots**,
-     * which at the third of a 24 dp badge this leaves would be four grey specks.
-     */
     val MgpBoon: ImageVector by lazy {
         icon("MgpBoon") {
             plaque()
@@ -394,7 +288,6 @@ internal object TtoIcons {
         }
     }
 
-    /** A **boosted-XP** potion: [Experience]'s wheel on [MgpBoon]'s plaque, spokes dropped. */
     val XpBoon: ImageVector by lazy {
         icon("XpBoon") {
             plaque()
@@ -402,24 +295,6 @@ internal object TtoIcons {
         }
     }
 
-    /**
-     * A booster: Material Symbols' **`playing_cards`**, copied rather than redrawn — see [symbol].
-     *
-     * ### What it replaces, and what that costs
-     *
-     * Ten booster kinds drew five bitmaps between them: six of them share `booster_pack_icon`, the
-     * generic purple wrapper, and the four tribe packs have artwork of their own. So for most of
-     * the shelf this trades one picture for one picture at a size that suits the row, and for
-     * `BEAST`, `PRIMAL`, `SCION` and `GARLEAN` it **loses a distinction the art was making** —
-     * those four now look like the other six and are told apart by their names, which are on the
-     * row beside them in every place a booster is drawn.
-     *
-     * ### Why it is not [Play]
-     *
-     * Both are cards and they have to stay apart at 16 dp. [Play] is three of them fanned
-     * symmetrically about an upright middle; this is a hand held at an angle with one card lifted
-     * out of it, and the tilt is what separates them at a glance.
-     */
     val Booster: ImageVector by lazy {
         symbol("Booster") {
             moveTo(15.2f, 14.8f)
@@ -467,12 +342,6 @@ internal object TtoIcons {
         }
     }
 
-    /**
-     * The badge both boons wear: a peaked shield with a base band.
-     *
-     * The band is the brown strip along the bottom of the FFXIV art, which is what makes the
-     * shape read as a mounted plaque rather than as a home icon standing on its roof.
-     */
     private fun PathBuilder.plaque() {
         moveTo(8.5f, 3.5f)
         lineTo(15.5f, 3.5f)
@@ -485,15 +354,6 @@ internal object TtoIcons {
         lineTo(19f, 17.5f)
     }
 
-    /**
-     * A regular pentagon on its point, centred on the grid — and, for [Experience], a second one
-     * inside it.
-     *
-     * The ring is what is left of the original's five spokes. Drawn as spokes they were five
-     * strokes converging on the middle, which at 16 dp is an asterisk and at any size is the star
-     * a card wears for its rarity. A pentagon inside a pentagon keeps the token's silhouette and
-     * its sense of being a *wheel* rather than a plain plate, and survives being small.
-     */
     private fun PathBuilder.wheel(radius: Float, ring: Boolean) {
         val cy = if (ring) 12.6f else BOON_Y
         val radii = if (ring) listOf(radius, radius * HUB_SHARE) else listOf(radius)
@@ -509,7 +369,6 @@ internal object TtoIcons {
         }
     }
 
-    /** A closed ellipse, as four cubics — Compose's path builder has no arc primitive here. */
     private fun PathBuilder.ellipse(cx: Float, cy: Float, rx: Float, ry: Float) {
         val kx = rx * KAPPA
         val ky = ry * KAPPA
@@ -521,39 +380,16 @@ internal object TtoIcons {
         close()
     }
 
-    /** The cubic approximation of a quarter circle: 4/3·(√2−1). */
     private const val KAPPA = 0.5523f
 
     private const val WHEEL_R = 8.2f
     private const val HUB_SHARE = 0.46f
     private const val PENTAGON_SIDES = 5
 
-    /** Inside the plaque, which leaves the band below it and the peak above. */
     private const val BOON_Y = 13f
     private const val BOON_R = 3.4f
     private const val BOON_EYE = 1.7f
 
-    /**
-     * One **filled** path on the same grid — a glyph taken from Material Symbols as it is drawn.
-     *
-     * ### Why two builders
-     *
-     * [icon] strokes; this fills. That is not a style choice, it is what the source is: Material
-     * Symbols' outlined weight is an *outline drawn as a filled shape*, so its path data describes
-     * both sides of every stroke. Re-tracing one of those as a centre line would be redrawing it
-     * by hand, which is the work copying it exists to avoid — and would drift from the glyph the
-     * player recognises. At `wght 400` the result reads at 1.8-ish units, which is why the two
-     * kinds sit together without one looking bolder than the other.
-     *
-     * ### Provenance
-     *
-     * [Chip] is `poker_chip` and [Booster] is `playing_cards`, both from Material Symbols
-     * Outlined at `opsz 24, wght 400, FILL 0, GRAD 0, ROND 50`, fetched as Kotlin from
-     * `fonts.gstatic.com/render/v1/…`. Material Symbols is **Apache 2.0**; the path data is
-     * copied, not linked, so nothing is added to the dependency graph — which is the whole of the
-     * objection the header raises to `material-icons-extended`, and none of it applies to two
-     * glyphs pasted in.
-     */
     private fun symbol(name: String, segments: PathBuilder.() -> Unit): ImageVector =
         ImageVector.Builder(
             name = name,
@@ -565,13 +401,6 @@ internal object TtoIcons {
             path(fill = SolidColor(Color.Black), pathBuilder = segments)
         }.build()
 
-    /**
-     * One stroked path on a 24-unit grid.
-     *
-     * `defaultWidth`/`defaultHeight` are 24 dp because that is what an [androidx.compose.material3
-     * .Icon] sizes itself to when it is given no modifier, and a glyph that had to be measured at
-     * every call site would be nine chances to get one wrong.
-     */
     private fun icon(name: String, segments: PathBuilder.() -> Unit): ImageVector =
         ImageVector.Builder(
             name = name,

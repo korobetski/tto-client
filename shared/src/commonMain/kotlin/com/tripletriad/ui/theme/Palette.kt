@@ -2,61 +2,6 @@ package com.tripletriad.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-/**
- * The tonal ramps every Material role in [TtoColorScheme] is drawn from.
- *
- * ### What a ramp is, and why the app needs them rather than eight literals
- *
- * Material 3 does not ask for "a blue". It asks for a *family* of blues at fixed lightnesses — the
- * **tones** — and then names roles in terms of them: on a dark scheme `primary` is tone 80,
- * `onPrimary` is tone 20, `primaryContainer` is tone 30, `onPrimaryContainer` is tone 90. The
- * contrast between any role and its `on-` partner is therefore a property of the *system*, not
- * something each screen has to get right on its own.
- *
- * The scheme this replaced filled eighteen of the thirty-odd roles with single hand-picked values
- * and left the rest at `darkColorScheme()`'s baseline lavender. The visible consequence was a
- * `Snackbar` — which draws on `inverseSurface` — appearing as a **light grey box** on a dark game,
- * and the `FilterChip`s of three screens rendering their selected state in Material's purple. A
- * complete set of ramps is what makes "fill every role" a mechanical exercise instead of thirty
- * design decisions.
- *
- * ### How these numbers were derived
- *
- * Each family takes a **seed** colour, converts it to CIELAB, keeps the seed's hue angle, forces a
- * chosen chroma, and varies `L*` to the requested tone — tone *is* `L*`. Chroma is backed off in
- * half-unit steps where the result would fall outside sRGB. Reproducing a value needs only the hue,
- * the chroma and the tone, all three of which are written above each block.
- *
- * ### The seeds are the game's own colours
- *
- * Every family is seeded from a colour that was already in this app, so the refresh re-derives the
- * palette rather than replacing it. Two of the results are worth pointing out because they are
- * accidents that argue the seeds were right: [Neutral22] comes out at `#383430`, which is
- * `BaseTTOTheme.as`'s own `LIST_BACKGROUND_COLOR` to the byte, and [Neutral17] at `#2D2926` lands
- * one step off its `GROUPED_LIST_HEADER_BACKGROUND_COLOR` (`#2E2A26`). The AS3's warm greys were
- * already sitting on a tonal ramp seeded from themselves.
- *
- * ### Which family plays which part — and the one reversal from the old scheme
- *
- * - **Amber is `primary`.** The old scheme made the card blue primary and argued that the AS3's
- *   orange could not be, because `primary` drives every filled button and "painting them orange
- *   would read as everything is selected". That argument was about the raw `#FF9900` at full
- *   chroma. Inside a tonal system the accent arrives as tone 80 — a soft gold — and the role it
- *   used to conflict with is now filled by a different family entirely. What the reversal buys is
- *   worth more than what it cost: the game is **blue against red**, so a blue primary put every
- *   button in the same colour as one of the two players. Amber belongs to neither side.
- * - **Blue is `secondary`**, which on Material is the *state* family — chip selection, the
- *   navigation indicator, a row that is the current choice. So the app now says **amber for
- *   actions, blue for state**, and no colour means both.
- * - **Cyan is `tertiary`**, keeping the job `largeBlueElementFormat` already had here: the
- *   affirmative reading — a filled progress bar, an affordable price, a complete deck.
- * - **Red is `error`**, **Green is the app's own affirmative pair** — see [TtoColors.positive],
- *   which rehouses three greens that were private literals in as many screens.
- *
- * `docs/development/design-system.md` records this and the rest of the deviations from the AS3
- * transcription, which is what `CLAUDE.md`'s third convention asks for.
- */
-
 /* Amber — hue 69°, chroma 55, seeded from `SELECTED_TEXT_COLOR` #FF9900. */
 
 internal val Amber20 = Color(0xFF492900)

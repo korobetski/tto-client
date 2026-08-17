@@ -42,45 +42,8 @@ const val DECK_SELECT_CHOOSE_TEST_TAG: String = "deck-select-choose"
 const val DECK_SELECT_RANDOM_TEST_TAG: String = "deck-select-random"
 const val DECK_SELECT_EMPTY_TEST_TAG: String = "deck-select-empty"
 
-/** `deck-choice-<n>`, 0-based over the *playable* decks — not over the five save slots. */
 fun deckChoiceTestTag(index: Int): String = "deck-choice-$index"
 
-/**
- * Which deck to play this match with — the original's `DeckSelector`.
- *
- * ### Why it lives inside the match and not before it
- *
- * `BaseMatchScreen.deckSelectionPhase` (`:113-143`) is where the AS3 opens this panel, and the
- * placement is load-bearing rather than incidental: **under `RULE_RANDOM` the panel never opens** —
- * the hand is dealt from the whole collection and any chosen deck is ignored. Since the roulette
- * can *add* Random to an opponent's declared rules, whether the player is asked at all is not known
- * until the roulette has been drawn. So the rules are resolved first ([PveMatches.rulesFor]) and
- * this screen is a step inside [MatchScreen], not a destination ahead of it.
- *
- * It is also why the match is already counted as started by the time this is on screen: `PVEScreen`
- * increments `STARTED_MATCHES` when the match screen is launched, which in the original is before
- * the selector opens. Backing out from here is the forfeit that counter was designed for.
- *
- * ### Only complete decks, and always Random
- *
- * `DeckSelector.as:79-80` adds a row only `if (fullDeck)`, so a partial deck is not offered — and
- * when *no* deck is complete its handling is `if (deckCollection.length == 0) { }`, an empty block,
- * leaving an empty list with no explanation. The list here says so, and Random is always available:
- * it draws from the collection rather than from a deck, so it works for a profile that has never
- * built one. Every profile owns at least five cards (`GameSave.defaultCards`), so it is never a
- * dead end.
- *
- * ### One change from the original: the first deck starts selected
- *
- * `chooseBtn.isEnabled = false` with nothing selected (`:117`), so the original always cost two
- * taps — pick a row, then confirm. Pre-selecting makes the common case (one deck, play it) one tap,
- * and costs nothing to a player who wants a different one. The rows still show what they hold,
- * which is what the panel is for.
- *
- * @param onChoose the five card ids to play. Resolved here rather than passed as a [Deck] because
- *   Random produces a hand that belongs to no deck.
- * @param random the Random button's draw. Injected so a test can pin which five come out.
- */
 @Composable
 internal fun DeckSelectorScreen(
     profile: GameSave,
@@ -158,7 +121,6 @@ internal fun DeckSelectorScreen(
     }
 }
 
-/** `Y'shtola  ·  All Open  ·  Plus` — who, and what is in force. */
 @Composable
 private fun OpponentLine(npc: Npc, rules: GameRules) {
     val strings = LocalStrings.current
@@ -188,13 +150,6 @@ private fun OpponentLine(npc: Npc, rules: GameRules) {
     }
 }
 
-/**
- * One offered deck: its name, its power, and the five cards it holds.
- *
- * @param slot where it lives in the save, which is what names an unnamed deck.
- * @param row where it sits in *this* list, which is what the tag and the selection are keyed on —
- *   a test asking for the first offered deck should not have to know which slots were skipped.
- */
 @Composable
 private fun DeckChoiceRow(
     deck: Deck,

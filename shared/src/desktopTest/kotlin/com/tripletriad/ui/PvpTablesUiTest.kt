@@ -29,25 +29,9 @@ import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/**
- * The lobby's first tab: the tables on offer, and the prize banner above them.
- *
- * ### Split from [PvpLobbyUiTest] rather than added to it
- *
- * The two tabs are two features sharing a scaffold. An invitation is a directed offer to one
- * person; a table is an open one to nobody in particular — and the difference shows in what each
- * row has to say, because a table carries **terms**, which is the whole reason it replaced a queue.
- *
- * ### The assertion that matters
- *
- * [yourOwnTableOffersCancelAndNoJoin]. It is the sibling of the invitation claim next door: joining
- * your own table is a match against yourself, which the server refuses with nothing on screen to
- * explain it, so the row that would produce that error does not draw the button.
- */
 @OptIn(ExperimentalTestApi::class)
 class PvpTablesUiTest {
 
-    /** Before anything happens: a way to host, and an empty lobby that says so. */
     @Test
     fun anEmptyLobbyOffersToHostAndListsNothing() = lobby {
         onNodeWithTag(PVP_HOST_TEST_TAG).assertExists()
@@ -55,7 +39,6 @@ class PvpTablesUiTest {
         onNodeWithTag(PVP_TABLES_TEST_TAG).assertDoesNotExist()
     }
 
-    /** A table is listed with a way in. */
     @Test
     fun aTableIsListedAndCanBeJoined() = lobby(tables = listOf(tableJson())) {
         onNodeWithTag(tableRowTestTag(TABLE_ID)).assertExists()
@@ -63,13 +46,6 @@ class PvpTablesUiTest {
         onNodeWithTag(PVP_NO_TABLE_TEST_TAG).assertDoesNotExist()
     }
 
-    /**
-     * Your own table offers Withdraw and **no** Join.
-     *
-     * The sibling of [anInvitationYouSentOffersNoAcceptButton], and the same claim: joining your
-     * own table is a match against yourself, which the server refuses with nothing on screen to
-     * explain it. The row that would produce that error does not draw the button.
-     */
     @Test
     fun yourOwnTableOffersCancelAndNoJoin() = lobby(tables = listOf(tableJson(host = ME))) {
         onNodeWithTag(tableRowTestTag(TABLE_ID)).assertExists()
@@ -78,19 +54,16 @@ class PvpTablesUiTest {
         onNodeWithTag(PVP_HOST_TEST_TAG).assertDoesNotExist()
     }
 
-    /** A prize waiting is announced, because a deadline collects it otherwise. */
     @Test
     fun anUncollectedPrizeIsAnnounced() = lobby(claims = listOf(claimJson())) {
         onNodeWithTag(PVP_CLAIM_BANNER_TEST_TAG).assertExists()
     }
 
-    /** And with nothing owed there is no banner to distract from the lobby. */
     @Test
     fun nothingOwedShowsNoBanner() = lobby {
         onNodeWithTag(PVP_CLAIM_BANNER_TEST_TAG).assertDoesNotExist()
     }
 
-    /** Tapping Join posts to that table exactly once. */
     @Test
     fun joiningATablePostsToIt() {
         val paths = mutableListOf<String>()
@@ -107,14 +80,6 @@ class PvpTablesUiTest {
         )
     }
 
-    /**
-     * A refused request says so on screen.
-     *
-     * The claim this file exists to make second-loudest. Every refusal the server can answer a
-     * table request with reached the client and was read by nothing: the player tapped, the server
-     * said no, and the screen sat there. A note is the difference between "it did not work" and
-     * "nothing happened".
-     */
     @Test
     fun aRefusalIsShown() = lobby(tables = listOf(tableJson()), refuse = true) {
         onNodeWithTag(tableJoinTestTag(TABLE_ID)).performClick()
@@ -123,19 +88,11 @@ class PvpTablesUiTest {
         onNodeWithTag(PVP_NOTE_TEST_TAG).assertExists()
     }
 
-    /** And nothing is shown when nothing was refused. */
     @Test
     fun noNoteWithoutARefusal() = lobby(tables = listOf(tableJson())) {
         onNodeWithTag(PVP_NOTE_TEST_TAG).assertDoesNotExist()
     }
 
-    /**
-     * A table says how long it has left.
-     *
-     * It expires after five minutes — `PvpMatchRow.TABLE_MILLIS` — and until now did so in
-     * silence: the host watched the lobby, their row disappeared, and the Host button came back
-     * with nothing said about why.
-     */
     @Test
     fun aTableSaysHowLongItHasLeft() {
         val table = PvpTable(
@@ -154,7 +111,6 @@ class PvpTablesUiTest {
         assertEquals(0, minutesLeft(table, NOW + FIVE_MINUTES * 2))
     }
 
-    /** Every complete deck is offered, plus leaving the choice to the server. */
     @Test
     fun everyCompleteDeckIsOfferedAlongsideAutomatic() = lobby(profile = twoDecks()) {
         onNodeWithTag(pvpDeckTestTag(ANY_DECK)).assertExists()
@@ -162,19 +118,12 @@ class PvpTablesUiTest {
         onNodeWithTag(pvpDeckTestTag(1)).assertExists()
     }
 
-    /**
-     * A half-built deck is not offered, because naming it would not play it.
-     *
-     * `PveMatches.playerDeck` reads a slot only if it is complete and otherwise falls back, so a
-     * chip for slot 1 here would be a choice the server silently declines to honour.
-     */
     @Test
     fun aPartialDeckIsNotOffered() = lobby(profile = onePartialDeck()) {
         onNodeWithTag(pvpDeckTestTag(0)).assertExists()
         onNodeWithTag(pvpDeckTestTag(1)).assertDoesNotExist()
     }
 
-    /** The chosen deck rides along with the join, which is the whole point of choosing it. */
     @Test
     fun theChosenDeckIsSentWhenJoining() {
         val bodies = mutableListOf<String>()
@@ -188,13 +137,6 @@ class PvpTablesUiTest {
         assertEquals(listOf("""{"deck":1}"""), bodies, "the join carried $bodies")
     }
 
-    /**
-     * And saying nothing puts no deck on the wire at all.
-     *
-     * `encodeDefaults` is off, so [ANY_DECK] — being the default — is simply absent, and the body
-     * is the empty object. That is the compatible shape rather than a coincidence of it: a server
-     * built before decks could be named reads `{}` as the nothing it always received.
-     */
     @Test
     fun joiningWithoutChoosingLeavesItToTheServer() {
         val bodies = mutableListOf<String>()
@@ -209,14 +151,12 @@ class PvpTablesUiTest {
 
     // ---- Harness ----------------------------------------------------------
 
-    /** A profile with two playable decks, so that choosing between them is a real choice. */
     private fun twoDecks(): GameSave {
         val profile = GameSave.new(username = ME, createdAt = 0L)
         val first = profile.decks.first()
         return profile.copy(decks = listOf(first, first.copy(name = "Second")))
     }
 
-    /** One playable deck and one that is not, which is what the filter has to tell apart. */
     private fun onePartialDeck(): GameSave {
         val profile = GameSave.new(username = ME, createdAt = 0L)
         val first = profile.decks.first()
@@ -224,7 +164,6 @@ class PvpTablesUiTest {
         return profile.copy(decks = listOf(first, partial))
     }
 
-    /** Renders the lobby with [tables] on offer and [claims] waiting to be collected. */
     @Suppress("LongParameterList")
     private fun lobby(
         tables: List<String> = emptyList(),
@@ -297,14 +236,12 @@ class PvpTablesUiTest {
         block()
     }
 
-    /** One open table, with a wager on it so the row has terms to draw. */
     private fun tableJson(host: String = "Kuplu") = """
         {"id":"$TABLE_ID","hostName":"$host","formatId":"free-play",
          "rules":{},"roulette":true,
          "stake":{"mgp":50,"trade":"ONE"},"openedAt":0,"expiresAt":1}
     """.trimIndent()
 
-    /** A finished match owing this player one card. */
     private fun claimJson() = """
         {"matchId":"m-1","side":"BLUE","opponentName":"Kuplu","rules":{},
          "formatId":"free-play","cells":[null,null,null,null,null,null,null,null,null],
@@ -324,15 +261,12 @@ class PvpTablesUiTest {
     private val strings = runBlocking { loadStrings(AppLocale.EN_US) }
 
     private companion object {
-        /** What the server answers a wager the purse cannot cover with. */
         const val REFUSAL = """{"code":"CANNOT_AFFORD","reason":"you cannot cover that"}"""
 
         const val ME = "Sigfrid"
 
-        /** Fixed, so a countdown reads the same on every run. */
         const val NOW = 0L
 
-        /** What `PvpMatchRow.TABLE_MILLIS` is, in the unit this test reads. */
         const val FIVE_MINUTES = 300_000L
         const val LIFETIME_MINUTES = 5
         const val TABLE_ID = "t-1"

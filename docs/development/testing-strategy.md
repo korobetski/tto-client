@@ -9,63 +9,34 @@ prove a test can fail — are in [testing-guide.md](./testing-guide.md).
 
 ## 1. What exists today
 
-Measured, not projected. `./gradlew build` at the repository root:
+Measured, not projected. Measured **2026-08-17** on a Windows host:
 
-Refreshed 2026-08-02, with the playable loop of Phase 4.
+| Task | Classes | Tests | Failures |
+|---|--:|--:|--:|
+| `:shared:desktopTest` (`commonTest` + `desktopTest`) | 93 | 856 | 0 |
+| `:shared:testAndroidHostTest` (`commonTest` only) | 29 | 396 | 0 |
+| **distinct / executions** | | **856 / 1,252** | 0 |
+| coverage — `:shared:coverageReport`, desktop target only | | **95.0% line / 75.8% branch** | gated at 90 / 75 in `check` |
 
-| Source set | Package | Suite | Tests |
-|---|---|---|--:|
-| `commonTest` | `audio` | `SoundTest` | 5 |
-| `commonTest` | `data` | `AchievementRepositoryTest` | 12 |
-| `commonTest` | `data` | `CardCatalogTest` | 8 |
-| `commonTest` | `data` | `CardRepositoryTest` | 13 |
-| `commonTest` | `data` | `InventoryTest` | 19 |
-| `commonTest` | `data` | `MatchHistoryRepositoryTest` | 18 |
-| `commonTest` | `data` | `MatchRewardsTest` | 22 |
-| `commonTest` | `data` | `NpcCatalogTest` | 9 |
-| `commonTest` | `data` | `PveMatchTest` | 20 |
-| `commonTest` | `data` | `SaveRepositoryTest` | 19 |
-| `commonTest` | `i18n` | `StringsTest` | 9 |
-| `commonTest` | `log` | `LogTest` | 7 |
-| `commonTest` | `model` | `AchievementTest` | 13 |
-| `commonTest` | `model` | `CardTest` | 5 |
-| `commonTest` | `model` | `GameSaveTest` | 20 |
-| `commonTest` | `model` | `ItemTest` | 16 |
-| `commonTest` | `model` | `MatchAiTest` | 26 |
-| `commonTest` | `model` | `MatchRecordTest` | 8 |
-| `commonTest` | `model` | `MatchSetupTest` | 40 |
-| `commonTest` | `model` | `MatchStateTest` | 27 |
-| `commonTest` | `model` | `NpcTest` | 22 |
-| `commonTest` | `model` | `RouletteTest` | 14 |
-| `commonTest` | `model` | `RulesEngineTest` | 37 |
-| `commonTest` | `model` | `XpTableTest` | 10 |
-| `commonTest` | `settings` | `UserSettingsTest` | 12 |
-| `commonTest` | `storage` | `DocumentStoreTest` | 9 |
-| `commonTest` | `storage` | `SaveCodecTest` | 12 |
-| `desktopTest` | `data` | `CardBundleTest` | 4 |
-| `desktopTest` | `data` | `NpcBundleTest` | 12 |
-| `desktopTest` | `i18n` | `StringsBundleTest` | 8 |
-| `desktopTest` | `model` | `EnginePerformanceTest` | 4 |
-| `desktopTest` | `ui` | `CardFaceTest` | 2 |
-| `desktopTest` | `ui` | `MatchAudioTest` | 10 |
-| `desktopTest` | `ui` | `MatchLayoutTest` | 6 |
-| `desktopTest` | `ui` | `MatchUiTest` | 14 |
-| `desktopTest` | `ui` | `NavigationTest` | 11 |
-| `desktopTest` | `ui` | `OpponentUiTest` | 8 |
-| `desktopTest` | `ui` | `OptionsUiTest` | 7 |
-| `desktopTest` | `ui` | `ProfileUiTest` | 11 |
-| | | **total** | **529 distinct / 961 executions**, 0 failures |
-| | | coverage | **96.8% line / 86.7% branch**, gated at 90 / 75 in `check` |
+> **This section used to carry a hand-maintained row per test class, and it had rotted through.**
+> It listed `RulesEngineTest`, `MatchStateTest`, `MatchSetupTest`, `MatchAiTest`, `RouletteTest`,
+> `CardTest`, `ItemTest` and a dozen more as living in this repository. They do not: the engine and
+> its suite moved to [`tto-core`](https://github.com/korobetski/tto-core), and the table was never
+> updated. A per-class census is not worth maintaining by hand — run the task and read
+> `shared/build/reports/tests/desktopTest/index.html`, which is generated and therefore correct.
 
-`commonTest` runs on every target, which is the point of putting it there — **432** of the 529
-execute twice, as `:shared:desktopTest` and `:shared:testAndroidHostTest`. The 97 in `desktopTest`
+`commonTest` runs on every target, which is the point of putting it there — **396** of the 856
+execute twice, as `:shared:desktopTest` and `:shared:testAndroidHostTest`. The 460 in `desktopTest`
 are there because they need something the JVM has and the Android host source set does not: a
 Compose test harness, the packaged resource bundle, or a nanosecond clock. It was three times over
 under AGP 8: AGP 9 dropped the release unit-test variant for library modules, and the module has
 since moved to `com.android.kotlin.multiplatform.library`, which runs the Android unit tests once,
-from an `androidHostTest` source set. They would also run on iOS via
-`:shared:iosSimulatorArm64Test`, which the CI workflow invokes but which has **never been
-executed**, because Kotlin/Native cannot target Apple platforms from a Windows host.
+from an `androidHostTest` source set. They also run on iOS via `:shared:iosSimulatorArm64Test`,
+which the CI workflow invokes on its macOS runner — but **never on the Windows host this project is
+developed on**, where Kotlin/Native cannot target Apple platforms and the task is skipped silently.
+
+**Branch coverage is 0.8 points above its gate.** 75.8% against a floor of 75% is close enough that
+an ordinary change can fail `check` on coverage alone. That is a real margin, not a comfortable one.
 
 ## 2. The test pyramid, and where this project's risk actually sits
 
@@ -292,7 +263,7 @@ This section asked for **Kover** on the grounds that JaCoCo does not cover Kotli
 **Kover turned out to be unusable here** — it aborts during plugin application under
 `com.android.kotlin.multiplatform.library`, in all three versions that exist. Coverage is
 measured with JaCoCo on the desktop target instead, and gated in `check` at 90% line / 75% branch
-against 97.8% / 85.9% measured. The reasoning, and why measuring one target is not a shortcut:
+against 95.0% / 75.8% measured (2026-08-17). The reasoning, and why measuring one target is not a shortcut:
 [README § Coverage](../../README.md#coverage). How to run it and how to read it:
 [testing-guide.md § 5](./testing-guide.md#5-coverage).
 
@@ -304,7 +275,7 @@ getters.
 
 ```bash
 ./gradlew build                      # everything, including ktlint + detekt
-./gradlew :shared:desktopTest        # fast loop: all 529 tests, ~60 s forced from scratch
+./gradlew :shared:desktopTest        # fast loop: all 856 tests (measured 2026-08-17)
 ./gradlew :shared:allTests           # every target the host can build
 ./gradlew :androidApp:installDebug   # then drive it by hand on a device
 ```
@@ -321,13 +292,17 @@ Stated so nobody mistakes green CI for coverage:
 
 | Area | Status |
 |---|---|
-| iOS, at all | never compiled |
-| Texture atlas loading | not implemented; the highest unvalidated risk — [docs/analysis/api-mapping.md](../analysis/api-mapping.md) §7 |
-| Drag and drop onto the board | not implemented |
-| The rules engine | not migrated |
-| Networking | not migrated; and see [docs/analysis/network-protocol.md](../analysis/network-protocol.md) |
+| The iOS **app** | no `.xcodeproj` exists and no app has ever run. The `:shared` framework links and `:shared:iosSimulatorArm64Test` passes, but only on the macOS CI runner — both are skipped silently on a Windows or Linux host, so a green local `build` says nothing about iOS |
 | Frame timing / jank | not measured — [docs/analysis/performance-baseline.md](../analysis/performance-baseline.md) §2 |
-| Layout geometry | no assertions — §4 above |
+| Card-internal layout geometry | no assertions. `MatchLayoutTest` covers arrangement only — §4 above |
+| The platform settings stores | `AndroidSettingsStore` / `DesktopSettingsStore` untested by decision — §4 above |
+| Typography of real strings | unreachable from the suite; checked by running the app per locale — §4 above |
+
+**Four rows were deleted from this table on 2026-08-17, having outlived their truth.** Texture
+atlas loading, drag and drop onto the board, the rules engine and networking were all listed as
+not implemented. Each is now built and tested: `ThumbAtlasTest`, `DragAndDropTest`, the engine's
+own suite in [`tto-core`](https://github.com/korobetski/tto-core), and ten `net/` classes driven
+through `ktor-client-mock` with no socket.
 
 ## 8. Related
 

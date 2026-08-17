@@ -65,33 +65,12 @@ const val PVP_STAKE_TEST_TAG: String = "pvp-stake"
 const val PVP_WON_TEST_TAG: String = "pvp-won"
 const val PVP_LOST_TEST_TAG: String = "pvp-lost"
 
-/** The loser, watching the winner name a card out of their hand. See `WitnessPhase`. */
 const val PVP_WAIT_TEST_TAG: String = "pvp-wait"
 
-/** `pvp-card-<slot>` — one of this player's own cards. */
 fun pvpHandTestTag(slot: Int): String = "pvp-card-$slot"
 
-/** `pvp-back-<slot>` — a card the opponent holds that this player may not see. */
 fun pvpBackTestTag(slot: Int): String = "pvp-back-$slot"
 
-/**
- * What each placement sounds like, for a board a referee is running.
- *
- * The mapping itself is shared with the PvE match — see [placementSound] and [cascadeSounds], and
- * the reason it is shared: a capture is the same event whoever resolved it. What is different here
- * is only *when* to play it, which is the same problem [pvpBannerQueue] solves and is solved the
- * same way: a client that joins a match in progress must not replay everything it missed as it
- * arrives, so anything at or below the placement it first saw is history rather than news.
- *
- * The cascade is awaited in place rather than launched, unlike the PvE screen's. Nothing in this
- * effect assigns the state it is keyed on — the view comes from the session — so a suspend here
- * survives to the end, and a *new* placement arriving cancels it, which is what should happen: the
- * board has moved on.
- *
- * The deal is announced too, on the first view of a match. `MatchScreen` plays it when the cards
- * are dealt; here they were dealt somewhere else, and the first sight of them is the nearest
- * moment.
- */
 @Composable
 private fun PvpMatchSounds(matchId: String?, view: MatchView?) {
     val audio = LocalAudio.current
@@ -119,34 +98,6 @@ private fun PvpMatchSounds(matchId: String?, view: MatchView?) {
     }
 }
 
-/**
- * A match against another person.
- *
- * ### Why this is a second board and not the match screen with a flag
- *
- * `MatchScreen` runs the match: it holds a `MatchState`, plays the opponent through `MatchAi`, and
- * animates from `lastPlay`. None of that is true here. The server holds the state, the opponent is
- * a person, and this screen's whole job is to **render what it is sent and post what is tapped**.
- *
- * A flag on the existing screen would mean every one of its branches asking which kind of match it
- * was in, on a screen whose central value would have to become nullable. The board itself is
- * shared — [BoardGrid] takes a `Board` for exactly this reason — and the rest is genuinely
- * different code.
- *
- * ### The opponent's cards are absent, not hidden
- *
- * `HandArea` draws the opponent's hand face-down: it *has* the cards and chooses not to show them,
- * which is fine against a program the same process is running. Here the client was never sent them,
- * so the row is drawn from `MatchView.opponentHand` — a list of nullable cards, where a null is a
- * card that does not exist on this device. Under All Open or Three Open the revealed ones arrive
- * and are drawn face-up in their own slots.
- *
- * ### One deadline, two things to say
- *
- * The server enforces a single expiry: thirty seconds of turn plus two minutes of grace. This shows
- * them as two states, because they mean different things to the player — *hurry up* and *they may
- * have lost their connection*. See `V2__pvp.sql`.
- */
 @Composable
 internal fun PvpMatchScreen(
     session: PvpSession,
@@ -256,32 +207,6 @@ internal fun PvpMatchScreen(
     }
 }
 
-/**
- * The announcements this match owes the player, as an event the overlay can play.
- *
- * The PvE equivalent is `bannerQueue`, which watches a `MatchState` it owns. Here there is no state
- * to watch — only views arriving from a poll — so the effect is keyed on **what changed**: the
- * match id for the opening, and the placement count for everything after it.
- *
- * ### Why the placement count and not `lastPlay`
- *
- * `bannerQueue` keys on both because a state can change without the count moving. A poll cannot:
- * views arrive once a second and most of them are the same view, so keying on the value would
- * re-fire nothing but would compare a whole board every time. The count is the smaller key and it
- * moves exactly when a card is placed, which is exactly when there is something to say.
- *
- * ### Two things it deliberately stays silent about
- *
- * A board already under way plays no opening — a match resumed after the app was killed should not
- * announce Reverse as though it were starting. And the *first* view of a resumed match plays no
- * capture captions either, for the same reason: the placement it names may have happened minutes
- * ago, and a client that has just arrived owes the player the position rather than a replay of how
- * it got there. Both fall out of the same rule below.
- *
- * The placement count is also what [BannerEvent.at] is filled with, which is what it wants: two
- * Sames in a row earn equal caption lists and must still play twice, and the move number is the
- * monotonic marker that tells them apart.
- */
 @Composable
 private fun pvpBannerQueue(matchId: String?, view: MatchView?): BannerEvent? {
     var event by remember(matchId) { mutableStateOf<BannerEvent?>(null) }
@@ -303,23 +228,6 @@ private fun pvpBannerQueue(matchId: String?, view: MatchView?): BannerEvent? {
     return event
 }
 
-/**
- * Who is playing, the score, whose turn it is — and **what is being played under**.
- *
- * The rule strip is the late addition and it closes a real gap: a PvE match names its rules above
- * the board (`BoardRules`) and in the side panel, and a PvP match named them nowhere. The opening
- * banners say them once, in the first seconds, and a match resumed after the app was killed does
- * not even get those — see [pvpBannerQueue]. So a player who wanted to know whether Random or
- * Reverse was in force had to remember the table they joined.
- *
- * Random is the case that made this visible: it changes only the **deal**, which the server does,
- * so the one way to tell it was in force was that the hand did not look like the chosen deck — an
- * observation indistinguishable from the rule not working. The strip says what the server says is
- * in force, which is the client's whole share of that question.
- *
- * `roulette` is not passed: on a *table* the draw is still pending and the strip says so, but by
- * the time there is a board the server has drawn and the result is in [MatchView.rules] already.
- */
 @Composable
 private fun PvpHeader(view: MatchView, opponentName: String, deadline: Long?, now: Long) {
     val strings = LocalStrings.current
@@ -348,13 +256,6 @@ private fun PvpHeader(view: MatchView, opponentName: String, deadline: Long?, no
     }
 }
 
-/**
- * What the turn line says, and the one place the two halves of the deadline are told apart.
- *
- * Past the thirty seconds the *opponent* is late, not the player, so the line stops being a
- * countdown and becomes an explanation. Showing "0 seconds left" for two more minutes would say
- * the game was broken.
- */
 private fun turnLine(
     view: MatchView,
     opponentName: String,
@@ -371,7 +272,6 @@ private fun turnLine(
     else -> strings.format(StringKeys.OPPONENT_TURN, opponentName)
 }
 
-/** The opponent's row, the board, and this player's row. */
 @Composable
 @Suppress("LongParameterList")
 private fun PvpPlayArea(
@@ -438,12 +338,6 @@ private fun PvpPlayArea(
     }
 }
 
-/**
- * The other player's hand: a back per card, and a face for each one the rules revealed.
- *
- * Slots are counted from the list's own length, which is the opponent's real card count — public
- * information, since anyone can see how many cards are left in front of them.
- */
 @Composable
 private fun OpponentRow(view: MatchView, layout: MatchLayout) {
     Row(
@@ -468,19 +362,6 @@ private fun OpponentRow(view: MatchView, layout: MatchLayout) {
     }
 }
 
-/**
- * This player's own hand. Only what the server listed as playable responds at all.
- *
- * Both gestures, as in a PvE match: tap to select then tap a cell, or drag the card onto one.
- * `Card._draggable` gates the second the same way the first is gated — dragging a card the rules
- * forbid and watching the drop do nothing is worse feedback than a card that cannot be lifted.
- *
- * Under Order and Chaos the one card left also **wears a ring**, and the dimming is now asked of
- * [handIsNarrowed] rather than read straight off the index list. Both changes matter for the same
- * reason: `MatchView.playableHandIndices` is documented as **empty while it is not this side's
- * turn**, so the old `playable -> 1f` dimmed the whole hand a second time on top of the row's own
- * inactive alpha, and would have ringed nothing at the moment there was nothing to ring anyway.
- */
 @Composable
 @Suppress("LongParameterList")
 private fun OwnRow(
@@ -555,17 +436,6 @@ private fun OwnRow(
     }
 }
 
-/**
- * Lifting one card out of the hand and dropping it on a cell.
- *
- * Its own modifier rather than a block inside [OwnRow] for two reasons: the gate is the same one
- * the tap path uses — a card the rules forbid cannot be lifted at all, see [OwnRow] — and the four
- * gesture callbacks together were what took that composable past the complexity detekt allows.
- *
- * [at] is read as a lambda because the card's coordinates are only known after the first layout
- * pass, and the gesture must see the current ones rather than the ones captured when the modifier
- * was built.
- */
 private fun Modifier.handDrag(
     enabled: Boolean,
     card: Card,
@@ -588,46 +458,6 @@ private fun Modifier.handDrag(
     }
 }
 
-/**
- * How it ended — and, when the wager owes one, **the choice that ends it**.
- *
- * ### The claim belongs to the board
- *
- * Under One and Diff a match is not over when the ninth card lands: somebody has to name the cards
- * they are taking, and until they do the server holds the match at
- * [PvpMatchStatus.AWAITING_CLAIM] and credits nothing. That choice used to happen on a screen of
- * its own, reached from the lobby, which broke the moment in two for both players. The winner left
- * the board, went somewhere else, and picked a card out of a hand they were no longer looking at.
- * The loser was sent back to the lobby immediately and the cards left their collection later, with
- * no account of when or which — the one event in this game that happens *to* a player and they were
- * the only party not present for it.
- *
- * So the panel has three faces, all of them over the board the match was played on:
- *
- * - **The winner owes picks** — the prizes, out of the loser's dealt hand, and no way out but to
- *   choose. There is deliberately no Back here: the wager is not settled, and a winner who wandered
- *   off would leave the loser waiting on the server's deadline.
- * - **The loser waits** — told who is choosing and out of whose hand, with the same countdown the
- *   winner is working against. A Back **is** offered: the deadline is the server's and can run for
- *   minutes, and a winner who closes their app must not be able to hold somebody else's session
- *   hostage. Leaving is a choice; being stuck is not.
- * - **Settled** — the result and what it paid, which is where every other ending starts.
- *
- * A forfeit says so rather than being reported as a plain win or loss: "you won" and "you won
- * because they left" are not the same sentence to put in front of a player, and the second one is
- * the only honest description of a board that was never finished.
- *
- * ### The scrim and the card are not decoration
- *
- * This was a bare `Column` over the finished board: unpainted text sitting on top of nine tiles of
- * card art, which is the one background the payout lines cannot be read against. It now takes the
- * same dressing `OutcomePanel` takes at the end of a PvE match — the theme's `scrim` over the dead
- * board, a `Surface` at [OutcomeElevation] under the text — so the two endings look like the same
- * game ending twice rather than two screens by different hands.
- *
- * A `Surface` and not an `AlertDialog` for the reason `OutcomePanel` gives, and here for one more:
- * [MatchBannerOverlay] is drawn after this in [PvpMatchScreen] and a popup would land over it.
- */
 @Composable
 private fun PvpResult(
     session: PvpSession,
@@ -669,19 +499,6 @@ private fun PvpResult(
     }
 }
 
-/**
- * The winner naming their prize, on the board they won it on.
- *
- * The same picker `PvpClaimScreen` draws — [PrizeRow] is shared between them precisely so the two
- * routes to this choice cannot drift — and the same rule about what is tappable: once enough are
- * picked the rest stop responding, because a tap that silently replaced an earlier choice would be
- * worse feedback than one that does nothing.
- *
- * Nothing follows the confirmation: [PvpSession.claim] replaces the match with the settled one, so
- * this panel simply becomes [SettledPhase] on the next frame, with the cards now listed under what
- * was won. That is the whole reason the claim lives here — the player sees what they took, in the
- * place they took it from.
- */
 @Composable
 private fun ClaimPhase(
     session: PvpSession,
@@ -721,20 +538,6 @@ private fun ClaimPhase(
     )
 }
 
-/**
- * What the loser sees while it happens.
- *
- * The board is still behind the scrim, which is the point: the cards being chosen from are the ones
- * that were just played on it. The countdown is the winner's own deadline, so the wait has a stated
- * end rather than being an indefinite spinner — and past it the server settles for the winner
- * anyway, which is what makes the number honest.
- *
- * Back is offered, and that is a deliberate departure from "the loser must be present for the
- * choice": present is what the app can offer, captive is not. The deadline belongs to the server
- * and can run for minutes; a winner who force-quits their app would otherwise hold this session
- * shut for all of it. The poll keeps running while the screen is up, so a player who stays sees the
- * cards go.
- */
 @Composable
 private fun WitnessPhase(opponentName: String, deadline: Long?, now: Long, onDone: () -> Unit) {
     val strings = LocalStrings.current
@@ -761,13 +564,6 @@ private fun WitnessPhase(opponentName: String, deadline: Long?, now: Long, onDon
     )
 }
 
-/**
- * The ending, once there is nothing left to decide.
- *
- * @param wire the match in **server** colours. `wire.side` and not the view's: the board is
- *   mirrored so that a player is always blue, and `forfeitedBy` arrives in the server's colours, so
- *   this is the only side it can honestly be compared against. See [PvpSession.view].
- */
 @Composable
 private fun SettledPhase(
     wire: PvpMatchView,
@@ -814,14 +610,6 @@ private fun SettledPhase(
     )
 }
 
-/**
- * What the match paid, and what the wager moved.
- *
- * The three are kept apart on screen because they are three different facts: the payout is what
- * every match earns, the stake is what was risked, and the cards are what changed hands. A single
- * "+50 MGP" that quietly netted a 100 payout against a 50 loss would be the least informative true
- * number available.
- */
 @Composable
 private fun Payout(outcome: PvpOutcome, cards: Map<Int, Card>) {
     val strings = LocalStrings.current
@@ -861,7 +649,6 @@ private fun Payout(outcome: PvpOutcome, cards: Map<Int, Card>) {
     }
 }
 
-/** One side of the trade, as thumbnails. Absent entirely when nothing moved that way. */
 @Composable
 private fun CardRow(labelKey: String, ids: List<Int>, cards: Map<Int, Card>, tag: String) {
     if (ids.isEmpty()) return
@@ -884,16 +671,8 @@ private fun CardRow(labelKey: String, ids: List<Int>, cards: Map<Int, Card>, tag
     }
 }
 
-/** Big enough to recognise a card by its art, small enough that five fit across a phone. */
 private val PrizeThumbSize = 44.dp
 
-/**
- * The move that puts [card] on [position].
- *
- * The slot is looked up rather than carried, because the two gestures know different things: a tap
- * has a selected card and a drag has the card under the finger, and neither has an index. The hand
- * closes up as cards are played, so a slot captured when the card was drawn would be stale.
- */
 private fun moveFor(view: MatchView, card: Card, position: Int): PvpMove =
     PvpMove(handIndex = view.ownHand.indexOfFirst { it.id == card.id }, position = position)
 

@@ -12,38 +12,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-/**
- * The lessons that are matches rather than positions — [TUTORIAL_DRILLS].
- *
- * `TutorialPuzzleTest` can play a puzzle to its end and assert exactly what happened, because a
- * puzzle *is* one move. A drill is a whole game against an AI, so what is worth pinning here is not
- * the play — it is the three things a drill can get silently wrong and still look right on screen:
- *
- * 1. **The row and the match agree about the rule.** Each drill states its rules twice — once as a
- *    `GameRules` the match is played under, once as the keys its list row prints — and the two are
- *    different spellings of the same thing (`GameRules.RuleKeys`, which is `internal` in `:core`,
- *    is the table between them). A row advertising a rule the match never imposes would look
- *    entirely correct on screen: [everyDrillPlaysTheRulesItsRowNames] reads the rules back through
- *    `activeRuleKeys()` and holds them to what the row claims.
- * 2. **The hand is the one the lines describe.** Both drills talk about the hand rather than about
- *    the board: one deals five cards of a single tribe, the other deals five in an order it then
- *    tells the player to read to the end.
- * 3. **The tally really does climb.** The Bonus lesson's whole claim is that each card of a tribe
- *    strengthens the others — which no single placement can show, and which is therefore the one
- *    piece of engine behaviour these lessons rest on.
- *
- * ### Why the tally is pinned to the number and not merely to "it went up"
- *
- * Because the number has already changed once. `AscensionTally`'s own KDoc records the deviation:
- * the AS3 ran `ascensionPhase` *after* the flips, so a card resolved its own captures without its
- * own contribution, and this port counts it from the moment it lands — a change carried by
- * `protocol.CURRENT_VERSION`. A test that only asked whether the modifier rose would pass either
- * way, and the lesson's third line ("the badge has grown with them") is written for a board where
- * two beasts read `+2`.
- */
 class TutorialDrillTest {
 
-    /** Three rows are matches: Bonus, Order, and the exam behind them. */
     @Test
     fun theCourseEndsInThreeMatches() {
         assertEquals(EXPECTED_DRILLS, TUTORIAL_DRILLS.size, "Bonus, Order and the exam")
@@ -54,17 +24,6 @@ class TutorialDrillTest {
         )
     }
 
-    /**
-     * A drill plays under the rules its row advertises, and under nothing else.
-     *
-     * A **subset** rather than an equality, because two rows name more than they play on purpose:
-     * Bonus's row names Malus and Order's names Chaos, each being the same mechanic with one thing
-     * reversed, and a player looking for either in the list should find it somewhere. The reverse —
-     * a match imposing a rule its row never mentioned — is the one that would be a defect.
-     *
-     * Non-empty is the other half: a drill whose `GameRules` came out as the default one would
-     * play as an ordinary match with a tutor describing rules nobody switched on.
-     */
     @Test
     fun everyDrillPlaysTheRulesItsRowNames() {
         for (lesson in TUTORIAL_COURSE) {
@@ -82,14 +41,6 @@ class TutorialDrillTest {
         }
     }
 
-    /**
-     * Order in particular — the rule that narrows the hand rather than deciding a capture.
-     *
-     * Its whole visible effect is `MatchState.playableCards` returning one card, which is what
-     * `MatchScreen.playable` reads and what greys out the other four. A drill played under
-     * `OrderRule.FREE` would look like an ordinary match with a tutor describing a constraint the
-     * player cannot feel, and every other assertion here would still pass.
-     */
     @Test
     fun theOrderDrillNarrowsTheHandToOneCard() {
         val drill = TUTORIAL_DRILLS[ORDER_DRILL]
@@ -107,7 +58,6 @@ class TutorialDrillTest {
         )
     }
 
-    /** Every drill deals a full hand, and every card in it resolves. */
     @Test
     fun everyDrillDealsAHandThatExists() {
         for (lesson in TUTORIAL_COURSE) {
@@ -120,12 +70,6 @@ class TutorialDrillTest {
         }
     }
 
-    /**
-     * The Bonus hand is five cards of one tribe, which is the lesson's first sentence.
-     *
-     * Five *different* cards too: one card repeated would satisfy the tribe check and would not be
-     * a hand.
-     */
     @Test
     fun theBonusDrillDealsOneTribe() {
         val deck = TUTORIAL_DRILLS[BONUS_DRILL].deck
@@ -136,19 +80,6 @@ class TutorialDrillTest {
         assertNotNull(types.first(), "an untyped hand gains nothing under Bonus, which is the rule")
     }
 
-    /**
-     * **Each card of the tribe strengthens the ones already down** — the drill's second line, put
-     * to the engine.
-     *
-     * Three claims, in the order the lesson makes them: something happens when the first beast
-     * lands, a card of no tribe in between adds nothing to it, and the second beast adds again. The
-     * middle one is the sharp one — a modifier that merely counted *placements* would pass the
-     * other two and would make the lesson's talk of tribes false.
-     *
-     * Played through the real engine rather than by handing it a tally, because a tally stated here
-     * would be this test agreeing with itself: what the lesson claims is about what playing a card
-     * does.
-     */
     @Test
     fun eachCardOfTheTribeStrengthensTheOnesAlreadyDown() {
         val drill = TUTORIAL_DRILLS[BONUS_DRILL]
@@ -180,14 +111,6 @@ class TutorialDrillTest {
         )
     }
 
-    /**
-     * The lines land on turns the player holds.
-     *
-     * A tutoring drill forces the player to open, so they hold the even placements — a line keyed
-     * to an odd one would be spoken while the opponent was moving, which is where the AS3's own
-     * tutorial put three of its nine and is exactly why those three never appeared. See
-     * [TutorialScreen].
-     */
     @Test
     fun everyLineIsSpokenOnATurnThePlayerHolds() {
         for (lesson in TUTORIAL_COURSE) {
@@ -204,7 +127,6 @@ class TutorialDrillTest {
         }
     }
 
-    /** The exam is the one drill examined rather than taught, and the flag is the whole of it. */
     @Test
     fun onlyTheExamIsUntutored() {
         assertEquals(
@@ -214,7 +136,6 @@ class TutorialDrillTest {
         )
     }
 
-    /** Blue holds the tribe the lesson is about; red holds five cards that carry none. */
     private fun tribeAgainstTypeless(drill: TutorialDrill): MatchState = MatchState(
         rules = drill.rules,
         board = Board(),
@@ -238,19 +159,10 @@ class TutorialDrillTest {
         const val EXPECTED_DRILLS = 3
         const val EXPECTED_PUZZLES = 8
 
-        /** Blue, red, blue: the three placements the tally is read across. */
         const val FIRST_CELL = 0
         const val SECOND_CELL = 1
         const val THIRD_CELL = 2
 
-        /**
-         * Five block-1 cards that carry no tribe, standing in for what the tutor brings.
-         *
-         * Not its hand exactly: `npcs.json` gives the Triple Triad Master 258, 260, 261, 263 and
-         * 269, and 260 is not in [LESSON_CATALOG]. What matters is the property the lesson's first
-         * line states out loud and these five share with the real five — **not one of them carries
-         * a tribe** — so the count climbs on the player's side alone.
-         */
         val TYPELESS_HAND = listOf(258, 261, 263, 269, 257)
     }
 }

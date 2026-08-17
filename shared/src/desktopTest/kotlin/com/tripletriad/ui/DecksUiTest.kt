@@ -20,12 +20,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/**
- * The deck slots and the editor.
- *
- * A fresh character is the fixture: five owned cards, one complete starter deck in slot 0 and four
- * empty slots — `Save.as:30-31`, where the same five ids seed both the collection and the deck.
- */
 @OptIn(ExperimentalTestApi::class)
 class DecksUiTest {
     private fun ComposeUiTest.openDecks() {
@@ -33,7 +27,6 @@ class DecksUiTest {
         openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
     }
 
-    /** Five slots are always drawn, empty ones included — `DecksScreen.as:128-157`. */
     @Test
     fun allFiveSlotsAreListedIncludingTheEmptyOnes() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -64,7 +57,6 @@ class DecksUiTest {
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_LIST_TEST_TAG) }
     }
 
-    /** Tap a card in the deck to take it out; Save is what writes it. */
     @Test
     fun removingACardAndSavingWritesTheShorterDeck() = runComposeUiTest {
         val documents = seeded(freshSave())
@@ -85,14 +77,6 @@ class DecksUiTest {
         assertEquals(GameSave.DEFAULT_DECK_NAME, deck.name, "and the name is kept")
     }
 
-    /**
-     * Backing out of the editor abandons the edit.
-     *
-     * The editor holds its own copy and nothing reaches the profile until Save — which is also the
-     * half of `resetDeckHandler` the original got wrong: it saved from Reset, having built a
-     * ten-entry card list and then called `slice` where `splice` was meant, so the deck came back
-     * on the next load. See [GameSave.clearingDeck].
-     */
     @Test
     fun leavingTheEditorWithoutSavingChangesNothing() = runComposeUiTest {
         val documents = seeded(GameSave.new(createdAt = 0L))
@@ -111,7 +95,6 @@ class DecksUiTest {
         assertEquals(before.decks, storedSave(documents).decks, "Reset alone must not persist")
     }
 
-    /** A second slot can be built from the owned cards and saved beside the first. */
     @Test
     fun anEmptySlotCanBeFilledFromTheCollection() = runComposeUiTest {
         val documents = seeded(freshSave())
@@ -137,7 +120,6 @@ class DecksUiTest {
         assertTrue(second.isComplete, "five cards is a playable deck")
     }
 
-    /** The grid stops accepting cards at five — [com.tripletriad.model.Deck.plusCard]. */
     @Test
     fun aDeckCannotGrowPastFive() = runComposeUiTest {
         val extra = GameSave.new(createdAt = 0L)
@@ -159,13 +141,6 @@ class DecksUiTest {
         assertFalse(SIXTH_CARD in deck.cards, "a full deck should not have taken a sixth card")
     }
 
-    /**
-     * A card whose every copy is already in the deck refuses the tap.
-     *
-     * The editor's half of the rule `Deck.isAffordable` states and `TranscriptVerifier` enforces.
-     * Meeting it here rather than as a rejected match is the whole reason the editor knows about
-     * copies at all — see § 1 of `docs/migration/20-CARD-COPIES-AND-PLATFORM-ACCOUNTS.md`.
-     */
     @Test
     fun theEditorRefusesACardWhoseCopiesAreAllSpent() = runComposeUiTest {
         val single = STARTER_CARDS.first()
@@ -188,7 +163,6 @@ class DecksUiTest {
         assertEquals(listOf(single), storedSave(documents).decks.first().cards)
     }
 
-    /** And accepts the second tap once a second copy is held, up to the copies owned. */
     @Test
     fun theEditorAcceptsASecondCopyWhenOneIsOwned() = runComposeUiTest {
         val twin = STARTER_CARDS.first()
@@ -216,17 +190,9 @@ class DecksUiTest {
     private companion object {
         const val SECOND_DECK = "Second"
 
-        /** An ff14 card outside the starter five. */
         val SIXTH_CARD = Card.idFor(block = 1, number = 44)
     }
 
-    /**
-     * Every pickable card shows its four edges, and its element when it has one.
-     *
-     * The editor drew thumbnails and nothing else, so choosing a deck meant recognising cards from
-     * memory or tapping each one to find out what it was — see [CardStatsLine]. Asserted on the
-     * unmerged tree because the whole tile is one `clickable` and Compose folds the line into it.
-     */
     @Test
     fun everyPickableCardShowsItsPowersAndItsType() = runComposeUiTest {
         val documents = seeded(freshSave())
@@ -253,14 +219,6 @@ class DecksUiTest {
 
     // ---- A card the deck names and the profile no longer holds ---------------
 
-    /**
-     * A deck that lost a card to a wager says so, in the list and in the editor.
-     *
-     * `GameSave.withoutCard` leaves the deck standing on purpose — see its KDoc — and `PveMatches`
-     * refuses it wherever it is dealt from. Both are right and together they were silent: the deck
-     * still showed five cards, still read `5 / 5`, and simply stopped appearing in the selector
-     * with no reason given anywhere.
-     */
     @Test
     fun aDeckNamingACardNoLongerOwnedSaysSo() = runComposeUiTest {
         val lost = STARTER_DECK.first()
@@ -283,7 +241,6 @@ class DecksUiTest {
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { !exists(DECK_MISSING_TEST_TAG) }
     }
 
-    /** An intact deck says nothing — otherwise the warning above would be unfalsifiable. */
     @Test
     fun anIntactDeckIsNotWarnedAbout() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }

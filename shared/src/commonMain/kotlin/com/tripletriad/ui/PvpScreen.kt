@@ -50,69 +50,26 @@ const val PVP_CLAIM_BANNER_TEST_TAG: String = "pvp-claim-banner"
 const val PVP_CLAIM_BANNER_ACTION_TEST_TAG: String = "pvp-claim-banner-go"
 const val PVP_NOTE_TEST_TAG: String = "pvp-note"
 
-/**
- * The two states an empty lobby list can be in other than empty — see [ListState].
- *
- * Three tags for one region on purpose: `assertDoesNotExist` on a list says nothing about *which*
- * of the three the screen settled on, and telling a player the wrong one is the bug these exist to
- * catch.
- */
 const val PVP_TABLES_LOADING_TEST_TAG: String = "pvp-tables-loading"
 const val PVP_TABLES_FAILED_TEST_TAG: String = "pvp-tables-failed"
 const val PVP_CHALLENGES_LOADING_TEST_TAG: String = "pvp-challenges-loading"
 const val PVP_CHALLENGES_FAILED_TEST_TAG: String = "pvp-challenges-failed"
 
-/** `pvp-invite-<id>` — one invitation row. */
 fun challengeRowTestTag(id: String): String = "pvp-invite-$id"
 
-/** `pvp-accept-<id>` — the button that turns an invitation into a match. */
 fun challengeAcceptTestTag(id: String): String = "pvp-accept-$id"
 
-/** `pvp-drop-<id>` — declining one, or withdrawing one you sent. */
 fun challengeDropTestTag(id: String): String = "pvp-drop-$id"
 
-/** `pvp-table-<id>` — one open table. */
 fun tableRowTestTag(id: String): String = "pvp-table-$id"
 
-/** `pvp-join-<id>` — the button that turns a table into a match. */
 fun tableJoinTestTag(id: String): String = "pvp-join-$id"
 
-/** `pvp-deck-<slot>` — one deck to bring. `pvp-deck-any` leaves it to the server. */
 fun pvpDeckTestTag(slot: Int): String =
     if (slot == ANY_DECK) "pvp-deck-any" else "pvp-deck-$slot"
 
-/** Which half of the lobby is showing. */
 internal enum class LobbyTab { TABLES, CHALLENGES }
 
-/**
- * Finding somebody to play — the original's `PVPScreen`, which never worked.
- *
- * ### There is no original to be faithful to
- *
- * `PVPScreen.as` is 363 lines around a socket protocol where **27 of its 29 handlers are dead
- * code**; the user list it drew is assigned and only `trace`d, and the call that would have
- * refreshed it is commented out. So this screen is designed rather than ported.
- *
- * ### Why this is a list of tables and not a queue any more
- *
- * It *was* a queue, and the argument for it is worth keeping because it was a good one: a lobby
- * listing everybody available is the wrong shape for a game with few players connected at once,
- * since an empty list says "nobody is here" and ends the session where a queue says "waiting" and
- * pairs the moment somebody else taps the same button.
- *
- * What broke it is that a match now has **terms**. A queue can only pair people who have agreed to
- * nothing, and a player dropped into a wager they never saw has not agreed to it — no amount of
- * "waiting" beats being shown what you are about to risk. So the host states the rules and the
- * stake, everybody can read them, and joining is a decision instead of a coin toss.
- *
- * The empty list is the price, and it is honest: nobody *is* there, and a player who can see that
- * can go and do something else rather than watch a spinner that was never going to resolve.
- *
- * ### It polls only while it is on screen
- *
- * The [LaunchedEffect] below is the whole subscription. Leaving the screen cancels it, which is
- * what stops a request a second running behind the shop. See [PvpSession].
- */
 @Composable
 @Suppress("LongParameterList")
 internal fun PvpScreen(
@@ -195,33 +152,6 @@ internal fun PvpScreen(
     }
 }
 
-/**
- * Which deck to bring, asked once for the whole lobby.
- *
- * ### Why it is here and not on the way into each match
- *
- * PvE asks inside the match, and `DeckSelectorScreen` explains at length why it has to: under the
- * Random rule the hand is dealt from the whole collection and the question is not worth asking, and
- * whether Random is in force is not known until the roulette has been drawn. None of that reasoning
- * survives the crossing to PvP. **The server deals**, before either client has been told anything,
- * so there is no moment between the roulette and the deal for a client to be asked in. The choice
- * has to be made in advance or not at all.
- *
- * Made once rather than at each button, then. A player brings the same five cards to whatever they
- * end up playing, and a picker on the Join button — and another on the Accept button, and another
- * on the host screen — would be the same question asked three times with three chances to disagree.
- *
- * ### Only complete decks, and Automatic is not one of them
- *
- * The filter is exactly the server's: `PveMatches.playerDeck` reads a slot only `if (isComplete)`
- * and otherwise falls back, so offering a half-built deck would be offering something that silently
- * would not be played. Deliberately **not** filtered by format, unlike the PvE selector — the lobby
- * holds tables in several formats at once and there is no one format to filter against. That
- * matches what the server does with the slot, which also does not consult the format.
- *
- * Absent entirely for a profile with no complete deck, because then there is nothing to choose:
- * `playerDeck` falls back to five owned cards, which is the one thing that profile can play.
- */
 @Composable
 private fun DeckPicker(profile: GameSave, selected: Int, onSelect: (Int) -> Unit) {
     val strings = LocalStrings.current
@@ -264,14 +194,6 @@ private fun DeckPicker(profile: GameSave, selected: Int, onSelect: (Int) -> Unit
     }
 }
 
-/**
- * A prize waiting to be collected, at the top of the lobby.
- *
- * Worth a banner rather than a row in a list, because the deadline is real: a claim nobody makes is
- * settled by the server, which picks the strongest card and not necessarily the one this player
- * wanted. Somebody who cannot see that they are owed something will find out by being given
- * something else.
- */
 @Composable
 private fun ClaimBanner(count: Int, onClaim: () -> Unit) {
     val strings = LocalStrings.current
@@ -303,7 +225,6 @@ private fun ClaimBanner(count: Int, onClaim: () -> Unit) {
     }
 }
 
-/** The lobby proper: what is on offer, and the button to offer something. */
 @Composable
 private fun ColumnScope.TablesBody(
     session: PvpSession,
@@ -367,13 +288,6 @@ private fun ColumnScope.TablesBody(
     }
 }
 
-/**
- * One table: who is offering it, on what terms, and a way in.
- *
- * The terms are the row's whole reason for existing — a lobby that listed only names would be the
- * queue again with a longer path to the same blind match. `RulesStrip` draws them with the same
- * captions the board does, so what is read here and what is played there cannot drift apart.
- */
 @Composable
 private fun TableRow(
     table: PvpTable,
@@ -438,14 +352,6 @@ private fun TableRow(
     }
 }
 
-/**
- * Whole minutes before a table lapses, floored at zero.
- *
- * Shown because a table **expires** — `PvpMatchRow.TABLE_MILLIS`, five minutes — and until now it
- * did so silently: a host sat watching the lobby, their row disappeared, and the Host button came
- * back with nothing said. Rounded up, so a table with thirty seconds left reads "1 min" rather than
- * "0 min" for its last minute of life.
- */
 internal fun minutesLeft(table: PvpTable, now: Long): Int {
     val left = (table.expiresAt - now).coerceAtLeast(0L)
     return ((left + MILLIS_PER_MINUTE - 1) / MILLIS_PER_MINUTE).toInt()
@@ -453,7 +359,6 @@ internal fun minutesLeft(table: PvpTable, now: Long): Int {
 
 private const val MILLIS_PER_MINUTE = 60_000L
 
-/** What a table is played for, in one line. */
 internal fun stakeLine(stake: PvpStake, strings: Strings): String {
     if (stake.isFree) return strings[StringKeys.PVP_TABLE_FREE]
 
@@ -464,7 +369,6 @@ internal fun stakeLine(stake: PvpStake, strings: Strings): String {
     return parts.joinToString(" $DOT_SEPARATOR ")
 }
 
-/** The caption for a trade rule. */
 internal fun tradeKey(trade: TradeRule): String = when (trade) {
     TradeRule.NONE -> StringKeys.PVP_TRADE_NONE
     TradeRule.ONE -> StringKeys.PVP_TRADE_ONE
@@ -473,7 +377,6 @@ internal fun tradeKey(trade: TradeRule): String = when (trade) {
     TradeRule.ALL -> StringKeys.PVP_TRADE_ALL
 }
 
-/** Inviting somebody by name, and the invitations standing either way. */
 @Composable
 private fun ColumnScope.ChallengesBody(
     profile: GameSave,
@@ -541,13 +444,6 @@ private fun ColumnScope.ChallengesBody(
     }
 }
 
-/**
- * One invitation.
- *
- * Both directions are listed, and they are not the same row: an invitation this player *sent* has
- * nothing to accept, only to withdraw. Showing an Accept on it would be offering them a match
- * against themselves.
- */
 @Composable
 private fun ChallengeRow(
     challenge: PvpChallenge,

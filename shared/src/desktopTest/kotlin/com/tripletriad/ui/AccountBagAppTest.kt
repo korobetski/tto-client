@@ -47,29 +47,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * Opening a pack on an account, through the **whole app**.
- *
- * ### Why this exists beside `AccountBagUiTest`
- *
- * That one composes `InventoryBody` with a gate built by hand, which proves the screen and the
- * client agree with the server. It cannot prove what the *rest of the app* does while that happens
- * — and on a real device the bag is one tab inside a navigation bar, inside a shell that recomposes
- * on every profile change and holds writers of its own. A player reported losing items to exactly
- * this flow on a build where both halves above were already green, so the untested seam is the
- * shell, and this is that seam.
- *
- * ### Every write the app makes is watched
- *
- * The stand-in records `PUT /me/save` as well as serving it. That is the assertion that matters:
- * the bag is server-owned, so a stale profile written by some other screen cannot damage it *on a
- * current server* — but it would on an older one, and knowing whether the app makes such a write at
- * all is the difference between "safe" and "safe by accident".
- */
 @OptIn(ExperimentalTestApi::class)
 class AccountBagAppTest {
 
-    /** The pack is opened, the rest of the bag survives, and the dealt cards arrive. */
     @Test
     fun openingAPackThroughTheAppKeepsTheRestOfTheBag() = runComposeUiTest {
         val sessions = signedInStore()
@@ -92,11 +72,6 @@ class AccountBagAppTest {
         assertTrue(bag.none { it is BoosterItem }, "the pack survived being opened: $bag")
     }
 
-    /**
-     * And leaving the reveal draws every row the bag holds.
-     *
-     * The player's own claim, as an assertion about the **screen** rather than the profile.
-     */
     @Test
     fun theBagIsWholeOnScreenAfterTheReveal() = runComposeUiTest {
         val sessions = signedInStore()
@@ -123,15 +98,6 @@ class AccountBagAppTest {
         )
     }
 
-    /**
-     * Nothing the app does afterwards writes the profile back.
-     *
-     * The one this was written to catch. A `PUT /me/save` carrying a profile from *before* the pack
-     * is the only shape that loses items permanently, and it is invisible to every other test here
-     * because the current server would refuse to apply the bag from it anyway. If the app ever
-     * starts making that write, this fails — on the build where it is still harmless, rather than
-     * on the deployment where it is not.
-     */
     @Test
     fun openingAPackWritesNoProfileBack() = runComposeUiTest {
         val sessions = signedInStore()
@@ -162,7 +128,6 @@ class AccountBagAppTest {
         openFromDashboard(DASHBOARD_INVENTORY_TEST_TAG, INVENTORY_LIST_TEST_TAG)
     }
 
-    /** A stored session, so Play is Continue and the form never appears. */
     private fun signedInStore(): InMemoryDocumentStore {
         val documents = InMemoryDocumentStore()
         runBlocking {
@@ -205,7 +170,6 @@ class AccountBagAppTest {
         )
     }
 
-    /** `AccountRoutes`, minus the socket — and a ledger of every profile written back. */
     private fun server() = MockEngine { request ->
         when (request.url.encodedPath) {
             "/server" -> respondJson(matchProtocolJson.encodeToString(serverInfo))
@@ -236,12 +200,10 @@ class AccountBagAppTest {
 
     private var stored: PlayerState = PlayerState(save = GameSave.new(createdAt = 0L))
 
-    /** Every body `PUT /me/save` received, so a test can assert there were none. */
     private val saves = mutableListOf<String>()
 
     private val home = ServerEntry(id = "home", label = "Home", baseUrl = "https://example.invalid")
 
-    /** Healthy and of exactly this version, so no update notice replaces anything. */
     private val serverInfo = ServerInfo(
         name = "test",
         version = CURRENT_VERSION,

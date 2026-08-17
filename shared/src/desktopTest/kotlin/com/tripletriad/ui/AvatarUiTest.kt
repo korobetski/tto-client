@@ -13,13 +13,6 @@ import com.tripletriad.storage.InMemoryDocumentStore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/**
- * Choosing the portrait, and the file that has to remember it.
- *
- * Driven through the real `App` and asserted against the decoded `.sav`, for the reason
- * `ProfileUiTest` gives: a screen that shows the new avatar without writing it looks identical
- * until the next launch.
- */
 @OptIn(ExperimentalTestApi::class)
 class AvatarUiTest {
 
@@ -35,7 +28,6 @@ class AvatarUiTest {
         assertEquals(OTHER_AVATAR, storedSave(documents).avatarId)
     }
 
-    /** And the picker draws every portrait the bundle ships, not a subset somebody typed twice. */
     @Test
     fun everyImportedPortraitIsOffered() = runComposeUiTest {
         val documents = seeded(GameSave(username = "kuplu"))
@@ -51,7 +43,6 @@ class AvatarUiTest {
         }
     }
 
-    /** Choosing twice keeps the last one — the choice is cosmetic and has no commit step. */
     @Test
     fun aSecondChoiceReplacesTheFirst() = runComposeUiTest {
         val documents = seeded(GameSave(username = "kuplu"))
@@ -80,7 +71,6 @@ class AvatarUiTest {
     }
 
     private companion object {
-        /** Any portrait that is not the one every new character starts with. */
         const val OTHER_AVATAR = "ffxiv_twi01001"
     }
 }

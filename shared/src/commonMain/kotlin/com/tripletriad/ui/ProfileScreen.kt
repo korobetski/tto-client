@@ -42,45 +42,17 @@ const val PROFILE_NAME_TEST_TAG: String = "profile-name"
 const val PROFILE_CREATE_TEST_TAG: String = "profile-create"
 const val PROFILE_EMPTY_TEST_TAG: String = "profile-empty"
 
-/** The line that says a local profile is this device's, and not arbitrated. */
 const val PROFILE_LOCAL_NOTE_TEST_TAG: String = "profile-local-note"
 const val STARTER_CONFIRM_TEST_TAG: String = "starter-confirm"
 
-/** `profile-row-<key>`, so a test can find a specific profile without knowing its position. */
 fun profileRowTestTag(key: String): String = "profile-row-$key"
 
-/** `profile-delete-<key>`. */
 fun profileDeleteTestTag(key: String): String = "profile-delete-$key"
 
-/** `starter-preview-<id>` — the box the chosen set opens with. */
 fun starterPreviewTestTag(starterId: String): String = "starter-preview-$starterId"
 
-/**
- * `starter-choice-ff14-beasts` — one tile per box on offer.
- *
- * Was `collection-ff14_`, keyed on the set a character was assigned to. `MODE` is gone: what a
- * player picks is the box they open, and it restricts nothing afterwards.
- */
 fun starterChoiceTestTag(starterId: String): String = "starter-choice-$starterId"
 
-/**
- * The profile list — the original's `LoadScreen`, which listed characters rather than files.
- *
- * Every row is a whole profile rather than a name: level, MGP and the win record are the three
- * things that tell a player which of two similarly-named characters is the one they meant, and the
- * profile is already fully decoded by the time the list exists ([SaveSlot]), so showing them costs
- * nothing.
- *
- * Deletion is **two taps and no dialog**: the row's × arms itself and the second tap does it. A
- * modal confirm was the original's answer (`STR_DELETE_SAVE_CONFIRMATION_MESSAGE`, which is why
- * that string is used as the armed label) but a dialog on a phone covers the list it is asking
- * about, and an armed control that disarms when you touch anything else is as recoverable and reads
- * faster.
- *
- * @param onDeleted what else a deleted profile takes with it, by key. Run **after** the profile is
- *   gone and never in its place: anything kept alongside a save is worth less than the save, and a
- *   failure to clean it up must not leave the profile itself half-deleted.
- */
 @Composable
 internal fun ProfileListScreen(
     session: ProfileSession,
@@ -236,19 +208,6 @@ private fun ProfileRow(
     }
 }
 
-/**
- * Creating a profile: a name, and the box it opens with.
- *
- * This used to choose a **collection**, and that was the one irreversible decision in the game:
- * `Save.DATAS.MODE` decided which card table the profile's ids indexed, which opponents it could
- * meet and which rules they could impose. The original never offered the choice at all —
- * `setToDefaultValues()` hard-codes `'ff14_'` — so its second table shipped unreachable.
- *
- * `MODE` is gone. What is chosen here is a starter pack, and it restricts nothing: a player who
- * opens the FFXIV box buys FFVIII boosters the same afternoon and owns both. Which cards may be
- * *played* is the match's format to decide. Document 19 predicted exactly this — "it becomes a real
- * choice when `MODE` goes" — and this is that.
- */
 @Composable
 internal fun ProfileCreateScreen(
     session: ProfileSession,
@@ -304,28 +263,6 @@ internal fun ProfileCreateScreen(
     }
 }
 
-/**
- * The collection, for a character the server made without asking — a freshly registered account.
- *
- * `POST /accounts` takes a name and a password and nothing else, so an account's character always
- * starts on `ff14_`. Shown once, immediately after registering, while the profile is still the
- * starter five cards and no match has been played: that is the only window in which the card ids
- * being replaced are certain to be the ones the server dealt a minute ago.
- *
- * ### Changing the collection is not a one-field edit
- *
- * It used to be, and the comment here used to say so: `copy(mode = …)` was harmless because "every
- * card id, deck and opponent it could invalidate is still the default one". That held while an id
- * was an index into whichever table `MODE` named. Ids are global now, so the same five numbers do
- * **not** follow the profile to the other set — they keep naming block 1, and a character that
- * chose FFVIII was left holding five FFXIV cards no screen would show it and no deck could field.
- * That is a registered account that cannot play at all, which is why the choice goes through
- * [StarterPack.startingIn] and not through `copy`.
- *
- * The choice is sent through [ProfileGate.persist] like any other profile change. Skipping it —
- * with Back — leaves `ff14_`, which is what the account already has, so there is nothing to
- * confirm and no way to end up without a collection.
- */
 @Composable
 internal fun StarterChoiceScreen(
     profile: GameSave,
@@ -369,7 +306,6 @@ internal fun StarterChoiceScreen(
     }
 }
 
-/** The starters on offer, shared by profile creation and the post-registration step. */
 @Composable
 private fun StarterChoiceRow(
     selected: Starter?,
@@ -401,23 +337,6 @@ private fun StarterChoiceRow(
     StarterPreview(starter = selected)
 }
 
-/**
- * What the chosen box actually contains: its name, and the five cards it opens with.
- *
- * ### Why the cards are drawn
- *
- * Because the choice is otherwise between two proper nouns. `FFXIV` and `FFVIII` say which game
- * the art comes from and nothing about what is being handed over, and this is the one
- * irreversible decision the game asks for — `MODE` cannot be changed after this screen. Document
- * 19 removes the irreversibility, not the choice; until it does, showing the hand is what makes
- * the choice informed.
- *
- * The **deck** and not all ten cards, as in the shop: it is the five the starter is about, it is
- * what the character will be holding in its first match, and ten thumbnails wrap on a phone.
- *
- * Absent rather than empty when no starter is authored for the set — a content bug
- * [StarterCatalog.violations] refuses, and one this screen should not invent a placeholder for.
- */
 @Composable
 private fun StarterPreview(starter: Starter?) {
     val strings = LocalStrings.current
@@ -481,5 +400,4 @@ private fun StarterChoice(
     }
 }
 
-/** The longest a character name may be. Long enough for any real name, short enough to lay out. */
 private const val MAX_NAME_LENGTH = 24

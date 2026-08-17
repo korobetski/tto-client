@@ -407,7 +407,10 @@ owner; the rationale is recorded in the workflow header.
 
 > **Corrections against the draft that used to live in this document.** The YAML
 > below was aspirational and would have failed on every run.
-> - it triggered on `main`; this repository's default branch is **`master`**
+> - it triggered on `main`; the default branch was **`master`** at the time. *(It is `main` today —
+>   the branch was renamed after this was written, and the committed workflow now keys on `main`.
+>   The correction below stands as a record of the draft's state in Phase 0, not of the repository's
+>   state now.)*
 > - it ran Gradle from the repository root, which at the time was not the Gradle root (the
 >   repository root has no `settings.gradle.kts`)
 > - it called `xcodebuild -project iosApp/iosApp.xcodeproj`; **no `.xcodeproj`

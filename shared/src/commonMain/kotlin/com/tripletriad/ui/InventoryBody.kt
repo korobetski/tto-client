@@ -43,46 +43,10 @@ const val INVENTORY_USE_TEST_TAG: String = "inventory-use"
 const val INVENTORY_SELL_TEST_TAG: String = "inventory-sell"
 const val INVENTORY_SELL_ALL_TEST_TAG: String = "inventory-sell-all"
 
-/** The line saying what using something did. Absent until something has been used. */
 const val INVENTORY_NOTE_TEST_TAG: String = "inventory-note"
 
-/** `inventory-row-<slug>` — see [itemSlug] for why the slug and not the bag position. */
 fun inventoryRowTestTag(item: Item): String = "inventory-row-${itemSlug(item)}"
 
-/**
- * The bag — the original's `InventoryScreen`.
- *
- * Tap an entry to select it, then Use, Sell or Discard it. That is the original's arrangement: a
- * list with a three-button footer whose buttons enable themselves from the selected item's own
- * flags (`listHandler`, `:104-117`). The flags are [Item.useable], [Item.sellable] and
- * [Item.dropable], and they are per-kind constants — see [Item].
- *
- * ### Four departures, each with a reason
- *
- * - **There is no Sort button.** `sortBtnHandler` re-ran `sortBag()`, which existed because the bag
- *   could get out of order and hold two rows of the same item — the AS3 pushed unconditionally from
- *   three different places. [Inventory.add] stacks and sorts on every insert, so the state the
- *   button repaired is unreachable and a control that can only ever do nothing is worse than none.
- * - **Discard asks twice.** `dropBtnHandler` opens on `// TODO : afficher une Alert` and then
- *   discards immediately; the bag is the only place in the game where a tap destroys something with
- *   no way back. The second tap is the alert the original meant to write, in the shape the
- *   character list already uses for deletion.
- * - **A card item draws its card, not an icon.** `CardItem.iconFor` names `card_r{n}_icon`, a plate
- *   whose whole content is the rarity — and the card itself says that and everything else besides.
- *   The other kinds keep their icons; see [itemIconId] for the one whose name does not match
- *   what is shipped.
- * - **Every write goes through [ProfileSession].** The original saved from `sellBtnHandler` and
- *   `dropBtnHandler` and **not** from `useBtnHandler` — opening a pack or drinking a potion was
- *   persisted only by the `sortBag()` call at the end of the handler, which saves as a side effect
- *   (`:200`). One path here, so a use cannot be the one operation that is lost.
- *
- * @param onUnlocked a card that has just entered the collection, to be shown off. Reported upwards
- *   rather than drawn here because [UnlockedCard] covers the **whole screen**, and this is one tab
- *   of one — a full-screen overlay placed inside a column is a very tall column entry.
- * @param onUse consumes the item and reports what it did. **Not `Inventory.use` called here**,
- *   which is what this used to be: on an account the roll belongs to the server, and this screen
- *   must not be the thing that decides whether it does. See [ProfileGate.useItem].
- */
 @Composable
 internal fun ColumnScope.InventoryBody(
     profile: GameSave,
@@ -214,34 +178,12 @@ internal fun ColumnScope.InventoryBody(
     }
 }
 
-/**
- * What a sale did, in one line — the same three answers a use gets, in the same three words.
- *
- * ### Why a sale needs one at all
- *
- * Because it can do nothing, and used to do nothing *invisibly*. `ProfileGate.perform` answered
- * `Unit`, so the bag could not tell a sale from a refusal and said nothing either way; on an
- * account a refusal also replaces the client's bag with the server's, so the row disappears and no
- * MGP arrives. That is the same shape the reported Use bug had, one button along.
- *
- * [IntentOutcome.APPLIED] is deliberately silent. The purse in the app bar and the row that just
- * lost a copy have already said it, and a snackbar repeating what two other things on screen show
- * is noise on the one action a player performs in runs of five.
- */
 private fun sellNote(strings: Strings, outcome: IntentOutcome): String? = when (outcome) {
     IntentOutcome.APPLIED -> null
     IntentOutcome.REFUSED -> strings[StringKeys.ITEM_REFUSED]
     IntentOutcome.UNREACHABLE -> strings[StringKeys.ACTION_FAILED]
 }
 
-/**
- * One bag entry: what it is, how many, and what it is worth.
- *
- * A card item draws its card beside the name — see [InventoryScreen] for why there are no icons.
- *
- * @param note what else the row has to say — today, that a card item is not the first copy. See
- *   [ownedNote], which is where the AS3's "already owned, Use disabled" rule used to live.
- */
 @Composable
 private fun ItemRow(
     item: Item,
@@ -307,28 +249,6 @@ private fun ItemRow(
     }
 }
 
-/**
- * Use, Sell and Sell all, each enabled by the selected item's own flags.
- *
- * ### Discard is gone, and nothing is stranded by its going
- *
- * The third button used to be Discard: destroy the item, be paid nothing. It was the only control
- * in the game where a tap destroyed something for no return, which is why it grew the two-tap arm.
- * Selling the stack is what a player actually wants from that corner of the screen — and the arm
- * goes with it, because being paid is not something to be protected from.
- *
- * Checked before removing it rather than assumed: every item type is **sellable or useable**, and
- * the two that cannot be sold — a pack and a potion — are exactly the two that are consumed by
- * using them. So no item can end up with no way out of the bag. `Item.dropable` is now read by
- * nothing on this screen; it stays on the model because the server's `/me/bag/discard` still
- * honours it for a client that asks.
- *
- * @param stack how many of the item the bag holds, which is what the third button says it will
- *   sell. Passed in rather than counted here so the label and the intent cannot disagree about it.
- * @param enabled false while an operation is out. All three at once, because all three act on the
- *   same item and each of them is a round trip on an account — see the `busy` flag in
- *   [InventoryBody] for what a second tap used to buy.
- */
 @Composable
 @Suppress("LongParameterList")
 private fun BagActions(
@@ -383,26 +303,6 @@ private fun BagActions(
     }
 }
 
-/**
- * What a use did, in one line.
- *
- * [ItemUse.PackOpened] no longer appears here: a pack is several cards and it gets
- * [PackRevealScreen] instead, which is a better answer to the same problem this note was solving —
- * a pack yields *bag entries*, so without something saying so the pack simply vanishes and cards
- * appear further up a scrolled list.
- *
- * ### [ItemEffect.NotUseable] is the one that had to stop being null
- *
- * It means the item was **not spent**: either it does nothing, or — the case that actually happens
- * — the bag the server holds does not contain it. On an account that is reachable through an
- * ordinary door: a match against a program is credited by the client, the server discards the bag
- * from that write, and until the transcript has been submitted and replayed the drop exists only on
- * screen. See [MatchSettlement], which is what closes that window, and this line, which is what the
- * player gets if it is ever open again.
- *
- * Returning null here meant the answer arrived, the row disappeared as the server's own bag
- * replaced the client's, and nothing on screen accounted for either.
- */
 private fun useNote(strings: Strings, effect: ItemEffect, cards: Map<Int, Card>): String? =
     when (effect) {
         is ItemEffect.PackOpened -> null
@@ -419,13 +319,6 @@ private fun useNote(strings: Strings, effect: ItemEffect, cards: Map<Int, Card>)
         is ItemEffect.NotUseable -> strings[StringKeys.ITEM_REFUSED]
     }
 
-/**
- * `Sells for 52  ·  already owned x2`, with whichever halves apply.
- *
- * The price comes from [Inventory.priceOf] and therefore from the card table, because a card's
- * worth is its rarity — `Item.value` used to answer `cardId * 4` and cannot any more. See
- * `CardValue`.
- */
 private fun itemFacts(
     strings: Strings,
     item: Item,

@@ -67,7 +67,7 @@ the Compose resource bundle, `cards.json` and the artwork all work.
 ./gradlew build
 ```
 
-Everything: all JVM and Android compilations, 275 test executions, coverage with its gate, Android
+Everything: all JVM and Android compilations, 1,252 test executions, coverage with its gate, Android
 lint, ktlint and detekt. Takes minutes cold. Needs `local.properties` — §3.
 
 ## 3. `local.properties`, for the Android module only

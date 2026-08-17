@@ -31,20 +31,8 @@ import kotlinx.coroutines.launch
 
 const val AVATAR_GRID_TEST_TAG: String = "avatar-grid"
 
-/** `avatar-choice-<id>` — the id is the file name, which is also what the save stores. */
 fun avatarChoiceTestTag(avatarId: String): String = "avatar-choice-$avatarId"
 
-/**
- * Picking the portrait — the original's `AvatarChooser`, as a screen of its own.
- *
- * `AVATAR_ID` has been in the save since Phase 2 and the 27 portraits have been in the bundle since
- * Phase 4, with nothing able to change which one a character wears. This is that missing half.
- *
- * A tap writes immediately and there is no confirm step: the choice is cosmetic, reversible by
- * tapping another, and the grid already shows the result. It goes through the caller's `onChoose`,
- * which is [ProfileGate.persist] — so the same screen serves a local `.sav` character and an
- * account one, and neither knows which it is.
- */
 @Composable
 internal fun AvatarScreen(
     profile: GameSave,
@@ -78,13 +66,6 @@ internal fun AvatarScreen(
     }
 }
 
-/**
- * One portrait in the grid, ringed when it is the one in force.
- *
- * The plate is drawn whether or not the image has arrived — [rememberAvatar] loads on demand — so
- * the grid does not reflow as 27 files decode. [FilterQuality.None] for the reason [Portraits]
- * gives: these are 128x128 sprites and smoothing them is a blur.
- */
 @Composable
 private fun AvatarTile(avatarId: String, isSelected: Boolean, onClick: () -> Unit) {
     val image = rememberAvatar(LocalUiArt.current, avatarId)

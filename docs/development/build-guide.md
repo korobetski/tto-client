@@ -39,8 +39,8 @@ practice:
 | Step | Task | Notes |
 |---|---|---|
 | Compile common + desktop + Android + (Apple) | `:shared:assemble` | Apple targets are **skipped** off a Mac, silently |
-| Common tests, twice | `:shared:desktopTest`, `:shared:testAndroidHostTest` | The same 110 tests per target — this is by design, see [testing-guide.md](./testing-guide.md) |
-| Compose UI tests | `:shared:desktopTest` | The 55 `desktopTest`-only tests run in the same task |
+| Common tests, twice | `:shared:desktopTest`, `:shared:testAndroidHostTest` | The same 396 tests per target — this is by design, see [testing-guide.md](./testing-guide.md) |
+| Compose UI tests | `:shared:desktopTest` | The 460 `desktopTest`-only tests run in the same task |
 | Coverage + its gate | `:shared:coverageVerify` | Wired into `check`, so a coverage collapse fails `build` |
 | Android lint | `:shared:lint`, `:androidApp:lint*` | Warnings only today |
 | APK | `:androidApp:assembleDebug`, `assembleRelease` | Release is **unsigned** — §6 |

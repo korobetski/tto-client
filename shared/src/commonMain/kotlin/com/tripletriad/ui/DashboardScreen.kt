@@ -39,7 +39,6 @@ const val DASHBOARD_PVP_TEST_TAG: String = "dashboard-pvp"
 const val DASHBOARD_STATS_TEST_TAG: String = "dashboard-stats"
 const val DASHBOARD_QUESTS_TEST_TAG: String = "dashboard-quests"
 
-/** `<card>-badge`, the trailing count. See [HomeCard]. */
 const val DASHBOARD_QUESTS_BADGE_TEST_TAG: String = "dashboard-quests-badge"
 const val DASHBOARD_DECKS_TEST_TAG: String = "dashboard-decks"
 const val DASHBOARD_INVENTORY_TEST_TAG: String = "dashboard-inventory"
@@ -47,51 +46,6 @@ const val DASHBOARD_HELP_TEST_TAG: String = "dashboard-help"
 const val DASHBOARD_LESSONS_TEST_TAG: String = "dashboard-lessons"
 const val DASHBOARD_LOGOUT_TEST_TAG: String = "dashboard-logout"
 
-/**
- * Everything a loaded character can do — the original's `dashboardScreen`.
- *
- * ### Why this screen exists at all
- *
- * It is the hub every other screen hangs off. `dashboardScreen.as:49-59` builds this exact stack,
- * and **every one of the screens it opens returns here**
- * (`dispatchEventWith('gotoScreen', false, 'DASHBOARD')` appears in all seven). So the original's
- * flow is Menu → Load → *Dashboard* → everything; putting Play on the main menu instead would give
- * the collection, the decks, the bag and the shop nowhere to hang.
- *
- * ### Why it is a grid of cards rather than a stack of nine buttons
- *
- * Nine identical full-width bars say that nine things are equally likely, and they are not: playing
- * a match is what the screen is for and the other seven are places to go between matches. A stack
- * also cannot show anything *about* a destination, so the character's own progress — the avatar,
- * the level, the bar across it — had nowhere to be but a second screen. Both are fixed by the same
- * change: Play spans the grid, the rest are cards with an icon, and the header is the profile.
- *
- * ### The one card that carries a number
- *
- * Daily quests. A destination that says `1 / 3` is a destination a player returns to; one that says
- * only its name is one they visit once and forget, which is the whole difference between a feature
- * that works and a feature that shipped. It is the only badge here because it is the only thing on
- * this screen that changes on its own and expires — the collection and the bag are where the player
- * left them.
- *
- * ### Multiplayer needs a server, and says so by being dim without one
- *
- * It is the only destination here that cannot work offline: the server is the referee of a PvP
- * match, not a relay — see `PvpClient`. So the card is enabled exactly when there is a connection
- * behind it, and a local profile gets the row greyed rather than a tap that leads nowhere.
- *
- * ### The entry that leads nowhere
- *
- * - **Backstage** is not here. The original appends it when `PROFILE_DATAS.ADMIN` is set
- *   (`:56-57`); nothing in the game ever sets `ADMIN`, and the screen behind it is a data-dump
- *   debug pane — see `BackstageScreen.as`. It is Tier 5 in the plan and unreachable in the
- *   original.
- *
- * @param onLogout leaves this character. `STR_LOGOUT` and `screenId: 'MENU_SCREEN'` in the
- *   original, which sent the player to the main menu and left `Game.PROFILE_DATAS` loaded — so its
- *   "logout" changed the screen and nothing else. Here it goes to the character list, which is
- *   where leaving one character actually leads: to choosing another. See `Screen.up`.
- */
 @Composable
 @Suppress("LongParameterList")
 internal fun DashboardScreen(
@@ -221,31 +175,6 @@ internal fun DashboardScreen(
     }
 }
 
-/**
- * One destination — the tile the main menu and the dashboard are both built out of.
- *
- * The click sound is played here and not by the caller, for the reason [WideButton] gives: a screen
- * added later is the one that forgets it.
- *
- * ### Why the height is a minimum and not a height
- *
- * It was `height(72.dp)`, which was fine while every label fitted on one line at 15 sp. At
- * Material's 16 sp `titleMedium` the longest of them does not: **Quêtes journalières** wrapped and
- * then clipped to `Quêtes journalièr…`, which is a card that cannot say what it leads to. A grid
- * row is as tall as its tallest item, so a minimum lets the one long label push its whole row down
- * and keeps the cards beside it exactly the same size. A fixed height can only truncate, and it
- * truncates in whichever language happens to be longest — which is not a decision, it is a bug that
- * only shows up in German and French.
- *
- * @param accented the one card that is the point of the screen. `primaryContainer` rather than
- *   `primary`: in Material, full `primary` is the fill of a *control* — a button, a switch, a chip
- *   — and a 72 dp tile spanning the grid is a surface. The container tone is the same amber an
- *   octave down, which still makes it the only warm thing on the screen without turning a third of
- *   the dashboard into a button.
- * @param badge a count the destination wants to report — `1 / 3`. Trailing and in the label style,
- *   not a Material `Badge`: that is a red dot for *unread*, and a quest tally is a progress
- *   reading, not an alert. Null on every card that has nothing to count, which is all but one.
- */
 @Composable
 internal fun HomeCard(
     label: String,
@@ -327,7 +256,6 @@ internal fun HomeCard(
     }
 }
 
-/** Leaving the character, which is not a destination and is not drawn as one. */
 @Composable
 private fun LogoutRow(label: String, onClick: () -> Unit) {
     val audio = LocalAudio.current
@@ -350,5 +278,4 @@ private fun LogoutRow(label: String, onClick: () -> Unit) {
     }
 }
 
-/** Two lines of `titleMedium` plus its padding, which is what the longest label needs. */
 private val CARD_MIN_HEIGHT = 72.dp

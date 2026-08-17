@@ -164,12 +164,14 @@ checking a real APK; delete them only when the plugin does its own wiring.
 
 ## Traps and stale documentation
 
-- **`docs/development/git-workflow.md` says the default branch is `master`. It is `main`** — that is
-  what `.github/workflows/build.yml` keys on.
-- **README's toolchain table is behind `gradle/libs.versions.toml`** (it says Kotlin 2.2.20 / Compose
-  1.9.3; the catalog has 2.4.10 / 1.11.1). The version catalog is the authority.
-- **Test counts in the docs disagree with each other** (165, 263, 432, 520 all appear). Run the suite
-  rather than quoting a number, and if you quote one, say which task produced it.
+- **Fixed 2026-08-17**: `docs/development/git-workflow.md` said the default branch was `master`,
+  README's toolchain table quoted Kotlin 2.2.20 / Compose 1.9.3, and test counts across the docs
+  disagreed with each other (165, 263, 432, 520, 523, 529 all appeared). All three are now
+  corrected and dated against a measured run — `gradle/libs.versions.toml` remains the authority
+  for versions, and `git branch -a` / a fresh `:shared:desktopTest` run remain the authority for
+  branch name and test counts respectively. If you quote a test count, say which task produced it
+  and when, the way the fixed docs now do — these numbers will drift again and are not worth
+  trusting on sight.
 - Coverage is JaCoCo, **not Kover** (Kover cannot be applied to this module at all), measured on the
   desktop target only, gated at 90% line / 75% branch as a floor rather than a target.
 - ktlint plugin is pinned at 12.1.2 and Material 3 at 1.9.0 (it versions separately from the rest of

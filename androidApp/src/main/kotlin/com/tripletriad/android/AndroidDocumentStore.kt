@@ -7,33 +7,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
-/**
- * One file per document in a subdirectory of the app's private storage.
- *
- * `filesDir/<subdirectory>/<key>.<extension>`. The original wrote `saves/` into AIR's
- * `applicationStorageDirectory` (`TTOFiles.STORAGE_DIR`), which is private per-application storage
- * — so unlike `UserSettings.json`, whose AS3 location was shared external storage and had to move,
- * **this one is already the right place**. `filesDir` is its direct equivalent: no permission,
- * survives updates, removed on uninstall.
- *
- * ### Why the root is a parameter and not a `Context`
- *
- * The only thing this class ever wanted from Android is `filesDir`, which is a `File`. Taking the
- * directory instead of the `Context` makes it a plain JVM class, so `AndroidDocumentStoreTest` runs
- * on the host with no Robolectric and no instrumented run — see there for why that mattered. The
- * `Context` overload below is what the app actually calls, so no call site changed.
- *
- * @param root where this app may write. `context.filesDir` in the app, a temporary directory in a
- *   test.
- * @param subdirectory the collection this store holds, e.g. `saves`.
- * @param extension appended to every key on disk. `sav` keeps the original's file naming.
- */
 class AndroidDocumentStore(
     root: File,
     subdirectory: String,
     private val extension: String = "sav",
 ) : DocumentStore {
-    /** What the app uses. `filesDir` is private per-application storage — see above. */
     constructor(
         context: Context,
         subdirectory: String,

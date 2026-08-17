@@ -22,34 +22,6 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 
-/**
- * Submits a transcript to the server over HTTP.
- *
- * The whole client half of match verification, and it is deliberately this small: the transcript
- * is built by `:core` and judged by `:core` on the other end, so there is nothing here but a POST,
- * a version header, a bearer token and the careful translation of everything that can go wrong into
- * [SubmissionResult].
- *
- * ### It submits for credit, not for an opinion
- *
- * The endpoint is `/matches/submit`, which is authenticated and which *writes* — the server credits
- * the match against the profile it holds and sends the profile back. `/matches/verify` still exists
- * and is still useful (a client can check its own transcript before claiming anything), but it is
- * not what a finished match goes to: an answer that changed nothing would leave the client to
- * credit itself, which is the arrangement accounts exist to end.
- *
- * @property client the transport. Injected rather than built here so the engine stays a
- *   per-platform choice and so tests can pass Ktor's `MockEngine` — see [matchSubmitterHttpClient]
- *   for the configuration a real one needs.
- * @property baseUrl where the server is, without a trailing slash — `http://127.0.0.1:8080` from an
- *   Android emulator, `http://127.0.0.1:8080` from the desktop. A function for the same reason as
- *   [token]: the player can switch servers between a queue being written and it being drained.
- * @property token the current session's bearer token, read at submission time rather than held.
- *   A function because a queue drained on launch may be drained again after a sign-in, and a
- *   submitter constructed with a token would be submitting with the one that was current when the
- *   screen was built. Returns null when nobody is signed in, which is [SubmissionResult]'s
- *   `Unauthenticated` without a round trip to discover it.
- */
 class KtorMatchSubmitter(
     private val client: HttpClient,
     private val baseUrl: suspend () -> String,
@@ -108,14 +80,6 @@ class KtorMatchSubmitter(
         else -> SubmissionResult.Failed(status.value, bodyAsText().take(DETAIL_LIMIT))
     }
 
-    /**
-     * Reads the receipt out of a 200.
-     *
-     * The decode is guarded because a 200 whose body will not parse is not a receipt — it is a
-     * proxy's error page, a captive portal, or a server new enough to answer in a shape this build
-     * does not know. Letting the exception out would crash a caller that has already handled every
-     * *documented* outcome.
-     */
     // Same reasoning as `submit`: a 200 that will not decode is a captive portal or a server this
     // build does not understand, and both are results rather than crashes.
     @Suppress("TooGenericExceptionCaught")
@@ -132,31 +96,15 @@ class KtorMatchSubmitter(
         const val HTTP_UNAUTHORIZED = 401
         const val HTTP_UPGRADE_REQUIRED = 426
 
-        /** Enough of a server error to identify it in a log, not enough to be a payload. */
         const val DETAIL_LIMIT = 500
     }
 }
 
-/**
- * The JSON configuration both ends must agree on.
- *
- * `ignoreUnknownKeys` is the one that matters, and it is what makes a **minor** server version
- * survivable: a server that adds a field to a verdict must not break every client that has not
- * shipped yet. The major gate handles the changes that genuinely cannot be tolerated; this handles
- * the ones that can, and without it the distinction between major and minor would buy nothing.
- */
 val matchProtocolJson: Json = Json {
     ignoreUnknownKeys = true
     explicitNulls = false
 }
 
-/**
- * Configures an [HttpClient] for talking to the server.
- *
- * A function rather than a constructed client, because the engine is chosen per platform and this
- * module has no business picking one — `:androidApp` has OkHttp, `:desktopApp` has CIO. Call it
- * with the engine the host supplies.
- */
 fun matchSubmitterHttpClient(engineFactory: HttpClientEngineFactory<*>): HttpClient =
     HttpClient(engineFactory) {
         // Not `expectSuccess = true`: a non-2xx here is an answer to translate, not an exception

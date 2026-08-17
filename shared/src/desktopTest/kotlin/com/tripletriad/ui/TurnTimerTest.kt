@@ -25,35 +25,16 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
-/**
- * The turn limit — `playerPanel`'s `ProgressBar`, and what happens when it runs out.
- *
- * ### This is a game mechanic, not decoration
- *
- * `playerPanel._timer = 30` and `BaseMatchScreen.as:377-387` arms it on whichever side is to move.
- * `:93` listens for `TIME_UP_EVENT` on the blue player and `timeUp_play` calls `autoPlay()` — which
- * plays a **random** remaining card on a **random** free cell. So letting the clock run out does
- * not pass the turn; it plays a move you did not choose.
- *
- * ### Driven through `MatchScreen` rather than `App`
- *
- * The limit is a parameter of the match, and reaching its expiry through the whole app would mean
- * either waiting thirty seconds or threading a test-only argument down four screens. Composing the
- * screen directly is the smaller lie: everything it needs is already an argument, which is what
- * `MatchScreen`'s own KDoc says that design is for.
- */
 @OptIn(ExperimentalTestApi::class)
 class TurnTimerTest {
     private val cards = runBlocking { loadCardCatalog() }
 
-    /** The shipped formats, as the app loads them, narrowed to the FFXIV rule pool. */
     private val formats = runBlocking { loadFormatCatalog() }
     private val format = formats[FF14_FORMAT]!!
 
     private val npcs = runBlocking { loadNpcCatalog() }
     private val english = runBlocking { loadStrings(AppLocale.EN_US) }
 
-    /** `tt-master` again: All Open and nothing else, so no rule narrows what may be played. */
     private val opponent = npcs
         .available(FF14_FORMAT, FixedClock.DEFAULT_HOUR, ANY_LEVEL)
         .first { it.iconId == "tt-master" }
@@ -82,13 +63,6 @@ class TurnTimerTest {
         awaitPlayer()
     }
 
-    /**
-     * An unattended turn plays itself.
-     *
-     * The card that lands is not asserted, because [autoPlay] draws it at random — that randomness
-     * *is* the penalty (`BaseMatchScreen.as:427-428`), and pinning which card came out would be
-     * pinning the generator rather than the rule.
-     */
     @Test
     fun aTurnThatRunsOutPlaysACardByItself() = runComposeUiTest {
         openMatch(limit = SHORT)
@@ -99,17 +73,6 @@ class TurnTimerTest {
         assertEquals(before - 1, handSize(CardColor.BLUE), "one card, not the whole hand")
     }
 
-    /**
-     * The bar is up while the player may move and gone while they may not.
-     *
-     * `razTimer()` on the side that is *not* to play is what the absence stands for. Red's own bar
-     * is not drawn at all — see [TurnTimerBar] for why the original's second one is decoration.
-     *
-     * The track is up from the first frame; the **fill** waits for the pre-match announcements, so
-     * this waits for it. That gap is the mechanic rather than a delay to work around: the original
-     * arms the clock in `nextTurn`, which runs after the whole cascade, so the player's turn does
-     * not start counting down behind the Start banner.
-     */
     @Test
     fun theBarIsUpOnlyOnThePlayersTurn() = runComposeUiTest {
         openMatch(limit = 1.seconds)
@@ -132,7 +95,6 @@ class TurnTimerTest {
         onNodeWithTag(TURN_TIMER_TEST_TAG).assertExists("the track stays, so the bar does not jump")
     }
 
-    /** A generous limit is not reached by a player who is playing, so nothing is auto-played. */
     @Test
     fun aPlayerWhoMovesInTimeKeepsTheirChoice() = runComposeUiTest {
         openMatch(limit = 1.seconds)
@@ -143,13 +105,6 @@ class TurnTimerTest {
         assertTrue(played in 0 until com.tripletriad.model.Board.SIZE)
     }
 
-    /**
-     * The clock stops when the match does.
-     *
-     * Otherwise the last expiry would fire against a finished board and try to play a tenth card —
-     * which `canPlay` would refuse, but only after the effect had counted a whole turn down against
-     * a result panel.
-     */
     @Test
     fun aFinishedMatchHasNoClockRunning() = runComposeUiTest {
         openMatch(limit = 1.seconds)
@@ -161,7 +116,6 @@ class TurnTimerTest {
     }
 
     private companion object {
-        /** Long enough to compose a frame, short enough that a test does not wait for it. */
         val SHORT = 300.milliseconds
     }
 }

@@ -97,6 +97,7 @@ internal class PveStubServer(
     save: GameSave = freshSave(block = block),
     private val seed: Int = STUB_SEED,
     private val at: Long = FixedClock.DEFAULT_MILLIS,
+    private val reporter: MatchReporter = SilentMatchReporter,
 ) {
     val cards = runBlocking { loadCardCatalog() }
     private val npcs = runBlocking { loadNpcCatalog() }
@@ -139,7 +140,7 @@ internal class PveStubServer(
             session = SessionStore(sessions),
             tickets = TicketStore(InMemoryDocumentStore()),
             probe = ServerProbe(http) { 0L },
-            reporter = SilentReporter,
+            reporter = reporter,
         )
     }
 
@@ -422,13 +423,6 @@ internal class PveStubServer(
         headers = headersOf("Content-Type", ContentType.Application.Json.toString()),
     )
 
-    /** Nothing is queued any more; a refereed match reports itself by being played. */
-    private object SilentReporter : MatchReporter {
-        override suspend fun report(profileKey: String, transcript: MatchTranscript) = Unit
-        override suspend fun drain(profileKey: String): PlayerState? = null
-        override suspend fun forget(profileKey: String) = Unit
-    }
-
     companion object {
         const val NAME: String = "stub"
 
@@ -447,4 +441,11 @@ internal class PveStubServer(
             minimumClient = CURRENT_VERSION,
         )
     }
+}
+
+/** Nothing is queued any more; a refereed match reports itself by being played. */
+internal object SilentMatchReporter : MatchReporter {
+    override suspend fun report(profileKey: String, transcript: MatchTranscript) = Unit
+    override suspend fun drain(profileKey: String): PlayerState? = null
+    override suspend fun forget(profileKey: String) = Unit
 }

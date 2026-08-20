@@ -77,30 +77,33 @@ class AccountSettlementTest {
         )
     }
 
+    /**
+     * The queue is drained at launch and again on the way off a board, never from one.
+     *
+     * Driven against [PveStubServer] rather than this file's own engine, because reaching a board
+     * now means reaching a referee: a match is a row on the server, and an `App` answering no
+     * `/pve/matches` cannot open one. The claim is unchanged — `MatchSettlement` keys on whether a
+     * board is up, so it fires at launch and on each exit and not in between.
+     */
     @Test
     fun leavingABoardDrainsWhatItLeftBehind() = runComposeUiTest {
-        val sessions = signedInStore()
         val reporter = CreditingReporter { null }
+        val server = PveStubServer(reporter = reporter)
 
-        setContent {
-            App(store = settingsFor(AppLocale.EN_US), server = connection(sessions, reporter))
-        }
-        awaitMenu()
-        onNodeWithTag(MENU_PLAY_TEST_TAG).performClick()
-        awaitDashboard()
+        setContent { App(store = settingsFor(AppLocale.EN_US), server = server.connection) }
+        openDashboard()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { reporter.drained.size == 1 }
 
         openOpponents()
-        scrollToOpponent(TEST_OPPONENT)
-        onNodeWithTag(opponentRowTestTag(TEST_OPPONENT)).performClick()
-        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(NO_SEEDS_TEST_TAG) }
+        challenge()
         assertEquals(1, reporter.drained.size, "a board is not the place to drain from")
 
-        onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
+        onNodeWithTag(MATCH_EXIT_TEST_TAG).performClick()
         awaitOpponents()
 
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { reporter.drained.size == 2 }
-        assertEquals(listOf(accountKey, accountKey), reporter.drained)
+        assertEquals(2, reporter.drained.size)
+        assertTrue(reporter.drained.all { it.contains(PveStubServer.NAME) }, reporter.drained.toString())
     }
 
     // ---- Harness -----------------------------------------------------------

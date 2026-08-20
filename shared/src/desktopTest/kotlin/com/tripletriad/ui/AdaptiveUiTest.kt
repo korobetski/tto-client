@@ -11,6 +11,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import com.tripletriad.i18n.AppLocale
+import com.tripletriad.net.ServerConnection
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.HAND_SIZE
 import kotlin.test.Test
@@ -19,6 +20,8 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
 class AdaptiveUiTest {
+    private val stub = PveStubServer()
+
     @Test
     fun aPhoneWidthWindowGetsTheBottomBar() = runComposeUiTest {
         setContent { Sized(PHONE) }
@@ -67,7 +70,7 @@ class AdaptiveUiTest {
 
     @Test
     fun theMatchGetsASidePanelOnlyOnAWideWindow() = runComposeUiTest {
-        setContent { Sized(DESKTOP) }
+        setContent { Sized(DESKTOP, stub.connection) }
         startMatch()
 
         assertTrue(exists(MATCH_SIDE_TEST_TAG), "a wide window should put a panel beside the board")
@@ -76,7 +79,7 @@ class AdaptiveUiTest {
 
     @Test
     fun theMatchOnAPhoneKeepsTheWholeWidthForTheBoard() = runComposeUiTest {
-        setContent { Sized(PHONE) }
+        setContent { Sized(PHONE, stub.connection) }
         startMatch()
 
         assertFalse(exists(MATCH_SIDE_TEST_TAG), "a phone has no width to give a panel")
@@ -85,7 +88,7 @@ class AdaptiveUiTest {
 
     @Test
     fun theMoveLogRecordsWhoeverPlayed() = runComposeUiTest {
-        setContent { Sized(DESKTOP) }
+        setContent { Sized(DESKTOP, stub.connection) }
         startMatch()
 
         playOneCard()
@@ -107,8 +110,8 @@ class AdaptiveUiTest {
 }
 
 @androidx.compose.runtime.Composable
-private fun Sized(width: androidx.compose.ui.unit.Dp) {
+private fun Sized(width: androidx.compose.ui.unit.Dp, server: ServerConnection? = null) {
     Box(modifier = Modifier.width(width).fillMaxHeight()) {
-        App(store = settingsFor(AppLocale.EN_US))
+        App(store = settingsFor(AppLocale.EN_US), server = server)
     }
 }

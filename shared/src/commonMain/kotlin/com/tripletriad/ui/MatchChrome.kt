@@ -44,6 +44,7 @@ import com.tripletriad.model.GameRules
 import com.tripletriad.model.Item
 import com.tripletriad.model.MatchResult
 import com.tripletriad.model.MatchState
+import com.tripletriad.model.MatchView
 import com.tripletriad.model.Npc
 import com.tripletriad.model.PlayResult
 import com.tripletriad.ui.theme.LocalTtoColors
@@ -164,6 +165,19 @@ internal fun rememberMoveLog(key: Any, state: MatchState): List<PlayResult> {
         val play = state.lastPlay ?: return@LaunchedEffect
         // Identity, not equality: two placements can produce equal results — the same card cannot
         // be played twice, but a regrouped sudden-death hand can.
+        if (log.lastOrNull() !== play) log += play
+    }
+    return log
+}
+
+/** The same log for a refereed match, where the placements arrive as views rather than states. */
+@Composable
+internal fun rememberViewMoveLog(key: Any, view: MatchView): List<PlayResult> {
+    val log = remember(key) { mutableStateListOf<PlayResult>() }
+    LaunchedEffect(key, view.placement) {
+        val play = view.lastPlay ?: return@LaunchedEffect
+        // Identity, not equality — see [rememberMoveLog]. It matters more here: a refereed view is
+        // rebuilt from the wire on every response, so two equal results are routine.
         if (log.lastOrNull() !== play) log += play
     }
     return log

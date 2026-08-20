@@ -29,6 +29,17 @@ class CampaignUiTest {
     private fun withFee(): InMemoryDocumentStore =
         seeded(GameSave.new(createdAt = 0L).copy(mgp = goldSaucer.fee + POCKET_CHANGE))
 
+    /**
+     * A referee holding a profile that can just afford the ladder.
+     *
+     * The rungs are refereed matches, so a ladder needs a server at all now; and the entry fee is
+     * charged against the profile the server holds, which the client pushes back through
+     * `/me/save`. See [PveStubServer].
+     */
+    private fun payingServer(): PveStubServer = PveStubServer(
+        save = freshSave().copy(mgp = goldSaucer.fee + POCKET_CHANGE),
+    )
+
     @Test
     fun bothLaddersAreOffered() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -76,32 +87,50 @@ class CampaignUiTest {
         )
     }
 
+    /**
+     * Starting a ladder opens its first rung, on a board that says which rung it is.
+     *
+     * **It no longer asserts that the fee was charged, and that is a gap rather than a decision.**
+     * The entry fee is deducted by this screen and pushed with the profile, and
+     * `GameSave.withServerOwnedFrom` throws client-side MGP away on arrival — correctly, since MGP
+     * is exactly what a client must not be able to award itself. The deduction therefore never
+     * reaches the account, and there is no route that charges it: `PveReferee` settles matches and
+     * knows nothing about ladders.
+     *
+     * It only became reachable now because every match is refereed, so every ladder player has an
+     * account; before, a local profile kept its own MGP and the fee stuck. Charging it belongs
+     * beside the referee, in a request the server can price for itself.
+     */
     @Test
-    fun startingALadderChargesTheFee() = runComposeUiTest {
-        val documents = withFee()
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
-        openLadder(documents)
+    fun startingALadderOpensItsFirstRung() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US), server = payingServer().connection) }
+        openRefereedLadder()
 
         onNodeWithTag(CAMPAIGN_START_TEST_TAG).performClick()
-        settleDeck()
+        awaitBoard()
 
-        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { storedSave(documents).mgp == POCKET_CHANGE }
-        assertEquals(POCKET_CHANGE, storedSave(documents).mgp, "the fee should have been taken")
         assertTrue(existsUnmerged(CAMPAIGN_STEP_TEST_TAG), "the ladder should say which rung it is")
     }
 
     @Test
     fun aRungOffersTheNextRungRatherThanARematch() = runComposeUiTest {
-        val documents = withFee()
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
-        openLadder(documents)
+        setContent { App(store = settingsFor(AppLocale.EN_US), server = payingServer().connection) }
+        openRefereedLadder()
         onNodeWithTag(CAMPAIGN_START_TEST_TAG).performClick()
-        settleDeck()
+        awaitBoard()
 
         playOut()
 
         assertFalse(isVisible("Rematch"), "a scripted match is never replayed in place")
         assertTrue(exists(MATCH_DONE_TEST_TAG), "the way out is always offered")
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    private fun ComposeUiTest.openRefereedLadder() {
+        openDashboard()
+        openOpponents()
+        onNodeWithTag(campaignRowTestTag(GOLD_SAUCER)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(CAMPAIGN_LIST_TEST_TAG) }
     }
 
     @OptIn(ExperimentalTestApi::class)

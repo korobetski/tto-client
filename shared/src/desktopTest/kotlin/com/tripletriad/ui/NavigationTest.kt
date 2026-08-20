@@ -18,6 +18,8 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
 class NavigationTest {
+    private val stub = PveStubServer()
+
     @Test
     fun theSplashHoldsWhileStartupIsUnfinishedAndNamesItsPhase() = runComposeUiTest {
         setContent { App(store = NeverAnswers) }
@@ -64,7 +66,7 @@ class NavigationTest {
 
     @Test
     fun playReachesABoardAndTheChevronComesBack() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         startMatch()
 
         onNodeWithTag(MATCH_EXIT_TEST_TAG).performClick()
@@ -72,8 +74,11 @@ class NavigationTest {
 
         backToDashboard()
 
+        // The account screen, not the local profile list: with a server signed in, "choose a
+        // character" is answered by the account, and that is where stepping back from the
+        // dashboard lands.
         onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
-        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_LIST_TEST_TAG) }
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(ACCOUNT_SCREEN_TEST_TAG) }
 
         onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
         awaitMenu()
@@ -135,7 +140,7 @@ class NavigationTest {
 
     @Test
     fun theNavigationBarIsAbsentOnTheMenuAndDuringAMatch() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         awaitMenu()
         assertFalse(exists(navTestTag("home")), "the menu has no character and so no bar")
 

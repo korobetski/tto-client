@@ -40,7 +40,6 @@ import com.tripletriad.data.CardCatalog
 import com.tripletriad.data.Format
 import com.tripletriad.data.MatchPlan
 import com.tripletriad.data.MatchReward
-import com.tripletriad.data.MatchRewards
 import com.tripletriad.data.PveMatches
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
@@ -54,10 +53,8 @@ import com.tripletriad.model.MatchOutcome
 import com.tripletriad.model.MatchPreparation
 import com.tripletriad.model.MatchResult
 import com.tripletriad.model.MatchState
+import com.tripletriad.model.MatchView
 import com.tripletriad.model.Npc
-import com.tripletriad.protocol.MatchTranscript
-import com.tripletriad.protocol.TranscriptMove
-import com.tripletriad.time.Clock
 import com.tripletriad.ui.theme.LocalTtoColors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -103,26 +100,68 @@ fun tileModifierTestTag(position: Int): String = "tile-modifier-$position"
 fun handCardTestTag(owner: CardColor, slot: Int): String =
     "hand-${owner.name.lowercase()}-$slot"
 
-// `CyclomaticComplexMethod` is suppressed for one branch, added deliberately and worth the count:
-// the guard that refuses to draw a board when there is no seed to play it on. The alternative was
-// splitting the body into a second composable behind a fifteen-parameter call, which would move the
-// complexity rather than remove it and put a seam through the middle of the largest screen here.
-// Everything else in this function was already inside the limit and should stay that way.
+/**
+ * Whose turn it is, as a test tag — or none, while nobody may move.
+ *
+ * "It is your turn" is not quite [MatchView.isMyTurn], and the gap is a second long. In a refereed
+ * match the answer to a placement carries the opponent's reply as well, and the screen walks the two
+ * of them one at a time (`PveExchange`): from the moment the player's card lands until the reply has
+ * been shown, the order says blue and the board is still telling a story. The hand greys out for
+ * exactly that stretch — `HandArea` narrows on [MatchView.playableHandIndices], which the referee
+ * leaves empty until it is really the player's move again.
+ *
+ * So the tag follows the hand rather than the order. Only for the side holding the view: the other
+ * side's playable slots are never computed, and demanding them would mean the opponent never has a
+ * turn at all.
+ */
+private fun MatchView.turnTag(): String? = currentPlayer
+    ?.takeIf { it != side || playableHandIndices.isNotEmpty() }
+    ?.let(::turnTestTag)
+
+/**
+ * A **local** match, resolved in this process — and the tutorial is now all of it.
+ *
+ * ### Why this survived the move to a referee, and nothing else did
+ *
+ * Every other match is played on the server: it deals, tosses, moves the opponent, scores and pays.
+ * That was not a preference. A transcript let the server *replay* a solo match, which meant this
+ * process had to be running the same AI from the same seed — so it held the opponent's five cards
+ * and every move they were going to make, from the first placement, in a match that really did
+ * happen as claimed. See `PveMatchScreen`.
+ *
+ * A lesson is exempt because a lesson **settles nothing**. `MatchScript.counted` is false for every
+ * one of them: no MGP, no XP, no drops, no started-match counter, nothing written to a profile.
+ * There is nothing here to cheat *at*, and asking a referee to arbitrate a composed position whose
+ * whole point is that it cannot be lost would be a round trip per placement to reach a foregone
+ * conclusion.
+ *
+ * It is also the only place a script's *other* powers are still honoured — a fixed deal, a forced
+ * coin flip, an opponent told to play its worst move (`MatchAiOptions.TUTOR`). Those are exactly
+ * the things a client must not be able to ask a referee for, which is why `PveMatchScreen` takes a
+ * script for its lines and ignores the rest of it.
+ *
+ * ### It renders from a view like everything else
+ *
+ * The state is here, so the view is derived here — `MatchView.of`, with the visibility the setup
+ * produced. That keeps one rendering stack for lessons, refereed matches and player-versus-player
+ * alike, and it is what makes an Open rule mean the same thing on all three.
+ */
 @Composable
-@Suppress("LongParameterList", "CyclomaticComplexMethod")
+@Suppress("LongParameterList")
 internal fun MatchScreen(
     catalog: CardCatalog,
     profile: GameSave,
     npc: Npc,
     format: Format,
-    clock: Clock,
-    nextSeed: () -> Int?,
-    onPersist: suspend (GameSave) -> Unit,
+    script: MatchScript,
     onExit: () -> Unit,
-    onTranscript: suspend (MatchTranscript) -> Unit = {},
-    turnLimit: Duration = DEFAULT_TURN_LIMIT,
-    script: MatchScript? = null,
     scriptExit: ScriptExit? = null,
+    // Invented rather than drawn from the server's stock of tickets. A ticket exists to stop a
+    // client choosing its own deal; a lesson's deal is *written down in the script*, so there is
+    // nothing left for one to protect and spending it would burn an allowance on a match that can
+    // never be credited.
+    seed: Int = LESSON_SEED,
+    turnLimit: Duration = DEFAULT_TURN_LIMIT,
     onResult: (MatchResult) -> Unit = {},
 ) {
     val audio = LocalAudio.current
@@ -130,106 +169,32 @@ internal fun MatchScreen(
     // For the chain's audio, which has to outlive the placement that started it — see
     // [cascadeSounds].
     val scope = rememberCoroutineScope()
-    var matchIndex by remember(npc.iconId) { mutableStateOf(0) }
 
-    // The seed, kept rather than thrown away, because it is the *whole* of a transcript's
-    // randomness: from it alone the server re-derives the roulette, the deal, the coin flip and
-    // every one of the opponent's moves.
-    //
-    // **Drawn rather than invented.** On an account it is one the server issued and will accept
-    // once — a client that chose its own would be choosing its own deal, which is what
-    // `RejectionReason.UNKNOWN_SEED` exists to stop. Null means an account has played its offline
-    // stock down and has to reconnect; the board is not drawn, because a match played on a seed
-    // this server will refuse is a match played for nothing.
-    //
-    // A **scripted** match invents one instead, and must: `reportTranscript` never submits one —
-    // the script forces the coin flip, fixes the deal and changes the opponent's strategy, none of
-    // which a seed carries — so a ticket spent on the tutorial would be a ticket spent on a match
-    // that can never be credited.
-    val seed = remember(matchIndex, npc.iconId) { seedFor(script, clock, nextSeed) }
-    if (seed == null) {
-        NoSeedNotice(profile, onExit)
-        return
-    }
-
-    // The match generator. The deal, the coin flip and every AI tie-break draw from it, in exactly
-    // the order `TranscriptVerifier` replays them.
-    val random = remember(matchIndex, npc.iconId) { Random(seed) }
+    val random = remember(seed, npc.iconId) { Random(seed) }
 
     /*
-     * The generator for everything that must NOT touch the one above.
+     * The generator for everything that must not touch the one above.
      *
-     * `TranscriptVerifier` states the invariant: **on the player's own turn, nothing may draw from
-     * the match generator.** The server replays a match by re-running the same stream, so any draw
-     * the server does not know about shifts every later value and the transcript stops replaying —
-     * which surfaces as a rejection, and a rejection is indistinguishable from cheating.
-     *
-     * Two callers here would otherwise break it, and neither is obvious:
-     *
-     *   - the deck selector's Random button, which draws *before* the deal;
-     *   - the turn timer's auto-play, which draws twice on the player's turn.
-     *
-     * Derived from the same seed rather than freshly created, so a test with a `FixedClock` stays
-     * fully deterministic. (The Chaos rule already had its own generator and needs nothing here.)
+     * The reason has changed; the separation has not. It used to be load-bearing — a draw on the
+     * player's own turn shifted every later value and stopped the transcript replaying, which
+     * surfaced as a rejection indistinguishable from cheating. Nothing replays a match on this side
+     * of the wire any more. What is left is worth keeping anyway: a lesson that dealt a different
+     * board because the player let one turn run out would be a lesson nobody could write.
      */
-    val sideRandom = remember(matchIndex, npc.iconId) { Random(seed.inv()) }
+    val sideRandom = remember(seed, npc.iconId) { Random(seed.inv()) }
 
-    // Resolved before the deck is asked for, because the answer decides whether it is asked at all:
-    // under `RULE_RANDOM` the hand comes from the whole collection and the selector never opens
-    // (`BaseMatchScreen.as:120-135`). Drawn once and passed into `assemble`, which would otherwise
-    // roll the roulette a second time and play under rules the player was never shown.
-    val rules = remember(matchIndex, npc.iconId) {
+    val rules = remember(seed, npc.iconId) {
         script.rulesOr { PveMatches.rulesFor(npc, format, random) }
     }
 
-    /*
-     * The profile this match is played by, captured **once** when the match screen opens.
-     * Not `profile` read inside the effects below: that parameter tracks `session.active`, which
-     * changes the moment `onPersist` returns, so the crediting effect would see a profile that had
-     * already had `startingMatch` applied and apply it a second time — one match counted as two
-     * started. Capturing it here is also what makes the two effects agree on which profile they are
-     * amending.
-     *
-     * A lesson is not counted at all and this is where that begins — see [MatchScript.counted],
-     * and [MatchScript.creditFor] for the other end of it.
-     */
-    val playing = remember(matchIndex, npc.iconId) { script.startingMatch(profile) }
-
-    // `PVEScreen.as:244` — the match is counted as started when it is launched, not when it ends,
-    // which is what makes `STATS.FORFEITS` (`STARTED_MATCHES - ENDED_MATCHES`) mean anything. That
-    // is *before* the deck selector in the original too, since the selector is inside the match
-    // screen: walking out of it is the forfeit this counter was designed for.
-    //
-    // Written here, unlike the original: the AS3 increments the counter on a global and only saves
-    // in `endGame`, so a match abandoned before the last placement loses the increment and forfeits
-    // can never be anything but zero. Persisting at the start is what the field was designed for.
-    LaunchedEffect(matchIndex, npc.iconId) {
-        onPersist(playing)
+    // The script's hand, always: every lesson names one, and a puzzle carries the same list inside
+    // its opening so the two cannot disagree about what the player is holding. The fallback is for
+    // a script that named none, and lands on the profile's own deck rather than on nothing.
+    val deck = remember(seed, npc.iconId, rules) {
+        script.deckFor(rules, profile) ?: PveMatches.playerDeck(profile)
     }
 
-    // Null until the player has chosen, which under Random — or under a script, which deals a hand
-    // its lines are written around — they never are asked to.
-    var deck by remember(matchIndex, npc.iconId) {
-        mutableStateOf(script.deckFor(rules, profile))
-    }
-    val chosen = deck
-    if (chosen == null) {
-        DeckSelectorScreen(
-            profile = profile,
-            catalog = catalog,
-            npc = npc,
-            rules = rules,
-            format = format,
-            onChoose = { deck = it },
-            onBack = onExit,
-            // `sideRandom`, not the match generator: the Random button draws before the deal, so
-            // using it here would shift every value the server expects. See `sideRandom`.
-            random = sideRandom,
-        )
-        return
-    }
-
-    val match = remember(matchIndex, npc.iconId, chosen) {
+    val match = remember(seed, npc.iconId, deck) {
         script.matchOr(npc, rules) {
             PveMatches.assemble(
                 profile = profile,
@@ -237,7 +202,7 @@ internal fun MatchScreen(
                 catalog = catalog,
                 format = format,
                 random = random,
-                plan = MatchPlan(rules, chosen),
+                plan = MatchPlan(rules, deck),
                 forcedFlip = script.flip(),
             )
         }
@@ -258,50 +223,24 @@ internal fun MatchScreen(
     var setup by remember(match) { mutableStateOf(match.setup) }
     var selected by remember(match) { mutableStateOf<Card?>(null) }
     var reward by remember(match) { mutableStateOf<MatchReward?>(null) }
-
-    /*
-     * Whether the result has been settled — credited, persisted and reported.
-     *
-     * Separate from [reward], which used to be the guard, because the two no longer happen at the
-     * same moment: the panel is held back for a beat so the last placement can be *seen* (see
-     * `OUTCOME_PAUSE_MS`), and a guard that waited with it would be open for the length of that
-     * pause. Crediting happens immediately, so leaving during the pause costs nothing.
-     */
     var settled by remember(match) { mutableStateOf(false) }
 
     /*
-     * What the player did, in order — the only part of the match the server cannot derive for
-     * itself, and therefore the only part a transcript has to carry.
+     * The board as the player may see it — here a projection of a state this process holds.
      *
-     * A plain list rather than a `mutableStateListOf`: nothing renders it, and making it observable
-     * would recompose the whole screen on every placement for no visible effect.
+     * The Chaos roll is seeded from the placement rather than drawn from either generator, so that
+     * recomposing cannot offer a different card every frame. That was true of the old `playable`
+     * and is the one piece of it worth carrying over.
      */
-    val moves = remember(match) { mutableListOf<TranscriptMove>() }
+    val view = remember(state, visibility) {
+        MatchView.of(
+            state = state,
+            side = CardColor.BLUE,
+            opponentVisibility = visibility,
+            random = Random(CHAOS_SEED + state.placement),
+        )
+    }
 
-    /*
-     * Whether this match went to a sudden-death rematch.
-     * It suppresses submission, because `MatchTranscript` describes **one** nine-placement match:
-     * it has a single seed, a single deck and a single list of moves, with no way to say "and then
-     * the hands were regrouped and it was played again". Submitting the first nine moves of such a
-     * match would be worse than submitting nothing — the server would happily replay them, score
-     * the draw, and return a verdict that contradicts the reward already credited for the
-     * sudden-death result.
-     *
-     * A known gap in the format rather than a bug here. See
-     * docs/migration/09-PHASE-5-NETWORK.md.
-     */
-    var suddenDeath by remember(match) { mutableStateOf(false) }
-
-    /*
-     * Whether this match is one the server could replay. See `reportTranscript`.
-     * Computed here rather than at the call site so the crediting effect reads a value instead of
-     * an expression — `MatchScreen` is at the complexity detekt allows and this is the branch that
-     * carries its reasoning best on its own.
-     */
-    val unrepeatable = suddenDeath || script != null
-
-    // The deal, which is now a frame later than the screen opening: the cards are dealt once a deck
-    // is settled on, and that is what this sound is announcing.
     LaunchedEffect(match) {
         audio.play(Sound.MATCH_OPEN)
     }
@@ -312,11 +251,8 @@ internal fun MatchScreen(
      * Whether the pre-match announcements are over and the match has actually begun.
      *
      * The original arms both clocks in `nextTurn`, which `letsGetStarted` calls **after** the whole
-     * phase cascade (`BaseMatchScreen.as:250-252`). So the player's thirty seconds start when they
-     * can move, not while Reverse and Start are still on screen. This port started the clock at
-     * composition and had the intro running against it — under an ordinary thirty-second limit that
-     * is a few seconds of a turn silently spent, and a test with a short limit found the match
-     * playing itself out before the Start banner had left.
+     * phase cascade (`BaseMatchScreen.as:250-252`). So the player's turn starts when they can move,
+     * not while Reverse and Start are still on screen.
      */
     val underway = introFinished(match, setup)
 
@@ -325,9 +261,7 @@ internal fun MatchScreen(
      *
      * Read once per placement rather than on each recomposition, because the opponent's delay is
      * computed from its length and the bubbles are played from the same list: the two must not be
-     * able to disagree about how many lines there are. The score is read here for the same reason —
-     * one line branches on whether the player has captured anything, and it is asking about the
-     * board as it stands *before* the move being announced.
+     * able to disagree about how many lines there are.
      */
     val lesson = remember(match, state.placement) { script.linesBefore(state) }
     val speech = rememberLessonSpeech(state.placement, lesson)
@@ -348,14 +282,22 @@ internal fun MatchScreen(
         )
         val next = ai.play(state, random)
         if (next.placement > state.placement) {
-            visibility = visibility.reindexedFor(next)
+            val reindexed = visibility.reindexedFor(next)
+            visibility = reindexed
             state = next
-            playMatchSounds(audio, scope, next)
+            playMatchSounds(audio, scope, MatchView.of(next, CardColor.BLUE, reindexed))
         }
     }
 
-    // Crediting, once, when the match resolves. A sudden-death draw credits nothing and plays on
-    // (`PVEMatchScreen.as:63-68`), so the same effect handles both by branching on the outcome.
+    /*
+     * The end of a lesson: announced, never credited.
+     *
+     * A sudden-death draw is not an ending and plays on (`PVEMatchScreen.as:63-68`), so the same
+     * effect handles both by branching on the outcome. What used to follow — `MatchRewards.credit`,
+     * a profile write and a transcript submission — is gone rather than gated:
+     * `MatchScript.counted` is false for every lesson, so the whole path only ever produced a zero
+     * reward and an unchanged profile. Saying so outright is shorter than a credit never earned.
+     */
     LaunchedEffect(match, state.isFinished, state.placement) {
         val outcome = state.outcome() ?: return@LaunchedEffect
         if (settled) return@LaunchedEffect
@@ -366,77 +308,30 @@ internal fun MatchScreen(
             visibility = rematch.opponentVisibility
             setup = rematch
             selected = null
-            suddenDeath = true
             return@LaunchedEffect
         }
-        val credit = script.creditFor(result, playing) {
-            MatchRewards.credit(
-                save = playing,
-                npc = npc,
-                result = result,
-                rules = match.rules,
-                at = clock.nowMillis(),
-                random = random,
-            )
-        }
         settled = true
-        onPersist(credit.save)
-
-        // Told after the credit and after the persist, so a caller acting on it — a ladder
-        // deciding which rung comes next — cannot observe a result the profile has not yet been
-        // paid for.
         onResult(result)
 
-        // After the credit, and never instead of it. The profile is the player's; the transcript is
-        // the server's business, and a server that is down must not cost anybody their reward.
-        reportTranscript(
-            onTranscript = onTranscript,
-            // A scripted match is not replayable either, and for a sharper reason than sudden
-            // death: the server re-runs the seed through the *real* setup and the *real* AI, and a
-            // script forces the coin flip, fixes the deal and makes the opponent play its worst
-            // move. Nothing about it would reproduce, so submitting one asks to be rejected —
-            // which is indistinguishable from being caught cheating.
-            unrepeatable = unrepeatable,
-            seed = seed,
-            formatId = format.id,
-            profile = profile,
-            npc = npc,
-            deck = chosen,
-            moves = moves.toList(),
-        )
-
-        // **Then** the panel, once the board has had a moment to be read.
-        //
-        // The last placement is the one worth watching — it is the one that just flipped cards, and
-        // in a lesson it is the *only* one — and the panel is a scrim over the whole board. It used
-        // to arrive on the same frame as the result, so what the rule had done was covered before
-        // it could be looked at. Held for as long as the placement's own captions run, plus a beat.
+        // **Then** the panel, once the board has had a moment to be read. The last placement is the
+        // one worth watching — in a lesson it is often the only one there was — and the panel is a
+        // scrim over the whole board.
         delay(
             animationsFor(state, setup).sumOf { it.totalMillis } + OUTCOME_PAUSE_MS +
                 waveDelayMillis(state.lastPlay),
         )
-        reward = credit.reward
-    }
-
-    // Rematch, or whatever a script says instead — see `nextAction`.
-    val next = nextAction(script, scriptExit) {
-        audio.play(Sound.NEW_MATCH)
-        matchIndex += 1
+        reward = MatchReward(result = result, mgp = 0, xp = 0)
     }
 
     // The one guard, for both ways of playing a card. Tapping a cell plays whatever is selected;
     // dropping one plays what the finger is holding — and both have to check the same three
     // things, which is exactly the sort of pair that drifts apart.
     val place: (Card, Int) -> Unit = { card, position ->
-        if (canPlay(state, card, position)) {
+        if (canPlay(view, card, position)) {
             val next = state.play(card, position)
-            // Recorded here and nowhere else, which is the point of `place` being the single guard:
-            // tapping a cell, dropping a card and the turn timer all arrive through it, so a
-            // timed-out turn is written down exactly like a chosen one.
-            moves += TranscriptMove(cardId = card.id, position = position)
             state = next
             selected = null
-            playMatchSounds(audio, scope, next)
+            playMatchSounds(audio, scope, MatchView.of(next, CardColor.BLUE, visibility))
         }
     }
 
@@ -444,9 +339,8 @@ internal fun MatchScreen(
     // `LessonBubbles`. Resuming restarts the turn rather than continuing it, which is
     // `turnClock`'s own behaviour on any key change and is the generous direction to be wrong in.
     val turnFraction =
-        turnClock(match, state, script.turnLimitOr(turnLimit), underway && !speech.isSpeaking) {
-            // `sideRandom`: this is the player's turn, and the match generator is off limits.
-            autoPlay(state, sideRandom)?.let { (card, position) -> place(card, position) }
+        turnClock(match, view, script.turnLimitOr(turnLimit), underway && !speech.isSpeaking) {
+            autoPlay(view, sideRandom)?.let { (card, position) -> place(card, position) }
         }
 
     val wide = LocalWideLayout.current
@@ -465,7 +359,7 @@ internal fun MatchScreen(
         },
     ) { panelShown ->
         StatusBar(
-            state = state,
+            view = view,
             selected = selected,
             npc = npc,
             opponentName = strings[npc.nameKey],
@@ -476,7 +370,7 @@ internal fun MatchScreen(
             // has no panel, and for a while that left the rules strip nowhere at all.
             showOpponent = !panelShown,
             // A lesson names itself here as well as on the panel — see [TurnLine].
-            outcomeTitle = script?.outcomeTitle,
+            outcomeTitle = script.outcomeTitle,
             onExit = onExit,
         )
         BoardRules(match.rules, panelShown)
@@ -490,13 +384,11 @@ internal fun MatchScreen(
             contentAlignment = Alignment.Center,
         ) {
             PlayArea(
-                state = state,
+                view = view,
                 selected = selected,
-                visibility = visibility,
                 // Less the padding `PlayArea` applies, so the scale is derived from the space
                 // the cards actually get rather than from the space before the margin.
                 layout = matchLayout(maxWidth - PlayAreaInset * 2, maxHeight - PlayAreaInset * 2),
-                playable = playable(state),
                 // The two facing digits that decided the last capture, in a lesson. Recomputed
                 // with the state rather than remembered: it *is* a projection of the state, and
                 // one that changes on every placement.
@@ -505,7 +397,7 @@ internal fun MatchScreen(
                 // lesson, an ordinary match and a refereed one, and it is the *rule* being shown
                 // rather than an explanation laid over it. See `captureWaves`.
                 waves = captureWaves(state.lastPlay),
-                onSelect = { if (it in playable(state)) selected = it },
+                onSelect = { if (it in view.playableCards) selected = it },
                 onPlace = { position -> selected?.let { place(it, position) } },
                 onDrop = place,
             )
@@ -515,9 +407,9 @@ internal fun MatchScreen(
                     opponentName = strings[npc.nameKey],
                     // So a dropped card can be called by its name rather than counted.
                     cards = catalog.byId,
-                    next = next,
+                    next = scriptExit,
                     onDone = onExit,
-                    title = script?.outcomeTitle,
+                    title = script.outcomeTitle,
                 )
             }
             // Over the board and under the outcome panel: a caption is allowed to cover
@@ -535,55 +427,23 @@ internal fun MatchScreen(
     }
 }
 
-@Suppress("LongParameterList")
-private suspend fun reportTranscript(
-    onTranscript: suspend (MatchTranscript) -> Unit,
-    unrepeatable: Boolean,
-    seed: Int,
-    formatId: String,
-    profile: GameSave,
-    npc: Npc,
-    deck: List<Int>,
-    moves: List<TranscriptMove>,
-) {
-    if (unrepeatable) return
-    onTranscript(
-        MatchTranscript(
-            seed = seed,
-            formatId = formatId,
-            opponentIconId = npc.iconId,
-            deck = deck,
-            // Stated by the client, which is backwards and known to be — the server will hold the
-            // profile once accounts exist. See `MatchTranscript.ownedCards`.
-            ownedCards = profile.cards,
-            moves = moves,
-        ),
-    )
-}
+internal fun playMatchSounds(audio: AudioPlayer, scope: CoroutineScope, view: MatchView) {
+    val captures = view.lastPlay?.captures.orEmpty()
 
-private fun playable(state: MatchState): List<Card> =
-    if (state.currentPlayer != CardColor.BLUE) {
-        emptyList()
-    } else {
-        state.playableCards(Random(CHAOS_SEED + state.placement))
-    }
-
-private fun playMatchSounds(audio: AudioPlayer, scope: CoroutineScope, state: MatchState) {
-    val captures = state.lastPlay?.captures.orEmpty()
-
-    placementSound(audio, captures, finished = state.isFinished)
+    placementSound(audio, captures, finished = view.isFinished)
     scope.launch {
         cascadeSounds(
             audio = audio,
             captures = captures,
-            won = (state.outcome() as? MatchOutcome.Win)?.let { it.winner == CardColor.BLUE },
+            won = (view.outcome() as? MatchOutcome.Win)?.let { it.winner == view.side },
         )
     }
 }
 
 @Composable
-private fun StatusBar(
-    state: MatchState,
+@Suppress("LongParameterList")
+internal fun StatusBar(
+    view: MatchView,
     selected: Card?,
     npc: Npc,
     opponentName: String,
@@ -594,7 +454,7 @@ private fun StatusBar(
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(top = MatchHeaderTopInset)) {
         StatusRow(
-            state = state,
+            view = view,
             selected = selected,
             npc = npc,
             opponentName = opponentName,
@@ -640,8 +500,9 @@ private fun TurnTimerBar(fraction: Float?) {
 }
 
 @Composable
+@Suppress("LongParameterList")
 private fun StatusRow(
-    state: MatchState,
+    view: MatchView,
     selected: Card?,
     npc: Npc,
     opponentName: String,
@@ -670,7 +531,7 @@ private fun StatusRow(
                 tint = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
             )
         }
-        Score(state)
+        Score(view)
         // The turn line takes whatever the two fixed ends leave, and elides rather than growing.
         //
         // It used to be three items in a centred `spacedBy` row, which fitted because every
@@ -683,10 +544,10 @@ private fun StatusRow(
                 .weight(1f)
                 // Absent once the board is full, which is what makes `turn-blue` mean "the player
                 // may move" rather than "the player moved last".
-                .then(state.currentPlayer?.let { Modifier.testTag(turnTestTag(it)) } ?: Modifier),
+                .then(view.turnTag()?.let { Modifier.testTag(it) } ?: Modifier),
             contentAlignment = Alignment.Center,
         ) {
-            TurnLine(state = state, selected = selected, outcomeTitle = outcomeTitle)
+            TurnLine(view = view, selected = selected, outcomeTitle = outcomeTitle)
         }
         // The opponent's face and name where the "next match" control used to be. Abandoning a
         // match is the back control; restarting one is the end-of-match panel's business, and a
@@ -717,8 +578,10 @@ private fun StatusRow(
 }
 
 @Composable
-private fun Score(state: MatchState) {
-    val score = state.score
+private fun Score(view: MatchView) {
+    // Computable from a view because both hand *sizes* are public even when their contents are not
+    // — see `MatchView.score`. The total is still ten at every placement.
+    val score = view.score
     Text(
         text = buildAnnotatedString {
             withStyle(SpanStyle(color = CardColor.BLUE.edge)) { append(score.blue.toString()) }
@@ -733,14 +596,14 @@ private fun Score(state: MatchState) {
 }
 
 @Composable
-private fun TurnLine(state: MatchState, selected: Card?, outcomeTitle: String?) {
+private fun TurnLine(view: MatchView, selected: Card?, outcomeTitle: String?) {
     val strings = LocalStrings.current
-    val outcome = state.outcome()
+    val outcome = view.outcome()
     if (outcome != null) {
         Text(
             text = outcomeTitle?.let { strings[it] } ?: when (outcome) {
                 is MatchOutcome.Win ->
-                    if (outcome.winner == CardColor.BLUE) {
+                    if (outcome.winner == view.side) {
                         strings[StringKeys.YOU_WIN]
                     } else {
                         strings[StringKeys.YOU_LOSE]
@@ -756,13 +619,15 @@ private fun TurnLine(state: MatchState, selected: Card?, outcomeTitle: String?) 
         )
         return
     }
-    val player = state.currentPlayer ?: return
+    val player = view.currentPlayer ?: return
     val side = strings[if (player == CardColor.BLUE) StringKeys.SIDE_BLUE else StringKeys.SIDE_RED]
     Text(
         // "red to play — pick a card" was right when a human moved both sides. With an opponent
-        // playing itself, the red turn is something to wait for, not an instruction.
+        // playing itself, the other side's turn is something to wait for, not an instruction.
+        // Asked of the *view* rather than of the colour: in a refereed match the player is not
+        // necessarily blue, and "blue to play" is an instruction to the wrong person.
         text = when {
-            player == CardColor.RED -> strings.format(StringKeys.OPPONENT_TURN, side)
+            !view.isMyTurn -> strings.format(StringKeys.OPPONENT_TURN, side)
             selected == null -> strings.format(StringKeys.TURN_PICK_CARD, side)
             else -> strings.format(StringKeys.TURN_PICK_CELL, side, selected.name)
         },
@@ -774,23 +639,32 @@ private fun TurnLine(state: MatchState, selected: Card?, outcomeTitle: String?) 
     )
 }
 
-private fun canPlay(state: MatchState, card: Card, position: Int): Boolean =
-    state.currentPlayer == CardColor.BLUE &&
-        state.board.isEmpty(position) &&
-        card in playable(state)
+internal fun canPlay(view: MatchView, card: Card, position: Int): Boolean =
+    view.isMyTurn &&
+        view.board.isEmpty(position) &&
+        card in view.playableCards
 
+/**
+ * The turn clock, and the fraction to draw, or null when nothing is being counted.
+ *
+ * Kept in a refereed match even though the server sets no deadline for one — a program is never
+ * waiting, so `PveMatchStatus` has no forfeit and nothing on the server will ever take a turn away.
+ * This is pace rather than enforcement: thirty seconds of a board that has stopped is what makes a
+ * player look for the card they forgot they had selected. It plays a legal move on their behalf,
+ * which the server accepts as an ordinary placement because that is exactly what it is.
+ */
 @Composable
-private fun turnClock(
+internal fun turnClock(
     key: Any,
-    state: MatchState,
+    view: MatchView,
     limit: Duration,
     running: Boolean,
     onExpired: () -> Unit,
 ): Float? {
     var remaining by remember(key) { mutableStateOf(limit) }
-    val counting = running && !state.isFinished && state.currentPlayer == CardColor.BLUE
+    val counting = running && !view.isFinished && view.isMyTurn
 
-    LaunchedEffect(key, state.placement, state.currentPlayer, state.isFinished, running) {
+    LaunchedEffect(key, view.placement, view.currentPlayer, view.isFinished, running) {
         remaining = limit
         if (counting) {
             while (remaining > Duration.ZERO) {
@@ -804,9 +678,16 @@ private fun turnClock(
     return (remaining / limit).toFloat().takeIf { counting }
 }
 
-private fun autoPlay(state: MatchState, random: Random): Pair<Card, Int>? {
-    val cards = playable(state)
-    val free = (0 until Board.SIZE).filter { state.board.isEmpty(it) }
+/**
+ * A legal move at random, for a turn that ran out.
+ *
+ * Drawn from a generator the caller owns. In the local tutorial that used to matter a great deal —
+ * a draw here would shift the match generator and stop the transcript replaying — and it no longer
+ * does: nothing replays a match from a seed on this side of the wire any more.
+ */
+internal fun autoPlay(view: MatchView, random: Random): Pair<Card, Int>? {
+    val cards = view.playableCards
+    val free = (0 until Board.SIZE).filter { view.board.isEmpty(it) }
     return if (cards.isEmpty() || free.isEmpty()) {
         null
     } else {
@@ -827,6 +708,17 @@ private const val TIMER_URGENT = 0.25f
 private const val TIMER_TRACK_ALPHA = 0.4f
 
 private const val CHAOS_SEED = 20260802
+
+/**
+ * The seed every lesson is dealt from.
+ *
+ * A constant, and correct as one: a lesson's deal is written into its script, so the generator is
+ * only ever consulted for the leftovers — an element on a tile, a tie the tutor has to break.
+ * Making those reproducible is the point. It is *not* a server-issued ticket and must never become
+ * one: tickets exist to stop a client choosing its own deal, and a match that credits nothing has
+ * nothing to protect.
+ */
+private const val LESSON_SEED = 20260817
 
 private val TurnTimerHeight = 3.dp
 private val TurnTimerShape = RoundedCornerShape(2.dp)

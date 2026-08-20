@@ -124,6 +124,7 @@
   "APP_ERROR_OFFLINE": "The server could not be reached. Check your connection.",
   "APP_ERROR_UPDATE": "This version is too old for the server. Please update.",
   "APP_ERROR_STATUS": "The server answered {0}.",
+  "APP_ERROR_STALE_MATCH": "The match has moved on. Reloading the board.",
   "APP_ERROR_THROTTLED": "Too many attempts. Please wait a moment.",
   "APP_ERROR_THROTTLED_IN": "Too many attempts. Try again in {0}s.",
   "APP_NO_SEEDS": "Connect once to keep playing offline.",

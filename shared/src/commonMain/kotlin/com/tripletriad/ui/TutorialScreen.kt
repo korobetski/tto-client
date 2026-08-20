@@ -16,7 +16,6 @@ import com.tripletriad.model.GameSave
 import com.tripletriad.model.MatchAiOptions
 import com.tripletriad.model.MatchResult
 import com.tripletriad.model.Npc
-import com.tripletriad.time.Clock
 import kotlin.time.Duration.Companion.seconds
 
 @Composable
@@ -26,9 +25,8 @@ internal fun TutorialScreen(
     profile: GameSave,
     tutor: Npc,
     format: Format,
-    clock: Clock,
-    nextSeed: () -> Int?,
-    onPersist: suspend (GameSave) -> Unit,
+    // No clock, no seed ticket and nothing to persist: a lesson credits nothing, so there is no
+    // profile to amend and no deal for a ticket to protect. See [MatchScreen].
     onHelp: () -> Unit,
     onExit: () -> Unit,
     from: Int = FIRST_LESSON,
@@ -57,9 +55,6 @@ internal fun TutorialScreen(
             profile = profile,
             npc = tutor,
             format = format,
-            clock = clock,
-            nextSeed = nextSeed,
-            onPersist = onPersist,
             onExit = onExit,
             script = script,
             scriptExit = exitFor(step, onHelp) { step += 1 },

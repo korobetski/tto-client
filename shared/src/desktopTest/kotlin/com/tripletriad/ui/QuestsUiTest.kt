@@ -19,6 +19,8 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
 class QuestsUiTest {
+    private val stub = PveStubServer()
+
     private fun ComposeUiTest.openQuests() {
         openFromDashboard(DASHBOARD_QUESTS_TEST_TAG, QUESTS_LIST_TEST_TAG)
     }
@@ -101,17 +103,18 @@ class QuestsUiTest {
 
     @Test
     fun aMatchPlayedThroughTheUiReachesTheQuestRecord() = runComposeUiTest {
-        val documents = InMemoryDocumentStore()
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
-        newCharacter()
+        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        openDashboard()
         openOpponents()
         challenge()
         playOut()
 
+        // The referee's profile. Crediting a match is one write, on the server, and the day's
+        // quests are pinned by the same call that pays it — see `MatchRewards.credit`.
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
-            storedSave(documents).quests.day.isNotEmpty()
+            stub.player.save.quests.day.isNotEmpty()
         }
-        val stored = storedSave(documents)
+        val stored = stub.player.save
         assertEquals(questDayOf(FixedClock.DEFAULT_MILLIS), stored.quests.day)
         assertEquals(DailyQuestCatalog.PER_DAY, stored.quests.questIds.size)
         assertTrue(
@@ -129,16 +132,18 @@ class QuestsUiTest {
                 progress = mapOf(PLAY_THREE to ONE_SHORT),
             ),
         )
-        val documents = seeded(save)
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
-        loadCharacter(documents)
+        // Seeded on the **server**, because that is where a profile lives now: the quest is one
+        // match short of done, and the match that finishes it is refereed.
+        val server = PveStubServer(save = save)
+        setContent { App(store = settingsFor(AppLocale.EN_US), server = server.connection) }
+        openDashboard()
         openOpponents()
         challenge()
         playOut()
 
         onNodeWithTag(questRowTestTag(PLAY_THREE)).assertExists()
         assertTrue(
-            PLAY_THREE in storedSave(documents).quests.completed,
+            PLAY_THREE in server.player.save.quests.completed,
             "the quest was announced and not recorded",
         )
     }

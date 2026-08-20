@@ -48,18 +48,21 @@ class TurnTimerTest {
                         profile = GameSave.new(createdAt = 0L),
                         npc = opponent,
                         format = format,
-                        clock = FixedClock(),
-                        nextSeed = { 1 },
-                        onPersist = {},
+                        // The bare script a local match now needs. Every field is a default but
+                        // `counted`, which is what makes this a match `MatchScreen` will still
+                        // play: an ordinary one is refereed and its clock lives on
+                        // `PveMatchScreen`. The clock itself is `turnClock`, shared by both, so
+                        // this exercises the same code either way.
+                        script = MatchScript(
+                            speakerKey = opponent.nameKey,
+                            counted = false,
+                        ),
                         onExit = {},
                         turnLimit = limit,
                     )
                 }
             }
         }
-        // The match opens on the deck selector, as it does through the app — see there for why it
-        // is a step inside the match rather than a destination ahead of it.
-        settleDeck()
         awaitPlayer()
     }
 

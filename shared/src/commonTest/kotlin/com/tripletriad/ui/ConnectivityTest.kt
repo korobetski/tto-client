@@ -2,6 +2,7 @@ package com.tripletriad.ui
 
 import com.tripletriad.net.AccountClient
 import com.tripletriad.net.MatchReporter
+import com.tripletriad.net.PveClient
 import com.tripletriad.net.PvpClient
 import com.tripletriad.net.ReleaseSource
 import com.tripletriad.net.ServerConnection
@@ -281,6 +282,7 @@ class ConnectivityTest {
                 directory = directory,
                 accounts = AccountClient(http, baseUrl = { directory.selected.baseUrl }),
                 pvp = PvpClient(http, baseUrl = { directory.selected.baseUrl }),
+                pve = PveClient(http, baseUrl = { directory.selected.baseUrl }),
                 session = SessionStore(InMemoryDocumentStore()),
                 tickets = TicketStore(InMemoryDocumentStore()),
                 probe = ServerProbe(http) { 0L },

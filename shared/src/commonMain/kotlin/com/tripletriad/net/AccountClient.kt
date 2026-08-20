@@ -14,6 +14,7 @@ import com.tripletriad.protocol.EnterCampaignRequest
 import com.tripletriad.protocol.Idempotent
 import com.tripletriad.protocol.ItemUsed
 import com.tripletriad.protocol.PlayerState
+import com.tripletriad.protocol.PveRefusal
 import com.tripletriad.protocol.PvpRefusal
 import com.tripletriad.protocol.SeedTickets
 import com.tripletriad.protocol.SellCardRequest
@@ -261,6 +262,16 @@ sealed interface AccountResult<out T> {
     data class Failed(val status: Int, val detail: String) : AccountResult<Nothing>
 
     data class RefusedPvp(val code: PvpRefusal, val detail: String) : AccountResult<Nothing>
+
+    /**
+     * A refusal about a match against an opponent, named by the referee.
+     *
+     * Beside [RefusedPvp] rather than folded into it, though the two look alike. Their codes do not
+     * overlap — there is no forfeit or claim against a program, and no undealable hand against a
+     * person — so one member would carry an enum that half its readers cannot interpret, and the
+     * compiler would stop pointing out the `when`s that forgot one of them.
+     */
+    data class RefusedPve(val code: PveRefusal, val detail: String) : AccountResult<Nothing>
 }
 
 fun <T> AccountResult<T>.valueOrNull(): T? = (this as? AccountResult.Ok)?.value

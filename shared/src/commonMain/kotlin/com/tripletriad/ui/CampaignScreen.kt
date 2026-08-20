@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -28,7 +29,6 @@ import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.Strings
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.MatchResult
-import com.tripletriad.time.Clock
 import com.tripletriad.ui.theme.LocalTtoColors
 
 const val CAMPAIGN_LIST_TEST_TAG: String = "campaign-list"
@@ -134,11 +134,8 @@ private fun RungRow(step: Int, entry: CampaignStep) {
 internal fun CampaignMatchScreen(
     campaign: Campaign,
     catalog: CardCatalog,
-    profile: GameSave,
     format: Format,
-    clock: Clock,
-    nextSeed: () -> Int?,
-    onPersist: suspend (GameSave) -> Unit,
+    pve: PveSession,
     onFinished: () -> Unit,
 ) {
     var step by remember(campaign.key) { mutableStateOf(Campaign.FIRST_STEP) }
@@ -181,17 +178,22 @@ internal fun CampaignMatchScreen(
                 .fillMaxWidth()
                 .padding(horizontal = SpaceMd),
         )
-        // Keyed on the rung rather than trusting the opponent to differ: `MatchScreen` re-deals on
-        // `npc.iconId`, and two rungs of one ladder sharing an icon would silently keep the board.
+        // Keyed on the rung rather than trusting the opponent to differ: two rungs of one ladder
+        // sharing an icon would otherwise silently keep the board.
         key(step) {
-            MatchScreen(
+            // One match per rung, opened when the rung opens. `resume` first, so a ladder
+            // interrupted mid-rung comes back on the board it was on rather than paying the
+            // entry fee for a position the player had already reached.
+            LaunchedEffect(pve, entry.npc.iconId, step) {
+                pve.resume()
+                if (pve.match?.opponentIconId != entry.npc.iconId) {
+                    pve.open(entry.npc.iconId, format.id)
+                }
+            }
+            PveMatchScreen(
+                session = pve,
                 catalog = catalog,
-                profile = profile,
-                format = format,
                 npc = entry.npc,
-                clock = clock,
-                nextSeed = nextSeed,
-                onPersist = onPersist,
                 onExit = onFinished,
                 script = script,
                 scriptExit = exit,

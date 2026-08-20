@@ -57,8 +57,7 @@ import com.tripletriad.model.CardColor
 import com.tripletriad.model.CardType
 import com.tripletriad.model.GameRules
 import com.tripletriad.model.HAND_SIZE
-import com.tripletriad.model.HandVisibility
-import com.tripletriad.model.MatchState
+import com.tripletriad.model.MatchView
 import com.tripletriad.model.PlacedCard
 import com.tripletriad.model.PlayResult
 import com.tripletriad.model.Side
@@ -71,14 +70,32 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
+/**
+ * The board and the two hands, drawn from **a view rather than a state**.
+ *
+ * ### Why a [MatchView] and not a `MatchState`
+ *
+ * It used to take the whole match, and could: a solo match was resolved here, so this process held
+ * both hands and hid one of them from itself. `HandVisibility` existed to stop the *screen* drawing
+ * a card, never to stop the player knowing it.
+ *
+ * Every match this draws is refereed now — see `PveMatchScreen` and `PvpMatchScreen` — and the
+ * opponent's hidden cards are not on this side of the wire at all. A [MatchView] is exactly what
+ * arrives: the cards this side may see, the hidden ones as nulls, and `playableHandIndices` decided
+ * by whoever holds the state rather than rolled again here. So the parameters this lost —
+ * `visibility` and `playable` — were not simplified away; they moved to the end that is entitled to
+ * compute them.
+ *
+ * The tutorial still runs locally and still calls this, with a view it builds from its own state
+ * (`MatchView.of`). That is the one legitimate case of a client deriving its own view, and it is
+ * legitimate because a lesson is not credited and settles nothing.
+ */
 @Composable
 @Suppress("LongParameterList")
 internal fun PlayArea(
-    state: MatchState,
+    view: MatchView,
     selected: Card?,
-    visibility: HandVisibility,
     layout: MatchLayout,
-    playable: List<Card>,
     highlights: Map<Int, Set<Side>>,
     waves: Map<Int, Int>,
     onSelect: (Card) -> Unit,
@@ -86,14 +103,18 @@ internal fun PlayArea(
     onDrop: (Card, Int) -> Unit,
 ) {
     val drag = rememberBoardDragState()
-    val hand: @Composable (CardColor) -> Unit = { owner ->
+    val hand: @Composable (Boolean) -> Unit = { own ->
         HandArea(
-            state = state,
-            owner = owner,
+            // Positional both ways: `opponentHand` keeps a null where a card is hidden, and the own
+            // hand is mapped into the same shape so one row renders both. The nulls are what make
+            // Three Open "five cards, three of them face up" rather than "three cards".
+            cards = if (own) view.ownHand else view.opponentHand,
+            owner = if (own) view.side else view.opponent,
+            own = own,
+            active = view.currentPlayer == (if (own) view.side else view.opponent),
             selected = selected,
-            visibility = visibility,
             layout = layout,
-            playable = playable,
+            playableSlots = if (own) view.playableHandIndices else emptyList(),
             drag = drag,
             onSelect = onSelect,
             onDrop = onDrop,
@@ -101,9 +122,12 @@ internal fun PlayArea(
     }
     val board: @Composable () -> Unit = {
         BoardGrid(
-            board = state.board,
-            rules = state.rules,
-            tally = state.tally,
+            board = view.board,
+            // Both travel on the view. `MatchView.tally` has been on the wire since PvP was
+            // refereed, precisely so a client renders what the referee computed rather than
+            // recounting it — and an Ascension tally recounted from a partial board would be wrong.
+            rules = view.rules,
+            tally = view.tally,
             scale = layout.boardScale,
             drag = drag,
             // The card looking for a cell, by either gesture — a tapped one and a lifted one both
@@ -134,7 +158,7 @@ internal fun PlayArea(
 @Composable
 private fun PlayAreaContents(
     layout: MatchLayout,
-    hand: @Composable (CardColor) -> Unit,
+    hand: @Composable (own: Boolean) -> Unit,
     board: @Composable () -> Unit,
 ) {
     // `spacedBy` and not `SpaceBetween`: the gap is a design decision now rather than whatever
@@ -149,9 +173,12 @@ private fun PlayAreaContents(
             ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            hand(CardColor.RED)
+            // The opponent first — top in portrait, left in landscape. Named by *side* rather than
+            // by colour: in a refereed match the player is not always blue, and the hand nearest
+            // the player's thumb has to be their own whichever colour they were dealt.
+            hand(false)
             board()
-            hand(CardColor.BLUE)
+            hand(true)
         }
     } else {
         Column(
@@ -159,9 +186,12 @@ private fun PlayAreaContents(
             verticalArrangement = Arrangement.spacedBy(HandBoardGap, Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            hand(CardColor.RED)
+            // The opponent first — top in portrait, left in landscape. Named by *side* rather than
+            // by colour: in a refereed match the player is not always blue, and the hand nearest
+            // the player's thumb has to be their own whichever colour they were dealt.
+            hand(false)
             board()
-            hand(CardColor.BLUE)
+            hand(true)
         }
     }
 }
@@ -469,24 +499,23 @@ private fun lerp(from: Float, to: Float, fraction: Float): Float = from + (to - 
 @Composable
 @Suppress("LongParameterList")
 private fun HandArea(
-    state: MatchState,
+    cards: List<Card?>,
     owner: CardColor,
+    own: Boolean,
+    active: Boolean,
     selected: Card?,
-    visibility: HandVisibility,
     layout: MatchLayout,
-    playable: List<Card>,
+    playableSlots: List<Int>,
     drag: BoardDragState,
     onSelect: (Card) -> Unit,
     onDrop: (Card, Int) -> Unit,
 ) {
-    val cards = state.hands[owner].orEmpty()
-    val active = state.currentPlayer == owner
     val gap = HandGap * layout.scale
-    // Only the player's own hand can be narrowed on screen: `playable` is what *they* may play, and
-    // it is empty while the opponent is thinking, so asking this of the red hand would report every
-    // red card as forbidden on red's own turn. See `handIsNarrowed`.
-    val narrowed = owner == CardColor.BLUE &&
-        handIsNarrowed(held = cards.size, playable = playable.size, isMyTurn = active)
+    // Only the player's own hand can be narrowed on screen: `playableSlots` is what *they* may
+    // play, and it is empty while the opponent is thinking, so asking this of the other hand would
+    // report every one of its cards as forbidden on its own turn. See `handIsNarrowed`.
+    val narrowed = own &&
+        handIsNarrowed(held = cards.size, playable = playableSlots.size, isMyTurn = active)
 
     Box(
         modifier = Modifier
@@ -500,12 +529,25 @@ private fun HandArea(
                     for (column in 0 until layout.handColumns) {
                         val slot = row * layout.handColumns + column
                         val card = cards.getOrNull(slot)
-                        if (card == null) {
+                        if (slot !in cards.indices) {
+                            // No card *at all* — the hand has been played down past this slot.
+                            // Distinct from `cards[slot] == null`, which is a card that is there
+                            // and may not be seen. The two used to be the same expression, and
+                            // could be: this side held both hands and only declined to draw one.
                             Spacer(
                                 Modifier.size(
                                     CardSpriteWidth * layout.scale,
                                     CardSpriteHeight * layout.scale,
                                 ),
+                            )
+                        } else if (card == null) {
+                            // Hidden. Tagged exactly like a visible card in the same slot, so a
+                            // test — or a screen reader — asks "what is in slot 2" without having
+                            // to know first whether an Open rule revealed it.
+                            CardBack(
+                                color = owner,
+                                scale = layout.scale,
+                                modifier = Modifier.testTag(handCardTestTag(owner, slot)),
                             )
                         } else {
                             // Keyed by the card, not by the slot. Slots close up when a card is
@@ -520,7 +562,7 @@ private fun HandArea(
                             // and the texture id alone would repeat. Counting the identical cards
                             // *ahead* of this one keeps the key attached to the copy rather than
                             // to the slot, so it still survives the hand closing up.
-                            key(card.textureId, cards.take(slot).count { it.id == card.id }) {
+                            key(card.textureId, cards.take(slot).count { it?.id == card.id }) {
                                 HandCard(
                                     card = card,
                                     owner = owner,
@@ -532,25 +574,19 @@ private fun HandArea(
                                     // — see `MatchScreen`, where the guard is — so the card simply
                                     // did not respond. That is the feedback the drag gate below
                                     // already refuses to give, and the two now agree.
-                                    allowed = !narrowed || card in playable,
+                                    allowed = !narrowed || slot in playableSlots,
                                     // Ringed when the rules have left exactly this one. Not when
                                     // the whole hand is playable: five rings state nothing.
-                                    chosen = narrowed && card in playable,
+                                    chosen = narrowed && slot in playableSlots,
                                     // Only the player's own playable cards are draggable.
                                     // `Card._draggable` is the same gate (`Card.as:137`), and it
                                     // matters more here than it looks: dragging a card that
                                     // `RULE_ORDER` forbids and having the drop silently do nothing
                                     // is worse feedback than not being able to lift it.
                                     drag = drag.takeIf {
-                                        owner == CardColor.BLUE && active && card in playable
+                                        own && active && slot in playableSlots
                                     },
                                     onDrop = onDrop,
-                                    // The player always sees their own hand whatever the Open rule
-                                    // says — `openPhase` assigns `RULE_ALL_OPEN` to `bluePlayer` on
-                                    // both of its branches (`BaseMatchScreen.as:172`, `:176`), so
-                                    // Open is only ever about the opponent.
-                                    faceUp = owner == CardColor.BLUE ||
-                                        visibility.isVisible(slot),
                                     scale = layout.scale,
                                     onSelect = onSelect,
                                 )
@@ -573,12 +609,18 @@ private fun HandCard(
     active: Boolean,
     allowed: Boolean,
     chosen: Boolean,
-    faceUp: Boolean,
     scale: Float,
     drag: BoardDragState?,
     onSelect: (Card) -> Unit,
     onDrop: (Card, Int) -> Unit,
 ) {
+    // Always face up: reaching this composable means the card is one this side may see. The
+    // player's own hand always is, and the opponent's only where an Open rule put it —
+    // `openPhase` assigns `RULE_ALL_OPEN` to `bluePlayer` on both of its branches
+    // (`BaseMatchScreen.as:172`, `:176`), so Open is only ever about the opponent. That decision
+    // belongs to the referee now; a card it did not send is drawn by [HandArea] as a back, and
+    // there is no `HandVisibility` left here to disagree with it.
+    //
     // Captured so the pointer can be converted out of this card's own space and into root, which
     // is where the cells registered their bounds. See [BoardDragState].
     var coordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
@@ -628,7 +670,7 @@ private fun HandCard(
                 }
             },
         ) {
-            CardFace(card = card, scale = scale, showBack = !faceUp)
+            CardFace(card = card, scale = scale)
         }
         // Never both: a chosen card that has been picked up is simply the selected one, and two
         // rings on one card at two weights would read as a rendering fault.

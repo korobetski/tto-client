@@ -21,6 +21,7 @@ import com.tripletriad.model.CardType
 import com.tripletriad.model.GameRules
 import com.tripletriad.model.HandVisibility
 import com.tripletriad.model.MatchState
+import com.tripletriad.model.MatchView
 import com.tripletriad.model.PlacedCard
 import com.tripletriad.model.TypeRule
 import com.tripletriad.ui.theme.TripleTriadTheme
@@ -98,11 +99,12 @@ class ElementalBoardTest {
         TripleTriadTheme {
             Box(modifier = Modifier.size(FIXTURE_SIDE)) {
                 PlayArea(
-                    state = state,
+                    // The board draws from a view now, so a fixture builds one — the same
+                    // projection `MatchScreen` makes of its own state, with the opponent's hand
+                    // hidden as an ordinary match would have it.
+                    view = MatchView.of(state, CardColor.BLUE, HandVisibility.HIDDEN),
                     selected = selected,
-                    visibility = HandVisibility.HIDDEN,
                     layout = matchLayout(FIXTURE_SIDE, FIXTURE_SIDE),
-                    playable = state.hands[CardColor.BLUE].orEmpty(),
                     // These fixtures are about what a *cell* draws — the element, the modifier
                     // badge, the digits under it. The capture rings are a lesson's, and lighting
                     // them here would put a second mark on the same cards.

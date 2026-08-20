@@ -6,7 +6,7 @@ import io.ktor.client.engine.HttpClientEngineFactory
 
 internal expect fun defaultHttpEngineFactory(): HttpClientEngineFactory<*>
 
-// Seven collaborators, and they are not seven decisions: this is *everything the app talks to over
+// Eight collaborators, and they are not eight decisions: this is *everything the app talks to over
 // HTTP*, assembled once by the host. Splitting it to satisfy a counter would give the two host
 // modules two bundles to wire identically, which is the mistake the type exists to prevent.
 @Suppress("LongParameterList")
@@ -14,6 +14,7 @@ class ServerConnection internal constructor(
     val directory: ServerDirectory,
     val accounts: AccountClient,
     val pvp: PvpClient,
+    val pve: PveClient,
     val session: SessionStore,
     val tickets: TicketStore,
     val probe: ServerProbe,
@@ -52,6 +53,7 @@ fun serverConnection(
         accounts = AccountClient(http, address),
         tickets = TicketStore(stores.tickets),
         pvp = PvpClient(http, address),
+        pve = PveClient(http, address),
         session = sessions,
         probe = ServerProbe(http, elapsed = clock::nowMillis),
         reporter = QueuedMatchReporter(

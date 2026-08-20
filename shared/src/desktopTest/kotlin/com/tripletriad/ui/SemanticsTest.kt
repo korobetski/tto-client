@@ -15,6 +15,8 @@ import kotlin.test.Test
 
 @OptIn(ExperimentalTestApi::class)
 class SemanticsTest {
+    private val stub = PveStubServer()
+
 
     @Test
     fun aCardCellIsAButtonThatReportsWhetherItIsShowing() = runComposeUiTest {
@@ -79,7 +81,7 @@ class SemanticsTest {
 
     @Test
     fun aBoardCellIsAButtonEvenThoughItSkipsTheSharedModifier() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
 
         startMatch()
 

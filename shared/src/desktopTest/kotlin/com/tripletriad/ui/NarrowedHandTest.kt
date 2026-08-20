@@ -23,6 +23,7 @@ import com.tripletriad.model.GameRules
 import com.tripletriad.model.HAND_SIZE
 import com.tripletriad.model.HandVisibility
 import com.tripletriad.model.MatchState
+import com.tripletriad.model.MatchView
 import com.tripletriad.model.OrderRule
 import com.tripletriad.model.TurnOrder
 import com.tripletriad.ui.theme.TripleTriadTheme
@@ -99,11 +100,18 @@ class NarrowedHandTest {
         TripleTriadTheme {
             Box(modifier = Modifier.size(FIXTURE_SIDE)) {
                 PlayArea(
-                    state = state,
+                    // The narrowing is stated rather than composed. `MatchView.of` would ask the
+                    // rules what may be played, and this file is about what a narrowed hand
+                    // *looks* like — a state that narrowed to exactly these cards would make it a
+                    // test of `playableCards` instead.
+                    view = MatchView.of(state, CardColor.BLUE, HandVisibility.HIDDEN).copy(
+                        playableHandIndices = state.hands[CardColor.BLUE].orEmpty()
+                            .withIndex()
+                            .filter { (_, card) -> card in playable }
+                            .map { (slot, _) -> slot },
+                    ),
                     selected = selected,
-                    visibility = HandVisibility.HIDDEN,
                     layout = matchLayout(FIXTURE_SIDE, FIXTURE_SIDE),
-                    playable = playable,
                     // The rings a lesson draws on the *board*; this fixture is about the hand.
                     highlights = emptyMap(),
                     waves = emptyMap(),

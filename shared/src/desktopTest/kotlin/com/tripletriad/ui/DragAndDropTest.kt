@@ -16,6 +16,8 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
 class DragAndDropTest {
+    private val stub = PveStubServer()
+
     private fun ComposeUiTest.centreOf(tag: String): Offset =
         onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot.center
 
@@ -38,7 +40,7 @@ class DragAndDropTest {
 
     @Test
     fun aCardDraggedOntoACellIsPlayed() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         startMatch()
         val before = handSize(CardColor.BLUE)
 
@@ -50,7 +52,7 @@ class DragAndDropTest {
 
     @Test
     fun aCardDroppedOffTheBoardStaysInTheHand() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         startMatch()
         val before = handSize(CardColor.BLUE)
         // Counted rather than assumed to be zero: red plays first whenever it wins the coin flip,
@@ -66,7 +68,7 @@ class DragAndDropTest {
 
     @Test
     fun aCellThatIsAlreadyTakenRefusesTheDrop() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         startMatch()
 
         // Fill a cell first, by dragging onto it.
@@ -82,7 +84,7 @@ class DragAndDropTest {
 
     @Test
     fun theOpponentsHandCannotBeDragged() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         startMatch()
         val before = handSize(CardColor.RED)
         val onBoard = placementsMade()
@@ -105,7 +107,7 @@ class DragAndDropTest {
 
     @Test
     fun tappingStillPlaysACardAlongsideTheDrag() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         startMatch()
 
         val played = playOneCard()

@@ -12,6 +12,7 @@ import com.tripletriad.model.GameRules
 import com.tripletriad.model.MatchPreparation
 import com.tripletriad.model.MatchSetup
 import com.tripletriad.model.MatchState
+import com.tripletriad.model.MatchView
 import kotlinx.coroutines.delay
 
 /*
@@ -59,6 +60,50 @@ internal fun serverIntroAnimations(rules: GameRules, first: CardColor): List<Mat
         MatchBanner.forIntroStep(step)?.let(MatchAnimation::Caption)
             ?: MatchAnimation.Toss(CoinFlip.forced(first))
     }
+
+/**
+ * The same queue for a match this client is not refereeing.
+ *
+ * [intro] is passed rather than derived from a `MatchSetup`, because a refereed client has none —
+ * the deal happened on the server. `serverIntroAnimations` builds the equivalent from the two facts
+ * that do travel: the rules in force and who won the toss.
+ */
+@Composable
+internal fun pveBannerQueue(
+    key: Any,
+    view: MatchView,
+    intro: List<MatchAnimation>,
+): BannerEvent? {
+    var event by remember(key) { mutableStateOf<BannerEvent?>(null) }
+    var epoch by remember(key) { mutableStateOf(0) }
+
+    LaunchedEffect(key, view.placement, view.lastPlay) {
+        animationsFor(view, intro)
+            .takeIf { it.isNotEmpty() }
+            ?.let {
+                event = BannerEvent(epoch, it)
+                epoch++
+            }
+    }
+
+    return event
+}
+
+internal fun animationsFor(view: MatchView, intro: List<MatchAnimation>): List<MatchAnimation> =
+    if (view.lastPlay == null) intro else MatchBanner.afterPlacement(view).asAnimations()
+
+@Composable
+internal fun pveIntroFinished(key: Any, intro: List<MatchAnimation>): Boolean {
+    var done by remember(key) { mutableStateOf(false) }
+
+    LaunchedEffect(key) {
+        done = false
+        delay(intro.sumOf { it.totalMillis }.toLong())
+        done = true
+    }
+
+    return done
+}
 
 @Composable
 internal fun introFinished(key: Any, setup: MatchSetup): Boolean {

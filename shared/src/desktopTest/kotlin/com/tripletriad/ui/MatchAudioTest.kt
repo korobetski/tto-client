@@ -18,19 +18,21 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
 class MatchAudioTest {
+    private val stub = PveStubServer()
+
     private val audio = RecordingAudioPlayer()
 
     @Test
     fun theMusicStartsWithTheMatchAndStopsWhenItIsLeft() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), audio = audio) }
+        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio) }
         awaitMenu()
 
         // `MenuScreen` never called `shuffleLoop` — nothing plays on the menu but the tap.
         assertFalse(Sound.MATCH_MUSIC in audio, "the music started before a match")
 
-        // Play now leads to the character list and then to the dashboard, so reaching a board is
+        // Play leads straight to the dashboard of the account's profile, so reaching a board is
         // the whole flow — and the music must not start on any screen along the way.
-        newCharacter()
+        openDashboard()
         openOpponents()
         assertFalse(Sound.MATCH_MUSIC in audio, "the music started before a board was up")
 
@@ -46,7 +48,7 @@ class MatchAudioTest {
 
     @Test
     fun openingAMatchPlaysTheDealSound() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), audio = audio) }
+        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio) }
         startMatch()
 
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { Sound.MATCH_OPEN in audio }
@@ -65,7 +67,7 @@ class MatchAudioTest {
 
     @Test
     fun eachPlayerPlacementPlaysTheSoundThatMatchesWhatItDid() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), audio = audio) }
+        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio) }
         startMatch()
 
         var withCaptures = 0
@@ -100,7 +102,7 @@ class MatchAudioTest {
 
     @Test
     fun anOpponentPlacementAlsoSounds() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), audio = audio) }
+        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio) }
         startMatch()
 
         playOneCard()
@@ -117,7 +119,7 @@ class MatchAudioTest {
 
     @Test
     fun theLastPlacementPlaysTheOutcomeInsteadOfATurnChange() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), audio = audio) }
+        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio) }
         startMatch()
         // The opponent may already have played, if the coin flip favoured it — so the window this
         // test measures starts at whatever is on the board, not at zero.
@@ -142,7 +144,7 @@ class MatchAudioTest {
 
     @Test
     fun anUnfinishedMatchPlaysATurnChange() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), audio = audio) }
+        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio) }
         startMatch()
 
         audio.clear()
@@ -155,7 +157,7 @@ class MatchAudioTest {
 
     @Test
     fun theRematchControlSoundsAndDealsAgain() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), audio = audio) }
+        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio) }
         startMatch()
         playOut()
         audio.clear()
@@ -164,9 +166,9 @@ class MatchAudioTest {
         waitForIdle()
 
         assertTrue(Sound.NEW_MATCH in audio, "played: ${audio.played}")
-        // The deal sound comes with the cards, which is now after the deck is settled rather than
-        // when the screen opens — the two were the same moment before the selector existed.
-        settleDeck()
+        // The deal sound comes with the cards, which is when the referee's board arrives rather
+        // than when the screen opens — the two were the same moment before the match was refereed.
+        awaitBoard()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { Sound.MATCH_OPEN in audio }
     }
 

@@ -348,6 +348,12 @@ internal fun AccountResult<*>.message(strings: Strings): String = when (this) {
     is AccountResult.Failed -> strings.format(StringKeys.ERROR_STATUS, status.toString())
     is AccountResult.RefusedPvp -> code.message(strings)
 
+    // One sentence for all six codes, unlike the player-versus-player refusals above. Every one of
+    // them means "this screen's idea of the match is wrong", and the answer to all of them is the
+    // same: re-read it. A player who is told *which* way their client was out of date learns
+    // nothing they can act on.
+    is AccountResult.RefusedPve -> strings[StringKeys.ERROR_STALE_MATCH]
+
     // Deliberately not phrased as an error. The player did nothing wrong and the answer is to
     // wait, so the wording says that — and says how long whenever the server was willing to.
     is AccountResult.Throttled ->
@@ -355,12 +361,17 @@ internal fun AccountResult<*>.message(strings: Strings): String = when (this) {
             ?.let { strings.format(StringKeys.ERROR_THROTTLED_IN, it.toString()) }
             ?: strings[StringKeys.ERROR_THROTTLED]
 
-    is AccountResult.Refused -> when (failure.error) {
-        AccountError.USERNAME_TAKEN -> strings[StringKeys.ERROR_NAME_TAKEN]
-        AccountError.INVALID_CREDENTIALS -> strings[StringKeys.ERROR_BAD_CREDENTIALS]
-        AccountError.MALFORMED_CREDENTIALS -> failure.detail
-        AccountError.UNAUTHENTICATED -> strings[StringKeys.ERROR_EXPIRED]
-    }
+    is AccountResult.Refused -> failure.error.message(strings, failure.detail)
+}
+
+// Lifted out of the `when` above rather than nested inside it. Four more arms in one function put
+// it over detekt's complexity gate the moment a fifth kind of refusal arrived, and the sentence
+// the account errors deserve is not the sentence a match refusal deserves.
+private fun AccountError.message(strings: Strings, detail: String): String = when (this) {
+    AccountError.USERNAME_TAKEN -> strings[StringKeys.ERROR_NAME_TAKEN]
+    AccountError.INVALID_CREDENTIALS -> strings[StringKeys.ERROR_BAD_CREDENTIALS]
+    AccountError.MALFORMED_CREDENTIALS -> detail
+    AccountError.UNAUTHENTICATED -> strings[StringKeys.ERROR_EXPIRED]
 }
 
 internal fun PvpRefusal.message(strings: Strings): String = when (this) {

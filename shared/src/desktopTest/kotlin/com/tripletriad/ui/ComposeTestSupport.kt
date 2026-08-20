@@ -123,35 +123,45 @@ internal fun ComposeUiTest.backToDashboard() {
     awaitDashboard()
 }
 
+/**
+ * Straight to the dashboard of the profile the **server** holds.
+ *
+ * The counterpart of [newCharacter], and it exists because a refereed match has no local profile to
+ * play it: the account is signed in before the first frame — see `PveStubServer.connection` — so
+ * "choose a character" has already been answered and tapping Play lands on the dashboard.
+ */
 @OptIn(ExperimentalTestApi::class)
-internal fun ComposeUiTest.startMatch(
-    iconId: String = TEST_OPPONENT,
-    block: Int = FF14_BLOCK,
-) {
-    newCharacter(block)
+internal fun ComposeUiTest.openDashboard() {
+    awaitMenu()
+    onNodeWithTag(MENU_PLAY_TEST_TAG).performClick()
+    awaitDashboard()
+}
+
+/**
+ * A board, from a cold start, against [iconId].
+ *
+ * Needs an `App` given a `PveStubServer` connection. Without one there is no referee, and a screen
+ * that renders what a referee sent renders nothing at all.
+ */
+@OptIn(ExperimentalTestApi::class)
+internal fun ComposeUiTest.startMatch(iconId: String = TEST_OPPONENT) {
+    openDashboard()
     openOpponents()
     challenge(iconId)
+}
+
+/** Waits for a refereed board to arrive. There is nothing local to settle first. */
+@OptIn(ExperimentalTestApi::class)
+internal fun ComposeUiTest.awaitBoard() {
+    waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(BOARD_TEST_TAG) }
 }
 
 @OptIn(ExperimentalTestApi::class)
 internal fun ComposeUiTest.challenge(iconId: String = TEST_OPPONENT) {
     scrollToOpponent(iconId)
     onNodeWithTag(opponentRowTestTag(iconId)).performClick()
-    settleDeck()
+    awaitBoard()
     awaitPlayer()
-}
-
-@OptIn(ExperimentalTestApi::class)
-internal fun ComposeUiTest.settleDeck() {
-    waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
-        exists(DECK_SELECT_CHOOSE_TEST_TAG) || exists(BOARD_TEST_TAG)
-    }
-    if (exists(DECK_SELECT_EMPTY_TEST_TAG)) {
-        onNodeWithTag(DECK_SELECT_RANDOM_TEST_TAG).performClick()
-    } else if (exists(DECK_SELECT_CHOOSE_TEST_TAG)) {
-        onNodeWithTag(DECK_SELECT_CHOOSE_TEST_TAG).performClick()
-    }
-    waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(BOARD_TEST_TAG) }
 }
 
 internal const val ANY_LEVEL: Int = 99

@@ -26,6 +26,7 @@ import com.tripletriad.model.PotionItem
 import com.tripletriad.model.PotionType
 import com.tripletriad.net.AccountClient
 import com.tripletriad.net.MatchReporter
+import com.tripletriad.net.PveClient
 import com.tripletriad.net.PvpClient
 import com.tripletriad.net.ServerConnection
 import com.tripletriad.net.ServerDirectory
@@ -176,6 +177,7 @@ class AccountBagUiTest {
             directory = directory,
             accounts = AccountClient(http, baseUrl = { directory.selected.baseUrl }),
             pvp = PvpClient(http, baseUrl = { directory.selected.baseUrl }),
+            pve = PveClient(http, baseUrl = { directory.selected.baseUrl }),
             session = SessionStore(sessions),
             tickets = TicketStore(InMemoryDocumentStore()),
             probe = ServerProbe(http) { 0L },

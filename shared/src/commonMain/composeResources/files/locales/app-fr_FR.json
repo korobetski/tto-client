@@ -124,6 +124,7 @@
   "APP_ERROR_OFFLINE": "Le serveur est injoignable. Vérifiez votre connexion.",
   "APP_ERROR_UPDATE": "Cette version est trop ancienne pour le serveur. Mettez à jour.",
   "APP_ERROR_STATUS": "Le serveur a répondu {0}.",
+  "APP_ERROR_STALE_MATCH": "La partie a avancé. Rechargement du plateau.",
   "APP_ERROR_THROTTLED": "Trop de tentatives. Patientez un instant.",
   "APP_ERROR_THROTTLED_IN": "Trop de tentatives. Réessayez dans {0}s.",
   "APP_NO_SEEDS": "Connectez-vous une fois pour continuer à jouer hors ligne.",

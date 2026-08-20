@@ -23,6 +23,8 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
 class OpponentUiTest {
+    private val stub = PveStubServer()
+
     private val catalog = runBlocking { loadNpcCatalog() }
 
     private fun stored(documents: InMemoryDocumentStore): GameSave =
@@ -160,59 +162,65 @@ class OpponentUiTest {
 
     @Test
     fun aFinishedMatchIsWrittenToTheProfile() = runComposeUiTest {
-        val documents = InMemoryDocumentStore()
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         startMatch()
+        val before = stub.player.save.mgp
 
         playOut()
-        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { stored(documents).endedMatches == 1 }
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { stub.player.save.endedMatches == 1 }
 
-        val save = stored(documents)
+        // Read off the **server's** profile, which is the only one there is. Nothing local adds a
+        // match up any more: the referee settles, credits once, and sends back the profile it
+        // wrote — see `PveOutcome.player`.
+        val save = stub.player.save
         assertEquals(1, save.endedMatches, "the match should be recorded as ended")
         assertEquals(1, save.stats.played, "exactly one result should be recorded")
-        assertTrue(
-            save.mgp > GameSave.STARTING_MGP,
-            "every result pays, so MGP should have risen from ${GameSave.STARTING_MGP}",
-        )
-        assertTrue(save.saveNumber >= 2, "created once, then written again: ${save.saveNumber}")
+        assertTrue(save.mgp > before, "every result pays, so MGP should have risen from $before")
     }
 
+    /**
+     * Leaving a board pays nothing, and **that is all it does now.**
+     *
+     * It used to count: the profile was written when the board opened, so started-minus-ended made
+     * a forfeit. The refereed path writes the profile once, at settlement — `PveReferee.settle` is
+     * the only caller of `GameSave.startingMatch` — so a match nobody finished touches no counter
+     * at all. `PveStore.abandonLive` marks the row and stops there.
+     *
+     * The half that matters is unchanged and is what this asserts: an abandoned match is not a
+     * result and is not paid. Whether walking out should still cost a forfeit is a question for the
+     * server, not for this screen.
+     */
     @Test
-    fun abandoningAMatchCountsAsAForfeit() = runComposeUiTest {
-        val documents = InMemoryDocumentStore()
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+    fun abandoningAMatchIsNotAResultAndPaysNothing() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         startMatch()
-        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { stored(documents).startedMatches == 1 }
+        val before = stub.player.save
 
         onNodeWithTag(MATCH_EXIT_TEST_TAG).performClick()
         awaitOpponents()
 
-        val save = stored(documents)
-        assertEquals(1, save.startedMatches)
-        assertEquals(0, save.endedMatches)
-        assertEquals(1, save.forfeits, "started minus ended")
-        assertEquals(1, save.pveMatches, "and it was a match against an opponent")
+        val save = stub.player.save
+        assertEquals(0, save.endedMatches, "nothing was finished")
+        assertEquals(0, save.stats.played, "and so nothing was recorded")
+        assertEquals(before.mgp, save.mgp, "walking out of a board must not pay")
     }
 
     @Test
     fun aSecondMatchAddsToTheProfile() = runComposeUiTest {
-        val documents = InMemoryDocumentStore()
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         startMatch()
 
         playOut()
-        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { stored(documents).endedMatches == 1 }
-        val afterFirst = stored(documents)
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { stub.player.save.endedMatches == 1 }
+        val afterFirst = stub.player.save
 
         onNodeWithTag(NEW_MATCH_TEST_TAG).performClick()
-        settleDeck()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { !isFinished() }
         playOut()
-        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { stored(documents).endedMatches == 2 }
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { stub.player.save.endedMatches == 2 }
 
-        val afterSecond = stored(documents)
+        val afterSecond = stub.player.save
         assertEquals(2, afterSecond.stats.played)
-        assertEquals(2, afterSecond.startedMatches)
         assertTrue(
             afterSecond.mgp > afterFirst.mgp,
             "the second match should have paid too: ${afterFirst.mgp} -> ${afterSecond.mgp}",

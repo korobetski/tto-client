@@ -28,7 +28,6 @@ import com.tripletriad.data.Campaign
 import com.tripletriad.data.CardCatalog
 import com.tripletriad.data.FormatCatalog
 import com.tripletriad.data.NpcCatalog
-import com.tripletriad.data.SaveRepository
 import com.tripletriad.data.StarterCatalog
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.LocalStrings
@@ -37,8 +36,6 @@ import com.tripletriad.model.GameSave
 import com.tripletriad.model.Npc
 import com.tripletriad.net.MatchReporter
 import com.tripletriad.net.ServerConnection
-import com.tripletriad.net.accountQueueKey
-import com.tripletriad.protocol.MatchTranscript
 import com.tripletriad.settings.InMemorySettingsStore
 import com.tripletriad.settings.SettingsStore
 import com.tripletriad.settings.UserSettings
@@ -97,6 +94,25 @@ fun App(
                     // somewhere this client cannot see. Nothing re-read it before: `PvpOutcome`
                     // carried the payout and every field of it was ignored.
                     onSettled = { account?.refresh() },
+                ) {
+                    connection.session.load(connection.server.id, clock.nowMillis())?.token
+                }
+            }
+            /*
+             * The opponent, refereed. Null without a server — and that is now what "offline" means
+             * for the whole game rather than for multiplayer alone: a solo match is a row on the
+             * server too, because the client that used to run it also held the opponent's five
+             * cards and every move they were going to make. See [PveMatchScreen].
+             *
+             * The tutorial is the exception and stays local, because it settles nothing.
+             */
+            val pve = server?.let { connection ->
+                rememberPveSession(
+                    client = connection.pve,
+                    // The profile after crediting, computed once on the server. Adopted rather
+                    // than added up: two copies of a profile and a window in which they disagree
+                    // is what a reward that never reaches the bag looks like from the inside.
+                    onCredited = { account?.adopt(it) },
                 ) {
                     connection.session.load(connection.server.id, clock.nowMillis())?.token
                 }
@@ -203,6 +219,7 @@ fun App(
                             Destination(
                                 destination = destination,
                                 pvp = pvp,
+                                pve = pve,
                                 startup = startup,
                                 settings = settings,
                                 session = session,
@@ -364,6 +381,7 @@ private fun Destination(
     session: ProfileSession,
     account: AccountSession?,
     pvp: PvpSession?,
+    pve: PveSession?,
     connectivity: Connectivity?,
     gate: ProfileGate,
     choice: Choice,
@@ -464,6 +482,7 @@ private fun Destination(
                     destination = destination,
                     profile = profile,
                     pvp = pvp,
+                    pve = pve,
                     startup = startup,
                     gate = gate,
                     account = account,
@@ -518,6 +537,7 @@ private fun CharacterDestination(
     destination: Screen,
     profile: GameSave,
     pvp: PvpSession?,
+    pve: PveSession?,
     startup: StartupState,
     gate: ProfileGate,
     account: AccountSession?,
@@ -596,10 +616,9 @@ private fun CharacterDestination(
             startup = startup,
             choice = choice,
             gate = gate,
-            account = account,
             pvp = pvp,
+            pve = pve,
             clock = clock,
-            reporter = reporter,
             settings = settings,
             onNavigate = onNavigate,
         )
@@ -727,10 +746,12 @@ private fun MatchDestinations(
     startup: StartupState,
     choice: Choice,
     gate: ProfileGate,
-    account: AccountSession?,
+    // No `account` and no `reporter` any more, and both absences say the same thing: a board no
+    // longer credits anybody or reports anything. The server settles the match and sends back the
+    // profile it wrote — see `PveOutcome.player`.
     pvp: PvpSession?,
+    pve: PveSession?,
     clock: Clock,
-    reporter: MatchReporter,
     settings: SettingsHolder?,
     onNavigate: (Screen) -> Unit,
 ) {
@@ -779,9 +800,7 @@ private fun MatchDestinations(
             campaign = choice.campaign,
             profile = profile,
             startup = startup,
-            clock = clock,
-            nextSeed = gate.nextSeed,
-            onPersist = gate.persist,
+            pve = pve,
             onIntent = gate.perform,
             onNavigate = onNavigate,
         )
@@ -789,9 +808,6 @@ private fun MatchDestinations(
         Screen.TUTORIAL -> TutorialDestination(
             profile = profile,
             startup = startup,
-            clock = clock,
-            nextSeed = gate.nextSeed,
-            onPersist = gate.persist,
             from = choice.lesson,
             // `maxOf`, not an assignment: the list can start any lesson, so finishing lesson two
             // after lesson five would otherwise take the course backwards.
@@ -802,17 +818,9 @@ private fun MatchDestinations(
         )
 
         else -> MatchDestination(
-            profile = profile,
             startup = startup,
             opponent = choice.opponent,
-            clock = clock,
-            nextSeed = gate.nextSeed,
-            onPersist = gate.persist,
-            // The key is derived from the profile the *match* was played with, not from the gate,
-            // whose profile the credit has already replaced by the time this runs. Both name the
-            // same queue — neither key is built from anything a match changes — and using the one
-            // in hand says so rather than relying on it.
-            onTranscript = { reporter.report(queueKeyFor(profile, account), it) },
+            pve = pve,
             onExit = { onNavigate(Screen.OPPONENTS) },
         )
     }
@@ -868,13 +876,9 @@ private fun RecordDestination(
 @Composable
 @Suppress("LongParameterList")
 private fun MatchDestination(
-    profile: GameSave,
     startup: StartupState,
     opponent: Npc?,
-    clock: Clock,
-    nextSeed: () -> Int?,
-    onPersist: suspend (GameSave) -> Unit,
-    onTranscript: suspend (MatchTranscript) -> Unit,
+    pve: PveSession?,
     onExit: () -> Unit,
 ) {
     val chosen = opponent ?: return
@@ -882,18 +886,24 @@ private fun MatchDestination(
     // The format this match is played under: the widest one, the same the roster was listed in.
     // Behind the splash, so a missing catalogue is unreachable rather than a degraded mode.
     val format = startup.formats?.default ?: return
+    // No server, no match. The card that got here is dimmed without one — see the roster — so this
+    // is the guard rather than the message, and it is the same guard multiplayer already had.
+    val session = pve ?: return
+
+    // Opened here rather than on the way in, and only when there is nothing to resume: a match
+    // interrupted by a closed app comes back on its own board, which is the whole of what "a
+    // dropped connection is not an abandon" amounts to on this side.
+    LaunchedEffect(session, chosen.iconId) {
+        session.resume()
+        if (session.match == null) session.open(chosen.iconId, format.id)
+    }
 
     MatchArt(startup) {
-        MatchScreen(
+        PveMatchScreen(
+            session = session,
             catalog = catalog,
-            profile = profile,
             npc = chosen,
-            format = format,
-            clock = clock,
-            nextSeed = nextSeed,
-            onPersist = onPersist,
             onExit = onExit,
-            onTranscript = onTranscript,
         )
     }
 }
@@ -905,9 +915,7 @@ private fun CampaignDestination(
     campaign: Campaign?,
     profile: GameSave,
     startup: StartupState,
-    clock: Clock,
-    nextSeed: () -> Int?,
-    onPersist: suspend (GameSave) -> Unit,
+    pve: PveSession?,
     onIntent: suspend (Intent) -> IntentOutcome,
     onNavigate: (Screen) -> Unit,
 ) {
@@ -938,16 +946,13 @@ private fun CampaignDestination(
         // its rungs are played under — that is what `Campaign.format` is for — so the FFXIV Cup is
         // FFXIV cards under the FFXIV pool however wide the free-play format happens to be.
         val format = startup.formats?.get(ladder.format)
-        if (catalog != null && format != null) {
+        if (catalog != null && format != null && pve != null) {
             MatchArt(startup) {
                 CampaignMatchScreen(
                     campaign = ladder,
                     catalog = catalog,
-                    profile = profile,
                     format = format,
-                    clock = clock,
-                    nextSeed = nextSeed,
-                    onPersist = onPersist,
+                    pve = pve,
                     onFinished = toOpponents,
                 )
             }
@@ -982,9 +987,6 @@ internal val PLAYING_SCREENS =
 private fun TutorialDestination(
     profile: GameSave,
     startup: StartupState,
-    clock: Clock,
-    nextSeed: () -> Int?,
-    onPersist: suspend (GameSave) -> Unit,
     from: Int,
     onFinished: (Int) -> Unit,
     onNavigate: (Screen) -> Unit,
@@ -999,9 +1001,6 @@ private fun TutorialDestination(
             profile = profile,
             tutor = tutor,
             format = format,
-            clock = clock,
-            nextSeed = nextSeed,
-            onPersist = onPersist,
             onHelp = { onNavigate(Screen.HELP) },
             onExit = { onNavigate(Screen.LESSONS) },
             from = from,
@@ -1010,15 +1009,15 @@ private fun TutorialDestination(
     }
 }
 
-private fun queueKeyFor(
-    profile: GameSave,
-    account: AccountSession?,
-): String =
-    if (account != null) {
-        accountQueueKey(account.serverId, profile.username)
-    } else {
-        SaveRepository.keyFor(profile)
-    }
+/*
+ * `queueKeyFor` used to live here: the submission queue a finished match was reported into, keyed
+ * by server and username so two accounts on one device could not read each other's backlog.
+ *
+ * It is gone with its only caller. A match is settled by the server as it is played, so there is
+ * nothing left to report afterwards and nothing to queue while offline — a match that cannot reach
+ * the server is not played rather than played and posted later. `MatchSettlement` still drains the
+ * queue for transcripts written by an earlier version; that path goes with `MatchTranscript`.
+ */
 
 @Composable
 @Suppress("LongParameterList")

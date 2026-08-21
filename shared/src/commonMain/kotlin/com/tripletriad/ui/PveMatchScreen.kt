@@ -42,6 +42,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 const val PVE_RECONNECT_TEST_TAG: String = "pve-reconnect"
@@ -83,6 +84,10 @@ internal fun PveMatchScreen(
     npc: Npc,
     onExit: () -> Unit,
     turnLimit: Duration = PVE_TURN_LIMIT,
+    // How long the opponent appears to think, on top of waiting for the board to go quiet. A
+    // parameter so a fixture can take it to zero: a test that drives nine placements should not
+    // spend ten seconds watching somebody pretend to deliberate.
+    thinking: Duration = PVE_THINKING,
     // The campaign's lines, and nothing else a script can normally do. `MatchScript` also fixes the
     // deal, forces the coin flip and weakens the opponent, none of which survives here: those are
     // the referee's decisions now, and a client that could ask for a rigged deal is exactly what
@@ -136,7 +141,13 @@ internal fun PveMatchScreen(
         mutableStateOf<MatchView?>(null, referentialEqualityPolicy())
     }
 
-    PveExchange(session = session, served = served, cards = cards, shown = shown) { next, told ->
+    PveExchange(
+        session = session,
+        served = served,
+        cards = cards,
+        shown = shown,
+        thinking = thinking,
+    ) { next, told ->
         shown = next
         // Only a placement being *told* sounds. The walk ends by adopting the referee's own view,
         // which is the position the last step already reached — sounding it again played every
@@ -146,7 +157,7 @@ internal fun PveMatchScreen(
 
     val view = shown
     if (view == null) {
-        PveWaiting(session = session, onExit = onExit)
+        PveWaiting(session = session, against = npc.iconId, onExit = onExit)
         return
     }
 
@@ -181,7 +192,7 @@ internal fun PveMatchScreen(
         val outcome = session.match?.outcome ?: return@LaunchedEffect
         if (reward != null || shown !== served) return@LaunchedEffect
         onResult(outcome.result)
-        delay(PVE_OUTCOME_PAUSE_MS + waveDelayMillis(view.lastPlay))
+        delay(PVE_OUTCOME_PAUSE_MS + settleMillis(view.lastPlay))
         reward = outcome.reward?.asMatchReward(outcome.result)
     }
 
@@ -267,7 +278,7 @@ internal fun PveMatchScreen(
             LessonBubbles(speech = speech, script = script, enabled = underway)
             OutcomeBubble(script = script, result = reward?.result)
             // Over everything, because it is the only thing on screen the player can act on.
-            session.trouble?.let { PveReconnect(session) }
+            session.trouble?.let { PveReconnect(session, against = npc.iconId) }
         }
     }
 }
@@ -306,6 +317,7 @@ private fun PveExchange(
     served: MatchView?,
     cards: Map<Int, Card>,
     shown: MatchView?,
+    thinking: Duration,
     onStep: (MatchView, told: Boolean) -> Unit,
 ) {
     val plays = session.match?.plays.orEmpty()
@@ -324,26 +336,35 @@ private fun PveExchange(
         var at: MatchView = shown
         for ((index, play) in plays.withIndex()) {
             val card = cards[play.cardId] ?: break
-            if (index > 0) delay(PVE_REPLY_PAUSE_MS + waveDelayMillis(at.lastPlay))
+            // The player's own card lands on the frame they asked for it — index 0 is the move
+            // they just made, and making somebody wait to see their own tap answered is the one
+            // delay that reads as lag rather than as an opponent.
+            //
+            // Everything after it waits twice: once for the board to go quiet, and once more
+            // because a program that answers the instant the flip ends does not read as an
+            // opponent taking a turn. The AS3 opponent took the same beat and it was the same
+            // fiction — `PVEMatchScreen` slept before playing a move it had already chosen.
+            if (index > 0) delay(settleMillis(at.lastPlay) + thinking.inWholeMilliseconds)
             at = at.after(play, card)
             onStep(at, true)
         }
         // The referee's view, always, and after the walk rather than instead of it. A board stepped
         // to a different position than the one that was sent is a rendering bug here; the player
         // still gets the position the server has.
-        delay(PVE_REPLY_PAUSE_MS + waveDelayMillis(at.lastPlay))
+        // The last placement's own animation, and no thinking pause: nobody is about to move.
+        delay(settleMillis(at.lastPlay))
         onStep(target, false)
     }
 }
 
 /** No board yet: the deal is in flight, or the connection is. */
 @Composable
-private fun PveWaiting(session: PveSession, onExit: () -> Unit) {
+private fun PveWaiting(session: PveSession, against: String, onExit: () -> Unit) {
     val strings = LocalStrings.current
 
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         if (session.trouble != null) {
-            PveReconnect(session, onExit = onExit)
+            PveReconnect(session, against = against, onExit = onExit)
         } else {
             Text(
                 text = strings[StringKeys.LOADING],
@@ -362,7 +383,11 @@ private fun PveWaiting(session: PveSession, onExit: () -> Unit) {
  * date, and [PveSession.resume] fixes exactly that.
  */
 @Composable
-private fun PveReconnect(session: PveSession, onExit: (() -> Unit)? = null) {
+private fun PveReconnect(
+    session: PveSession,
+    against: String,
+    onExit: (() -> Unit)? = null,
+) {
     val strings = LocalStrings.current
     val scope = rememberCoroutineScope()
 
@@ -380,7 +405,14 @@ private fun PveReconnect(session: PveSession, onExit: (() -> Unit)? = null) {
             textAlign = TextAlign.Center,
         )
         Button(
-            onClick = { scope.launch { session.resume() } },
+            // `refresh` when there is a board to re-read, because it asks by id and cannot be
+            // handed a different match; `resume` only when there is nothing yet, and then narrowed
+            // to this opponent for the reason its own KDoc gives.
+            onClick = {
+                scope.launch {
+                    if (session.match != null) session.refresh() else session.resume(against)
+                }
+            },
             enabled = !session.isBusy,
         ) {
             Text(strings[StringKeys.RETRY])
@@ -411,7 +443,14 @@ internal fun RewardSummary.asMatchReward(
     quests = questIds.mapNotNull(DailyQuestCatalog::get),
 )
 
-private const val PVE_REPLY_PAUSE_MS = 700L
+/**
+ * The beat the opponent takes before answering, on top of the board falling quiet.
+ *
+ * Short enough not to be a wait, long enough that the reply is a *reply*. The two are added rather
+ * than folded into one number so that a combo — which takes the board most of a second to draw —
+ * does not eat the pause and make a long turn look like a fast one.
+ */
+private val PVE_THINKING = 550.milliseconds
 
 private const val PVE_OUTCOME_PAUSE_MS = 1_400L
 

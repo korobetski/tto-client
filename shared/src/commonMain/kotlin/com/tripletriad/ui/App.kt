@@ -36,6 +36,7 @@ import com.tripletriad.model.GameSave
 import com.tripletriad.model.Npc
 import com.tripletriad.net.MatchReporter
 import com.tripletriad.net.ServerConnection
+import com.tripletriad.protocol.ANY_DECK
 import com.tripletriad.settings.InMemorySettingsStore
 import com.tripletriad.settings.SettingsStore
 import com.tripletriad.settings.UserSettings
@@ -489,7 +490,6 @@ private fun Destination(
                     chooser = chooser,
                     choice = choice,
                     clock = clock,
-                    reporter = reporter,
                     settings = settings,
                     onNavigate = onNavigate,
                 )
@@ -544,7 +544,6 @@ private fun CharacterDestination(
     chooser: Screen,
     choice: Choice,
     clock: Clock,
-    reporter: MatchReporter,
     settings: SettingsHolder?,
     onNavigate: (Screen) -> Unit,
 ) {
@@ -819,6 +818,7 @@ private fun MatchDestinations(
 
         else -> MatchDestination(
             startup = startup,
+            profile = profile,
             opponent = choice.opponent,
             pve = pve,
             onExit = { onNavigate(Screen.OPPONENTS) },
@@ -877,6 +877,7 @@ private fun RecordDestination(
 @Suppress("LongParameterList")
 private fun MatchDestination(
     startup: StartupState,
+    profile: GameSave,
     opponent: Npc?,
     pve: PveSession?,
     onExit: () -> Unit,
@@ -890,12 +891,49 @@ private fun MatchDestination(
     // is the guard rather than the message, and it is the same guard multiplayer already had.
     val session = pve ?: return
 
-    // Opened here rather than on the way in, and only when there is nothing to resume: a match
-    // interrupted by a closed app comes back on its own board, which is the whole of what "a
-    // dropped connection is not an abandon" amounts to on this side.
+    /*
+     * Which deck to bring, decided **before** the match is asked for.
+     *
+     * It used to be asked on the way into a board that had already been dealt, because the deal was
+     * this process's to redo. The referee deals once, from the request, so the question has to come
+     * first — and the answer travels as a save slot (`PveMatchRequest.deck`) rather than as five
+     * cards, which is what stops a client naming a card it does not own.
+     *
+     * Null is "not answered yet". [ANY_DECK] is an answer: it is what Random means here.
+     */
+    var deck by remember(chosen.iconId) { mutableStateOf<Int?>(null) }
+    var resumed by remember(chosen.iconId) { mutableStateOf(false) }
+
+    // First, and on its own: a match interrupted by a closed app comes back on its own board, and
+    // asking that player which deck to bring would be offering to re-deal a game in progress. That
+    // is the whole of what "a dropped connection is not an abandon" amounts to on this side.
     LaunchedEffect(session, chosen.iconId) {
-        session.resume()
-        if (session.match == null) session.open(chosen.iconId, format.id)
+        session.resume(against = chosen.iconId)
+        resumed = true
+    }
+    if (!resumed) return
+
+    // The **declared** rule, not the one the match ends up under: the roulette is drawn by the
+    // referee and could add Random on top. That costs nothing — the request's deck is a preference
+    // and the server has the last word — whereas asking the server first would put a round trip in
+    // front of a question the opponent's own data already answers.
+    if (session.match == null && deck == null && !chosen.gameRules().random) {
+        DeckSelectorScreen(
+            profile = profile,
+            catalog = catalog,
+            format = format,
+            npc = chosen,
+            rules = chosen.gameRules(),
+            onChoose = { deck = it },
+            onBack = onExit,
+        )
+        return
+    }
+
+    LaunchedEffect(session, chosen.iconId, deck) {
+        if (session.match != null) return@LaunchedEffect
+        session.deck = deck ?: ANY_DECK
+        session.open(chosen.iconId, format.id)
     }
 
     MatchArt(startup) {
@@ -927,6 +965,7 @@ private fun CampaignDestination(
         CampaignScreen(
             campaign = ladder,
             profile = profile,
+            cards = startup.catalog?.all?.associateBy { it.id }.orEmpty(),
             // The fee is taken here, on the way in, and never given back: `startCampaign`'s
             // handler does `Game.PROFILE_DATAS.MGP -= 500` and then opens the ladder. A defeat
             // costs another 500 to try again, which is the whole of what makes a ladder a stake.

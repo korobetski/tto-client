@@ -8,13 +8,11 @@ import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.FF14_FORMAT
 import com.tripletriad.data.NpcRating
-import com.tripletriad.data.SaveRepository
 import com.tripletriad.data.loadNpcCatalog
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.Npc
 import com.tripletriad.model.XpTable
-import com.tripletriad.storage.InMemoryDocumentStore
 import com.tripletriad.time.FixedClock
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
@@ -26,9 +24,6 @@ class OpponentUiTest {
     private val stub = PveStubServer()
 
     private val catalog = runBlocking { loadNpcCatalog() }
-
-    private fun stored(documents: InMemoryDocumentStore): GameSave =
-        runBlocking { SaveRepository(documents).list().single().save }
 
     @Test
     fun opponentsAreListedEasiestFirst() = runComposeUiTest {
@@ -50,6 +45,23 @@ class OpponentUiTest {
             listed.first().difficulty,
             "the head of the list should be as easy as the scale goes",
         )
+    }
+
+    /**
+     * The random button hands the challenge to `onChallenge` exactly as a row's own tap does — it
+     * draws from `opponents`, the same unlocked roster a row is listed from — so the only thing
+     * worth proving here is that the tap actually opens a match rather than doing nothing.
+     */
+    @Test
+    fun theRandomButtonOpensAMatch() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        openDashboard()
+        openOpponents()
+
+        onNodeWithTag(RANDOM_OPPONENT_TEST_TAG).performClick()
+        settleDeck()
+
+        assertTrue(exists(BOARD_TEST_TAG), "the random button should open a board")
     }
 
     @Test

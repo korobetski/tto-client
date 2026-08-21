@@ -90,7 +90,9 @@ class AccountSettlementTest {
         val reporter = CreditingReporter { null }
         val server = PveStubServer(reporter = reporter)
 
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = server.connection) }
+        setContent {
+            App(store = settingsFor(AppLocale.EN_US), server = server.connection)
+        }
         openDashboard()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { reporter.drained.size == 1 }
 
@@ -103,7 +105,10 @@ class AccountSettlementTest {
 
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { reporter.drained.size == 2 }
         assertEquals(2, reporter.drained.size)
-        assertTrue(reporter.drained.all { it.contains(PveStubServer.NAME) }, reporter.drained.toString())
+        assertTrue(
+            reporter.drained.all { it.contains(PveStubServer.NAME) },
+            "both drains should be this account's: ${reporter.drained}",
+        )
     }
 
     // ---- Harness -----------------------------------------------------------

@@ -32,10 +32,9 @@ import com.tripletriad.model.Deck
 import com.tripletriad.model.GameRules
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.HAND_SIZE
-import com.tripletriad.model.MatchPreparation
 import com.tripletriad.model.Npc
+import com.tripletriad.protocol.ANY_DECK
 import com.tripletriad.ui.theme.LocalTtoColors
-import kotlin.random.Random
 
 const val DECK_SELECT_TEST_TAG: String = "deck-select"
 const val DECK_SELECT_CHOOSE_TEST_TAG: String = "deck-select-choose"
@@ -51,9 +50,8 @@ internal fun DeckSelectorScreen(
     format: Format,
     npc: Npc,
     rules: GameRules,
-    onChoose: (List<Int>) -> Unit,
+    onChoose: (Int) -> Unit,
     onBack: () -> Unit,
-    random: Random = Random.Default,
 ) {
     val strings = LocalStrings.current
     val cards = remember(catalog, format) {
@@ -103,10 +101,12 @@ internal fun DeckSelectorScreen(
         ) {
             Box(modifier = Modifier.weight(1f)) {
                 WideButton(strings[StringKeys.RANDOM_DECK], DECK_SELECT_RANDOM_TEST_TAG) {
-                    // One entry per copy: Random draws five without replacement, and a second
-                    // copy is a card the draw can reach. See `GameSave.ownedCardIds`.
-                    val collection = profile.ownedCardIds().mapNotNull(cards::get)
-                    onChoose(MatchPreparation.randomHand(collection, random).map { it.id })
+                    // **No deck**, rather than five cards drawn here. This screen used to hand the
+                    // deal a hand, and could: the deal was local. It is the referee's now, and the
+                    // request carries a *slot* so that a client cannot name a card it does not own
+                    // — see `PveMatchRequest.deck`. So "Random" is the absence of a choice, which
+                    // is what the player is saying, and the server draws.
+                    onChoose(ANY_DECK)
                 }
             }
             Box(modifier = Modifier.weight(1f)) {
@@ -114,7 +114,10 @@ internal fun DeckSelectorScreen(
                     label = strings[StringKeys.CHOOSE_DECK],
                     tag = DECK_SELECT_CHOOSE_TEST_TAG,
                     enabled = selected != null,
-                    onClick = { selected?.let { onChoose(decks[it].value.cards) } },
+                    // The **save slot**, not the row: `playableDecks` filters incomplete decks
+                    // out and `IndexedValue.index` is what survives that. The server resolves it
+                    // against the profile it holds.
+                    onClick = { selected?.let { onChoose(decks[it].index) } },
                 )
             }
         }

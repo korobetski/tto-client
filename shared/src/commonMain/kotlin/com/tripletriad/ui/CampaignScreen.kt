@@ -3,7 +3,9 @@ package com.tripletriad.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -27,8 +29,10 @@ import com.tripletriad.data.Format
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.Strings
+import com.tripletriad.model.Card
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.MatchResult
+import com.tripletriad.model.Npc
 import com.tripletriad.ui.theme.LocalTtoColors
 
 const val CAMPAIGN_LIST_TEST_TAG: String = "campaign-list"
@@ -37,12 +41,15 @@ const val CAMPAIGN_START_TEST_TAG: String = "campaign-start"
 
 const val CAMPAIGN_STEP_TEST_TAG: String = "campaign-step"
 
+const val CAMPAIGN_FINAL_REWARD_TEST_TAG: String = "campaign-final-reward"
+
 fun campaignRowTestTag(key: String): String = "campaign-row-$key"
 
 @Composable
 internal fun CampaignScreen(
     campaign: Campaign,
     profile: GameSave,
+    cards: Map<Int, Card> = emptyMap(),
     onStart: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -64,6 +71,14 @@ internal fun CampaignScreen(
             style = MaterialTheme.typography.labelMedium,
             modifier = Modifier.padding(vertical = SpaceMd),
         )
+
+        // What beating the last rung actually pays — the ladder's own steps already say this one
+        // row at a time, but only once scrolled to the bottom. Named here so entering a tournament
+        // is a decision made with the payoff in view rather than found at the end of it.
+        campaign.steps.lastOrNull()?.npc?.let { champion ->
+            FinalReward(npc = champion, cards = cards, owned = profile.cards)
+            Spacer(modifier = Modifier.height(SpaceMd))
+        }
 
         WideButton(
             label = strings[StringKeys.START],
@@ -130,6 +145,38 @@ private fun RungRow(step: Int, entry: CampaignStep) {
 }
 
 @Composable
+private fun FinalReward(npc: Npc, cards: Map<Int, Card>, owned: Map<Int, Int>) {
+    val strings = LocalStrings.current
+    val rewards = remember(npc, cards) { npcCardRewards(npc, cards) }
+
+    Column(
+        modifier = Modifier.testTag(CAMPAIGN_FINAL_REWARD_TEST_TAG).fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(
+            text = strings[StringKeys.CAMPAIGN_FINAL_REWARD],
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+            style = MaterialTheme.typography.labelSmall,
+        )
+        Text(
+            text = finalRewardLine(strings, npc),
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+        )
+        if (rewards.isNotEmpty()) {
+            RewardCards(iconId = npc.iconId, rewards = rewards, owned = owned)
+        }
+    }
+}
+
+private fun finalRewardLine(strings: Strings, npc: Npc): String = buildList {
+    add("${npc.mgpFor(MatchResult.WIN)} ${strings[StringKeys.MGP]}")
+    val xp = npc.xpFor(MatchResult.WIN)
+    if (xp > 0) add("$xp ${strings[StringKeys.XP]}")
+}.joinToString(DOT_SEPARATOR)
+
+@Composable
 @Suppress("LongParameterList")
 internal fun CampaignMatchScreen(
     campaign: Campaign,
@@ -185,8 +232,8 @@ internal fun CampaignMatchScreen(
             // interrupted mid-rung comes back on the board it was on rather than paying the
             // entry fee for a position the player had already reached.
             LaunchedEffect(pve, entry.npc.iconId, step) {
-                pve.resume()
-                if (pve.match?.opponentIconId != entry.npc.iconId) {
+                pve.resume(against = entry.npc.iconId)
+                if (pve.match == null) {
                     pve.open(entry.npc.iconId, format.id)
                 }
             }

@@ -104,11 +104,11 @@ fun handCardTestTag(owner: CardColor, slot: Int): String =
  * Whose turn it is, as a test tag — or none, while nobody may move.
  *
  * "It is your turn" is not quite [MatchView.isMyTurn], and the gap is a second long. In a refereed
- * match the answer to a placement carries the opponent's reply as well, and the screen walks the two
- * of them one at a time (`PveExchange`): from the moment the player's card lands until the reply has
- * been shown, the order says blue and the board is still telling a story. The hand greys out for
- * exactly that stretch — `HandArea` narrows on [MatchView.playableHandIndices], which the referee
- * leaves empty until it is really the player's move again.
+ * match the answer to a placement carries the opponent's reply as well, and the screen walks them
+ * one at a time (`PveExchange`): from the moment the player's card lands until the reply has been
+ * shown, the order says blue and the board is still telling a story. The hand greys out for exactly
+ * that stretch — `HandArea` narrows on [MatchView.playableHandIndices], which the referee leaves
+ * empty until it is really the player's move again.
  *
  * So the tag follows the hand rather than the order. Only for the side holding the view: the other
  * side's playable slots are never computed, and demanding them would mean the opponent never has a

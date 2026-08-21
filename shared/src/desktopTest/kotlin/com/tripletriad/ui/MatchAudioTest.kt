@@ -24,7 +24,9 @@ class MatchAudioTest {
 
     @Test
     fun theMusicStartsWithTheMatchAndStopsWhenItIsLeft() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio) }
+        setContent {
+            App(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio)
+        }
         awaitMenu()
 
         // `MenuScreen` never called `shuffleLoop` — nothing plays on the menu but the tap.
@@ -48,7 +50,9 @@ class MatchAudioTest {
 
     @Test
     fun openingAMatchPlaysTheDealSound() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio) }
+        setContent {
+            App(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio)
+        }
         startMatch()
 
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { Sound.MATCH_OPEN in audio }
@@ -67,7 +71,9 @@ class MatchAudioTest {
 
     @Test
     fun eachPlayerPlacementPlaysTheSoundThatMatchesWhatItDid() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio) }
+        setContent {
+            App(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio)
+        }
         startMatch()
 
         var withCaptures = 0
@@ -102,7 +108,9 @@ class MatchAudioTest {
 
     @Test
     fun anOpponentPlacementAlsoSounds() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio) }
+        setContent {
+            App(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio)
+        }
         startMatch()
 
         playOneCard()
@@ -119,7 +127,9 @@ class MatchAudioTest {
 
     @Test
     fun theLastPlacementPlaysTheOutcomeInsteadOfATurnChange() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio) }
+        setContent {
+            App(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio)
+        }
         startMatch()
         // The opponent may already have played, if the coin flip favoured it — so the window this
         // test measures starts at whatever is on the board, not at zero.
@@ -144,7 +154,9 @@ class MatchAudioTest {
 
     @Test
     fun anUnfinishedMatchPlaysATurnChange() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio) }
+        setContent {
+            App(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio)
+        }
         startMatch()
 
         audio.clear()
@@ -157,7 +169,9 @@ class MatchAudioTest {
 
     @Test
     fun theRematchControlSoundsAndDealsAgain() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio) }
+        setContent {
+            App(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio)
+        }
         startMatch()
         playOut()
         audio.clear()

@@ -22,7 +22,6 @@ import com.tripletriad.model.CardColor
 import com.tripletriad.model.Deck
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.HAND_SIZE
-import com.tripletriad.storage.InMemoryDocumentStore
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -43,11 +42,21 @@ class DeckSelectorUiTest {
         ),
     )
 
-    private fun ComposeUiTest.reachSelector(documents: InMemoryDocumentStore) {
-        loadCharacter(documents)
+    /**
+     * A referee holding [save], which is what a profile is now.
+     *
+     * The selector asks about the decks the *server* will resolve the answer against — the request
+     * carries a save slot, not five cards — so the profile under test has to be the one the referee
+     * holds. See [PveStubServer].
+     */
+    private fun serving(save: GameSave, block: Int = FF14_BLOCK): PveStubServer =
+        PveStubServer(block = block, save = save)
+
+    private fun ComposeUiTest.reachSelector(iconId: String = TEST_OPPONENT) {
+        openDashboard()
         openOpponents()
-        scrollToOpponent(TEST_OPPONENT)
-        onNodeWithTag(opponentRowTestTag(TEST_OPPONENT)).performClick()
+        scrollToOpponent(iconId)
+        onNodeWithTag(opponentRowTestTag(iconId)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_SELECT_CHOOSE_TEST_TAG) }
     }
 
@@ -63,9 +72,10 @@ class DeckSelectorUiTest {
 
     @Test
     fun onlyCompleteDecksAreOffered() = runComposeUiTest {
-        val documents = seeded(withDecks())
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
-        reachSelector(documents)
+        setContent {
+            App(store = settingsFor(AppLocale.EN_US), server = serving(withDecks()).connection)
+        }
+        reachSelector()
 
         onNodeWithTag(deckChoiceTestTag(0)).assertExists()
         onNodeWithTag(deckChoiceTestTag(1)).assertExists()
@@ -77,14 +87,16 @@ class DeckSelectorUiTest {
 
     @Test
     fun theChosenDeckIsTheHandThatIsDealt() = runComposeUiTest {
-        val documents = seeded(withDecks())
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
-        reachSelector(documents)
+        setContent {
+            App(store = settingsFor(AppLocale.EN_US), server = serving(withDecks()).connection)
+        }
+        reachSelector()
 
-        // Row 1 is `Heavies`: save slot 2, slot 1 having been filtered out as incomplete.
+        // Row 1 is `Heavies`: save slot 2, slot 1 having been filtered out as incomplete. The row
+        // and the slot differing is the point — the slot is what travels.
         onNodeWithTag(deckChoiceTestTag(1)).performClick()
         onNodeWithTag(DECK_SELECT_CHOOSE_TEST_TAG).performClick()
-        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(BOARD_TEST_TAG) }
+        awaitBoard()
         awaitPlayer()
 
         assertEquals(HAND_SIZE, handSize(CardColor.BLUE))
@@ -114,9 +126,10 @@ class DeckSelectorUiTest {
                 Deck(name = "", cards = EXTRA),
             ),
         )
-        val documents = seeded(profile)
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
-        reachSelector(documents)
+        setContent {
+            App(store = settingsFor(AppLocale.EN_US), server = serving(profile).connection)
+        }
+        reachSelector()
 
         onNodeWithTag(deckChoiceTestTag(1)).assertExists()
         assertTrue(isVisible("Deck 5"), "the label follows the slot")
@@ -125,9 +138,10 @@ class DeckSelectorUiTest {
 
     @Test
     fun theFirstDeckIsAlreadySelected() = runComposeUiTest {
-        val documents = seeded(withDecks())
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
-        reachSelector(documents)
+        setContent {
+            App(store = settingsFor(AppLocale.EN_US), server = serving(withDecks()).connection)
+        }
+        reachSelector()
 
         onNodeWithTag(DECK_SELECT_CHOOSE_TEST_TAG).assertIsEnabled()
     }
@@ -136,15 +150,18 @@ class DeckSelectorUiTest {
     fun withNoCompleteDeckTheListSaysSoAndRandomStillPlays() = runComposeUiTest {
         val profile = GameSave.new(createdAt = 0L)
             .copy(decks = listOf(Deck(name = "Half", cards = STARTER.take(HALF_A_DECK))))
-        val documents = seeded(profile)
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
-        reachSelector(documents)
+        setContent {
+            App(store = settingsFor(AppLocale.EN_US), server = serving(profile).connection)
+        }
+        reachSelector()
 
         onNodeWithTag(DECK_SELECT_EMPTY_TEST_TAG).assertExists()
         onNodeWithTag(DECK_SELECT_CHOOSE_TEST_TAG).assertIsNotEnabled()
 
+        // Random is now *no* choice — `ANY_DECK` — and the referee deals. A full hand either way,
+        // which is what the player asked for.
         onNodeWithTag(DECK_SELECT_RANDOM_TEST_TAG).performClick()
-        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(BOARD_TEST_TAG) }
+        awaitBoard()
         awaitPlayer()
 
         assertEquals(HAND_SIZE, handSize(CardColor.BLUE))
@@ -152,16 +169,16 @@ class DeckSelectorUiTest {
 
     @Test
     fun theRandomRuleSkipsTheSelectorEntirely() = runComposeUiTest {
-        val documents = seeded(freshSave(createdAt = 0L, block = FF8_BLOCK))
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
-        loadCharacter(documents)
+        val server = serving(freshSave(createdAt = 0L, block = FF8_BLOCK), block = FF8_BLOCK)
+        setContent { App(store = settingsFor(AppLocale.EN_US), server = server.connection) }
+        openDashboard()
         openOpponents()
 
         onNodeWithTag(OPPONENT_LIST_TEST_TAG)
             .performScrollToNode(hasTestTag(opponentRowTestTag(RANDOM_OPPONENT)))
         scrollToOpponent(RANDOM_OPPONENT)
         onNodeWithTag(opponentRowTestTag(RANDOM_OPPONENT)).performClick()
-        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(BOARD_TEST_TAG) }
+        awaitBoard()
 
         assertFalse(exists(DECK_SELECT_CHOOSE_TEST_TAG), "Random must not ask for a deck")
     }
@@ -176,20 +193,26 @@ class DeckSelectorUiTest {
         assertFalse(npc.gameRules().roulette, "and should not draw more rules on top")
     }
 
+    /**
+     * Backing out of the selector costs nothing, where it used to cost a forfeit.
+     *
+     * That is the question moving rather than the accounting changing. The selector was reached by
+     * opening a board and stepping back from it, so a match had already been dealt and leaving one
+     * is a forfeit. It now comes *before* the match is asked for — no request has been sent, there
+     * is no row on the server, and the player never sat down.
+     */
     @Test
-    fun backingOutOfTheSelectorStillCountsAsAForfeit() = runComposeUiTest {
-        val documents = seeded(withDecks())
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
-        reachSelector(documents)
+    fun backingOutOfTheSelectorLeavesNoMatchBehind() = runComposeUiTest {
+        val server = serving(withDecks())
+        setContent { App(store = settingsFor(AppLocale.EN_US), server = server.connection) }
+        reachSelector()
 
-        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { storedSave(documents).startedMatches == 1 }
         onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
         awaitOpponents()
 
-        val save = storedSave(documents)
-        assertEquals(1, save.startedMatches)
-        assertEquals(0, save.endedMatches)
-        assertEquals(1, save.forfeits, "started minus ended")
+        assertEquals(0, server.player.save.startedMatches)
+        assertEquals(0, server.player.save.endedMatches)
+        assertFalse(exists(BOARD_TEST_TAG), "no board was ever dealt")
     }
 
     private companion object {

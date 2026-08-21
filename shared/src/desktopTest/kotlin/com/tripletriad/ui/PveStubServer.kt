@@ -9,13 +9,13 @@ import com.tripletriad.data.loadFormatCatalog
 import com.tripletriad.data.loadNpcCatalog
 import com.tripletriad.model.Board
 import com.tripletriad.model.CardColor
+import com.tripletriad.model.GameSave
 import com.tripletriad.model.HAND_SIZE
 import com.tripletriad.model.HandVisibility
 import com.tripletriad.model.MatchAi
 import com.tripletriad.model.MatchPreparation
 import com.tripletriad.model.MatchResult
 import com.tripletriad.model.MatchState
-import com.tripletriad.model.GameSave
 import com.tripletriad.model.MatchView
 import com.tripletriad.model.Npc
 import com.tripletriad.net.AccountClient
@@ -234,6 +234,10 @@ internal class PveStubServer(
      * survive a restart and a deployment. Nothing here is stored, so there is nothing to survive,
      * and a mutable position says what it means in a quarter of the lines.
      */
+    // Ten fields, and the rule is right that it is a lot — but they are the whole of a match, and
+    // the real row carries the same ten across a database table. Grouping them to please the count
+    // would put a layer between the referee and the position it is mutating.
+    @Suppress("LongParameterList")
     private class Live(
         val id: String,
         val npc: Npc,
@@ -320,6 +324,14 @@ internal class PveStubServer(
     }
 
     private fun Live.apply(move: PveMove): Placement {
+        // The visibility re-indexes with the hand, as `PveMatchPosition.advanced` does it on the
+        // real referee. A stub that skipped this would be a *more forgiving* referee than the
+        // server, which is the one thing a fixture standing in for one must never be.
+        when (state.currentPlayer) {
+            CardColor.BLUE -> redSeesBlue = redSeesBlue.afterPlaying(move.handIndex)
+            CardColor.RED -> blueSeesRed = blueSeesRed.afterPlaying(move.handIndex)
+            null -> Unit
+        }
         state = state.play(state.currentHand[move.handIndex], move.position)
         val play = checkNotNull(state.lastPlay) { "a placement left no trace" }
         return Placement(

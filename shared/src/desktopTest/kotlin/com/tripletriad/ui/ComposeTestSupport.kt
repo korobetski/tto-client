@@ -160,8 +160,28 @@ internal fun ComposeUiTest.awaitBoard() {
 internal fun ComposeUiTest.challenge(iconId: String = TEST_OPPONENT) {
     scrollToOpponent(iconId)
     onNodeWithTag(opponentRowTestTag(iconId)).performClick()
-    awaitBoard()
+    settleDeck()
     awaitPlayer()
+}
+
+/**
+ * Answers the deck question, if it is asked, and waits for the board.
+ *
+ * It comes **before** the board now rather than on top of one: the referee deals from the request,
+ * so which deck to bring has to be settled before there is a match at all. Under the Random rule it
+ * is not asked, which is why this waits on either.
+ */
+@OptIn(ExperimentalTestApi::class)
+internal fun ComposeUiTest.settleDeck() {
+    waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
+        exists(DECK_SELECT_CHOOSE_TEST_TAG) || exists(BOARD_TEST_TAG)
+    }
+    if (exists(DECK_SELECT_EMPTY_TEST_TAG)) {
+        onNodeWithTag(DECK_SELECT_RANDOM_TEST_TAG).performClick()
+    } else if (exists(DECK_SELECT_CHOOSE_TEST_TAG)) {
+        onNodeWithTag(DECK_SELECT_CHOOSE_TEST_TAG).performClick()
+    }
+    awaitBoard()
 }
 
 internal const val ANY_LEVEL: Int = 99

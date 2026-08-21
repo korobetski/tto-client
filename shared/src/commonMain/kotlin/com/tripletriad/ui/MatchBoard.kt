@@ -255,6 +255,19 @@ internal const val COMBO_WAVE_MS: Long = 450L
 internal fun waveDelayMillis(play: PlayResult?): Long =
     (play?.captures.orEmpty().maxOfOrNull { it.wave } ?: FIRST_WAVE) * COMBO_WAVE_MS
 
+/**
+ * How long a placement takes to finish being drawn: the card falling, and the last chain flipping.
+ *
+ * [waveDelayMillis] answers a *different* question — when the last wave *starts* — and using it as
+ * "when the board is quiet again" was how the opponent ended up playing over its own captures. The
+ * flip that wave triggers takes [FLIP_MS] on top, and a placement that captures nothing still has
+ * [LAND_MS] of card to land.
+ *
+ * The maximum rather than the sum: the landing and the first wave run together.
+ */
+internal fun settleMillis(play: PlayResult?): Long =
+    maxOf(LAND_MS.toLong(), waveDelayMillis(play) + FLIP_MS)
+
 private const val FIRST_WAVE = 0
 
 @Composable
@@ -717,7 +730,7 @@ internal const val DRAG_SOURCE_ALPHA = 0.3f
 
 private const val OPEN_CELL_ALPHA = 0.38f
 
-private const val LAND_MS = 400
+internal const val LAND_MS = 400
 
 private const val LAND_DEGREES = -270f
 
@@ -726,7 +739,10 @@ private const val LAND_SCALE = 1.2f
 private const val LAND_OFFSET_X = 0.48f
 private const val LAND_OFFSET_Y = -0.78f
 
-private const val FLIP_LEG_MS = 100
+internal const val FLIP_LEG_MS = 100
+
+/** The four legs of [BoardCard]'s flip: squash, switch, stretch, settle. */
+internal const val FLIP_MS: Long = 4L * FLIP_LEG_MS
 
 private const val FLIP_STRETCH = 1.2f
 

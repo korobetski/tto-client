@@ -126,17 +126,39 @@ class PveSession internal constructor(
      * Called on launch and after a reconnection. It takes no id because there is no id to have
      * kept: the question is "what am I in the middle of", and only the server knows. A killed
      * application, a tunnel and a flat battery are the same event, and none of them is an abandon.
+     *
+     * ### Why a board has to say which opponent it is asking about
+     *
+     * `GET /pve/matches/active` answers with a *little* more than "the match you are in": a match
+     * that has just been settled stays findable for a couple of minutes, on purpose, so that a
+     * player killed between placing the ninth card and reading the answer is still shown the
+     * result they were already credited for. See `PveStore.recentFor`.
+     *
+     * That is right at launch and wrong on a board. A player who finishes a match, walks back to
+     * the roster and challenges somebody else was handed the match they had just won — full board,
+     * result panel and all — because the row was still inside that window and this screen took it
+     * for the one it had asked for. Passing [against] makes the question the specific one a board
+     * is actually asking: *am I in the middle of a match against this opponent.* A settled row and
+     * a live row against somebody else are both answered no, and the caller opens a new match.
+     *
+     * @param against the opponent this screen is for, or null to take whatever the server offers —
+     *   which only a caller with no particular board in mind should do.
      */
-    suspend fun resume() = request {
+    suspend fun resume(against: String? = null) = request {
         val token = tokenOf() ?: return@request
         when (val result = client.current(token)) {
-            is AccountResult.Ok -> match = result.value
+            is AccountResult.Ok -> match = result.value?.takeIf { it.answers(against) }
             else -> {
                 trouble = result
                 Log.i(TAG) { "could not read the match in progress: $result" }
             }
         }
     }
+
+    /** Whether this is the match a board asking about [opponentIconId] was looking for. */
+    private fun PveMatchView.answers(opponentIconId: String?): Boolean =
+        opponentIconId == null ||
+            (status == PveMatchStatus.PLAYING && this.opponentIconId == opponentIconId)
 
     /** Re-reads the match this session is holding. The recovery from anything that went wrong. */
     suspend fun refresh() {

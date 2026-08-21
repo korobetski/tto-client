@@ -17,7 +17,6 @@ import kotlin.test.Test
 class SemanticsTest {
     private val stub = PveStubServer()
 
-
     @Test
     fun aCardCellIsAButtonThatReportsWhetherItIsShowing() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }

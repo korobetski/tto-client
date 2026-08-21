@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -28,11 +29,14 @@ import com.tripletriad.model.MatchResult
 import com.tripletriad.model.Npc
 import com.tripletriad.ui.theme.LocalTtoColors
 import kotlin.math.roundToInt
+import kotlin.random.Random
 
 const val OPPONENT_LIST_TEST_TAG: String = "opponent-list"
 const val OPPONENT_EMPTY_TEST_TAG: String = "opponent-empty"
 
 const val OPPONENT_LOCKED_TEST_TAG: String = "opponent-locked"
+
+const val RANDOM_OPPONENT_TEST_TAG: String = "opponent-random"
 
 /*
  * `TUTORIAL_ROW_TEST_TAG` used to be here, over a row this panel drew above the ladders —
@@ -89,12 +93,30 @@ internal fun OpponentScreen(
                 modifier = Modifier.testTag(OPPONENT_EMPTY_TEST_TAG).padding(vertical = SpaceXl),
             )
         } else {
+            // One tap into a match against whoever the roster hands back, rather than scrolling
+            // the list to pick. `opponents` is already the unlocked roster — the same list a row
+            // is drawn from — so this can never land on somebody still gated by level or hour.
+            WideButton(
+                label = strings[StringKeys.RANDOM_OPPONENT],
+                tag = RANDOM_OPPONENT_TEST_TAG,
+                filled = false,
+                onClick = { onChallenge(opponents.random(Random)) },
+            )
+
             LazyColumn(
-                modifier = Modifier.testTag(OPPONENT_LIST_TEST_TAG).fillMaxWidth(),
+                modifier = Modifier
+                    .testTag(OPPONENT_LIST_TEST_TAG)
+                    .fillMaxWidth()
+                    .padding(top = SpaceSm),
                 verticalArrangement = Arrangement.spacedBy(SpaceSm),
             ) {
                 items(opponents, key = { it.iconId }) { npc ->
-                    OpponentRow(npc = npc, cards = cards, onClick = { onChallenge(npc) })
+                    OpponentRow(
+                        npc = npc,
+                        cards = cards,
+                        owned = profile.cards,
+                        onClick = { onChallenge(npc) },
+                    )
                 }
 
                 // Under the list rather than over it: it is a footnote about what is *not* here,
@@ -156,16 +178,14 @@ private fun CampaignRow(label: String, tag: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun OpponentRow(npc: Npc, cards: Map<Int, Card>, onClick: () -> Unit) {
+private fun OpponentRow(
+    npc: Npc,
+    cards: Map<Int, Card>,
+    owned: Map<Int, Int>,
+    onClick: () -> Unit,
+) {
     val strings = LocalStrings.current
-    // Resolved against the profile's own table, so an id the collection does not hold is dropped
-    // rather than drawn as a hole: `NPCs.as` is per-collection data and this is a belt-and-braces
-    // read of it, not a claim that every listed id ships.
-    val rewards = remember(npc, cards) {
-        npc.itemRewards.mapNotNull { reward ->
-            reward.cardId?.let { id -> cards[id]?.let { it to reward.rate } }
-        }
-    }
+    val rewards = remember(npc, cards) { npcCardRewards(npc, cards) }
 
     Column(
         modifier = Modifier
@@ -226,13 +246,20 @@ private fun OpponentRow(npc: Npc, cards: Map<Int, Card>, onClick: () -> Unit) {
         // opponents drops no card at all — `STR_NPC_MARTINE` — and a caption over nothing would
         // read as a missing image.
         if (rewards.isNotEmpty()) {
-            RewardCards(iconId = npc.iconId, rewards = rewards)
+            RewardCards(iconId = npc.iconId, rewards = rewards, owned = owned)
         }
     }
 }
 
+/**
+ * The cards an opponent can hand over, one already owned told apart from one that is not.
+ *
+ * A copy already in the bag is drawn at full strength and one that is not is dimmed — the same
+ * [UNOWNED_ALPHA] the card list dims an unowned thumb by, see `CardListBody.kt`, so "not yet mine"
+ * reads the same wherever a card is shown next to others the collection may or may not hold.
+ */
 @Composable
-private fun RewardCards(iconId: String, rewards: List<Pair<Card, Double>>) {
+internal fun RewardCards(iconId: String, rewards: List<Pair<Card, Double>>, owned: Map<Int, Int>) {
     val strings = LocalStrings.current
 
     Text(
@@ -247,7 +274,11 @@ private fun RewardCards(iconId: String, rewards: List<Pair<Card, Double>>) {
     ) {
         for ((card, rate) in rewards) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                CardThumb(card = card)
+                val dim = (owned[card.id] ?: 0) <= 0
+                CardThumb(
+                    card = card,
+                    modifier = if (dim) Modifier.alpha(UNOWNED_ALPHA) else Modifier,
+                )
                 Text(
                     text = "${(rate * PERCENT).roundToInt()}%",
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
@@ -260,7 +291,22 @@ private fun RewardCards(iconId: String, rewards: List<Pair<Card, Double>>) {
     }
 }
 
+/**
+ * The cards an opponent can give up, resolved against the profile's own table.
+ *
+ * An id the collection does not hold is dropped rather than drawn as a hole: `NPCs.as` is
+ * per-collection data and this is a belt-and-braces read of it, not a claim that every listed id
+ * ships. Shared by [OpponentRow] and [CampaignScreen]'s final-reward line so both name the same
+ * cards for the same opponent.
+ */
+internal fun npcCardRewards(npc: Npc, cards: Map<Int, Card>): List<Pair<Card, Double>> =
+    npc.itemRewards.mapNotNull { reward ->
+        reward.cardId?.let { id -> cards[id]?.let { it to reward.rate } }
+    }
+
 private const val PERCENT = 100
+
+private const val UNOWNED_ALPHA = 0.28f
 
 private fun rewardLine(strings: Strings, npc: Npc): String = buildList {
     add("${strings[StringKeys.DIFFICULTY]} ${npc.difficulty}")

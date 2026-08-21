@@ -11,9 +11,9 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import com.tripletriad.i18n.AppLocale
-import com.tripletriad.net.ServerConnection
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.HAND_SIZE
+import com.tripletriad.net.ServerConnection
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue

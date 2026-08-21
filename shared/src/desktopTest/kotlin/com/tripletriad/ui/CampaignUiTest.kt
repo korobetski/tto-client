@@ -13,10 +13,10 @@ import com.tripletriad.data.loadCampaignCatalog
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.loadStrings
 import com.tripletriad.model.GameSave
+import com.tripletriad.model.MatchResult
 import com.tripletriad.storage.InMemoryDocumentStore
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -101,6 +101,20 @@ class CampaignUiTest {
      * account; before, a local profile kept its own MGP and the fee stuck. Charging it belongs
      * beside the referee, in a request the server can price for itself.
      */
+    @Test
+    fun theLadderNamesItsFinalReward() = runComposeUiTest {
+        val documents = withFee()
+        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openLadder(documents)
+
+        val champion = goldSaucer.steps.last().npc
+        assertTrue(exists(CAMPAIGN_FINAL_REWARD_TEST_TAG), "the final reward should be named")
+        assertVisible(
+            "${champion.mgpFor(MatchResult.WIN)}",
+            "the final reward should state what the last rung pays",
+        )
+    }
+
     @Test
     fun startingALadderOpensItsFirstRung() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US), server = payingServer().connection) }

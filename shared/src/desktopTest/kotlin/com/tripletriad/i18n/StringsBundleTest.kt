@@ -99,14 +99,14 @@ class StringsBundleTest {
         const val CONTINUE = "STR_CONTINUE"
         const val REGISTER_MATCH = "STR_REGISTER_MATCH"
 
-        // One key up on the last count, all round: `APP_ERROR_STALE_MATCH`, the single sentence
-        // every `PveRefusal` is told with. Authored in English and French only, like the rest of
-        // the app-owned strings, so the two imported bundles' gaps each widen by one.
-        const val UNION_KEYS = 968
+        // Two keys up on the last count, all round: `APP_RANDOM_OPPONENT` and
+        // `APP_CAMPAIGN_FINAL_REWARD`. Authored in English and French only, like the rest of the
+        // app-owned strings, so the two imported bundles' gaps each widen by two.
+        const val UNION_KEYS = 970
 
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 964,
-            AppLocale.FR_FR to 965,
+            AppLocale.EN_US to 966,
+            AppLocale.FR_FR to 967,
             AppLocale.DE_DE to 653,
             AppLocale.JA_JA to 686,
         )
@@ -114,9 +114,9 @@ class StringsBundleTest {
         val EXPECTED_GAPS = mapOf(
             AppLocale.EN_US to 4,
             AppLocale.FR_FR to 3,
-            // 44 imported keys short, plus all 271 app-owned; and 11 short, plus the 271.
-            AppLocale.DE_DE to 315,
-            AppLocale.JA_JA to 282,
+            // 44 imported keys short, plus all 273 app-owned; and 11 short, plus the 273.
+            AppLocale.DE_DE to 317,
+            AppLocale.JA_JA to 284,
         )
     }
 }

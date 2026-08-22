@@ -28,8 +28,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -60,6 +58,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.InputMode
+import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -146,6 +146,11 @@ internal fun Modifier.ttoClickable(
     val audio = LocalAudio.current
     val interactions = remember { MutableInteractionSource() }
     val focused by interactions.collectIsFocusedAsState()
+    // Clicking focuses on desktop, and the focus outlives the click — so a ring drawn on
+    // focus alone stays behind after a card is deselected, saying "selected" when nothing
+    // is. The ring is for keyboard travel, so it is shown when the keyboard is what moved
+    // focus. This is the rule Material's own components follow.
+    val keyboard = LocalInputModeManager.current.inputMode == InputMode.Keyboard
     val ring = MaterialTheme.colorScheme.secondary
     val ringShape = shape ?: MaterialTheme.shapes.small
 
@@ -161,7 +166,11 @@ internal fun Modifier.ttoClickable(
             },
         )
         .then(
-            if (focused) Modifier.border(FocusRingWidth, ring, ringShape) else Modifier,
+            if (focused && keyboard) {
+                Modifier.border(FocusRingWidth, ring, ringShape)
+            } else {
+                Modifier
+            },
         )
         .semantics { selected?.let { this.selected = it } }
 }
@@ -212,51 +221,6 @@ internal fun SectionHeader(text: String, modifier: Modifier = Modifier) {
         color = MaterialTheme.colorScheme.tertiary,
         style = MaterialTheme.typography.labelMedium,
         modifier = modifier.padding(bottom = SpaceXs).semantics { heading() },
-    )
-}
-
-@Composable
-internal fun TtoFilterChip(
-    label: String,
-    tag: String,
-    selected: Boolean,
-    enabled: Boolean = true,
-    leading: (@Composable () -> Unit)? = null,
-    onClick: () -> Unit,
-) {
-    val audio = LocalAudio.current
-
-    FilterChip(
-        selected = selected,
-        onClick = {
-            audio.play(Sound.UI_CLICK)
-            onClick()
-        },
-        enabled = enabled,
-        label = {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelLarge,
-                maxLines = 1,
-                softWrap = false,
-                overflow = TextOverflow.Ellipsis,
-            )
-        },
-        leadingIcon = leading,
-        shape = MaterialTheme.shapes.small,
-        colors = FilterChipDefaults.filterChipColors(
-            containerColor = Color.Transparent,
-            labelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
-            selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-            selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
-        ),
-        border = FilterChipDefaults.filterChipBorder(
-            enabled = enabled,
-            selected = selected,
-            borderColor = MaterialTheme.colorScheme.outlineVariant,
-            selectedBorderColor = MaterialTheme.colorScheme.secondary,
-        ),
-        modifier = Modifier.testTag(tag),
     )
 }
 

@@ -181,48 +181,122 @@ private const val CARD_THUMB_PREFIX = "card_thumb_"
 private const val HEX_RADIX = 16
 private const val HEX_WIDTH = 4
 
+/**
+ * A card's thumbnail in its frame — the one card picture the whole app shows at small size.
+ *
+ * The frame is drawn here rather than by each caller so that a thumbnail looks the same in the
+ * card list, the deck builder, the shop and the prize lists. It used to be the caller's job, and
+ * the result was four different borders: `rowSurface`, a bare surface, nothing at all.
+ *
+ * @param size the **picture's** size, not the widget's. The frame adds [FrameMargin] on every
+ *   side, so this composable measures `size + 2 * FrameMargin` — [FramedThumbSide] at the
+ *   authored size. Both images are then drawn at the size they were authored.
+ * @param selected draws the wider stroke over the frame. Selection is the caller's state, so it
+ *   stays the caller's parameter; what is shared is what selection *looks like*.
+ */
 @Composable
 internal fun CardThumb(
     card: Card,
     size: Dp = THUMB_SIZE,
+    selected: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     CardThumb(
         painter = LocalUiArt.current?.thumb(card),
         size = size,
+        selected = selected,
         modifier = modifier.testTag(thumbTestTag(card.textureId)),
     )
 }
 
+/** The same picture, for a card known only by id — a prize, a deck slot read off a save. */
 @Composable
-internal fun CardThumb(cardId: Int, size: Dp = THUMB_SIZE, modifier: Modifier = Modifier) {
+internal fun CardThumb(
+    cardId: Int,
+    size: Dp = THUMB_SIZE,
+    selected: Boolean = false,
+    modifier: Modifier = Modifier,
+) {
     val texture = cardTextureId(cardId)
     CardThumb(
         painter = LocalUiArt.current?.thumb(texture),
         size = size,
+        selected = selected,
         modifier = modifier.testTag(thumbTestTag(texture)),
     )
 }
 
+/**
+ * A card-sized hole: the frame with nothing in it.
+ *
+ * An empty deck position is a place a card goes, so it is drawn as one — same footprint, same
+ * border. Leaving it blank made a half-built deck look like a shorter deck.
+ */
 @Composable
-private fun CardThumb(painter: Painter?, size: Dp, modifier: Modifier) {
+internal fun EmptyCardSlot(size: Dp = THUMB_SIZE, modifier: Modifier = Modifier) {
+    CardThumb(painter = null, size = size, selected = false, modifier = modifier)
+}
+
+@Composable
+private fun CardThumb(painter: Painter?, size: Dp, selected: Boolean, modifier: Modifier) {
     Box(
-        modifier = modifier
-            .size(size)
-            .clip(RoundedCornerShape(4.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant),
+        modifier = modifier.size(size + FrameMargin * 2),
         contentAlignment = Alignment.Center,
     ) {
-        if (painter != null) {
-            // No `filterQuality` here: the painter overload has none, so the slices carry it
-            // themselves — see `ThumbFrame.painterOn`.
-            Image(
-                painter = painter,
-                contentDescription = null,
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.size(size),
-            )
+        Box(
+            modifier = Modifier
+                .size(size)
+                .clip(RoundedCornerShape(4.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (painter != null) {
+                // No `filterQuality` here: the painter overload has none, so the slices carry it
+                // themselves — see `ThumbFrame.painterOn`.
+                Image(
+                    painter = painter,
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.size(size),
+                )
+            }
         }
+
+        CardFrame(selected = selected)
+    }
+}
+
+/**
+ * The border laid **over** a thumbnail, and the selected stroke over that.
+ *
+ * Over rather than around: `card_frame.png` is authored with the margin the picture sits in, so
+ * drawing it on top puts its border exactly where its author drew it. A border placed around the
+ * picture instead would be the frame's border plus a second one.
+ */
+@Composable
+private fun CardFrame(selected: Boolean) {
+    LocalUiArt.current?.icon(CARD_FRAME_ICON)?.let { frame ->
+        Image(
+            bitmap = frame,
+            contentDescription = null,
+            // `None` for the same reason the thumbnails use it: pixel art at its authored size,
+            // where smoothing is a blur rather than an improvement.
+            filterQuality = FilterQuality.None,
+            contentScale = ContentScale.FillBounds,
+            modifier = Modifier.fillMaxSize(),
+        )
+    }
+
+    if (selected) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .border(
+                    width = SelectedFrameWidth,
+                    color = LocalTtoColors.current.selectedOutline,
+                    shape = RoundedCornerShape(CardFrameCorner),
+                ),
+        )
     }
 }
 
@@ -256,4 +330,19 @@ private val AVATAR_SIZE = 56.dp
 private val PORTRAIT_SIZE = 44.dp
 private val ICON_SIZE = 32.dp
 private val THUMB_SIZE = 40.dp
+
+/** The margin `card_frame.png` leaves around the picture, on each side. */
+internal val FrameMargin = 2.dp
+
+/** What a [CardThumb] at the authored size measures, frame included. */
+internal val FramedThumbSide = THUMB_SIZE + FrameMargin * 2
+
+/** The frame laid over every thumbnail, authored at 44x44 for a 40x40 picture. */
+private const val CARD_FRAME_ICON = "card_frame"
+
+/** How much wider the selected stroke reads than the drawn border under it. */
+private val SelectedFrameWidth = 2.dp
+
+/** Matched to the frame art's own rounding, so the stroke sits on it rather than beside it. */
+private val CardFrameCorner = 5.dp
 private const val RING = 0.4f

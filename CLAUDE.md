@@ -152,6 +152,12 @@ checking a real APK; delete them only when the plugin does its own wiring.
 9. `expect`/`actual` is for platform capabilities only (`OpenUrl`, `ReducedMotion`, `ServerStatus`,
    `MatchNetwork`). Resource loading goes through Compose resources in `commonMain`.
 
+### Ce qu'un KDoc doit contenir
+
+**Un KDoc dit ce que le code ne dit pas déjà.** Il apporte une précision, il n'annonce pas le
+comportement. Paraphraser la signature est du bruit qui vieillit mal : le code change, la
+paraphrase reste et devient un mensonge.
+
 ## Traps and stale documentation
 
 - **Fixed 2026-08-17**: `docs/development/git-workflow.md` said the default branch was `master`,

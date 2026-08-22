@@ -419,7 +419,10 @@ private fun PveReconnect(
         verticalArrangement = Arrangement.spacedBy(SpaceSm),
     ) {
         Text(
-            text = strings[StringKeys.ERROR_OFFLINE],
+            // What actually came back, not "the server is unreachable" over the top of every one
+            // of them. A refusal, a 500 and a throttle each read as a dead network here, which
+            // sent a player looking at their signal for a fault that was nothing of the kind.
+            text = session.trouble?.message(strings) ?: strings[StringKeys.ERROR_OFFLINE],
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
         )

@@ -17,6 +17,7 @@ import com.tripletriad.model.MatchResult
 import com.tripletriad.model.questDayOf
 import com.tripletriad.storage.InMemoryDocumentStore
 import com.tripletriad.time.FixedClock
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertFalse
@@ -221,6 +222,36 @@ class CampaignUiTest {
         awaitBoard()
 
         assertTrue(existsUnmerged(CAMPAIGN_STEP_TEST_TAG), "the ladder should say which rung it is")
+    }
+
+    /**
+     * The entry is paid for **before** the first rung is dealt, however slow the link is.
+     *
+     * `PveMatchRequest.campaignKey` is checked against the run the server holds, so a board opened
+     * while the entry was still in flight is refused `NOT_ON_THAT_RUNG`. Starting the ladder used
+     * to navigate without waiting, which a loopback link always got away with and a phone on a
+     * real network never did — the reconnect panel came up on every attempt, saying the server was
+     * unreachable when it had answered perfectly.
+     *
+     * The gate is what does the testing: with the entry unanswered there must be no board yet and
+     * no refusal either, and only releasing it deals the first rung.
+     */
+    @Test
+    fun theFirstRungWaitsForTheEntryToBePaid() = runComposeUiTest {
+        val gate = CompletableDeferred<Unit>()
+        val stub = PveStubServer(
+            save = freshSave().copy(mgp = goldSaucer.fee + POCKET_CHANGE),
+            entryGate = gate,
+        )
+        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        openRefereedLadder()
+
+        onNodeWithTag(CAMPAIGN_START_TEST_TAG).performClick()
+        waitForIdle()
+        assertFalse(exists(PVE_RECONNECT_TEST_TAG), "the rung must not be opened before the entry")
+
+        gate.complete(Unit)
+        awaitBoard()
     }
 
     @Test

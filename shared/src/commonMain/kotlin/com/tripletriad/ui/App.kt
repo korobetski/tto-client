@@ -980,9 +980,23 @@ private fun CampaignDestination(
             // Charged by whoever holds the profile rather than deducted here — the amount is the
             // server's, and a client that applied its own could apply none. See
             // `EnterCampaignRequest`.
+            //
+            // Awaited before the board opens, and that is the whole of the ordering: the first
+            // rung's match names this ladder, and `PveMatchRequest.campaignKey` is checked against
+            // the run the server holds. Navigating while the entry was still in flight opened the
+            // match against a run that did not exist yet and was refused `NOT_ON_THAT_RUNG` — a
+            // race a loopback link always won and a phone on a real network always lost.
             onStart = {
-                scope.launch { onIntent(Intent.EnterCampaign(ladder.key, ladder.fee)) }
-                onNavigate(Screen.CAMPAIGN_MATCH)
+                scope.launch {
+                    // `REFUSED` still goes through: an entry the server declines because a run on
+                    // this ladder is already open is exactly the resuming case, and the button
+                    // said `CONTINUE` for it. Only "we never got an answer" stays put.
+                    if (onIntent(Intent.EnterCampaign(ladder.key, ladder.fee)) !=
+                        IntentOutcome.UNREACHABLE
+                    ) {
+                        onNavigate(Screen.CAMPAIGN_MATCH)
+                    }
+                }
             },
             onBack = toOpponents,
         )

@@ -2,11 +2,13 @@ package com.tripletriad.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.FlowRowScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -23,9 +25,13 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,7 +43,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -51,12 +56,16 @@ import com.tripletriad.model.Card
 import com.tripletriad.model.CardType
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.powerLabel
+import com.tripletriad.ui.theme.LocalTtoColors
 import kotlinx.coroutines.launch
 
 const val CARD_GRID_TEST_TAG: String = "card-grid"
 const val CARD_TOTAL_TEST_TAG: String = "card-total"
 const val CARD_DETAIL_TEST_TAG: String = "card-detail"
 const val CARD_DETAIL_EMPTY_TEST_TAG: String = "card-detail-empty"
+
+/** The narrow layout's detail sheet. There is no such node in the wide one — see the panel. */
+const val CARD_SHEET_TEST_TAG: String = "card-sheet"
 
 const val CARD_FILTERS_TEST_TAG: String = "card-filters"
 const val CARD_SELL_TEST_TAG: String = "card-sell"
@@ -65,10 +74,15 @@ fun setFilterTestTag(block: Int?): String = "card-filter-set-${block ?: "all"}"
 
 fun typeFilterTestTag(type: CardType?): String = "card-filter-type-${type?.name ?: "all"}"
 
+fun rarityFilterTestTag(rarity: Int?): String = "card-filter-rarity-${rarity ?: "all"}"
+
+const val CARD_OWNED_FILTER_TEST_TAG: String = "card-filter-owned"
+
 fun cardCellTestTag(cardId: Int): String = "card-cell-$cardId"
 
 fun cardCopiesTestTag(cardId: Int): String = "card-copies-$cardId"
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ColumnScope.CardListBody(
     profile: GameSave,
@@ -84,33 +98,58 @@ internal fun ColumnScope.CardListBody(
     var selected by remember(format) { mutableStateOf<Card?>(null) }
     var set by remember(format) { mutableStateOf<Int?>(null) }
     var type by remember(format) { mutableStateOf<CardType?>(null) }
+    var rarity by remember(format) { mutableStateOf<Int?>(null) }
+    var ownedOnly by remember(format) { mutableStateOf(false) }
+    val sheet = rememberModalBottomSheetState()
 
-    val cards = remember(admitted, set, type) {
-        admitted.filter { (set == null || it.block == set) && (type == null || it.type == type) }
+    val cards = remember(admitted, set, type, rarity, ownedOnly, owned) {
+        admitted.filter {
+            (set == null || it.block == set) &&
+                (type == null || it.type == type) &&
+                (rarity == null || it.rarity == rarity) &&
+                (!ownedOnly || owned.containsKey(it.id))
+        }
     }
 
-    Text(
-        // Counted over what is **on screen**, so the line answers the question the grid is
-        // currently asking. Filtered to fire, "Owned · 3 / 21" is a fact about fire cards; the
-        // unfiltered total is the same sentence with no filter applied.
-        text = "${strings[StringKeys.OWNED]}$DOT_SEPARATOR" +
-            "${cards.count { owned.containsKey(it.id) }} / ${cards.size}",
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = SUBDUED),
-        style = MaterialTheme.typography.labelMedium,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.testTag(CARD_TOTAL_TEST_TAG).padding(bottom = SpaceSm),
-    )
+    // The count and the toggle that changes it, on one line. "Owned · 33 / 263" and "show only
+    // what I own" are the same sentence twice, so the control belongs beside the fact rather
+    // than at the end of the elements, where it was the chip the narrow layout cut in half.
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(bottom = SpaceSm),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            // Counted over what is **on screen**, so the line answers the question the grid is
+            // currently asking. Filtered to fire, "Owned · 3 / 21" is a fact about fire cards;
+            // the unfiltered total is the same sentence with no filter applied.
+            text = "${strings[StringKeys.OWNED]}$DOT_SEPARATOR" +
+                "${cards.count { owned.containsKey(it.id) }} / ${cards.size}",
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = SUBDUED),
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.testTag(CARD_TOTAL_TEST_TAG).weight(1f),
+        )
+
+        TtoFilterChip(
+            label = strings[StringKeys.OWNED],
+            tag = CARD_OWNED_FILTER_TEST_TAG,
+            selected = ownedOnly,
+        ) { ownedOnly = !ownedOnly }
+    }
 
     CardFilters(
         sets = remember(admitted) { admitted.map { it.block }.distinct().sorted() },
         types = remember(
             admitted,
         ) { CardType.entries.filter { t -> admitted.any { it.type == t } } },
+        rarities = remember(admitted) { admitted.map { it.rarity }.distinct().sorted() },
         set = set,
         type = type,
+        rarity = rarity,
         onSet = { set = it },
         onType = { type = it },
+        onRarity = { rarity = it },
     )
 
     // Selling takes the copy out of the collection and pays for it. Asked rather than computed:
@@ -140,10 +179,20 @@ internal fun ColumnScope.CardListBody(
 
     val grid: @Composable (Modifier) -> Unit = { modifier ->
         LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = ThumbWidth + 4.dp),
+            // `FixedSize`, not `Adaptive`: adaptive divides the width among as many columns as fit
+            // and hands each of them **all** of its share, so a cell was as wide as the leftover
+            // space allowed and a 40 dp picture sat in the middle of it. A frame drawn on that
+            // traces a box the picture does not fill. Fixed columns are exactly the art's size and
+            // the spare width goes to the margins, where it belongs.
+            //
+            // No spacing between cells either: `card_frame.png` carries its own margin, so
+            // abutting frames already leave 4 dp between two pictures — the gap the original
+            // shows. Adding more on top would double it.
+            columns = GridCells.FixedSize(FramedThumbSide),
+            // What the columns do not use is split between the two margins rather than left in
+            // one strip down the right-hand side, which is where `Arrangement.Start` put it.
+            horizontalArrangement = Arrangement.spacedBy(0.dp, Alignment.CenterHorizontally),
             modifier = modifier.testTag(CARD_GRID_TEST_TAG),
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             items(cards, key = { it.id }) { card ->
                 CardCell(
@@ -168,10 +217,30 @@ internal fun ColumnScope.CardListBody(
             CardDetail(selected, profile, sell, Modifier.width(DetailPaneWidth).fillMaxHeight())
         }
     } else {
-        // Above the grid rather than beside it, and a fixed height whether or not anything is
-        // selected, so the grid does not jump under the finger that just tapped it.
-        CardDetail(selected, profile, sell)
-        grid(Modifier.fillMaxWidth().weight(1f).padding(top = 10.dp))
+        // The grid keeps the screen and the card arrives over it. The panel used to sit above the
+        // grid at a fixed height whether or not anything was selected — a third of a phone screen
+        // spent on the words "pick a card", and five rows of cards left under it. A sheet costs
+        // nothing when nothing is picked, and covering the grid is fair once something is: the
+        // player has stopped browsing and is reading one card.
+        grid(Modifier.fillMaxWidth().weight(1f))
+
+        selected?.let { card ->
+            ModalBottomSheet(
+                onDismissRequest = { selected = null },
+                sheetState = sheet,
+                modifier = Modifier.testTag(CARD_SHEET_TEST_TAG),
+            ) {
+                CardDetail(
+                    card = card,
+                    profile = profile,
+                    onSell = sell,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(DetailHeight)
+                        .padding(horizontal = SpaceMd, vertical = SpaceSm),
+                )
+            }
+        }
     }
 }
 
@@ -183,12 +252,31 @@ private fun sellCardNote(strings: Strings, outcome: IntentOutcome): String? = wh
     IntentOutcome.UNREACHABLE -> strings[StringKeys.ACTION_FAILED]
 }
 
+/**
+ * One cell of the grid: a thumbnail at its own size, with the frame drawn over it.
+ *
+ * ### The cell is the frame, and the frame is bigger than the picture
+ *
+ * [FramedThumbSide] and nothing more — no padding, no surface, no room for a border to sit
+ * *outside* the art. Both sizes are authored, and the 2 dp between them is the margin
+ * `card_frame.png` leaves around the picture, not a layout choice: the cell is the frame's 44,
+ * the picture is the thumbnail's 40, and centring one in the other is what puts the drawn border
+ * where its author drew it.
+ *
+ * It replaces `rowSurface` plus an adaptive column width, which stretched every cell to whatever
+ * the grid had spare and left a 40 dp thumbnail floating in the middle of it. The frame could not
+ * be drawn on that: it would have traced a box the picture did not fill.
+ *
+ * **Neither image is ever resized.** Both are drawn at the size they were authored — see
+ * `thumbs.json` for the 40s. Scaling is the one thing this must not do, which is why the cell was
+ * made to fit the art rather than the art made to fit the cell.
+ */
 @Composable
 private fun CardCell(card: Card, copies: Int, isSelected: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .testTag(cardCellTestTag(card.id))
-            .rowSurface(selected = isSelected)
+            .size(FramedThumbSide)
             // Tapping a cell opens the card beside the grid, and tapping it again closes it — so
             // it is a toggle, and the selected state is what the detail pane is showing.
             .ttoClickable(selected = isSelected, onClick = onClick),
@@ -203,7 +291,7 @@ private fun CardCell(card: Card, copies: Int, isSelected: Boolean, onClick: () -
         // are three decoded sheets rather than 263 decoded images — see `UiArt`.
         CardThumb(
             card = card,
-            size = ThumbWidth,
+            selected = isSelected,
             modifier = if (copies > 0) Modifier else Modifier.alpha(UNOWNED_ALPHA),
         )
 
@@ -320,10 +408,23 @@ private fun ColumnScope.SellButton(card: Card, profile: GameSave, onSell: (Card)
         contentPadding = PaddingValues(horizontal = SpaceLg, vertical = SpaceSm),
     ) {
         Text(
-            text = "${strings[StringKeys.SELL]} ${CardValue.resaleOf(
-                card.id,
-                mapOf(card.id to card),
-            )}",
+            text = strings[StringKeys.SELL],
+            style = MaterialTheme.typography.labelLarge,
+            maxLines = 1,
+            softWrap = false,
+        )
+        Spacer(modifier = Modifier.width(SpaceXs))
+        // The coin, so the number reads as money. "Sell 16" was sixteen of something the button
+        // did not name — and the same coin is what the purse in the top bar shows, which is the
+        // number this one is about to change.
+        Icon(
+            imageVector = TtoIcons.Chip,
+            contentDescription = strings[StringKeys.MGP],
+            tint = LocalTtoColors.current.currency,
+            modifier = Modifier.size(IconSm),
+        )
+        Text(
+            text = "${CardValue.resaleOf(card.id, mapOf(card.id to card))}",
             style = MaterialTheme.typography.labelLarge,
             maxLines = 1,
             softWrap = false,
@@ -335,10 +436,13 @@ private fun ColumnScope.SellButton(card: Card, profile: GameSave, onSell: (Card)
 private fun CardFilters(
     sets: List<Int>,
     types: List<CardType>,
+    rarities: List<Int>,
     set: Int?,
     type: CardType?,
+    rarity: Int?,
     onSet: (Int?) -> Unit,
     onType: (CardType?) -> Unit,
+    onRarity: (Int?) -> Unit,
 ) {
     val strings = LocalStrings.current
 
@@ -349,7 +453,7 @@ private fun CardFilters(
         // A set row only when there is a choice to make. One set admitted is not a filter, it is a
         // row of one chip that does nothing.
         if (sets.size > 1) {
-            Row(horizontalArrangement = Arrangement.spacedBy(SpaceXs)) {
+            FilterRow {
                 TtoFilterChip(
                     label = strings[StringKeys.ALL],
                     tag = setFilterTestTag(null),
@@ -357,7 +461,7 @@ private fun CardFilters(
                 ) { onSet(null) }
                 for (block in sets) {
                     TtoFilterChip(
-                        label = "$BLOCK_PREFIX$block",
+                        label = setLabel(strings, block),
                         tag = setFilterTestTag(block),
                         selected = set == block,
                         onClick = { onSet(block.takeIf { it != set }) },
@@ -366,11 +470,7 @@ private fun CardFilters(
             }
         }
 
-        Row(
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(SpaceXs),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        FilterRow {
             TtoFilterChip(
                 label = strings[StringKeys.ALL],
                 tag = typeFilterTestTag(null),
@@ -382,6 +482,80 @@ private fun CardFilters(
                 }
             }
         }
+
+        // Rarity on its own row rather than folded into the elements. The two answer different
+        // questions — "which tribe" and "how good" — and a card list is read for both at once,
+        // which is why they are `and`ed rather than exclusive. Only when there is a choice, for
+        // the same reason the set row is: a table with one rarity is not a filter.
+        if (rarities.size > 1) {
+            FilterRow {
+                TtoFilterChip(
+                    label = strings[StringKeys.ALL],
+                    tag = rarityFilterTestTag(null),
+                    selected = rarity == null,
+                ) { onRarity(null) }
+                for (candidate in rarities) {
+                    RarityChip(candidate, isOn = rarity == candidate) {
+                        onRarity(candidate.takeIf { it != rarity })
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * A row of chips that wraps instead of scrolling.
+ *
+ * Twelve elements do not fit across a phone, and a `horizontalScroll` answered that by hiding
+ * the ends of the row: the first chip was clipped at the left edge, the last at the right, and
+ * nothing on screen said there was more. Wrapping puts every filter in front of the player at
+ * the cost of a second line, which is the right trade for a control they choose from.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun FilterRow(content: @Composable FlowRowScope.() -> Unit) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(SpaceXs),
+        verticalArrangement = Arrangement.spacedBy(SpaceXs),
+        content = content,
+    )
+}
+
+/**
+ * One rarity, drawn as the star plate the card itself wears.
+ *
+ * At [RarityChipWidth] x [RarityChipHeight] — the art's own size, the same numbers `CardView`
+ * uses. Stars rather than a number because that is what the player is looking at on the card,
+ * and a count of them is a translation of something already legible.
+ */
+@Composable
+private fun RarityChip(rarity: Int, isOn: Boolean, onClick: () -> Unit) {
+    val stars = LocalCardArt.current?.starsFor(rarity)
+
+    TtoIconChip(
+        tag = rarityFilterTestTag(rarity),
+        description = STAR.repeat(rarity),
+        selected = isOn,
+        onClick = onClick,
+    ) {
+        if (stars == null) {
+            Text(
+                text = "$STAR$rarity",
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.labelSmall,
+            )
+        } else {
+            Image(
+                bitmap = stars,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(width = RarityChipWidth, height = RarityChipHeight)
+                    .alpha(if (isOn) 1f else MUTED),
+                filterQuality = FilterQuality.None,
+            )
+        }
     }
 }
 
@@ -389,12 +563,14 @@ private fun CardFilters(
 private fun TypeChip(type: CardType, isOn: Boolean, onClick: () -> Unit) {
     val icon = LocalCardArt.current?.typeIcon(type)
 
-    Box(
-        modifier = Modifier
-            .testTag(typeFilterTestTag(type))
-            .rowSurface(selected = isOn)
-            .ttoClickable(role = Role.Checkbox, selected = isOn, onClick = onClick)
-            .padding(horizontal = SpaceSm, vertical = SpaceXs),
+    TtoIconChip(
+        tag = typeFilterTestTag(type),
+        // The enum's own name, because nothing translates the elements yet — `app-*.json` has no
+        // key for any of the twelve. It is what a screen reader reads out; a word in the wrong
+        // language beats the silence an undescribed icon leaves.
+        description = type.name,
+        selected = isOn,
+        onClick = onClick,
     ) {
         if (icon == null) {
             Text(
@@ -405,7 +581,7 @@ private fun TypeChip(type: CardType, isOn: Boolean, onClick: () -> Unit) {
         } else {
             Image(
                 bitmap = icon,
-                contentDescription = type.name,
+                contentDescription = null,
                 modifier = Modifier.size(TypeChipSize).alpha(if (isOn) 1f else MUTED),
                 filterQuality = FilterQuality.None,
             )
@@ -419,8 +595,6 @@ private fun cardFacts(strings: Strings, card: Card): String = listOf(
     "${strings[StringKeys.RARITY]} ${"★".repeat(card.rarity)}",
 ).joinToString(DOT_SEPARATOR)
 
-private val ThumbWidth = 40.dp
-
 private const val DETAIL_SCALE = 1f
 
 private val DetailHeight = 196.dp
@@ -429,8 +603,32 @@ private val DetailPaneWidth = 260.dp
 
 private const val UNOWNED_ALPHA = 0.28f
 
+/**
+ * What a set is called, taken from the format that plays it alone.
+ *
+ * `formats.json` already names both tables — "FFXIV" and "FFVIII" — and the card list was
+ * calling them "Set 1" and "Set 2", which is the block number the ids carry rather than
+ * anything a player recognises. Looked up by key rather than through the format catalog, which
+ * this screen is not given; [BLOCK_PREFIX] is what an unnamed block still falls back to.
+ */
+private fun setLabel(strings: Strings, block: Int): String {
+    val key = SET_NAME_KEYS[block]
+    return if (key != null && strings.has(key)) strings[key] else "$BLOCK_PREFIX$block"
+}
+
+private val SET_NAME_KEYS = mapOf(
+    1 to "APP_FORMAT_FF14_STANDARD",
+    2 to "APP_FORMAT_FF8_STANDARD",
+)
+
 private const val BLOCK_PREFIX = "Set "
+private const val STAR = "★"
+
 private val TypeChipSize = 16.dp
+
+/** The star plate's own size, as `CardView` draws it. Scaling it would blur five small stars. */
+private val RarityChipWidth = 29.dp
+private val RarityChipHeight = 28.dp
 
 private const val COPIES_PREFIX = "\u00d7"
 private val CopiesBadgeCorner = 3.dp

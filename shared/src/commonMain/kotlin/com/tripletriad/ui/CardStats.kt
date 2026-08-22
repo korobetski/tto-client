@@ -12,9 +12,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.tripletriad.model.Card
-import com.tripletriad.model.CardType
 import com.tripletriad.model.powerLabel
 
 fun cardStatsTestTag(cardId: Int): String = "card-stats-$cardId"
@@ -41,18 +41,26 @@ internal fun CardStatsLine(
             maxLines = 1,
             softWrap = false,
         )
-        if (showType) card.type?.let { CardTypeBadge(it, card.id) }
+        if (showType) CardTypeBadge(card = card)
     }
 }
 
+/**
+ * The element a card belongs to, when it has one — nothing at all when it does not.
+ *
+ * @param size how big to draw it. The stats line's own [TypeBadgeSize] is as small as the icon
+ *   stays legible; the deck builder asks for more, because there the element is what the player
+ *   is choosing on rather than a footnote to the powers.
+ */
 @Composable
-private fun CardTypeBadge(type: CardType, cardId: Int) {
+internal fun CardTypeBadge(card: Card, size: Dp = TypeBadgeSize) {
+    val type = card.type ?: return
     val icon = LocalCardArt.current?.typeIcon(type) ?: return
 
     Image(
         bitmap = icon,
         contentDescription = type.name,
-        modifier = Modifier.testTag(cardTypeTestTag(cardId)).size(TypeBadgeSize),
+        modifier = Modifier.testTag(cardTypeTestTag(card.id)).size(size),
         filterQuality = FilterQuality.None,
     )
 }

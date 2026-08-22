@@ -1,9 +1,12 @@
 package com.tripletriad.ui
 
 import com.tripletriad.FF14_BLOCK
+import com.tripletriad.data.CampaignEntry
+import com.tripletriad.data.CampaignRewards
 import com.tripletriad.data.Format
 import com.tripletriad.data.MatchRewards
 import com.tripletriad.data.PveMatches
+import com.tripletriad.data.loadCampaignCatalog
 import com.tripletriad.data.loadCardCatalog
 import com.tripletriad.data.loadFormatCatalog
 import com.tripletriad.data.loadNpcCatalog
@@ -18,6 +21,7 @@ import com.tripletriad.model.MatchResult
 import com.tripletriad.model.MatchState
 import com.tripletriad.model.MatchView
 import com.tripletriad.model.Npc
+import com.tripletriad.model.questDayOf
 import com.tripletriad.net.AccountClient
 import com.tripletriad.net.MatchReporter
 import com.tripletriad.net.PveClient
@@ -31,6 +35,7 @@ import com.tripletriad.net.StoredSession
 import com.tripletriad.net.TicketStore
 import com.tripletriad.net.matchProtocolJson
 import com.tripletriad.protocol.CURRENT_VERSION
+import com.tripletriad.protocol.EnterCampaignRequest
 import com.tripletriad.protocol.MatchTranscript
 import com.tripletriad.protocol.Placement
 import com.tripletriad.protocol.PlayerState
@@ -58,6 +63,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import kotlin.random.Random
 
@@ -97,10 +103,20 @@ internal class PveStubServer(
     save: GameSave = freshSave(block = block),
     private val seed: Int = STUB_SEED,
     private val at: Long = FixedClock.DEFAULT_MILLIS,
+    /**
+     * Held until the test releases it, when set — `POST /me/campaign/enter` and nothing else.
+     *
+     * A gate rather than a latency, because a Compose test drives a virtual clock and a `delay`
+     * here would never elapse. It exists for the one fixture that is about *ordering*: a mock
+     * engine answers inside the same dispatch, so the entry always happened to land before the
+     * first rung was opened, and the race a real link loses was invisible to every test here.
+     */
+    private val entryGate: CompletableDeferred<Unit>? = null,
     private val reporter: MatchReporter = SilentMatchReporter,
 ) {
     val cards = runBlocking { loadCardCatalog() }
     private val npcs = runBlocking { loadNpcCatalog() }
+    private val campaigns = runBlocking { loadCampaignCatalog() }
     private val formats = runBlocking { loadFormatCatalog() }
 
     /** The profile the server holds. `GET /me` answers it, and settlement rewrites it. */
@@ -152,6 +168,7 @@ internal class PveStubServer(
             path == "/server" -> respondJson(matchProtocolJson.encodeToString(SERVER_INFO))
             path == "/me/tickets" -> respondJson(matchProtocolJson.encodeToString(SeedTickets()))
             path == "/me/save" -> saved(body(request))
+            path == "/me/campaign/enter" -> entered(body(request))
             path.startsWith("/pve/matches") -> pve(path, request)
             else -> respondJson(matchProtocolJson.encodeToString(player))
         }
@@ -170,6 +187,29 @@ internal class PveStubServer(
         return respond("", HttpStatusCode.NoContent)
     }
 
+    /**
+     * A place in a ladder, bought — and the run [opened] then checks a rung against.
+     *
+     * Modelled here rather than left to fall through to "answer with the profile unchanged",
+     * because without it every board claiming a `campaignKey` was opened against a server that had
+     * never heard of the run, and a fixture cannot see an ordering it does not enforce.
+     */
+    private suspend fun MockRequestHandleScope.entered(
+        request: EnterCampaignRequest,
+    ): HttpResponseData {
+        entryGate?.await()
+        val entry = CampaignRewards.enter(
+            save = player.save,
+            campaign = campaigns.byKey(request.campaignKey),
+            day = questDayOf(at),
+            at = at,
+        )
+        if (entry is CampaignEntry.Entered) player = player.copy(save = entry.save)
+        // A refusal answers the profile unchanged, exactly as the real routes do — the four
+        // reasons are states of the player, not statuses.
+        return respondJson(matchProtocolJson.encodeToString(player))
+    }
+
     private suspend fun MockRequestHandleScope.pve(
         path: String,
         request: HttpRequestData,
@@ -185,6 +225,14 @@ internal class PveStubServer(
             ?: return refuse(PveRefusal.NO_SUCH_FORMAT, "no such format")
         val npc = npcs.byIcon(request.opponentIconId, format.id)
             ?: return refuse(PveRefusal.NO_SUCH_OPPONENT, "no such opponent")
+        // A board claiming a ladder is checked against the run the profile holds, as the real
+        // referee checks it. This is what makes the entry a *prerequisite* of the first rung
+        // rather than an errand that may still be in flight beside it.
+        if (request.campaignKey != null &&
+            player.save.campaignRun?.campaignKey != request.campaignKey
+        ) {
+            return refuse(PveRefusal.NOT_ON_THAT_RUNG, "no run in ${request.campaignKey}")
+        }
 
         val match = deal(npc, format, request.deck)
         live = match

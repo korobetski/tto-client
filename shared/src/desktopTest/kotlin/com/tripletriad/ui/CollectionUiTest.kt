@@ -4,12 +4,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.v2.runComposeUiTest
+import androidx.compose.ui.unit.dp
 import com.tripletriad.FF14_BLOCK
 import com.tripletriad.FF8_BLOCK
 import com.tripletriad.data.CardValue
@@ -124,8 +127,23 @@ class CollectionUiTest {
         )
     }
 
+    @Test
+    fun aCellIsExactlyTheFrameAndNeverWiderThanIt() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        openCards()
+
+        // The frame art is drawn over the picture at `fillMaxSize`, so a cell that is any
+        // bigger than the picture traces a box the picture does not fill — which is exactly
+        // what `GridCells.Adaptive` did, handing each column its whole share of the width.
+        onNodeWithTag(cardCellTestTag(STARTER_CARDS.first()))
+            .assertWidthIsEqualTo(CELL_SIDE)
+            .assertHeightIsEqualTo(CELL_SIDE)
+    }
     private companion object {
         const val ALL_CARDS = 263
+
+        /** `card_frame.png`'s authored size, and so the cell's. See `CardListBody`. */
+        val CELL_SIDE = 44.dp
 
         val UNOWNED_CARD = Card.idFor(block = 1, number = 44)
 

@@ -303,12 +303,13 @@ private fun DeckEditor(
                 // rejection they cannot act on is worse than one they can see coming.
                 val remaining = profile.copiesOf(card.id) - draft.copiesUsed(card.id)
 
-                // Centred in its cell, and the frame sized to the card rather than to the cell.
-                // `GridCells.Adaptive` hands an item a **fixed** cross-axis width — whatever is
-                // left over once the columns divide the row — so a `rowSurface` taken straight off
-                // the cell was 51 px of border around a 44 px thumbnail, and the seven that did
+                // Centred in its cell, and the frame sized to the card rather than to the
+                // cell. `GridCells.Adaptive` hands an item a **fixed** cross-axis width — whatever
+                // is left over once the columns divide the row — so a border taken straight off
+                // the cell was 51 px of frame around a 44 px thumbnail, and the seven that did
                 // not fit stuck out to the right of every card on the screen. The grid was never
-                // wider than its column; the frame was wider than what it framed.
+                // wider than its column; the frame was wider than what it framed. The frame now
+                // belongs to `CardThumb`, which is sized by the art rather than by the cell.
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -316,7 +317,6 @@ private fun DeckEditor(
                     Box(
                         modifier = Modifier
                             .testTag(deckPickTestTag(card.id))
-                            .rowSurface(selected = card.id in draft.cards)
                             // A pick goes in and comes out of the draft, so it toggles rather
                             // than chooses: `Checkbox` is what a screen reader should hear.
                             .ttoClickable(
@@ -325,18 +325,27 @@ private fun DeckEditor(
                                 enabled = !draft.isComplete && remaining > 0,
                             ) {
                                 draft = draft.plusCard(card.id)
-                            }
-                            .padding(1.dp),
+                            },
                     ) {
                         CardThumb(
                             card = card,
                             size = DeckThumbSize,
+                            selected = card.id in draft.cards,
                             modifier = if (remaining > 0) {
                                 Modifier
                             } else {
                                 Modifier.alpha(SPENT_ALPHA)
                             },
                         )
+
+                        // Top right, always. At 11 dp beside the powers it was a smudge, and the
+                        // element is what a deck is built around — the affinity rules turn on it.
+                        // Pinned to its own corner rather than stacked over the count, which only
+                        // some cards carry: an element that moves depending on how many copies
+                        // the player owns is one the eye has to look for on every card.
+                        Box(modifier = Modifier.align(Alignment.TopEnd).padding(1.dp)) {
+                            CardTypeBadge(card = card, size = DeckTypeBadgeSize)
+                        }
 
                         if (profile.copiesOf(card.id) > 1) {
                             Text(
@@ -348,7 +357,7 @@ private fun DeckEditor(
                                 modifier = Modifier
                                     .testTag(deckRemainingTestTag(card.id))
                                     .align(Alignment.BottomEnd)
-                                    .padding(2.dp)
+                                    .padding(1.dp)
                                     .background(
                                         MaterialTheme.colorScheme.primary,
                                         RoundedCornerShape(3.dp),
@@ -360,9 +369,11 @@ private fun DeckEditor(
 
                     // Under the thumbnail rather than on it. A 44dp thumbnail already renders the
                     // powers, at a size nobody reads — which is why building a deck meant tapping
-                    // each card to find out what it was. See [CardStatsLine].
+                    // each card to find out what it was. See [CardStatsLine]. Without the element:
+                    // it is on the thumbnail now, twice its old size.
                     CardStatsLine(
                         card = card,
+                        showType = false,
                         modifier = Modifier.alpha(if (remaining > 0) 1f else SPENT_ALPHA),
                     )
                 }
@@ -374,7 +385,7 @@ private fun DeckEditor(
 @Composable
 internal fun DeckPosition(card: Card?, owned: Boolean = true) {
     if (card == null) {
-        Box(modifier = Modifier.size(DeckThumbSize).rowSurface())
+        EmptyCardSlot(size = DeckThumbSize)
     } else {
         CardThumb(
             card = card,
@@ -402,6 +413,9 @@ internal fun deckPower(deck: Deck, cards: Map<Int, Card>): Int =
 private const val MAX_DECK_NAME = 24
 
 internal val DeckThumbSize = 40.dp
+
+/** The element badge on a deck-builder thumbnail. Bigger than the stats line's, on purpose. */
+private val DeckTypeBadgeSize = 16.dp
 
 private const val SPENT_ALPHA = 0.3f
 

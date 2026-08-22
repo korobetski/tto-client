@@ -136,6 +136,9 @@ private val ICON_NAMES = listOf(
     "beast_booster", "garlean_booster", "primal_booster", "scion_booster", "booster_pack_icon",
     "xp_boost_icon", "mgp_boost_icon", "PGS", "XP",
     "item_borders", "achievement_border",
+    // The frame laid over every card-list thumbnail. Authored at the thumbnails' own
+    // 40x40 so it can be drawn over one without scaling either — see `CardListBody`.
+    "card_frame",
     // A raw FFXIV icon id, which is how `AchievementCatalog.NPC_ICON` names it.
     "000713",
 )

@@ -17,9 +17,38 @@ val detektPluginId = libs.plugins.detekt.get().pluginId
 // for `androidApp/detekt.yml` and so on.
 val detektConfigFile = rootProject.file("detekt/detekt.yml")
 
+/*
+ * Whether this invocation runs the linters at all. `-Ptto.lint=false` says it does not.
+ *
+ * Both plugins wire themselves into `check`, so every `build` runs them again — and CI already has
+ * a `quality` job that runs both across every module before any of the build jobs finish. That is
+ * one duplicate run per build job, on a workflow whose shared job takes eleven minutes.
+ *
+ * **`-x` cannot express this.** The ktlint plugin wires each `ktlint<SourceSet>SourceSetCheck` into
+ * `check` individually rather than only through the `ktlintCheck` aggregate, so
+ * `-x ktlintCheck` removes the aggregate and leaves all thirty-seven of them in the graph —
+ * measured on `:shared:build`, which went from 222 tasks to 221. Hence a property.
+ *
+ * The default is on, and has to stay on: a flag that quietly became the normal way to build would
+ * be a way to ship unformatted code without noticing. `quality` passes nothing and stays the job
+ * that reports.
+ *
+ * **PowerShell needs it quoted** — `'-Ptto.lint=false'`. Unquoted, PowerShell breaks the token at
+ * the dot and hands Gradle `-Ptto` and `.lint=false`, which fails with `Task '.lint=false' not
+ * found`. Nothing to do with Gradle, and it bites `-Ptto.screenshots=1` in the README the same way;
+ * CI runs bash on ubuntu, where the unquoted form in `build.yml` is correct as written.
+ */
+val lintEnabled = providers.gradleProperty("tto.lint").orNull != "false"
+
 allprojects {
     apply(plugin = ktlintPluginId)
     apply(plugin = detektPluginId)
+
+    if (!lintEnabled) {
+        tasks.matching { it.name.startsWith("ktlint") || it.name.startsWith("runKtlintCheckOver") }
+            .configureEach { enabled = false }
+        tasks.matching { it.name == "detekt" }.configureEach { enabled = false }
+    }
 
     // Formatting rules live in .editorconfig, which the IDE reads as well, so the
     // plugin needs no configuration beyond skipping generated sources.

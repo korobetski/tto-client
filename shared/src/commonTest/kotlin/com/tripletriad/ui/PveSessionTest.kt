@@ -27,6 +27,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.io.IOException
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -55,6 +56,23 @@ class PveSessionTest {
 
         assertEquals(MATCH_ID, session.match?.matchId)
         assertNull(session.trouble)
+    }
+
+    /**
+     * A refusal to open is trouble to report, not a board to draw.
+     *
+     * The screen shows the reconnection panel on [PveSession.trouble] and a board on
+     * [PveSession.match]; a failure that set neither would leave the player on a spinner with no
+     * way forward, which is the state this whole class exists to make impossible.
+     */
+    @Test
+    fun anOpeningTheServerRefusesLeavesTroubleAndNoBoard() = runTest {
+        val session = sessionAnswering(HttpStatusCode.InternalServerError, "")
+
+        session.open(OPPONENT, FORMAT)
+
+        assertNull(session.match, "there is no board to show")
+        assertNotNull(session.trouble, "and the panel needs something to offer a retry for")
     }
 
     /** Nothing in progress is an answer, and it must not look like a failure. */
@@ -116,6 +134,19 @@ class PveSessionTest {
         session.resume(against = OPPONENT)
 
         assertEquals(3, session.match?.placement, "the board came back where it was left")
+    }
+
+    @Test
+    fun aResumeThatFailsIsReportedRatherThanReadAsHavingNoMatch() = runTest {
+        val session = sessionAnswering(HttpStatusCode.InternalServerError, "")
+
+        session.resume()
+
+        assertNull(session.match)
+        assertNotNull(
+            session.trouble,
+            "a failed read is not the same answer as `you are in no match`",
+        )
     }
 
     // ---- Placing a card ---------------------------------------------------
@@ -185,6 +216,84 @@ class PveSessionTest {
         assertEquals(6, session.match?.placement, "and take what the re-read says")
     }
 
+    /**
+     * A move needs a match to be a move *in*.
+     *
+     * The screen cannot normally place without a board — it returns early and draws [PveWaiting]
+     * instead — but a queued tap arriving after [clear] can, and posting a placement with no match
+     * id would be a request the server can only refuse.
+     */
+    @Test
+    fun placingWithNoBoardAsksNothing() = runTest {
+        val counted = countingEngine()
+        val session =
+            PveSession(PveClient(httpClient(counted.engine), address), tokenOf = { TOKEN })
+
+        session.play(PveMove(handIndex = 0, position = 0))
+
+        assertEquals(0, counted.calls, "there is no match to place into")
+        assertNull(session.match)
+    }
+
+    @Test
+    fun placingWhileSignedOutAsksNothing() = runTest {
+        val counted = countingEngine()
+        val session = PveSession(PveClient(httpClient(counted.engine), address), tokenOf = { null })
+
+        session.play(PveMove(handIndex = 0, position = 0))
+
+        assertEquals(0, counted.calls, "a signed-out session must not talk to the server")
+    }
+
+    // ---- Re-reading the board ---------------------------------------------
+
+    /**
+     * [PveSession.refresh] is the recovery from anything that went wrong, and it asks **by id**.
+     *
+     * That is what makes it the right call on a board and [PveSession.resume] the wrong one: it
+     * cannot come back with a different match. With no id there is nothing it could ask.
+     */
+    @Test
+    fun reReadingWithNoBoardAsksNothing() = runTest {
+        val counted = countingEngine()
+        val session =
+            PveSession(PveClient(httpClient(counted.engine), address), tokenOf = { TOKEN })
+
+        session.refresh()
+
+        assertEquals(0, counted.calls, "there is no match id to ask about")
+    }
+
+    @Test
+    fun reReadingWhileSignedOutAsksNothing() = runTest {
+        val counted = countingEngine()
+        val session = PveSession(PveClient(httpClient(counted.engine), address), tokenOf = { null })
+
+        session.refresh()
+
+        assertEquals(0, counted.calls)
+    }
+
+    /** The claim the reconnection panel rests on: a failed re-read is not a lost match. */
+    @Test
+    fun aReReadThatFailsKeepsTheBoardItAlreadyHad() = runTest {
+        val session = PveSession(
+            client = PveClient(
+                httpClient(answeringThenFailing(encode(board.copy(placement = 5)))),
+                address,
+            ),
+            tokenOf = { TOKEN },
+        )
+        session.resume()
+        val before = session.match
+        assertNotNull(before, "the fixture should have put a board up first")
+
+        session.refresh()
+
+        assertEquals(before, session.match, "a failed re-read must not discard the position")
+        assertNotNull(session.trouble, "and the player is offered the way back")
+    }
+
     // ---- Settlement -------------------------------------------------------
 
     /**
@@ -237,6 +346,31 @@ class PveSessionTest {
         assertTrue(!session.isOver)
     }
 
+    /**
+     * Nothing has begun, so nothing has ended.
+     *
+     * [PveSession.isOver] gates the way off the board. Reading "no match" as over would end a
+     * screen that has not started one — the state every launch passes through.
+     */
+    @Test
+    fun aSessionWithNoBoardIsNotOver() = runTest {
+        val session = sessionAnswering(HttpStatusCode.OK, encode(board))
+
+        assertFalse(session.isOver, "there is no match, so there is no match to be over")
+    }
+
+    /** A match swept without being played is over, and is not a result. */
+    @Test
+    fun anAbandonedMatchIsOverWithoutBeingSettled() = runTest {
+        val abandoned = board.copy(status = PveMatchStatus.ABANDONED)
+        val session = sessionAnswering(HttpStatusCode.OK, encode(abandoned))
+
+        session.resume()
+
+        assertTrue(session.isOver, "it is no longer live")
+        assertNull(session.match?.outcome, "and nothing was credited for it")
+    }
+
     // ---- Signing out ------------------------------------------------------
 
     /** Without a token there is nothing to ask, and nothing is asked. */
@@ -273,6 +407,40 @@ class PveSessionTest {
     private fun httpClient(engine: MockEngine) = HttpClient(engine) {
         expectSuccess = false
         install(ContentNegotiation) { json(matchProtocolJson) }
+    }
+
+    /** An engine that counts what it was asked, for the cases where the answer is "nothing". */
+    private class Counted(val engine: MockEngine) {
+        var calls: Int = 0
+    }
+
+    private fun countingEngine(): Counted {
+        lateinit var counted: Counted
+        counted = Counted(
+            MockEngine {
+                counted.calls++
+                respondJson(encode(board), HttpStatusCode.OK)
+            },
+        )
+        return counted
+    }
+
+    /**
+     * Answers once and fails afterwards — "it was working, and then the connection went".
+     *
+     * The first answer is what puts a board up; everything after it is the failure under test, so
+     * the assertion can be about what survives rather than about what was never there.
+     */
+    private fun answeringThenFailing(first: String): MockEngine {
+        var answered = false
+        return MockEngine {
+            if (answered) {
+                respondJson("", HttpStatusCode.InternalServerError)
+            } else {
+                answered = true
+                respondJson(first, HttpStatusCode.OK)
+            }
+        }
     }
 
     private fun clientAnswering(status: HttpStatusCode, body: String): PveClient =

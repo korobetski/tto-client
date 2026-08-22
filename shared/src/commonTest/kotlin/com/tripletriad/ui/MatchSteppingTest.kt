@@ -135,6 +135,26 @@ class MatchSteppingTest {
         assertEquals(played.id, stepped.board.cells[0]?.card?.id, "the card still landed")
     }
 
+    /**
+     * And the other end of the same guard.
+     *
+     * A slot past the hand is the disagreement one expects from a newer server; a negative one is
+     * the shape a *missing* field decodes to, and it reaches the same code by a different route.
+     * Both are version disagreements about to be overwritten by the server's own view, so both cost
+     * the animation and nothing else — an index used unchecked would throw here instead.
+     */
+    @Test
+    fun aNegativeSlotIsIgnoredForTheSameReasonAnAbsentOneIs() {
+        val played = blue.first()
+        val stepped = view.after(
+            placement(CardColor.BLUE, played, position = 0, slot = -1),
+            played,
+        )
+
+        assertEquals(HAND_SIZE, stepped.ownHand.size, "no slot was named, so none was removed")
+        assertEquals(played.id, stepped.board.cells[0]?.card?.id, "the card still landed")
+    }
+
     // ---- What a stepped board may not claim -------------------------------
 
     /**

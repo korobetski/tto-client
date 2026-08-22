@@ -105,10 +105,17 @@ jobs:
       # compileSdk is 36; the runner image does not always carry it, and there is no
       # local.properties on CI so AGP relies on ANDROID_HOME.
       - uses: android-actions/setup-android@v4
-      # `:shared:build` already runs `coverageVerify`, which is wired into `check`. The
-      # report task is named here as well so the HTML exists to upload even on the runs
-      # where the gate passes and Gradle would otherwise have nothing to produce.
-      - run: ./gradlew :shared:build :shared:coverageReport --no-daemon
+      # `:shared:build` is enough on its own, and this line used to say more than it needed to.
+      #
+      # `:shared:coverageReport` was named here too, on the grounds that the HTML would otherwise
+      # not exist on a run where the gate passed. That was wrong: `coverageVerify` declares
+      # `dependsOn(coverageReport)` and `check` declares `dependsOn(coverageVerify)`, so the report
+      # is built before the gate is evaluated and exists whichever way the gate goes. Naming it
+      # cost nothing — it was always up to date — but it documented a dependency that is not there.
+      #
+      # `-Ptto.lint=false` because the `quality` job above has already run ktlint and detekt across
+      # every module. See the root `build.gradle.kts` for why this is a property and not `-x`.
+      - run: ./gradlew :shared:build -Ptto.lint=false --no-daemon
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v6

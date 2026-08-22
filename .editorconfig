@@ -26,8 +26,7 @@ ktlint_property_naming_ignore_when_annotated_with = Composable
 ktlint_standard_function-signature = disabled
 
 # On deliberately: explicit imports only. Wildcards make it hard to see which
-# `Card` a file means, and this migration has an AS3 `Card`, a model `Card` and a
-# Compose `CardFace` in play at once.
+# `Card` a file means — there is a model `Card` and a Compose `CardFace` in play at once.
 ktlint_standard_no-wildcard-imports = enabled
 
 [*.{json,yml,yaml}]

@@ -46,7 +46,13 @@ class NpcBundleTest {
     fun everyOpponentIsUsable() {
         for (npc in catalog.all) {
             assertTrue(npc.id > 0, "${npc.iconId} has no id")
-            assertTrue(npc.nameKey.startsWith("STR_"), "${npc.iconId} name is not an i18n key")
+            // `STR_` for everything lifted from the AS3 bundles, `APP_` for anything this port
+            // had to name itself — which is Ishtar, whose AS3 name key is the FFXIV Queen's and
+            // could not be shared once they became two opponents.
+            assertTrue(
+                npc.nameKey.startsWith("STR_") || npc.nameKey.startsWith("APP_"),
+                "${npc.iconId} name is not an i18n key",
+            )
             assertTrue(npc.iconId.isNotBlank())
             assertTrue(npc.matchFee >= 0, "${npc.iconId} has a negative fee")
             assertTrue(
@@ -178,7 +184,12 @@ class NpcBundleTest {
 
     private companion object {
         const val FF14_NPCS = 60
-        const val FF8_NPCS = 24
+
+        // 25, the count `NPCs.as` declares, and 24 until the FFVIII Queen of Cards was recovered.
+        // She was lost flattening the two tables into one keyed by icon: both Queens are authored
+        // as `queen-of-cards`, so one of them overwrote the other. See `tools/extract_npcs.py`,
+        // which now ships the FFVIII one as `ishtar`.
+        const val FF8_NPCS = 25
         const val FF14_CARDS = 153
         const val FF8_CARDS = 110
         const val HOURS = 24

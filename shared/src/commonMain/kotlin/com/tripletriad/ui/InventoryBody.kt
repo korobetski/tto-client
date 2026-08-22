@@ -225,6 +225,16 @@ private fun ItemRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
+                text = strings[item.descriptionKey],
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+                style = MaterialTheme.typography.labelSmall,
+                // Same two-line allowance as the shop's own offer row — see `ShopBody.OfferRow` —
+                // so a pack's description is not the one place it reads differently depending on
+                // which screen it is looked at from.
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
                 text = itemFacts(strings, item, cards, note),
                 color = if (note == null) {
                     MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT)

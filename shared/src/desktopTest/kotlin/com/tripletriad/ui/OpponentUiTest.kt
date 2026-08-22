@@ -17,6 +17,8 @@ import com.tripletriad.time.FixedClock
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
@@ -294,10 +296,57 @@ class OpponentUiTest {
             "$EVENING_OPPONENT is not in the roster"
         }
 
+    /**
+     * The one opponent behind an achievement is off the roster until it is held.
+     *
+     * Absence is asserted through the **footnote** rather than through the row, because the list is
+     * lazy: a row that is merely scrolled past does not exist either, and `exists` cannot tell that
+     * apart from a row that was filtered out. The count under the list can.
+     */
+    @Test
+    fun anUnearnedOpponentIsOffTheRosterAndSaidToBe() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        newCharacter()
+        openOpponents()
+
+        onNodeWithTag(OPPONENT_LIST_TEST_TAG)
+            .performScrollToNode(hasTestTag(OPPONENT_UNEARNED_TEST_TAG))
+        onNodeWithTag(OPPONENT_UNEARNED_TEST_TAG).assertExists()
+    }
+
+    /** Winning the Card Club puts her on it, and takes the footnote away. */
+    @Test
+    fun winningTheCardClubPutsHerOnTheRoster() = runComposeUiTest {
+        // Levelled as well as decorated: she has a difficulty like anyone else, and the level
+        // gate would hold her back on a fresh character whatever achievements it held. The two
+        // gates are independent and this test is about the second one.
+        val ishtar = assertNotNull(catalog.all.firstOrNull { it.iconId == ISHTAR })
+        val documents = seeded(
+            GameSave.new(createdAt = 0L)
+                .copy(xp = XpTable.thresholdFor(ishtar.difficulty))
+                .withAchievement(CARD_CLUB, instant = 0L),
+        )
+        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openOpponents()
+
+        scrollToOpponent(ISHTAR)
+        onNodeWithTag(opponentRowTestTag(ISHTAR)).assertExists()
+        assertFalse(
+            exists(OPPONENT_UNEARNED_TEST_TAG),
+            "nothing is left to earn, so the footnote should be gone",
+        )
+    }
+
     private companion object {
         const val NOON = 12
         const val EVENING = 18
 
         const val EVENING_OPPONENT = "linu-vali"
+
+        /** The FFVIII Queen of Cards, and what finishing the Card Club unlocks. */
+        const val ISHTAR = "ishtar"
+
+        const val CARD_CLUB = "ac-cmp-cc"
     }
 }

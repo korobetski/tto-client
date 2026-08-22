@@ -5,10 +5,7 @@ Phase 1, Task 1.13. How to run the tests, and how to write one that belongs here
 **Two neighbours, and the difference matters:**
 
 - [testing-strategy.md](./testing-strategy.md) is *what* is tested, *what is not*, and the
-  reasoning. Read it before arguing with a rule below.
-- [docs/migration/17-TESTING-GUIDE.md](../migration/17-TESTING-GUIDE.md) is a **planning-era**
-  document from Phase 0: framework examples and a target pyramid, written before any of this code
-  existed. Where the two disagree, this one describes the repository.
+  reasoning.
 
 ## 1. Running them
 

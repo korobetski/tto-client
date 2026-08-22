@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -32,7 +33,6 @@ import com.tripletriad.i18n.Strings
 import com.tripletriad.model.Card
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.MatchResult
-import com.tripletriad.model.Npc
 import com.tripletriad.ui.theme.LocalTtoColors
 
 const val CAMPAIGN_LIST_TEST_TAG: String = "campaign-list"
@@ -43,13 +43,22 @@ const val CAMPAIGN_STEP_TEST_TAG: String = "campaign-step"
 
 const val CAMPAIGN_FINAL_REWARD_TEST_TAG: String = "campaign-final-reward"
 
+const val CAMPAIGN_LOCKED_TEST_TAG: String = "campaign-locked"
+
+const val CAMPAIGN_SUMMARY_TEST_TAG: String = "campaign-summary"
+
+const val CAMPAIGN_SUMMARY_DONE_TEST_TAG: String = "campaign-summary-done"
+
 fun campaignRowTestTag(key: String): String = "campaign-row-$key"
+
+fun campaignSummaryRowTestTag(step: Int): String = "campaign-summary-row-$step"
 
 @Composable
 internal fun CampaignScreen(
     campaign: Campaign,
     profile: GameSave,
     cards: Map<Int, Card> = emptyMap(),
+    today: String = "",
     onStart: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -65,8 +74,21 @@ internal fun CampaignScreen(
             }
         }
 
+        // The run this ladder already has under way, if any. A tournament is entered once and can
+        // be come back to — see `CampaignRun` — so what this screen offers is not always a
+        // purchase.
+        val resuming = profile.campaignRun?.takeIf { it.campaignKey == campaign.key }
+
         Text(
-            text = "${strings[StringKeys.MATCH_FEE]} ${campaign.fee} ${strings[StringKeys.MGP]}",
+            text = if (resuming != null) {
+                strings.format(
+                    StringKeys.CAMPAIGN_STEP,
+                    "${resuming.step + 1}",
+                    "${campaign.steps.size}",
+                )
+            } else {
+                "${strings[StringKeys.MATCH_FEE]} ${campaign.fee} ${strings[StringKeys.MGP]}"
+            },
             color = LocalTtoColors.current.transient,
             style = MaterialTheme.typography.labelMedium,
             modifier = Modifier.padding(vertical = SpaceMd),
@@ -75,17 +97,45 @@ internal fun CampaignScreen(
         // What beating the last rung actually pays — the ladder's own steps already say this one
         // row at a time, but only once scrolled to the bottom. Named here so entering a tournament
         // is a decision made with the payoff in view rather than found at the end of it.
-        campaign.steps.lastOrNull()?.npc?.let { champion ->
-            FinalReward(npc = champion, cards = cards, owned = profile.cards)
-            Spacer(modifier = Modifier.height(SpaceMd))
+        FinalReward(campaign = campaign, cards = cards, owned = profile.cards)
+        Spacer(modifier = Modifier.height(SpaceMd))
+
+        val locked = !campaign.isUnlockedFor(profile)
+        // Today's entry to this ladder, spent the moment it was paid for — a defeat on the first
+        // rung costs the attempt, so a run that is over does not hand it back. Shown as a reason
+        // rather than left to the button being mysteriously grey.
+        val spent = resuming == null && profile.hasEnteredToday(campaign.key, today)
+        val reason = when {
+            locked -> StringKeys.CAMPAIGN_LOCKED
+            spent -> StringKeys.CAMPAIGN_ENTERED_TODAY
+            else -> null
+        }
+        if (reason != null) {
+            Text(
+                text = strings[reason],
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier
+                    .testTag(CAMPAIGN_LOCKED_TEST_TAG)
+                    .padding(bottom = SpaceSm),
+            )
         }
 
         WideButton(
-            label = strings[StringKeys.START],
+            // Resuming is not entering: a run already paid for is continued, and saying "Start"
+            // over it would read as a second entry fee about to be taken.
+            label = strings[if (resuming != null) StringKeys.CONTINUE else StringKeys.START],
             tag = CAMPAIGN_START_TEST_TAG,
             // `isEnabled = (MGP >= 500)`. Disabled rather than hidden, so the reason a ladder
-            // cannot be entered is visible next to its price.
-            enabled = profile.mgp >= campaign.fee,
+            // cannot be entered is visible next to its price. A run under way is already bought,
+            // so only a *new* entry is priced; a locked ladder is not for sale at all; and today's
+            // attempt at this one may already be spent.
+            //
+            // Every one of these is checked again by `CampaignRewards.enter` on the side that
+            // holds the profile, which is what actually decides. This is the button being honest
+            // about the answer, not the rule — a hidden button is not a rule, which is the lesson
+            // the entry fee itself taught.
+            enabled = !locked && !spent && (resuming != null || profile.mgp >= campaign.fee),
             onClick = onStart,
         )
     }
@@ -145,9 +195,21 @@ private fun RungRow(step: Int, entry: CampaignStep) {
 }
 
 @Composable
-private fun FinalReward(npc: Npc, cards: Map<Int, Card>, owned: Map<Int, Int>) {
+private fun FinalReward(campaign: Campaign, cards: Map<Int, Card>, owned: Map<Int, Int>) {
     val strings = LocalStrings.current
-    val rewards = remember(npc, cards) { npcCardRewards(npc, cards) }
+    val champion = campaign.steps.last().npc
+    // **The ladder's lot, not the last opponent's drop table.** Beating the final rung is what
+    // triggers the prize, but the prize belongs to the tournament — see `CampaignRewards.finish`,
+    // where it is drawn once and does not pass through that opponent's table.
+    //
+    // Falls back to the champion's own drops for a ladder that names no lot yet. Showing nothing
+    // there would say the tournament pays nothing, when it pays what its last rung pays plus a
+    // multiple of the stake back.
+    val rewards = remember(campaign, cards) {
+        campaign.finalReward
+            .mapNotNull { entry -> entry.cardId?.let { id -> cards[id]?.let { it to entry.rate } } }
+            .ifEmpty { npcCardRewards(champion, cards) }
+    }
 
     Column(
         modifier = Modifier.testTag(CAMPAIGN_FINAL_REWARD_TEST_TAG).fillMaxWidth(),
@@ -159,22 +221,36 @@ private fun FinalReward(npc: Npc, cards: Map<Int, Card>, owned: Map<Int, Int>) {
             style = MaterialTheme.typography.labelSmall,
         )
         Text(
-            text = finalRewardLine(strings, npc),
+            text = finalRewardLine(strings, campaign),
             color = MaterialTheme.colorScheme.onSurface,
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
         )
         if (rewards.isNotEmpty()) {
-            RewardCards(iconId = npc.iconId, rewards = rewards, owned = owned)
+            RewardCards(iconId = champion.iconId, rewards = rewards, owned = owned)
         }
     }
 }
 
-private fun finalRewardLine(strings: Strings, npc: Npc): String = buildList {
-    add("${npc.mgpFor(MatchResult.WIN)} ${strings[StringKeys.MGP]}")
-    val xp = npc.xpFor(MatchResult.WIN)
-    if (xp > 0) add("$xp ${strings[StringKeys.XP]}")
-}.joinToString(DOT_SEPARATOR)
+/**
+ * What finishing the ladder is worth, in one line.
+ *
+ * The **tournament's** own payout — [Campaign.payout], a multiple of the entry fee — plus what the
+ * last rung pays on top of it, since both land in the same breath. A player deciding whether to
+ * enter is comparing a total against a fee they are about to hand over, and reporting the halves
+ * apart here would make the decision harder rather than more honest.
+ *
+ * The XP carries the ladder's multiplier for the same reason the MGP carries its payout: what is
+ * quoted has to be what arrives.
+ */
+private fun finalRewardLine(strings: Strings, campaign: Campaign): String {
+    val champion = campaign.steps.last().npc
+    return buildList {
+        add("${campaign.payout + champion.mgpFor(MatchResult.WIN)} ${strings[StringKeys.MGP]}")
+        val xp = (champion.xpFor(MatchResult.WIN) * campaign.xpMultiplier).toInt()
+        if (xp > 0) add("$xp ${strings[StringKeys.XP]}")
+    }.joinToString(DOT_SEPARATOR)
+}
 
 @Composable
 @Suppress("LongParameterList")
@@ -184,9 +260,34 @@ internal fun CampaignMatchScreen(
     format: Format,
     pve: PveSession,
     onFinished: () -> Unit,
+    resumedStep: Int? = null,
 ) {
-    var step by remember(campaign.key) { mutableStateOf(Campaign.FIRST_STEP) }
+    // Where the run stands, as the *server* holds it — a ladder is resumed on the rung it was left
+    // on, and the rung is not the client's to decide. `remember` seeds from it rather than reading
+    // it live: the profile is refreshed as matches settle, and a rung that moved under the board
+    // would swap the opponent mid-match.
+    var step by remember(campaign.key) {
+        mutableStateOf(resumedStep ?: Campaign.FIRST_STEP)
+    }
     var result by remember(campaign.key) { mutableStateOf<MatchResult?>(null) }
+
+    // How each rung ended, keyed by its index — what the bilan is drawn from. A map rather than a
+    // list because a drawn rung is *replayed*, and the rung's own final outcome is the one worth
+    // reporting; writing the same key twice replaces it rather than appending a second row.
+    val record = remember(campaign.key) { mutableStateMapOf<Int, MatchResult>() }
+
+    // Bumped to replay a rung a draw settled nothing on. The rung index has not changed and the
+    // effect that opens a match is keyed on it, so without this the "play again" exit would
+    // leave the finished board on screen and never deal a new one.
+    var attempt by remember(campaign.key) { mutableStateOf(0) }
+
+    var reviewing by remember(campaign.key) { mutableStateOf(false) }
+
+    if (reviewing) {
+        CampaignSummary(campaign = campaign, record = record, onDone = onFinished)
+        return
+    }
+
     val entry = campaign.stepAt(step) ?: return
 
     val script = remember(entry) {
@@ -199,17 +300,35 @@ internal fun CampaignMatchScreen(
         )
     }
 
-    // Built from the result, so it can only exist once one is known — which is also the only time
-    // the panel holding it is on screen.
-    val exit = result
-        ?.let { campaign.nextStep(step, it) }
-        ?.takeIf { campaign.stepAt(it) != null }
-        ?.let { next ->
-            ScriptExit(StringKeys.NEXT_MATCH) {
-                result = null
-                step = next
-            }
+    /*
+     * Where the run goes from here. Built from the result, so it can only exist once one is known
+     * — which is also the only time the panel holding it is on screen.
+     *
+     * **`Campaign.nextStep` is deliberately not consulted.** It answers `FIRST_STEP` for a loss,
+     * which restarts the ladder from rung one at no cost — and a tournament whose entry fee buys
+     * unlimited retries is not a stake. A tournament here is the hardcore thing its fee implies:
+     * a win advances, a loss ends the run, and only a draw is replayed. `nextStep` still models
+     * the original ladder and is left alone for whatever else reads it.
+     */
+    val exit = result?.let { outcome ->
+        when {
+            outcome == MatchResult.DRAW ->
+                ScriptExit(StringKeys.NEXT_MATCH) {
+                    result = null
+                    attempt += 1
+                }
+
+            outcome == MatchResult.WIN && campaign.stepAt(step + 1) != null ->
+                ScriptExit(StringKeys.NEXT_MATCH) {
+                    result = null
+                    step += 1
+                }
+
+            // Won the last rung, or lost anywhere: either way the run is over and the only thing
+            // left is to read what it came to.
+            else -> ScriptExit(StringKeys.CAMPAIGN_RESULTS) { reviewing = true }
         }
+    }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
@@ -226,15 +345,19 @@ internal fun CampaignMatchScreen(
                 .padding(horizontal = SpaceMd),
         )
         // Keyed on the rung rather than trusting the opponent to differ: two rungs of one ladder
-        // sharing an icon would otherwise silently keep the board.
-        key(step) {
+        // sharing an icon would otherwise silently keep the board. `attempt` is in the key for the
+        // same reason a rung is — a replayed draw is a different match on the same rung.
+        key(step, attempt) {
             // One match per rung, opened when the rung opens. `resume` first, so a ladder
             // interrupted mid-rung comes back on the board it was on rather than paying the
             // entry fee for a position the player had already reached.
-            LaunchedEffect(pve, entry.npc.iconId, step) {
+            LaunchedEffect(pve, entry.npc.iconId, step, attempt) {
                 pve.resume(against = entry.npc.iconId)
                 if (pve.match == null) {
-                    pve.open(entry.npc.iconId, format.id)
+                    // Named as a ladder match, so the referee can waive the opponent's own stake
+                    // and pay the run's rates. It is a claim the server checks against the run it
+                    // holds — see `PveMatchRequest.campaignKey`.
+                    pve.open(entry.npc.iconId, format.id, campaignKey = campaign.key)
                 }
             }
             PveMatchScreen(
@@ -244,9 +367,120 @@ internal fun CampaignMatchScreen(
                 onExit = onFinished,
                 script = script,
                 scriptExit = exit,
-                onResult = { result = it },
+                onResult = {
+                    result = it
+                    record[step] = it
+                },
             )
         }
+    }
+}
+
+/**
+ * What a tournament run came to, rung by rung.
+ *
+ * Rendered in place of the board rather than navigated to, the way `PackRevealScreen` is: a bilan
+ * is a *moment at the end of a run*, not a destination. There is nothing for a back stack to
+ * restore — the run it describes is over, and its rewards were credited match by match as they
+ * were won — so the only way out is forward, to wherever the ladder was entered from.
+ *
+ * A rung with no entry in [record] is one the run never got to, which is the ordinary case for
+ * every rung below the one that ended it.
+ */
+@Composable
+private fun CampaignSummary(
+    campaign: Campaign,
+    record: Map<Int, MatchResult>,
+    onDone: () -> Unit,
+) {
+    val strings = LocalStrings.current
+    val lost = record.entries.firstOrNull { it.value == MatchResult.LOSE }?.key
+    val won = lost == null && campaign.steps.indices.all { record[it] == MatchResult.WIN }
+
+    ScreenScaffold(title = campaignTitle(strings, campaign), onBack = onDone) {
+        Text(
+            text = when {
+                won -> strings[StringKeys.CAMPAIGN_COMPLETE]
+                lost != null ->
+                    strings.format(StringKeys.CAMPAIGN_ELIMINATED, "${lost + 1}")
+                // Neither won nor lost: the run was left standing on a rung it had not settled.
+                else -> strings[StringKeys.CAMPAIGNS]
+            },
+            color = if (won) {
+                MaterialTheme.colorScheme.tertiary
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.fillMaxWidth().padding(bottom = SpaceMd),
+        )
+
+        Column(
+            modifier = Modifier.testTag(CAMPAIGN_SUMMARY_TEST_TAG).fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(SpaceSm),
+        ) {
+            for ((step, entry) in campaign.steps.withIndex()) {
+                SummaryRow(step = step, entry = entry, outcome = record[step])
+            }
+        }
+
+        Spacer(modifier = Modifier.height(SpaceMd))
+
+        WideButton(
+            label = strings[StringKeys.CONTINUE],
+            tag = CAMPAIGN_SUMMARY_DONE_TEST_TAG,
+            onClick = onDone,
+        )
+    }
+}
+
+@Composable
+private fun SummaryRow(step: Int, entry: CampaignStep, outcome: MatchResult?) {
+    val strings = LocalStrings.current
+    val colors = MaterialTheme.colorScheme
+
+    Row(
+        modifier = Modifier
+            .testTag(campaignSummaryRowTestTag(step))
+            .fillMaxWidth()
+            .rowSurface()
+            .padding(SpaceMd),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(SpaceMd),
+    ) {
+        Text(
+            text = "${step + 1}",
+            color = colors.onSurface.copy(alpha = FAINT),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        NpcPortrait(npc = entry.npc, name = strings[entry.npc.nameKey], size = 36.dp)
+        Text(
+            text = strings[entry.npc.nameKey],
+            color = colors.onSurface,
+            style = MaterialTheme.typography.titleSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = when (outcome) {
+                MatchResult.WIN -> strings[StringKeys.YOU_WIN]
+                MatchResult.LOSE -> strings[StringKeys.YOU_LOSE]
+                MatchResult.DRAW -> strings[StringKeys.DRAW]
+                null -> strings[StringKeys.CAMPAIGN_NOT_REACHED]
+            },
+            color = when (outcome) {
+                MatchResult.WIN -> colors.tertiary
+                MatchResult.LOSE -> colors.error
+                MatchResult.DRAW -> LocalTtoColors.current.transient
+                null -> colors.onSurface.copy(alpha = FAINT)
+            },
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
+            softWrap = false,
+        )
     }
 }
 

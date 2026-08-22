@@ -186,5 +186,3 @@ here and safe to edit. The split is provenance, and
 - [testing-guide.md](./testing-guide.md) — running and writing tests
 - [coding-standards.md](./coding-standards.md) — what ktlint and detekt will hold you to
 - [git-workflow.md](./git-workflow.md) — branches, commits, PRs
-- [docs/migration/05-PHASE-1-INFRASTRUCTURE.md](../migration/05-PHASE-1-INFRASTRUCTURE.md) — the
-  phase this document closes

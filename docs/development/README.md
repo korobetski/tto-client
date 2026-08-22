@@ -36,6 +36,4 @@ finding. The configuration files are the authority; the documents explain the re
 
 ## Related
 
-- [docs/analysis/](../analysis/) — analysis of the existing AS3 codebase
-- [docs/migration/](../migration/) — the migration plan
 - [README.md](../../README.md) — what is actually built, and what was verified to prove it

@@ -57,7 +57,7 @@ class UserSettingsTest {
         )
 
         val written = store.read().orEmpty()
-        for (key in AS3_KEYS) {
+        for (key in LEGACY_KEYS) {
             assertTrue(written.contains("\"$key\""), "$key missing from: $written")
         }
         assertTrue(written.contains("\"ja_JA\""))
@@ -152,6 +152,6 @@ class UserSettingsTest {
     }
 
     private companion object {
-        val AS3_KEYS = listOf("language", "background_volume", "noise_volume")
+        val LEGACY_KEYS = listOf("language", "background_volume", "noise_volume")
     }
 }

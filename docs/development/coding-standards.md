@@ -58,9 +58,9 @@ where the name must stay `PascalCase` because Swift call sites read it as a cons
 
 ## 3. Imports
 
-**No wildcards.** Enforced. This migration has an AS3 `Card`, a model `Card`, a Compose
-`Card` and a `CardFace` in play simultaneously; `import androidx.compose.material3.*`
-makes it impossible to see which one a file means.
+**No wildcards.** Enforced. There is a model `Card`, a Compose `Card` and a `CardFace` in
+play simultaneously; `import androidx.compose.material3.*` makes it impossible to see
+which one a file means.
 
 Import order follows ktlint's default (lexicographic, no blank-line grouping) so the
 formatter is deterministic.
@@ -74,20 +74,16 @@ KDoc is required when something needs to be explained and the code is not explic
 internal val CardWidth = 88.dp
 
 // Good — checkable in ten seconds.
-/** `new Quad(88, 118, 0x5a595a)` — `Card.as:73`. The coloured face, not the sprite. */
+/** The coloured face, not the sprite: 88×118. */
 internal val CardWidth = 88.dp
 ```
 
-Where the port deliberately differs from the original, say so and say why. See the KDoc on
-[`BoardCard`](../../shared/src/commonMain/kotlin/com/tripletriad/ui/MatchScreen.kt),
-which records that the AS3 flip is a `scaleX` yoyo and the Kotlin one is a `rotationY`
-rotation, so nobody later mistakes it for a faithful port. `CardFace` does the same for a
-subtler one: it scales by multiplying its geometry rather than by scaling its render layer,
+`CardFace` scales by multiplying its geometry rather than by scaling its render layer,
 because the layer version reports a size it does not draw at and gets clipped by any parent
 that applies `alpha`.
 
 `ForbiddenComment` is switched **off** in detekt: a `TODO` naming an owner and a reason is
-useful during a migration. A bare `TODO` is not — write the reason.
+useful. A bare `TODO` is not — write the reason.
 
 ## 5. Complexity
 
@@ -96,9 +92,9 @@ detekt's defaults apply, with these deliberate relaxations (all recorded with re
 
 | Rule | Relaxation | Reason |
 |---|---|---|
-| `LongParameterList` | ignored on `@Composable` and `@Serializable`, and on data classes | `Card` has 11 parameters because the AS3 record it mirrors has 11 fields |
+| `LongParameterList` | ignored on `@Composable` and `@Serializable`, and on data classes | `Card` has 11 fields by design |
 | `LongMethod` | ignored on `@Composable` | splitting a layout tree at 60 lines to satisfy a counter usually hurts |
-| `MagicNumber` | ignored in property declarations and named arguments in Composables | the UI layer's whole job is reproducing literal coordinates from the AS3 source, each one commented with its origin |
+| `MagicNumber` | ignored in property declarations and named arguments in Composables | the UI layer's whole job is reproducing exact literal coordinates, each one commented with its origin |
 | `MaxLineLength` | 100, matching `.editorconfig` | one source of truth |
 
 `build.maxIssues` is **0**. A warning threshold nobody watches is the same as no gate.
@@ -146,5 +142,3 @@ If you find yourself editing one of these, edit the generator.
 - [architecture-guidelines.md](./architecture-guidelines.md)
 - [testing-strategy.md](./testing-strategy.md)
 - [git-workflow.md](./git-workflow.md)
-- [docs/migration/15-CHEAT-SHEET.md](../migration/15-CHEAT-SHEET.md) — AS3 → Kotlin idioms
-- [docs/analysis/api-mapping.md](../analysis/api-mapping.md) — type-level translations

@@ -278,8 +278,8 @@ jobs:
         run: echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
       # Both artifacts from one invocation, so they are built from identical inputs and signed
-      # with the same key. The APK is what this project distributes — sideloaded, see
-      # docs/migration/12-PHASE-8-RELEASE.md — and the bundle is what a store would require if that
+      # with the same key. The APK is what this project distributes — sideloaded
+      # and the bundle is what a store would require if that
       # decision ever changes. Producing it now costs one task and keeps the option open; producing
       # it later, in a hurry, is when the signing configuration turns out to have drifted.
       - name: Build the signed APK and bundle

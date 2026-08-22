@@ -36,6 +36,8 @@ const val OPPONENT_EMPTY_TEST_TAG: String = "opponent-empty"
 
 const val OPPONENT_LOCKED_TEST_TAG: String = "opponent-locked"
 
+const val OPPONENT_UNEARNED_TEST_TAG: String = "opponent-unearned"
+
 const val RANDOM_OPPONENT_TEST_TAG: String = "opponent-random"
 
 /*
@@ -69,11 +71,17 @@ internal fun OpponentScreen(
     // Keyed on the format, not on the character: who a player may challenge is a property of the
     // match they are looking for. `MODE` used to answer this and the answer was the same only
     // because a character could play one set.
-    val opponents = remember(catalog, formatId, hour, profile.level) {
-        catalog.available(formatId, hour, profile.level)
+    val earned = profile.achievements.keys
+    val opponents = remember(catalog, formatId, hour, profile.level, earned) {
+        catalog.available(formatId, hour, profile.level, earned)
     }
     val locked = remember(catalog, formatId, hour, profile.level) {
         catalog.lockedByLevel(formatId, hour, profile.level)
+    }
+    // Counted apart from the level-locked, because the two footnotes promise different things:
+    // one says keep playing, this one says there is a tournament to win first.
+    val unearned = remember(catalog, formatId, earned) {
+        catalog.lockedByAchievement(formatId, earned)
     }
 
     ScreenScaffold(
@@ -82,6 +90,7 @@ internal fun OpponentScreen(
     ) {
         CampaignPanel(
             campaigns = campaigns,
+            profile = profile,
             onCampaign = onCampaign,
         )
 
@@ -123,14 +132,21 @@ internal fun OpponentScreen(
                 // and a player who has not scrolled to the bottom has not run out of opponents yet.
                 if (locked > 0) {
                     item(key = LOCKED_KEY) {
-                        Text(
+                        Footnote(
                             text = strings.format(StringKeys.OPPONENTS_LOCKED, locked.toString()),
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
-                            style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier
-                                .testTag(OPPONENT_LOCKED_TEST_TAG)
-                                .fillMaxWidth()
-                                .padding(vertical = SpaceSm),
+                            tag = OPPONENT_LOCKED_TEST_TAG,
+                        )
+                    }
+                }
+
+                if (unearned > 0) {
+                    item(key = UNEARNED_KEY) {
+                        Footnote(
+                            text = strings.format(
+                                StringKeys.OPPONENTS_UNEARNED,
+                                unearned.toString(),
+                            ),
+                            tag = OPPONENT_UNEARNED_TEST_TAG,
                         )
                     }
                 }
@@ -139,30 +155,49 @@ internal fun OpponentScreen(
     }
 }
 
+/** The two footnotes under the roster, which differ only in what they say. */
+@Composable
+private fun Footnote(text: String, tag: String) {
+    Text(
+        text = text,
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+        style = MaterialTheme.typography.labelSmall,
+        modifier = Modifier.testTag(tag).fillMaxWidth().padding(vertical = SpaceSm),
+    )
+}
+
 private const val LOCKED_KEY = "locked-note"
+
+private const val UNEARNED_KEY = "unearned-note"
 
 @Composable
 private fun CampaignPanel(
     campaigns: List<Campaign>,
+    profile: GameSave,
     onCampaign: (Campaign) -> Unit,
 ) {
     val strings = LocalStrings.current
 
     SectionHeader(text = strings[StringKeys.CAMPAIGNS], modifier = Modifier.fillMaxWidth())
     for (campaign in campaigns) {
+        // A ladder still to be earned is dimmed rather than hidden — the same reasoning the entry
+        // fee's disabled button follows. A tournament nobody can see is a tournament nobody knows
+        // to work towards, and being told what to beat first is the point of gating it.
+        val locked = !campaign.isUnlockedFor(profile)
         CampaignRow(
             label = campaignTitle(strings, campaign),
             tag = campaignRowTestTag(campaign.key),
+            locked = locked,
             onClick = { onCampaign(campaign) },
         )
     }
 }
 
 @Composable
-private fun CampaignRow(label: String, tag: String, onClick: () -> Unit) {
+private fun CampaignRow(label: String, tag: String, locked: Boolean, onClick: () -> Unit) {
     Text(
         text = label,
-        color = MaterialTheme.colorScheme.primary,
+        color = MaterialTheme.colorScheme.primary.copy(alpha = if (locked) DISABLED else 1f),
         style = MaterialTheme.typography.titleSmall,
         fontWeight = FontWeight.Bold,
         maxLines = 1,

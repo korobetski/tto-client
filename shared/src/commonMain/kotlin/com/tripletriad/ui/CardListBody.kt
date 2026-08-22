@@ -191,8 +191,7 @@ private fun CardCell(card: Card, copies: Int, isSelected: Boolean, onClick: () -
             .rowSurface(selected = isSelected)
             // Tapping a cell opens the card beside the grid, and tapping it again closes it — so
             // it is a toggle, and the selected state is what the detail pane is showing.
-            .ttoClickable(selected = isSelected, onClick = onClick)
-            .padding(1.dp),
+            .ttoClickable(selected = isSelected, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         // Every card is tappable, owned or not: the original made unowned thumbs untouchable,
@@ -282,7 +281,9 @@ private fun CardDetail(
                     val description = "${card.nameKey}_DESC"
                     if (strings.has(description)) {
                         Text(
-                            text = strings[description],
+                            // Quoted speech, with emphasis and the odd line break — the prose most
+                            // likely to carry markup. See [markup].
+                            text = markup(strings[description]),
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
                             // `bodySmall` and not `labelSmall`: this is the only prose in the game
                             // and it was being drawn at the size the app uses for a stack count.
@@ -418,10 +419,9 @@ private fun cardFacts(strings: Strings, card: Card): String = listOf(
     "${strings[StringKeys.RARITY]} ${"★".repeat(card.rarity)}",
 ).joinToString(DOT_SEPARATOR)
 
-private const val THUMB_SCALE = 0.46f
-private val ThumbWidth = CardSpriteWidth * THUMB_SCALE
+private val ThumbWidth = 40.dp
 
-private const val DETAIL_SCALE = 0.66f
+private const val DETAIL_SCALE = 1f
 
 private val DetailHeight = 196.dp
 

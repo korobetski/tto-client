@@ -13,8 +13,8 @@ build:
 
 complexity:
   LongParameterList:
-    # `Card` has 11 constructor parameters because the AS3 record it mirrors has 11
-    # fields. Data classes and Composables both legitimately take many arguments.
+    # `Card` has 11 constructor parameters by design. Data classes and Composables both
+    # legitimately take many arguments.
     ignoreAnnotated: ['Composable', 'Serializable']
     ignoreDataClasses: true
   LongMethod:
@@ -68,19 +68,17 @@ style:
     # counted. The same override, for the same reason, is in `tto-server`'s config.
     excludeGuardClauses: true
   MagicNumber:
-    # The whole point of the UI layer here is to reproduce literal coordinates read out
-    # of the AS3 source. Every one of them is commented with its origin; extracting
-    # them into named constants would only move the number one line up.
+    # The whole point of the UI layer here is to reproduce exact literal coordinates.
+    # Every one of them is commented with its origin; extracting them into named
+    # constants would only move the number one line up.
     ignoreAnnotated: ['Composable']
     ignorePropertyDeclaration: true
     ignoreCompanionObjectPropertyDeclaration: true
     ignoreNamedArgument: true
-    # Enum entries in this project carry data transcribed verbatim out of the AS3 source:
-    # the nine `BoosterType` card pools (`BoosterItem.as:19-27`), the `PotionType` boon
-    # values (`PotionItem.as:18-23`), the `NpcLevel` XP modifiers (`NPC.as:19`). Naming
-    # each of those numbers would mean 60-odd constants whose names could only restate
-    # the enum entry they sit in, and would make the transcription harder to diff against
-    # the original — which is the one thing that has to stay checkable.
+    # Enum entries in this project carry precisely specified data: the nine `BoosterType`
+    # card pools, the `PotionType` boon values, the `NpcLevel` XP modifiers. Naming each
+    # of those numbers would mean 60-odd constants whose names could only restate the
+    # enum entry they sit in.
     ignoreEnums: true
   MaxLineLength:
     # Kept in step with .editorconfig so ktlint and detekt cannot disagree.

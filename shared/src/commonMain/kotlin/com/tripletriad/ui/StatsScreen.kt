@@ -119,7 +119,7 @@ private fun LevelMeter(profile: GameSave) {
     val floor = XpTable.thresholdFor(profile.level)
     val ceiling = XpTable.thresholdFor(profile.level + 1)
     // At the top of the table there is no next threshold, so the bar is full rather than dividing
-    // by a zero span — the AS3 read `steps[22]` as `undefined` here and drew nothing.
+    // by a zero span.
     val span = ceiling - floor
     val fraction = if (span <= 0L) 1f else ((profile.xp - floor).toFloat() / span).coerceIn(0f, 1f)
 
@@ -228,7 +228,7 @@ private fun AchievementRow(family: AchievementFamily, profile: GameSave) {
         }
 
         Text(
-            text = strings["${family.face.labelKey}_DESC"],
+            text = markup(strings["${family.face.labelKey}_DESC"]),
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
             style = MaterialTheme.typography.labelSmall,
             maxLines = 2,

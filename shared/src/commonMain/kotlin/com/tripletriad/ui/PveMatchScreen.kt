@@ -340,11 +340,10 @@ private fun PveExchange(
             // they just made, and making somebody wait to see their own tap answered is the one
             // delay that reads as lag rather than as an opponent.
             //
-            // Everything after it waits twice: once for the board to go quiet, and once more
+            // Everything after it waits twice: once for the screen to go quiet, and once more
             // because a program that answers the instant the flip ends does not read as an
-            // opponent taking a turn. The AS3 opponent took the same beat and it was the same
-            // fiction — `PVEMatchScreen` slept before playing a move it had already chosen.
-            if (index > 0) delay(settleMillis(at.lastPlay) + thinking.inWholeMilliseconds)
+            // opponent taking a turn.
+            if (index > 0) delay(quietMillis(at) + thinking.inWholeMilliseconds)
             at = at.after(play, card)
             onStep(at, true)
         }
@@ -356,6 +355,26 @@ private fun PveExchange(
         onStep(target, false)
     }
 }
+
+/**
+ * How long [view]'s placement takes to finish being *watched* — the board and the banners.
+ *
+ * [settleMillis] answers only half of it. A placement draws two things at once: the card landing
+ * and the chain flipping, which is what it measures, and the captions over the top of them, which
+ * it knows nothing about. The refereed screen waited on the first half alone, and the opponent
+ * replied through its own Same and Combo banners — a turn that took `MatchScreen` 3.1 seconds took
+ * this one 0.95, because every caption was simply not counted.
+ *
+ * The maximum rather than the sum, for the reason [settleMillis] gives about its own two halves:
+ * the banners play *over* the board rather than after it, so the screen is quiet when the slower of
+ * the two has finished. `MatchScreen` adds them instead — see its opponent effect — which is the
+ * one place the two screens deliberately disagree, and the sum is what a 700ms base pause needed to
+ * feel right where this has 550.
+ */
+internal fun quietMillis(view: MatchView): Long = maxOf(
+    settleMillis(view.lastPlay),
+    MatchBanner.afterPlacement(view).sumOf { it.totalMillis }.toLong(),
+)
 
 /** No board yet: the deal is in flight, or the connection is. */
 @Composable

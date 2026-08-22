@@ -18,9 +18,8 @@ object StringKeys {
 
     const val TURN_PICK_CELL: String = "APP_TURN_PICK_CELL"
 
-    // ---- Main menu. All three come from the AS3 bundles, so all four languages have them:
-    // `MenuScreen.as` builds its stack from `STR_CONTINUE`/`STR_NEW_GAME`/`STR_LOAD_GAME`/
-    // `STR_SETTINGS`/`STR_QUIT`. This port shows three of them for now.
+    // ---- Main menu. All three come from the legacy bundles, so all four languages have them.
+    // This app shows three of them for now.
     const val PLAY: String = "STR_PLAY"
 
     const val SETTINGS: String = "STR_SETTINGS"
@@ -89,7 +88,7 @@ object StringKeys {
 
     const val REMATCH: String = "STR_REMATCH"
 
-    // ---- Dashboard. `dashboardScreen.as:49-59` builds its stack from exactly these.
+    // ---- Dashboard.
     const val MULTIPLAYER: String = "STR_MULTIPLAYER"
     const val CARD_LIST: String = "STR_CARD_LIST"
 
@@ -196,8 +195,7 @@ object StringKeys {
     const val QUEST_RULE: String = "APP_QUEST_RULE"
     const val QUEST_PVP_1: String = "APP_QUEST_PVP_1"
 
-    // ---- Playing another person. All `APP_`: the AS3's PvP screen never worked, and its bundles
-    // have no key for any of this.
+    // ---- Playing another person. All `APP_`: the legacy bundles have no key for any of this.
     const val PVP_TABLES: String = "APP_PVP_TABLES"
     const val PVP_NO_TABLE: String = "APP_PVP_NO_TABLE"
     const val PVP_HOST: String = "APP_PVP_HOST"
@@ -347,11 +345,29 @@ object StringKeys {
     const val LESSON_EXAM_LOSE: String = "APP_LESSON_EXAM_LOSE"
     const val LESSON_EXAM_DRAW: String = "APP_LESSON_EXAM_DRAW"
 
-    // ---- The two tournament ladders.
+    // ---- The three tournament ladders.
     const val CAMPAIGNS: String = "STR_CAMPAIGNS"
     const val CAMPAIGN_FINAL_REWARD: String = "APP_CAMPAIGN_FINAL_REWARD"
 
+    // `balamb`, unlike `cc`/`gs`, has no name of its own in the imported bundles --
+    // see `authored_ladder()` in tools/extract_campaigns.py. Its *opponents* are the
+    // catalogue's own and keep their imported `STR_NPC_*` names.
+    const val CAMPAIGN_BALAMB: String = "APP_CAMPAIGN_BALAMB"
+
     const val CAMPAIGN_STEP: String = "APP_CAMPAIGN_STEP"
+
+    // ---- The bilan a tournament run ends on, win or lose.
+    const val CAMPAIGN_RESULTS: String = "APP_CAMPAIGN_RESULTS"
+
+    const val CAMPAIGN_COMPLETE: String = "APP_CAMPAIGN_COMPLETE"
+
+    const val CAMPAIGN_ELIMINATED: String = "APP_CAMPAIGN_ELIMINATED"
+
+    const val CAMPAIGN_NOT_REACHED: String = "APP_CAMPAIGN_NOT_REACHED"
+
+    const val CAMPAIGN_LOCKED: String = "APP_CAMPAIGN_LOCKED"
+
+    const val CAMPAIGN_ENTERED_TODAY: String = "APP_CAMPAIGN_ENTERED_TODAY"
 
     // ---- The account the menu remembers.
     const val SERVERS: String = "APP_SERVERS"
@@ -415,6 +431,8 @@ object StringKeys {
     const val HELP_FAMILY_ELEMENTS: String = "APP_HELP_FAMILY_ELEMENTS"
 
     const val OPPONENTS_LOCKED: String = "APP_OPPONENTS_LOCKED"
+
+    const val OPPONENTS_UNEARNED: String = "APP_OPPONENTS_UNEARNED"
 
     // ---- The server list, which had no translated string on it at all.
     const val SERVERS_BLURB: String = "APP_SERVERS_BLURB"
@@ -504,7 +522,10 @@ object StringKeys {
         LESSON_BONUS_1, LESSON_BONUS_2, LESSON_BONUS_3, LESSON_BONUS_DONE,
         LESSON_ORDER_1, LESSON_ORDER_2, LESSON_ORDER_3, LESSON_ORDER_DONE,
         LESSON_EXAM_START, LESSON_EXAM_WIN, LESSON_EXAM_LOSE, LESSON_EXAM_DRAW,
-        CAMPAIGNS, CAMPAIGN_FINAL_REWARD, CAMPAIGN_STEP,
+        CAMPAIGNS, CAMPAIGN_FINAL_REWARD, CAMPAIGN_BALAMB, CAMPAIGN_STEP,
+        CAMPAIGN_RESULTS, CAMPAIGN_COMPLETE, CAMPAIGN_ELIMINATED, CAMPAIGN_NOT_REACHED,
+        CAMPAIGN_LOCKED,
+        CAMPAIGN_ENTERED_TODAY,
         SERVERS, CONTINUE, SESSION_RESTORED, SESSION_CONNECTING, SESSION_LAPSED,
         SIGN_IN_AGAIN, SWITCH_ACCOUNT,
         SIGN_IN, CREATE_ACCOUNT, PASSWORD, ACCOUNT_BLURB,
@@ -513,7 +534,7 @@ object StringKeys {
         ERROR_THROTTLED, ERROR_THROTTLED_IN,
         NO_SEEDS, LOADING, RETRY, CARD_FACE_DOWN, PROFILE_LOCAL_NOTE,
         ERROR_NAME_TAKEN, ERROR_BAD_CREDENTIALS, ERROR_EXPIRED,
-        OPPONENTS_LOCKED, REWARD_CARDS,
+        OPPONENTS_LOCKED, OPPONENTS_UNEARNED, REWARD_CARDS,
         HELP_FAMILY_SIGHT, HELP_FAMILY_PLAY, HELP_FAMILY_CAPTURE, HELP_FAMILY_ELEMENTS,
         SERVERS_BLURB, SERVERS_CHECK, SERVERS_CHECKING,
         SERVER_UNKNOWN, SERVER_CHECKING, SERVER_ONLINE, SERVER_DEGRADED,

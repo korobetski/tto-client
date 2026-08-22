@@ -58,22 +58,6 @@ Types: `feat`, `fix`, `refactor`, `test`, `docs`, `build`, `ci`, `chore`, `perf`
 Scopes in this project: `shared`, `android`, `desktop`, `ios`, `model`, `data`, `ui`,
 `build`, `docs`, `analysis`.
 
-**Migration-specific rule.** A commit that ports AS3 code names the source:
-
-```
-feat(model): port Card from tto.display.Card
-
-Fields and power ordering taken from Card.as:316-330, where each power is
-read with uint("0x" + power[i]) -- a hex parse, which is how the literal
-'A' in cards.as means 10.
-
-Geometry constants cite Card.as and CardDigits.as line by line so the port
-can be checked against the original.
-```
-
-This is not ceremony. Six months in, "why is the badge at (28, 88)?" has to be answerable
-without reading ActionScript.
-
 Do not commit:
 
 - `local.properties` (machine-specific SDK path; it is in `.gitignore`)
@@ -120,8 +104,7 @@ Pixel 6a and the flip works under touch" is.
 
 The PoC history in this repository is the cautionary tale — a first attempt was reported
 COMPLETE and "technology stack validated" while never having been compiled, and had 12
-build-blocking defects. See
-[docs/migration/04-PHASE-0-PREPARATION.md](../migration/04-PHASE-0-PREPARATION.md).
+build-blocking defects.
 
 ## 5. Merge strategy
 
@@ -153,37 +136,7 @@ tests), then `installers` (a `.deb`, `.msi` and `.dmg` matrix) and `publish` (th
 the GitHub release). Tags `v1.0.2` through `v1.1.2` have shipped this way.
 
 The `.dmg` is unsigned — a signed macOS build needs a paid Apple account, and `docs/` records the
-decision not to buy one. See
-[docs/migration/12-PHASE-8-RELEASE.md](../migration/12-PHASE-8-RELEASE.md).
-
-Read the certificate note below before generating that key.
-
-### ⚠️ A private key is publicly downloadable
-
-`sources/air/TripleTriadOnlineReborn.p12` is tracked in git, **and this repository is public**,
-so the file is served to anyone who asks:
-
-```
-GET https://raw.githubusercontent.com/korobetski/AS3-Triple-Triad/master/sources/air/TripleTriadOnlineReborn.p12
-→ HTTP 200, 2434 bytes
-```
-
-Verified 2026-07-26. A `.p12` holds a **private key**. This is past tense, not a risk to
-prevent: the key has been publicly downloadable and deleting the file now changes nothing,
-because it may already be cached, cloned or indexed. Rewriting history does not help either.
-
-Treat it as compromised:
-
-1. Establish whether the key is still valid. It is the AIR signing key and AIR is abandoned,
-   so it probably signs nothing that matters — confirm rather than assume.
-2. If it was issued by a CA and is still valid, revoke it.
-3. **Do not reuse it, or its passphrase, for the Android signing key** that the update
-   mechanism now requires.
-4. Add `*.p12`, `*.pfx`, `*.jks`, `*.keystore` to `.gitignore` and keep new keys in GitHub
-   Secrets.
-
-This is out of scope for the migration itself, but it is the one item in this document worth
-acting on before writing any more code.
+decision not to buy one.
 
 ## 8. Related
 

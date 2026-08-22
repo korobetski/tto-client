@@ -167,9 +167,9 @@ a slot to be reused, drive the reuse in the test**: the failing case here is one
 `UserSettingsTest` drives the settings layer through an in-memory store. The two **platform** stores
 — `AndroidSettingsStore`, `DesktopSettingsStore` — have no tests at all, and that is a decision, not
 an omission: they are twenty lines of `java.io.File` each, they live in the host modules, and a test
-would be testing the JDK. What is worth pinning is the *on-disk shape*, because a `UserSettings.json`
-written by the AS3 build has to keep parsing — so that is what the tests assert, including a
-verbatim AS3-written payload as a fixture.
+would be testing the JDK. What is worth pinning is the *on-disk shape*, because a legacy
+`UserSettings.json` has to keep parsing — so that is what the tests assert, including a verbatim
+legacy-written payload as a fixture.
 
 The temp-file-and-rename in the Android store is likewise unasserted; it was verified by reading the
 file off a device with `adb shell run-as`. **When coverage stops, say where** — the alternative is a
@@ -242,7 +242,7 @@ tests cover it.
 
 `MatchLayoutTest` covers the *arrangement* — which hand goes where, at what scale, and that it
 fits. It does not cover *card-internal* geometry: a regression that moved the digit badge inside
-the face would still pass. Since the whole point of `CardColors.kt` is reproducing exact AS3
+the face would still pass. Since the whole point of `CardColors.kt` is reproducing exact
 coordinates, that gap wants closing:
 
 ```kotlin
@@ -293,7 +293,6 @@ Stated so nobody mistakes green CI for coverage:
 | Area | Status |
 |---|---|
 | The iOS **app** | no `.xcodeproj` exists and no app has ever run. The `:shared` framework links and `:shared:iosSimulatorArm64Test` passes, but only on the macOS CI runner — both are skipped silently on a Windows or Linux host, so a green local `build` says nothing about iOS |
-| Frame timing / jank | not measured — [docs/analysis/performance-baseline.md](../analysis/performance-baseline.md) §2 |
 | Card-internal layout geometry | no assertions. `MatchLayoutTest` covers arrangement only — §4 above |
 | The platform settings stores | `AndroidSettingsStore` / `DesktopSettingsStore` untested by decision — §4 above |
 | Typography of real strings | unreachable from the suite; checked by running the app per locale — §4 above |
@@ -309,5 +308,3 @@ through `ktor-client-mock` with no socket.
 - [coding-standards.md](./coding-standards.md)
 - [architecture-guidelines.md](./architecture-guidelines.md) §8 — making the rules engine testable
 - [performance-guidelines.md](./performance-guidelines.md)
-- [docs/migration/17-TESTING-GUIDE.md](../migration/17-TESTING-GUIDE.md) — framework examples
-- [docs/migration/11-PHASE-7-TESTING.md](../migration/11-PHASE-7-TESTING.md) — the QA phase

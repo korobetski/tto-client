@@ -7,7 +7,7 @@
 
 **A modern, cross-platform implementation of the classic Triple Triad card game from Final Fantasy series.**
 
-This client faithfully recreates the original Adobe AIR/ActionScript 3 game while leveraging modern Kotlin Multiplatform and Compose technologies. The project serves as both a playable game and a proof of concept for migrating legacy Flash applications to modern platforms.
+Built with modern Kotlin Multiplatform and Compose technologies.
 
 ---
 
@@ -75,7 +75,7 @@ MSYS_NO_PATHCONV=1 adb shell screencap -p /sdcard/screenshot.png
 
 ## Overview
 
-This repository contains a **Kotlin Multiplatform** client for Triple Triad, a strategic card game originally from Final Fantasy VIII and later expanded in Final Fantasy XIV. The project demonstrates a complete migration path from legacy ActionScript 3 code to modern Kotlin, maintaining full fidelity to the original game mechanics while providing a native experience on multiple platforms.
+This repository contains a **Kotlin Multiplatform** client for Triple Triad, a strategic card game originally from Final Fantasy VIII and later expanded in Final Fantasy XIV, providing a native experience on multiple platforms.
 
 ### Supported Platforms
 
@@ -226,10 +226,6 @@ catalog had moved on. Read the catalog when the number matters.
 - `local.properties` file with `sdk.dir` path
   - On Windows, escape backslashes: `sdk.dir=C\:\Users\\<you>\\AppData\\Local\\Android\\Sdk`
 
-### Optional
-
-- **Python 3** — Only needed for regenerating data files from AS3 source
-
 ---
 
 ## Commands
@@ -263,33 +259,6 @@ adb shell am start -n com.tripletriad.android/.MainActivity
 # Code formatting
 ./gradlew ktlintFormat
 ```
-
-### Data Regeneration
-
-```bash
-# Regenerate card catalog from AS3 source
-python tools/extract_cards.py shared/src/commonMain/composeResources/files/cards.json
-
-# Re-import card artwork
-python tools/import_card_art.py
-
-# Regenerate PvE opponents
-python tools/extract_npcs.py shared/src/commonMain/composeResources/files/npcs.json
-
-# Regenerate tournament ladders
-python tools/extract_campaigns.py shared/src/commonMain/composeResources/files/campaigns.json
-
-# Import localization bundles
-python tools/import_locales.py
-
-# Import sound files
-python tools/import_sounds.py
-
-# Regenerate launcher icons
-python tools/make_launcher_icons.py
-```
-
----
 
 ## Game Features
 
@@ -441,7 +410,7 @@ Verified on **Pixel 6a, Android 17 (API 37), arm64-v8a**:
 
 ## Localization
 
-Four languages are supported, imported from the original AS3 bundles:
+Four languages are supported:
 
 | Language | Code | Status |
 |----------|------|--------|
@@ -476,11 +445,9 @@ The app uses a **custom Material 3-based design system** defined in:
 
 - [`ui/theme/Palette.kt`](shared/src/commonMain/kotlin/com/tripletriad/ui/theme/Palette.kt) — Six tonal ramps
 - [`ui/theme/Colors.kt`](shared/src/commonMain/kotlin/com/tripletriad/ui/theme/Colors.kt) — Color roles
-- **Raleway font** — Imported from original (Regular as normal, Medium as bold)
+- **Raleway font** — Regular as normal, Medium as bold
 
 ### Card Geometry
-
-All measurements are **exact reproductions** of the original AS3 source:
 
 | Element | Dimensions | Position |
 |---------|------------|----------|
@@ -546,12 +513,12 @@ TurnOrder      // 9 placements: 5 for first player, 4 for second
 
 ### Key Design Decisions
 
-1. **Same and Plus use effective powers** — Fixed from original AS3 which used printed values
-2. **Same Wall fires with one neighbour** — Fixed from original which required >1
+1. **Same and Plus use effective powers**, not printed values
+2. **Same Wall fires with a single neighbour**
 3. **Mutually exclusive rules** — Ascension/Elemental cannot be enabled together
 
-These corrections are **configurable** via `RulesEngineOptions`:
-- `RulesEngineOptions.FAITHFUL` — Reproduces original behavior (including defects)
+These are **configurable** via `RulesEngineOptions`:
+- `RulesEngineOptions.FAITHFUL` — Reproduces the legacy behavior (including the printed-value defect)
 - Default — Uses corrected behavior
 
 ---
@@ -670,22 +637,20 @@ Three warnings from plugin internals (all scheduled for Gradle 10):
 
 ---
 
-## Fidelity to Original
+## Card Rendering Reference
 
-Every value is **measured from AS3 source**, not guessed:
-
-| This Implementation | AS3 Source |
-|---------------------|-------------|
-| Card sprite 104×128 | `this.width = 104; this.height = 128` — Card.as:60-61 |
-| Colored face 88×118 at (8,5) | `new Quad(88, 118, 0x5a595a)` at x=8, y=5 — Card.as:73-75 |
-| Blue card color | `0xFF2D4660` — Card.as:29 |
-| Red card color | `0xFF602D2D` — Card.as:30 |
-| Grey card color | `0xFF5A595A` — Card.as:31 |
-| Digit cluster position | (28, 88), bounds 44×30 — Card.as:89-90 |
-| `cdbg` plate | 28×28 at (8,1), α=0.5 — CardDigits.as:26-29 |
-| Power order | top/right/bottom/left — CardDigits.as:22 |
+| Element | Value |
+|---------|-------|
+| Card sprite | 104×128 |
+| Colored face | 88×118 at (8,5) |
+| Blue card color | `0xFF2D4660` |
+| Red card color | `0xFF602D2D` |
+| Grey card color | `0xFF5A595A` |
+| Digit cluster position | (28, 88), bounds 44×30 |
+| `cdbg` plate | 28×28 at (8,1), α=0.5 |
+| Power order | top/right/bottom/left |
 | Power 10 renders as A | Uses `cdA` texture — no `cd10` in digits.xml |
-| Card flip animation | 400ms, 4-leg squash — Card.as:249-291 |
+| Card flip animation | 400ms, 4-leg squash |
 
 ---
 
@@ -711,15 +676,13 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines, code of condu
 
 ## Related Repositories
 
-- **[AS3-Triple-Triad](https://github.com/korobetski/AS3-Triple-Triad)** — Original Adobe AIR/ActionScript 3 source
 - **[tto-core](https://github.com/korobetski/tto-core)** — Rules engine library (consumed as `com.tripletriad:core`)
+- **[tto-server](https://github.com/korobetski/tto-server)** — Live server (consume `com.tripletriad:core`)
 
 ---
 
 ## Documentation
 
-- **[Migration Documentation](docs/migration/)** — Complete migration plan and progress
-- **[Analysis Documentation](docs/analysis/)** — Rules, performance, data flow analysis
 - **[Development Guides](docs/development/)** — Setup, build, testing guides
 
 ---

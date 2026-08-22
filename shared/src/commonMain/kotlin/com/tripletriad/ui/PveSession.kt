@@ -79,9 +79,13 @@ class PveSession internal constructor(
      * behind it — so there is no order to get right here and no way for two matches to be live at
      * once even if two devices ask at the same moment.
      */
-    suspend fun open(opponentIconId: String, formatId: String) = request {
+    suspend fun open(
+        opponentIconId: String,
+        formatId: String,
+        campaignKey: String? = null,
+    ) = request {
         val token = tokenOf() ?: return@request
-        when (val result = client.open(token, opponentIconId, formatId, deck)) {
+        when (val result = client.open(token, opponentIconId, formatId, deck, campaignKey)) {
             is AccountResult.Ok -> match = result.value
             else -> {
                 trouble = result

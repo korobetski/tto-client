@@ -51,9 +51,9 @@ internal val TtoColorScheme = darkColorScheme(
 )
 
 /*
- * `display/Card.as:29-31`. These are **card artwork** colours rather than theme colours — the AS3
- * keeps them in the display class and not in the theme — and they survive the refresh untouched,
- * because they are what the two players *are*. Re-deriving them from a ramp would have changed the
+ * These are **card artwork** colours rather than theme colours, and they survive the refresh
+ * untouched, because they are what the two players *are*. Re-deriving them from a ramp would have
+ * changed the
  * board to make the buttons tidier.
  */
 
@@ -67,9 +67,8 @@ internal val CardBlueEdge = Color(0xFF43A7C8)
 internal val CardRedEdge = Color(0xFFBB594F)
 
 /*
- * The board's own three colours. They have no AS3 source — Feathers drew an empty tile with
- * `emptyTileSkin` out of the UI atlas, which this port does not import — so these are the port's
- * own. They are here rather than in `MatchBoard.kt` because a colour a screen keeps to itself is a
+ * The board's own three colours, chosen for this app. They are here rather than in
+ * `MatchBoard.kt` because a colour a screen keeps to itself is a
  * screen that will never follow a theme.
  */
 

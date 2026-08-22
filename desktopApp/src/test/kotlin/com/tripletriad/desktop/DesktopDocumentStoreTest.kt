@@ -70,7 +70,7 @@ class DesktopDocumentStoreTest {
         val store = store()
         store.write("one", CONTENT)
         store.write("two", CONTENT)
-        // A stray file of another kind, which the AS3 directory really can contain.
+        // A stray file of another kind, which this directory really can contain.
         File(home, "My Games/Triple Triad Online/saves/notes.txt").writeText("ignore me")
 
         assertEquals(listOf("one", "two"), store.keys().sorted())

@@ -158,7 +158,12 @@ class StatsUiTest {
         const val UNLOCKED_AT = 1_614_816_000_000L
         const val UNLOCKED_ON = "2021-03-04"
 
-        const val ACHIEVEMENTS = 22
-        const val FAMILIES = 5
+        // The 22 ported from `Achievements.as`, plus one per tournament. The originals recorded no
+        // ladder result at all, so the three campaign achievements could only be authored here.
+        const val ACHIEVEMENTS = 25
+
+        // `ac-tt`, `ac-wof`, `ac-td`, `ac-mp`, `ac-fob` — and the three tournaments, which are
+        // families of one apiece: a ladder is won or it is not, so there is no tier to climb.
+        const val FAMILIES = 8
     }
 }

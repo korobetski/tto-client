@@ -4,16 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-The Kotlin Multiplatform + Compose Multiplatform client for a Triple Triad game, ported from an
-abandoned Adobe AIR / ActionScript 3 original. It is one of **three repositories** that ship
-together:
+The Kotlin Multiplatform + Compose Multiplatform client for a Triple Triad game. It is one of
+**two repositories** that ship together:
 
 | Repo | Holds | How it arrives here |
 |---|---|---|
 | `tto-client` (this one) | UI, data, network client, hosts | — |
 | [`tto-core`](https://github.com/korobetski/tto-core) | rules engine, `model`, `data`, `protocol` | `com.tripletriad:core`, from GitHub Packages, `api`-exported by `:shared` |
 | `tto-server` | account/match server | over HTTP; pins the same `core` version |
-| [`AS3-Triple-Triad`](https://github.com/korobetski/AS3-Triple-Triad) | the AS3 original, under `sources/` | not checked out here; only `tools/*.py` need it |
 
 Consequences worth knowing before touching anything:
 
@@ -25,8 +23,6 @@ Consequences worth knowing before touching anything:
   `rm -rf ~/.m2/repository/com/tripletriad`.
 - The `core` version here and in `tto-server` **must match** — a match is verified by replaying its
   transcript with the engine both sides linked.
-- Every `sources/…` path in comments, README and `docs/` is a *citation of the AS3 repo*, not a
-  directory in this checkout.
 
 ## Prerequisites
 
@@ -36,8 +32,6 @@ Consequences worth knowing before touching anything:
   a file inside this repo. CI uses `GITHUB_ACTOR` / `GITHUB_TOKEN`.
 - Android only: SDK platform 37 and a `local.properties` with `sdk.dir` (copy
   `local.properties.sample`).
-- Python 3 only to re-run `tools/`. The AS3 tree is located via `TTO_AS3_SOURCES` or
-  `../AS3-Triple-Triad/sources`.
 
 ## Commands
 
@@ -74,7 +68,6 @@ Other:
 ./gradlew :androidApp:verifyReleaseApk       # release-only; not wired into `check` (costs ~2 min)
 ./gradlew :desktopApp:packageDeb             # jpackage builds for the host only
 ./gradlew :shared:coverageReport             # shared/build/reports/jacoco/coverageReport/html/
-docker compose up -d                         # local Postgres for the account server (cp .env.sample .env first)
 ```
 
 Reproducing a CI job locally: `quality` → `ktlintCheck detekt`; `shared` → `:shared:build
@@ -86,8 +79,7 @@ Reproducing a CI job locally: `quality` → `ktlintCheck detekt`; `shared` → `
 ### Layering
 
 `ui → domain → data → model`, arrows never point back. `model`/`domain` are in `:core` and must not
-see Compose or I/O; `ui/` does no I/O and holds no rules. The AS3 original's network layer wrote
-into screen statics, which is the defect this rule exists against.
+see Compose or I/O; `ui/` does no I/O and holds no rules.
 
 ### `App()` is the whole application, and every platform capability is a parameter
 
@@ -139,28 +131,26 @@ checking a real APK; delete them only when the plugin does its own wiring.
    trustworthy. Say it in the *file's own header* too when a file is untested.
 2. **A test that cannot fail is worse than no test.** Break the code, watch the test fail, then call
    it done (`docs/development/testing-guide.md` § 4).
-3. **Cite the AS3 source in KDoc when porting** — `Card.as:316-330`, and the same in commit
-   messages. When the port deliberately differs, document the deviation *and* the reason.
-4. **A dependency earns its place by doing something hard.** Napier, Media3 and Compose Navigation
+3. **A dependency earns its place by doing something hard.** Napier, Media3 and Compose Navigation
    were each declined in favour of less code than the integration would have cost; if you add one,
    say what it does that hand-written code cannot, and if you decline one, say what would change
    your mind.
-5. **Do not hand-edit generated files** — `cards.json`, `npcs.json`, `campaigns.json`, the art under
+4. **Do not hand-edit generated files** — `cards.json`, `npcs.json`, `campaigns.json`, the art under
    `composeResources/files/art/`, the imported `tto-*.json` locales, `androidApp/src/main/res/`
-   (launcher icon, `raw/` sounds). Change the script in `tools/`, re-run it from the repo root,
-   commit both. `app-*.json` locales are the opposite — authored here, safe to edit.
-6. **Report data defects; do not quietly fix them.** The imported Square Enix locale bundles have
+   (launcher icon, `raw/` sounds). Change the importer that produced them, re-run it, commit both.
+   `app-*.json` locales are the opposite — authored here, safe to edit.
+5. **Report data defects; do not quietly fix them.** The imported Square Enix locale bundles have
    duplicate keys and mistranslations; the importer reports them on every run and `app-<tag>.json` is
    the override mechanism.
-7. `detekt` runs with `maxIssues = 0` and both tools are wired into `check`. Don't add a local
+6. `detekt` runs with `maxIssues = 0` and both tools are wired into `check`. Don't add a local
    `@Suppress` — change `detekt/detekt.yml` or `.editorconfig` and record the reason. Any
    suppression that survives must carry its reason inline.
-8. No wildcard imports (there are four different `Card` types in play). `@Composable` functions are
+7. No wildcard imports (there are four different `Card` types in play). `@Composable` functions are
    `PascalCase`; non-const design tokens (`val CardWidth = 88.dp`) are too.
-9. `Dispatchers.IO` does not exist on Kotlin/Native — never use it in `commonMain`. No `GlobalScope`,
+8. `Dispatchers.IO` does not exist on Kotlin/Native — never use it in `commonMain`. No `GlobalScope`,
    no static mutable singletons, structured concurrency only.
-10. `expect`/`actual` is for platform capabilities only (`OpenUrl`, `ReducedMotion`, `ServerStatus`,
-    `MatchNetwork`). Resource loading goes through Compose resources in `commonMain`.
+9. `expect`/`actual` is for platform capabilities only (`OpenUrl`, `ReducedMotion`, `ServerStatus`,
+   `MatchNetwork`). Resource loading goes through Compose resources in `commonMain`.
 
 ## Traps and stale documentation
 
@@ -187,6 +177,4 @@ checking a real APK; delete them only when the plugin does its own wiring.
 ## Where the deeper docs are
 
 `CONTRIBUTING.md` is the front door. `docs/development/` has setup, build, testing, git workflow,
-coding standards and architecture guidelines; `docs/analysis/` documents the AS3 original (game
-rules, network protocol, event catalog); `docs/migration/` is the phase-by-phase plan, each task
-annotated with what was actually delivered against it.
+coding standards and architecture guidelines.

@@ -401,7 +401,7 @@ internal fun deckPower(deck: Deck, cards: Map<Int, Card>): Int =
 
 private const val MAX_DECK_NAME = 24
 
-internal val DeckThumbSize = 44.dp
+internal val DeckThumbSize = 40.dp
 
 private const val SPENT_ALPHA = 0.3f
 

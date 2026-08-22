@@ -261,7 +261,7 @@ again.
 - **Copy is the part that cannot be refactored.** Write lesson 1's four lines and read them aloud
   before writing the other eleven.
 - **Bubble pacing.** `LessonBubbles` advances on a 6.1-second timer and the turn clock runs behind it
-  (`MatchScript.kt:160-168`, deliberately, following the AS3). Fine for nine lines, wrong for sixty:
+  (`MatchScript.kt:160-168`, deliberately). Fine for nine lines, wrong for sixty:
   make a lesson bubble advance on tap with the timer as a fallback, and pause the turn clock while a
   line is up. A deliberate deviation, so it is documented as one — the original had nine lines.
 - **`MatchScreen` has no complexity budget left** (`MatchScript.kt:39-41`). Everything in §1 arrives
@@ -369,9 +369,8 @@ again.
    Two findings worth keeping. **The FFXIV tribes are not elements** — beast, garlean, primals and
    scions match no tile, so every block-1 card takes −1 on an elemental cell and Elemental's +1
    cannot be shown with one; that lesson is played with block 2. And **a card counts itself under
-   Bonus from the moment it lands**, which is this port's deviation from the AS3 (`AscensionTally`,
-   carried by `protocol.CURRENT_VERSION`) — the drill's third line is written for it, so the test
-   pins the number rather than the direction.
+   Bonus from the moment it lands** (`AscensionTally`, carried by `protocol.CURRENT_VERSION`) — the
+   drill's third line is written for it, so the test pins the number rather than the direction.
 6. **`RuleDemo` for Same, Plus, Combo, Same Wall**, sharing the explanation function with the
    lessons — `captureHighlights` is the beginning of it.
 7. **The sandbox**, on the same explanation layer, plus `MatchAi.evaluate` for hints.

@@ -14,7 +14,9 @@ import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.loadStrings
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.MatchResult
+import com.tripletriad.model.questDayOf
 import com.tripletriad.storage.InMemoryDocumentStore
+import com.tripletriad.time.FixedClock
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertFalse
@@ -88,31 +90,126 @@ class CampaignUiTest {
     }
 
     /**
-     * Starting a ladder opens its first rung, on a board that says which rung it is.
+     * The ladder names what finishing it pays, **including its own payout**.
      *
-     * **It no longer asserts that the fee was charged, and that is a gap rather than a decision.**
-     * The entry fee is deducted by this screen and pushed with the profile, and
-     * `GameSave.withServerOwnedFrom` throws client-side MGP away on arrival — correctly, since MGP
-     * is exactly what a client must not be able to award itself. The deduction therefore never
-     * reaches the account, and there is no route that charges it: `PveReferee` settles matches and
-     * knows nothing about ladders.
+     * Not the last opponent's figure alone, which is what this used to assert and what the screen
+     * used to show. A tournament returns a multiple of its entry fee on top of whatever the final
+     * rung pays — see `Campaign.payout` — and a player deciding whether to hand over the fee is
+     * comparing it against the total, so the total is what the line has to say.
      *
-     * It only became reachable now because every match is refereed, so every ladder player has an
-     * account; before, a local profile kept its own MGP and the fee stuck. Charging it belongs
-     * beside the referee, in a request the server can price for itself.
+     * The charging itself is `AccountRoutes`' `/me/campaign/enter` and cannot be asserted here:
+     * MGP is server-owned, `GameSave.withServerOwnedFrom` throws a client's copy away on arrival,
+     * and the stub server does not price ladders. `IntentRoutesTest.enteringALadderCostsItsFee` is
+     * where that is held.
      */
     @Test
-    fun theLadderNamesItsFinalReward() = runComposeUiTest {
+    fun theLadderNamesWhatFinishingItPays() = runComposeUiTest {
         val documents = withFee()
         setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openLadder(documents)
 
         val champion = goldSaucer.steps.last().npc
+        val total = goldSaucer.payout + champion.mgpFor(MatchResult.WIN)
         assertTrue(exists(CAMPAIGN_FINAL_REWARD_TEST_TAG), "the final reward should be named")
-        assertVisible(
-            "${champion.mgpFor(MatchResult.WIN)}",
-            "the final reward should state what the last rung pays",
+        assertVisible("$total", "the line should add the ladder's payout to the last rung's")
+        assertTrue(
+            total > goldSaucer.fee,
+            "a tournament won must return more than it cost, or the stake is a fine",
         )
+    }
+
+    /**
+     * A ladder earned rather than bought says so, and cannot be entered at any price.
+     *
+     * The Card Club is the shipped case: Balamb Garden is the way in. The purse is deliberately
+     * ample, so the only thing refusing is the gate.
+     */
+    @Test
+    fun aGatedLadderNamesItsGateAndStaysShut() = runComposeUiTest {
+        val cardClub = campaigns.byKey(CARD_CLUB) ?: error("no $CARD_CLUB campaign")
+        val documents = seeded(GameSave.new(createdAt = 0L).copy(mgp = cardClub.fee * 2))
+        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openLadder(documents, CARD_CLUB)
+
+        assertTrue(exists(CAMPAIGN_LOCKED_TEST_TAG), "a locked ladder should say why")
+        onNodeWithTag(CAMPAIGN_START_TEST_TAG).assertIsNotEnabled()
+    }
+
+    /**
+     * Today's entry, once spent, shuts the ladder until 00:00 UTC — with the reason on screen.
+     *
+     * The profile carries no open run here, which is the case that matters: a first-round defeat
+     * closes the run and leaves the day's stamp behind, and it is the stamp alone that has to keep
+     * the button grey. The clock is the app's own, so the day key is the one the screen computes.
+     */
+    @Test
+    fun aLadderEnteredTodayIsShutUntilTomorrow() = runComposeUiTest {
+        val today = questDayOf(FixedClock().nowMillis())
+        val documents = seeded(
+            GameSave.new(createdAt = 0L).copy(
+                mgp = goldSaucer.fee * 2,
+                campaignEntries = mapOf(GOLD_SAUCER to today),
+            ),
+        )
+        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openLadder(documents)
+
+        assertTrue(exists(CAMPAIGN_LOCKED_TEST_TAG), "the day's entry being spent should be said")
+        onNodeWithTag(CAMPAIGN_START_TEST_TAG).assertIsNotEnabled()
+    }
+
+    /** Yesterday's entry is not today's: the same profile, one day on, may enter again. */
+    @Test
+    fun anEntrySpentOnAnotherDayDoesNotShutTheLadder() = runComposeUiTest {
+        val documents = seeded(
+            GameSave.new(createdAt = 0L).copy(
+                mgp = goldSaucer.fee * 2,
+                campaignEntries = mapOf(GOLD_SAUCER to YESTERDAY),
+            ),
+        )
+        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openLadder(documents)
+
+        assertFalse(exists(CAMPAIGN_LOCKED_TEST_TAG), "a stale stamp should not shut the ladder")
+        onNodeWithTag(CAMPAIGN_START_TEST_TAG).assertIsEnabled()
+    }
+
+    /**
+     * A lost rung ends the run, and the way on is the bilan rather than another opponent.
+     *
+     * This is the whole of what makes a tournament a stake: `Campaign.nextStep` answers
+     * `FIRST_STEP` for a loss, so before [CampaignMatchScreen] stopped consulting it, losing rung
+     * one simply restarted the ladder for free and the entry fee bought unlimited retries.
+     *
+     * [LOSING_SEED] is a seed the stub deals a *losing* first rung from — the default one deals a
+     * win, which is why the rung-to-rung test above can use it. Both are properties of
+     * `PveStubServer`'s generator rather than of this screen, so a change to the dealing would
+     * strand this test: it asserts the run ended, and a seed that started winning would fail here
+     * loudly rather than quietly stop testing the loss.
+     */
+    @Test
+    fun losingARungEndsTheRunAndOpensTheBilan() = runComposeUiTest {
+        val stub = PveStubServer(
+            save = freshSave().copy(mgp = goldSaucer.fee + POCKET_CHANGE),
+            seed = LOSING_SEED,
+        )
+        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        openRefereedLadder()
+        onNodeWithTag(CAMPAIGN_START_TEST_TAG).performClick()
+        awaitBoard()
+
+        playOut()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(MATCH_DONE_TEST_TAG) }
+
+        assertFalse(isVisible("Next Match"), "a lost rung must not offer the next one")
+        onNodeWithTag(NEW_MATCH_TEST_TAG).performClick()
+
+        assertTrue(exists(CAMPAIGN_SUMMARY_TEST_TAG), "the run should end on its bilan")
+        // Every rung is accounted for, including the ones the run never got to.
+        for (step in goldSaucer.steps.indices) {
+            assertTrue(exists(campaignSummaryRowTestTag(step)), "rung $step should be listed")
+        }
+        assertVisible("Knocked out in match 1", "the bilan should say where the run ended")
     }
 
     @Test
@@ -148,10 +245,13 @@ class CampaignUiTest {
     }
 
     @OptIn(ExperimentalTestApi::class)
-    private fun ComposeUiTest.openLadder(documents: InMemoryDocumentStore) {
+    private fun ComposeUiTest.openLadder(
+        documents: InMemoryDocumentStore,
+        key: String = GOLD_SAUCER,
+    ) {
         loadCharacter(documents)
         openOpponents()
-        onNodeWithTag(campaignRowTestTag(GOLD_SAUCER)).performClick()
+        onNodeWithTag(campaignRowTestTag(key)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(CAMPAIGN_LIST_TEST_TAG) }
     }
 
@@ -161,5 +261,17 @@ class CampaignUiTest {
         const val CARD_CLUB = "cc"
 
         const val POCKET_CHANGE = 7
+
+        // A stub seed whose first Gold Saucer rung the player loses. See the test that uses it.
+        const val LOSING_SEED = 2
+
+        /**
+         * Any day that is not the one [FixedClock] reports.
+         *
+         * A literal rather than arithmetic on the clock: the point is that a stamp from *some
+         * other* day does not shut the ladder, and 1970-01-01 is unambiguously not today whatever
+         * the fixed clock is set to.
+         */
+        const val YESTERDAY = "1970-01-01"
     }
 }

@@ -671,7 +671,7 @@ private fun CardRow(labelKey: String, ids: List<Int>, cards: Map<Int, Card>, tag
     }
 }
 
-private val PrizeThumbSize = 44.dp
+private val PrizeThumbSize = 40.dp
 
 private fun moveFor(view: MatchView, card: Card, position: Int): PvpMove =
     PvpMove(handIndex = view.ownHand.indexOfFirst { it.id == card.id }, position = position)

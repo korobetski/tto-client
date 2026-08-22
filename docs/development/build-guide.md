@@ -124,11 +124,6 @@ this module at all, for a reason worth knowing before you try again:
 - **16 141 KB is an upper bound**, not a shipping size — R8 has never run on this code.
 - `androidApp-release-unsigned.apk` cannot be installed on a device as-is.
 
-Signing keys and release automation are Phase 8
-([12-PHASE-8-RELEASE.md](../migration/12-PHASE-8-RELEASE.md)), deliberately not Phase 1: a key
-committed early is a key committed forever. Note the warning in
-[git-workflow.md § A private key is publicly downloadable](./git-workflow.md#-a-private-key-is-publicly-downloadable).
-
 ## 7. Reproducing a CI failure locally
 
 [`.github/workflows/build.yml`](../../.github/workflows/build.yml) has five jobs, none gated behind

@@ -34,6 +34,7 @@ import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.rememberStrings
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.Npc
+import com.tripletriad.model.questDayOf
 import com.tripletriad.net.MatchReporter
 import com.tripletriad.net.ServerConnection
 import com.tripletriad.protocol.ANY_DECK
@@ -185,8 +186,8 @@ fun App(
                 // ### Except where the camera is
                 //
                 // The Android host hides the system bars and turns decor fitting off — nine tiles
-                // and two hands need every dp, and the AS3 original was `fullScreen` too — so
-                // nothing reserves anything and content runs to the physical edge of the glass. A
+                // and two hands need every dp — so nothing reserves anything and content runs to
+                // the physical edge of the glass. A
                 // hidden status bar leaves no gap; a **punch-hole camera is still there**, and on
                 // the phones that have one it was sitting on top of the score during a match.
                 //
@@ -800,6 +801,7 @@ private fun MatchDestinations(
             profile = profile,
             startup = startup,
             pve = pve,
+            clock = clock,
             onIntent = gate.perform,
             onNavigate = onNavigate,
         )
@@ -954,6 +956,7 @@ private fun CampaignDestination(
     profile: GameSave,
     startup: StartupState,
     pve: PveSession?,
+    clock: Clock,
     onIntent: suspend (Intent) -> IntentOutcome,
     onNavigate: (Screen) -> Unit,
 ) {
@@ -966,6 +969,10 @@ private fun CampaignDestination(
             campaign = ladder,
             profile = profile,
             cards = startup.catalog?.all?.associateBy { it.id }.orEmpty(),
+            // Today, by the same 00:00 UTC boundary the daily quests roll on — one entry per
+            // ladder per day. The screen only *shows* the limit; `CampaignRewards.enter` applies
+            // it on the side that holds the profile, and this clock is not the one that decides.
+            today = questDayOf(clock.nowMillis()),
             // The fee is taken here, on the way in, and never given back: `startCampaign`'s
             // handler does `Game.PROFILE_DATAS.MGP -= 500` and then opens the ladder. A defeat
             // costs another 500 to try again, which is the whole of what makes a ladder a stake.
@@ -993,6 +1000,11 @@ private fun CampaignDestination(
                     format = format,
                     pve = pve,
                     onFinished = toOpponents,
+                    // Only the run on *this* ladder resumes it; one left open on the other is
+                    // somebody else's business and must not seed this board's rung.
+                    resumedStep = profile.campaignRun
+                        ?.takeIf { it.campaignKey == ladder.key }
+                        ?.step,
                 )
             }
         }

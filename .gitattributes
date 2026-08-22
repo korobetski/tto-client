@@ -18,9 +18,7 @@ gradlew         text eol=lf
 *.bat           text eol=crlf
 *.cmd           text eol=crlf
 
-# Never touched. Some of these are the AS3 original's assets, which must stay byte-identical
-# to what `tools/import_card_art.py` copies out of the AS3 asset tree — which lives in the
-# `AS3-Triple-Triad` repository, not this one. See `tools/as3_tree.py`.
+# Never touched. Binary art/audio assets, kept byte-identical.
 *.png           binary
 *.jpg           binary
 *.jpeg          binary

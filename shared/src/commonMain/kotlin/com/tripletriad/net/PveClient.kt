@@ -69,12 +69,13 @@ class PveClient(
         opponentIconId: String,
         formatId: String,
         deck: Int = ANY_DECK,
+        campaignKey: String? = null,
     ): AccountResult<PveMatchView> =
         call(HTTP_CREATED) {
             client.post("${baseUrl()}/pve/matches") {
                 protocolHeaders()
                 bearer(token)
-                setBody(PveMatchRequest(opponentIconId, formatId, deck))
+                setBody(PveMatchRequest(opponentIconId, formatId, deck, campaignKey))
             }
         }
 

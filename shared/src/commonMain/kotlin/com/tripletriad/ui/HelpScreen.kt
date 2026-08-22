@@ -128,7 +128,8 @@ private fun HelpRow(ruleKey: String, isOpen: Boolean, onClick: () -> Unit) {
         // snapping to twice its height — an accordion that jumps reads as a layout bug.
         AnimatedVisibility(visible = isOpen) {
             Text(
-                text = strings["${ruleKey}_HELP"],
+                // The French bundle sets the "FF14 only" qualifier in italics — see [markup].
+                text = markup(strings["${ruleKey}_HELP"]),
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.testTag(helpTextTestTag(ruleKey)),

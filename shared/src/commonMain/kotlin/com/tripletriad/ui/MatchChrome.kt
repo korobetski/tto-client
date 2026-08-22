@@ -270,7 +270,7 @@ internal fun RulesStrip(
                 // locales do not describe the same set. `CardListScreen` makes the same test.
                 if (strings.has(help)) {
                     Text(
-                        text = "${strings[key]} — ${strings[help]}",
+                        text = markup("${strings[key]} — ${strings[help]}"),
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
                         style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier.testTag(ruleHelpTestTag(key)),

@@ -99,14 +99,28 @@ class StringsBundleTest {
         const val CONTINUE = "STR_CONTINUE"
         const val REGISTER_MATCH = "STR_REGISTER_MATCH"
 
-        // Two keys up on the last count, all round: `APP_RANDOM_OPPONENT` and
-        // `APP_CAMPAIGN_FINAL_REWARD`. Authored in English and French only, like the rest of the
-        // app-owned strings, so the two imported bundles' gaps each widen by two.
-        const val UNION_KEYS = 970
+        // Fourteen keys up on the count before the tournament work: `APP_RANDOM_OPPONENT`,
+        // `APP_CAMPAIGN_FINAL_REWARD`, `APP_CAMPAIGN_BALAMB`; the bilan's four
+        // (`APP_CAMPAIGN_RESULTS`, `_COMPLETE`, `_ELIMINATED`, `_NOT_REACHED`);
+        // `APP_CAMPAIGN_LOCKED` and `APP_CAMPAIGN_ENTERED_TODAY`, the two reasons a ladder is
+        // shut; the three achievements' labels, `APP_AC_CAMPAIGN_*`; and the two Ishtar needed,
+        // `APP_NPC_ISHTAR` and `APP_OPPONENTS_UNEARNED`.
+        //
+        // `APP_NPC_ISHTAR` is a *name key*, reached through `Npc.nameKey` and not through
+        // [StringKeys] — the same way every `STR_NPC_*` is. It exists because the FFVIII Queen of
+        // Cards had to stop sharing the FFXIV one's key once they became two opponents.
+        //
+        // The achievement labels are **not** in [StringKeys] and are not meant to be: a label is
+        // reached through `AchievementCatalog`, the same way the ported `STR_Triple_Team_*` are,
+        // so the bundle is where they live and this count is what holds them to it.
+        //
+        // Authored in English and French only, like the rest of the app-owned strings, so the two
+        // imported bundles' gaps each widen by fourteen.
+        const val UNION_KEYS = 982
 
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 966,
-            AppLocale.FR_FR to 967,
+            AppLocale.EN_US to 978,
+            AppLocale.FR_FR to 979,
             AppLocale.DE_DE to 653,
             AppLocale.JA_JA to 686,
         )
@@ -114,9 +128,9 @@ class StringsBundleTest {
         val EXPECTED_GAPS = mapOf(
             AppLocale.EN_US to 4,
             AppLocale.FR_FR to 3,
-            // 44 imported keys short, plus all 273 app-owned; and 11 short, plus the 273.
-            AppLocale.DE_DE to 317,
-            AppLocale.JA_JA to 284,
+            // 44 imported keys short, plus all 285 app-owned; and 11 short, plus the 285.
+            AppLocale.DE_DE to 329,
+            AppLocale.JA_JA to 296,
         )
     }
 }

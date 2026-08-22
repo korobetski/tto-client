@@ -1,12 +1,8 @@
 # The design system
 
-What the app's Material 3 tokens are, and where they deliberately stop being a transcription of the
-AS3 original.
-
-`CLAUDE.md`'s third convention asks that a port cite its AS3 source and, where it differs, record
-the deviation *and* the reason. The visual refresh is one large deviation, so it is recorded here
-once rather than repeated in a note on every screen. Each section below names what the original did,
-what this port does now, and why.
+What the app's Material 3 tokens are, and how the visual refresh deviated from the legacy values
+this app started from. Each section below names what the earlier scheme did, what the app does now,
+and why.
 
 **Status:** complete. The tokens are in place and every screen is on them.
 
@@ -14,14 +10,13 @@ what this port does now, and why.
 
 ## 1. Colour
 
-### What the AS3 had
+### What the legacy scheme had
 
-`theme/BaseTTOTheme.as:124-137` declares about a dozen `uint` constants — a background, three greys,
-two text colours, an orange accent, an overlay — and `display/Card.as:29-31` declares three more for
-the cards. There is no scale, no tonal relationship between any two of them, and no notion of a
-"role": each is used wherever its author thought it looked right.
+About a dozen constants — a background, three greys, two text colours, an orange accent, an
+overlay — plus three more for the cards. There was no scale, no tonal relationship between any two
+of them, and no notion of a "role": each was used wherever it looked right.
 
-### What the port had until the refresh
+### What the app had until the refresh
 
 Those constants, transcribed, poured into eighteen of Material's thirty-odd `ColorScheme` roles.
 Twelve roles were never filled and kept `darkColorScheme()`'s baseline lavender. Two of the twelve
@@ -56,7 +51,7 @@ re-derived.
 Every seed is a colour that was already in this app, so the refresh **re-derives** the palette
 rather than replacing it. Two results argue the seeds were right: `Neutral22` comes out at `#383430`
 — `BaseTTOTheme.as`'s own `LIST_BACKGROUND_COLOR`, to the byte — and `Neutral17` at `#2D2926`, one
-step off its `GROUPED_LIST_HEADER_BACKGROUND_COLOR`. The AS3's warm greys were already sitting on a
+step off the earlier header background colour. The legacy warm greys were already sitting on a
 tonal ramp seeded from themselves.
 
 ### The one reversal: amber is `primary`, blue is `secondary`
@@ -87,9 +82,9 @@ which is where the row surface moved and which comes out at `#2D2926`, the same 
 
 `Card.BLUE_COLOR`, `Card.RED_COLOR`, `Card.GREY_COLOR` and the two edge colours are **untouched**.
 They are what the two players *are*, not what the app's chrome is, and re-deriving them from a ramp
-would have changed the board to make the buttons tidier. Same for the board's three own colours,
-which have no AS3 source at all. They live in `TtoColors`, beside the scheme, because Material has
-no role that means "the blue player's card".
+would have changed the board to make the buttons tidier. Same for the board's three own colours.
+They live in `TtoColors`, beside the scheme, because Material has no role that means "the blue
+player's card".
 
 `TalkBubble` keeps its two dark literals: they are text on light artwork, not theme colours.
 
@@ -107,14 +102,14 @@ no role that means "the blue player's card".
 
 ## 2. Type
 
-`BaseTTOTheme.as:669-672` declares four sizes — 18, 24, 28, 36 — multiplied by the device's DPI over
-326. They are **pixels at 326 DPI**, so at 160 dp-per-inch they land near 9, 12, 14 and 18 dp.
+The legacy scheme declared four sizes — 18, 24, 28, 36 — multiplied by the device's DPI over 326.
+They were **pixels at 326 DPI**, so at 160 dp-per-inch they landed near 9, 12, 14 and 18 dp.
 
-The port re-anchored that ladder once, to 11 / 12 / 13 / 14 / 15 / 16 / 18 sp, preserving its shape.
+The app re-anchored that ladder once, to 11 / 12 / 13 / 14 / 15 / 16 / 18 sp, preserving its shape.
 The refresh re-anchors it again, to **Material 3's published scale**, because the first anchoring
-never stopped being the AS3's: seven steps inside eight points, so a screen title was two points
-larger than the body under it and the whole app read as one dense weight of grey. The gap between 11
-and 18 sp is not a hierarchy a player can see.
+never stopped being the legacy one: seven steps inside eight points, so a screen title was two
+points larger than the body under it and the whole app read as one dense weight of grey. The gap
+between 11 and 18 sp is not a hierarchy a player can see.
 
 Line height and letter spacing were **absent entirely** before this — every style set a size and
 left the metrics unspecified, which is why the denser screens ran their lines together. Both are now
@@ -123,9 +118,8 @@ Material's own.
 Colour is still not set in any `TextStyle`: the scheme decides what colour text is, and two things
 claiming to decide it is how a palette stops being followed.
 
-The face is unchanged — Raleway, in the two weights `BaseTTOTheme.as:115-116` embeds, with the
-original's "bold" being a medium weight. **Not Eurostile**, which appears once in the AS3 source and
-draws a field this port does not render.
+The face is unchanged — Raleway, in two weights, with the earlier scheme's "bold" being a medium
+weight. **Not Eurostile**, which this app does not render.
 
 `TextScalingTest` renders the densest screen at 200% and is the fence the larger scale had to come
 past.
@@ -134,10 +128,8 @@ past.
 
 ## 3. Shape
 
-The AS3 rounds nothing itself: every rounded edge is a nine-slice texture out of a UI atlas this
-port does not import. So there was nothing to transcribe, and the values that stood — 4 / 6 / 8 dp,
-with `large` and `extraLarge` left at Material's defaults — were the port's own, chosen to match
-what the screens already drew.
+The values in use — 4 / 6 / 8 dp, with `large` and `extraLarge` left at Material's defaults — were
+chosen to match what the screens already drew.
 
 Three barely distinguishable radii is not a scale; it is one radius with rounding error, and it was
 most of what made the app look like a 2013 tablet game. `ui/theme/Shapes.kt` now carries Material's

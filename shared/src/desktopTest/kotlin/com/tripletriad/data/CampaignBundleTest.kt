@@ -16,27 +16,53 @@ class CampaignBundleTest {
     private val cards = runBlocking { loadCardCatalog() }
 
     @Test
-    fun bothLaddersShipInFull() {
-        assertEquals(listOf("cc", "gs"), catalog.all.map { it.key })
+    fun allThreeLaddersShipInFull() {
+        assertEquals(listOf("cc", "gs", "balamb"), catalog.all.map { it.key })
         assertEquals(CARD_CLUB_RUNGS, assertNotNull(catalog.byKey("cc")).steps.size)
         assertEquals(GOLD_SAUCER_RUNGS, assertNotNull(catalog.byKey("gs")).steps.size)
+        assertEquals(BALAMB_RUNGS, assertNotNull(catalog.byKey("balamb")).steps.size)
     }
 
     @Test
-    fun eachSingleSetFormatHasExactlyOneLadder() {
+    fun everySingleSetFormatHasAtLeastOneLadder() {
         val formats = runBlocking { loadFormatCatalog() }
 
         for (id in SINGLE_SET_FORMATS) {
             requireNotNull(formats[id]) { "$id is not authored" }
-            assertEquals(1, catalog.playing(id).size, "$id should have one ladder")
+            assertTrue(catalog.playing(id).isNotEmpty(), "$id should have a ladder")
         }
+        // ff8-standard carries two now: the Card Club and Balamb Garden Novices beside
+        // it, both authored for the same single-set format.
+        assertEquals(2, catalog.playing("ff8-standard").size)
     }
 
     @Test
-    fun enteringCostsFiveHundred() {
+    fun enteringCostsWhatEachLadderAsksFor() {
+        val fees = mapOf("cc" to ENTRY_FEE, "gs" to ENTRY_FEE, "balamb" to BALAMB_FEE)
         for (campaign in catalog.all) {
-            assertEquals(ENTRY_FEE, campaign.fee, campaign.key)
+            assertEquals(fees.getValue(campaign.key), campaign.fee, campaign.key)
         }
+    }
+
+    /**
+     * Every rung names an opponent the referee can actually resolve.
+     *
+     * A ladder cannot invent an opponent. `PveMatchRequest` carries only the icon id, the format
+     * and the deck, so the referee looks the opponent up in **npcs.json** — `npcs.byIcon(iconId,
+     * formatId)`, the same call `PveStubServer.opened` makes — and refuses with `NO_SUCH_OPPONENT`
+     * when there is none. A rung naming an icon the catalogue does not carry is therefore not a
+     * cosmetic defect: it is a ladder that dies the moment the rung before it is won, which is what
+     * an invented `quistis-fan` rung did to Balamb before this test existed.
+     */
+    @Test
+    fun everyRungNamesAnOpponentTheRefereeCanResolve() {
+        val npcs = runBlocking { loadNpcCatalog() }
+        val unresolvable = catalog.all.flatMap { campaign ->
+            campaign.steps
+                .filter { npcs.byIcon(it.npc.iconId, campaign.format) == null }
+                .map { "${campaign.key}/${it.npc.iconId} under ${campaign.format}" }
+        }
+        assertEquals(emptyList(), unresolvable, "the referee would refuse these rungs")
     }
 
     @Test
@@ -55,12 +81,26 @@ class CampaignBundleTest {
         }
     }
 
+    /**
+     * Which rungs declare a per-match fee on top of their ladder's entry fee.
+     *
+     * One of the ladders' thirteen does — `cc/spade`. All four Balamb rungs do as well, and for a
+     * different reason: they are *copies* of catalogue opponents (see `authored_ladder()`), so they
+     * carry the catalogue's own fees rather than the zeroes the other ladders were written with.
+     *
+     * **What actually gets collected is not decided here.** The referee resolves the opponent from
+     * npcs.json and charges that record's fee, whatever this file says — so those rungs' zeroes
+     * are a display-only claim, and Balamb's fees are honest precisely because they are copied.
+     */
     @Test
-    fun onlyOneRungDeclaresAFeeAndNothingCollectsIt() {
+    fun theRungsDeclaringAPerMatchFeeAreTheKnownOnes() {
         val charging = catalog.all.flatMap { campaign ->
             campaign.steps.filter { it.npc.matchFee > 0 }.map { "${campaign.key}/${it.npc.iconId}" }
         }
-        assertEquals(listOf("cc/spade"), charging)
+        assertEquals(
+            listOf("cc/spade", "balamb/kid", "balamb/trepies", "balamb/ma-dincht", "balamb/jack"),
+            charging,
+        )
     }
 
     @Test
@@ -95,7 +135,9 @@ class CampaignBundleTest {
     private companion object {
         const val CARD_CLUB_RUNGS = 7
         const val GOLD_SAUCER_RUNGS = 6
+        const val BALAMB_RUNGS = 4
         const val ENTRY_FEE = 500
+        const val BALAMB_FEE = 200
         const val SPEAKING_RUNGS = 3
     }
 }

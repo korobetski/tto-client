@@ -9,7 +9,7 @@ class SoundTest {
     fun exactlyOneSoundIsMusicAndTheRestAreEffects() {
         val music = Sound.entries.filter { it.music }
 
-        assertEquals(listOf(Sound.MATCH_MUSIC), music, "the AS3 has one background track")
+        assertEquals(listOf(Sound.MATCH_MUSIC), music, "there is one background track")
         assertEquals(Sound.MATCH_MUSIC, Sound.Music)
         assertEquals(Sound.entries.size - 1, Sound.effects.size)
         assertTrue(Sound.effects.none { it.music })

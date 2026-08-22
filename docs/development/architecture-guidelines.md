@@ -2,9 +2,7 @@
 
 Phase 0, Task 1.6 deliverable.
 
-The AS3 original has one architectural rule: none. Understanding what it does wrong is the
-fastest way to state what the Kotlin version must do, so each section below starts from a
-real, cited defect in `sources/src/tto`.
+Each section below starts from a concrete rule this codebase enforces and why.
 
 ---
 
@@ -78,8 +76,7 @@ Arguments travel in the destination, not in globals.
 
 Constructor injection by default. A DI container (Koin is the plan's choice) only where
 constructor wiring becomes unwieldy — and note that **no DI library is in the verified
-dependency set** yet ([docs/migration/03-TECHNICAL-STACK.md](../migration/03-TECHNICAL-STACK.md),
-Set C). Do not assume Koin works with this Kotlin/Compose combination until someone has
+dependency set** yet. Do not assume Koin works with this Kotlin/Compose combination until someone has
 compiled it.
 
 Never a static singleton holding mutable state. `utils/Assets.as` (imported by **57 files**,

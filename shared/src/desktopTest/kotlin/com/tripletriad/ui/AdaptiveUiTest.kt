@@ -6,8 +6,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import com.tripletriad.i18n.AppLocale
@@ -40,18 +43,45 @@ class AdaptiveUiTest {
         assertFalse(exists(NAV_BAR_TEST_TAG), "and not the bar as well")
     }
 
+    /**
+     * **A phone gives the grid the whole screen, and the card arrives over it.**
+     *
+     * This used to assert the opposite — that the detail was stacked *above* the grid — and it was
+     * right until the collection moved the narrow layout's panel into a `ModalBottomSheet`. The
+     * panel had a fixed height whether or not anything was picked, so a third of a phone screen was
+     * spent on the words "pick a card"; a sheet costs nothing until there is something to read.
+     *
+     * So with nothing selected there is no detail node at all. The wide layout still sets the two
+     * side by side — [theCollectionPutsTheDetailBesideTheGridOnAWideWindow], which is where the
+     * empty note still lives.
+     */
     @Test
-    fun theCollectionStacksItsDetailOnAPhoneAndSetsItBesideTheGridOnAWindow() = runComposeUiTest {
+    fun theCollectionOnAPhoneSpendsNoHeightOnADetailNobodyAskedFor() = runComposeUiTest {
         setContent { Sized(PHONE) }
         newCharacter()
         openFromBar("cards", CARD_GRID_TEST_TAG)
 
-        val stackedDetail = onNodeWithTag(CARD_DETAIL_EMPTY_TEST_TAG).getUnclippedBoundsInRoot()
-        val stackedGrid = onNodeWithTag(CARD_GRID_TEST_TAG).getUnclippedBoundsInRoot()
-        assertTrue(
-            stackedDetail.bottom <= stackedGrid.top,
-            "the detail should be above the grid: $stackedDetail vs $stackedGrid",
+        assertFalse(
+            exists(CARD_DETAIL_EMPTY_TEST_TAG),
+            "a phone should not spend a third of its height saying `pick a card`",
         )
+        assertFalse(exists(CARD_SHEET_TEST_TAG), "and nothing is picked, so no sheet is up")
+    }
+
+    /** The other half of the trade: picked, the card covers the grid rather than shrinking it. */
+    @Test
+    fun pickingACardOnAPhoneBringsItUpAsASheetOverTheGrid() = runComposeUiTest {
+        setContent { Sized(PHONE) }
+        newCharacter()
+        openFromBar("cards", CARD_GRID_TEST_TAG)
+        val card = STARTER_CARDS.first()
+
+        onNodeWithTag(CARD_GRID_TEST_TAG)
+            .performScrollToNode(hasTestTag(cardCellTestTag(card)))
+        onNodeWithTag(cardCellTestTag(card)).performClick()
+
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(CARD_SHEET_TEST_TAG) }
+        assertTrue(exists(CARD_DETAIL_TEST_TAG), "the sheet carries the card's own detail")
     }
 
     @Test

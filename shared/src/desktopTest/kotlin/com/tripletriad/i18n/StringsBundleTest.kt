@@ -151,13 +151,24 @@ class StringsBundleTest {
         // name keys and nothing else. `CardListBody` already omits a card's description paragraph
         // when its `_DESC` key is absent for the active locale, so this widens FR's, DE's and JA's
         // gap by 301 each and leaves EN's gap alone (both halves are English-owned).
-        const val UNION_KEYS = 1593
+        // 73 more since, and this correction is worth reading before the next bump is written.
+        //
+        // The paragraph above bumped these counts by 611 for the FFXIV expansion — **derived from
+        // what the change was expected to add**, not measured off the bundles afterwards. The
+        // expansion also brought 75 opponents, 73 of which needed a name key, and those were
+        // authored straight into all four `app-*` bundles. So the real figure was 684 and the
+        // recorded one was short by exactly 73, in every locale at once.
+        //
+        // Two consequences to note. The gaps below are **unchanged**: a key authored in all four
+        // bundles widens nobody's. And the arithmetic is why these are wrong — measure the counts
+        // from a run and paste them, rather than adding up what a change ought to have done.
+        const val UNION_KEYS = 1666
 
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 1589,
-            AppLocale.FR_FR to 1289,
-            AppLocale.DE_DE to 954,
-            AppLocale.JA_JA to 987,
+            AppLocale.EN_US to 1662,
+            AppLocale.FR_FR to 1362,
+            AppLocale.DE_DE to 1027,
+            AppLocale.JA_JA to 1060,
         )
 
         val EXPECTED_GAPS = mapOf(

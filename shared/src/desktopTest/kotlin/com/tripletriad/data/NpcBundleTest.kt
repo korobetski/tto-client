@@ -183,14 +183,20 @@ class NpcBundleTest {
     }
 
     private companion object {
-        const val FF14_NPCS = 60
+        // 60 shipped originally, plus 73 from arrtripletriad.com's own roster that this project's
+        // hand-transcribed table did not have — see `add_ff14_npcs.js`. Matched by *name*, not
+        // iconID: the shipped icons carry old transcription quirks (`tratchoum` for "Trachtoum",
+        // `okalkaya` for "O'kalkaya") a slug diff would have missed and doubled.
+        const val FF14_NPCS = 60 + 73
 
         // 25, the count `NPCs.as` declares, and 24 until the FFVIII Queen of Cards was recovered.
         // She was lost flattening the two tables into one keyed by icon: both Queens are authored
         // as `queen-of-cards`, so one of them overwrote the other. See `tools/extract_npcs.py`,
         // which now ships the FFVIII one as `ishtar`.
         const val FF8_NPCS = 25
-        const val FF14_CARDS = 153
+
+        // The full FFXIV set, both of its blocks, now that it has grown past 153 — see `CardSet`.
+        const val FF14_CARDS = 454
         const val FF8_CARDS = 110
         const val HOURS = 24
     }

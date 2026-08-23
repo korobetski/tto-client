@@ -116,21 +116,57 @@ class StringsBundleTest {
         //
         // Authored in English and French only, like the rest of the app-owned strings, so the two
         // imported bundles' gaps each widen by fourteen.
-        const val UNION_KEYS = 982
+        //
+        // Two more since, both about a deck the format does not admit: `APP_CAMPAIGN_NO_DECK`,
+        // which shuts a ladder before its fee is taken, and `APP_ERROR_UNDEALABLE`, which is the
+        // one `PveRefusal` that is not staleness. English and French again, so the imported gaps
+        // widen by two more each.
+        //
+        // Three more since: `APP_AC_CAMPAIGN_BALAMB_DESC`, `_CC_DESC` and `_GS_DESC`, the
+        // tournament achievements' descriptions — the labels existed already, the `_DESC` half did
+        // not. English and French only, like every achievement string, so the imported gaps widen
+        // by three more each.
+        //
+        // One fewer since: `APP_PACK_GUARANTEE` is gone. It advertised a guaranteed minimum
+        // rarity from the old multi-draw booster, a promise `BoosterItem.open` stopped keeping once
+        // a pack draws exactly one weighted card — see `ShopBody.packTerms`. English and French
+        // only, like every app-owned string, so the imported gaps narrow by one each.
+        //
+        // One more since: `APP_BOOSTERS`, the shop's booster shelf header — the shop grew
+        // three named shelves and only this one had no word already in the bundles
+        // (`APP_BOONS` and `APP_CARDS` name the other two). English and French only, like
+        // every app-owned string, so the imported gaps widen by one each.
+        //
+        // No change from the fifteen `STR_*_BOOSTER` overrides the shop added on top: they are
+        // imported keys the `tto-*` bundles already carry, and `app-*` only wins the merge for
+        // them — see `Strings.readLocale`. That is the override mechanism CLAUDE.md names, and
+        // it is the reason a Square Enix bundle never has to be hand-edited to change a name.
+        // Nothing above is affected by FFVIII moving from card block 2 to block 8: a bundle keys
+        // its cards by `STR_FF8_CARD_<number>`, and a card's *number* within its set is exactly
+        // what a block move leaves alone. Only the ids changed, and no bundle holds one.
+        //
+        // 602 more since: the FFXIV set's cards #154-454, `STR_FF14_CARD_154`..`_454`, plus their
+        // `_DESC` counterpart in English only — the site's card detail pages carry flavour text,
+        // but only in English, so `app-fr_FR.json`/`app-de_DE.json`/`app-ja_JA.json` gain the 301
+        // name keys and nothing else. `CardListBody` already omits a card's description paragraph
+        // when its `_DESC` key is absent for the active locale, so this widens FR's, DE's and JA's
+        // gap by 301 each and leaves EN's gap alone (both halves are English-owned).
+        const val UNION_KEYS = 1593
 
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 978,
-            AppLocale.FR_FR to 979,
-            AppLocale.DE_DE to 653,
-            AppLocale.JA_JA to 686,
+            AppLocale.EN_US to 1589,
+            AppLocale.FR_FR to 1289,
+            AppLocale.DE_DE to 954,
+            AppLocale.JA_JA to 987,
         )
 
         val EXPECTED_GAPS = mapOf(
             AppLocale.EN_US to 4,
-            AppLocale.FR_FR to 3,
-            // 44 imported keys short, plus all 285 app-owned; and 11 short, plus the 285.
-            AppLocale.DE_DE to 329,
-            AppLocale.JA_JA to 296,
+            AppLocale.FR_FR to 304,
+            // 44 imported keys short, plus all 294 app-owned, plus the 301 FF14 names; and 11
+            // short, plus the 294, plus the 301.
+            AppLocale.DE_DE to 639,
+            AppLocale.JA_JA to 606,
         )
     }
 }

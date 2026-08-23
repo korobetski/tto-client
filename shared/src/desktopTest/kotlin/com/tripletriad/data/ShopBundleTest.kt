@@ -1,5 +1,7 @@
 package com.tripletriad.data
 
+import com.tripletriad.FF14_BLOCK
+import com.tripletriad.FF8_BLOCK
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.loadStrings
 import com.tripletriad.model.BoosterItem
@@ -64,9 +66,11 @@ class ShopBundleTest {
     fun noPackIsAJackpot() {
         for (type in BoosterType.entries) {
             val price = BoosterPricing.priceOf(type, cards)
-            val dearest = { pool: List<Int> -> pool.maxOf { CardValue.resaleOf(it, cards) } }
-            val best = dearest(type.pool) * (type.size - 1) +
-                dearest(type.pool.drop(type.rareFrom))
+            // The luckiest possible open: every one of the pack's draws lands its dearest card.
+            // `cardCount` is 1 for everything on the shelf today, so this is that one card — but
+            // the multiplication is what keeps the bound honest if a pack ever draws more.
+            val dearest = type.pool.maxOf { CardValue.resaleOf(it, cards) }
+            val best = dearest * type.cardCount
 
             assertTrue(
                 best < price * JACKPOT_CEILING,
@@ -83,7 +87,7 @@ class ShopBundleTest {
             val missing = type.pool.filterNot { it in cards }
 
             assertTrue(missing.isEmpty(), "${type.name} names $missing, which no set holds")
-            assertTrue(type.pool.size >= type.size, "${type.name} cannot fill its own ${type.size}")
+            assertTrue(type.pool.isNotEmpty(), "${type.name} has nothing to draw from")
         }
     }
 
@@ -96,18 +100,26 @@ class ShopBundleTest {
         }
     }
 
+    /**
+     * A pack deals exactly what its row says it deals, out of its own pool.
+     *
+     * This used to assert a **guaranteed rarity floor** — the old pack's last draw was restricted
+     * to the top of the pool, and the shop row advertised it. Both are gone: a pack is one weighted
+     * draw over the whole pool now, so there is no floor to keep and `APP_PACK_GUARANTEE` was
+     * removed rather than left saying something untrue. What is left to check is the count and the
+     * pool; the odds are the next test's business.
+     */
     @Test
-    fun everyPackKeepsThePromiseItsRowMakes() {
+    fun everyPackDealsWhatItsRowSaysItDeals() {
         for (type in BoosterType.entries) {
-            val floor = BoosterPricing.guaranteedFloor(type, cards)
             val pack = BoosterItem(type)
 
-            assertTrue(floor in 1..TOP_RARITY, "${type.name} advertises a $floor★ floor")
             repeat(SAMPLES) { seed ->
-                val prize = pack.open(Random(seed)).last()
+                val drawn = pack.open(Random(seed))
+                assertEquals(type.cardCount, drawn.size, "${type.name} dealt ${drawn.size} cards")
                 assertTrue(
-                    (cards[prize]?.rarity ?: 0) >= floor,
-                    "${type.name} promised $floor★ and dealt ${cards[prize]?.rarity}★",
+                    drawn.all { it in type.pool },
+                    "${type.name} dealt $drawn, which is outside its pool",
                 )
             }
         }
@@ -160,7 +172,11 @@ class ShopBundleTest {
     fun bothSetsHaveAPackLadder() {
         val bySet = BoosterType.entries.groupBy { type -> cards.getValue(type.pool.first()).block }
 
-        assertEquals(setOf(1, 2), bySet.keys, "both shipped sets should sell packs")
+        assertEquals(
+            setOf(FF14_BLOCK, FF8_BLOCK),
+            bySet.keys,
+            "both shipped sets should sell packs",
+        )
         for ((block, packs) in bySet) {
             val prices = packs.map { BoosterPricing.priceOf(it, cards) }
 

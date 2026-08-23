@@ -29,17 +29,22 @@ internal val LESSON_CATALOG: CardCatalog = CardCatalog(
         lessonCard(274, 4, 5, 3, 3, "Sahuagin", CardType.BEAST),
         lessonCard(id = 318, top = 1, right = 8, bottom = 10, left = 8, name = "Hildibrand"),
         lessonCard(id = 319, top = 10, right = 6, bottom = 4, left = 8, name = "Nanamo Ul Namo"),
-        // Block 2 — the FF8 set, whose types really are elements. Only the Elemental lesson needs
+        // Block 8 — the FF8 set, whose types really are elements. Only the Elemental lesson needs
         // them, and it has to: an FFXIV tribe matches no tile. See `TUTORIAL_COURSE`.
-        lessonCard(518, 2, 1, 4, 4, "Gayla", CardType.LIGHTNING),
-        lessonCard(520, 3, 5, 2, 4, "Fastitocalon-F", CardType.EARTH),
-        lessonCard(523, 2, 1, 2, 6, "Cockatrice", CardType.LIGHTNING),
-        lessonCard(527, 6, 1, 4, 3, "Glacial Eye", CardType.ICE),
-        lessonCard(529, 5, 3, 2, 5, "Thrustaevis", CardType.WIND),
-        lessonCard(530, 5, 1, 3, 5, "Anacondaur", CardType.POISON),
-        lessonCard(531, 5, 2, 5, 2, "Creeps", CardType.LIGHTNING),
-        lessonCard(532, 4, 4, 5, 3, "Grendel", CardType.LIGHTNING),
-        lessonCard(536, 6, 3, 1, 6, "Armadodo", CardType.EARTH),
+        //
+        // These stay in step with the constants of the same names in `TutorialLessons.kt`: a
+        // lesson names its cards by id and this fixture is what resolves them, so an id that is
+        // current in one file and stale in the other deals a lesson a card it cannot draw — which
+        // hangs the lesson rather than failing an assertion, and reads as a timeout.
+        lessonCard(2054, 2, 1, 4, 4, "Gayla", CardType.LIGHTNING),
+        lessonCard(2056, 3, 5, 2, 4, "Fastitocalon-F", CardType.EARTH),
+        lessonCard(2059, 2, 1, 2, 6, "Cockatrice", CardType.LIGHTNING),
+        lessonCard(2063, 6, 1, 4, 3, "Glacial Eye", CardType.ICE),
+        lessonCard(2065, 5, 3, 2, 5, "Thrustaevis", CardType.WIND),
+        lessonCard(2066, 5, 1, 3, 5, "Anacondaur", CardType.POISON),
+        lessonCard(2067, 5, 2, 5, 2, "Creeps", CardType.LIGHTNING),
+        lessonCard(2068, 4, 4, 5, 3, "Grendel", CardType.LIGHTNING),
+        lessonCard(2072, 6, 3, 1, 6, "Armadodo", CardType.EARTH),
     ),
 )
 

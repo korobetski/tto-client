@@ -428,18 +428,18 @@ private const val GOOBBUE = 268
 private const val CHOCOBO = 269
 
 /*
- * The block-2 cards the Elemental lesson is built from — the FF8 set, which is the only one whose
+ * The block-8 cards the Elemental lesson is built from — the FF8 set, which is the only one whose
  * types are elements. See that lesson's comment.
  */
-private const val GAYLA = 518
-private const val FASTITOCALON_F = 520
-private const val COCKATRICE = 523
-private const val GLACIAL_EYE = 527
-private const val THRUSTAEVIS = 529
-private const val ANACONDAUR = 530
-private const val CREEPS = 531
-private const val GRENDEL = 532
-private const val ARMADODO = 536
+private const val GAYLA = 2054
+private const val FASTITOCALON_F = 2056
+private const val COCKATRICE = 2059
+private const val GLACIAL_EYE = 2063
+private const val THRUSTAEVIS = 2065
+private const val ANACONDAUR = 2066
+private const val CREEPS = 2067
+private const val GRENDEL = 2068
+private const val ARMADODO = 2072
 
 /*
  * The five beast-tribe cards the Bonus drill is dealt — numbers 14 to 18 of block 1, and the only

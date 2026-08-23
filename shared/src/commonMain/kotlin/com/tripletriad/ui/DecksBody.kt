@@ -1,6 +1,5 @@
 package com.tripletriad.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -327,44 +325,16 @@ private fun DeckEditor(
                                 draft = draft.plusCard(card.id)
                             },
                     ) {
-                        CardThumb(
+                        // The same tile the collection and the shop draw. What the badge counts
+                        // here is what the *draft* has left, not what the profile owns — see
+                        // `remaining`.
+                        CardTile(
                             card = card,
-                            size = DeckThumbSize,
+                            dim = remaining <= 0,
                             selected = card.id in draft.cards,
-                            modifier = if (remaining > 0) {
-                                Modifier
-                            } else {
-                                Modifier.alpha(SPENT_ALPHA)
-                            },
+                            count = remaining.takeIf { profile.copiesOf(card.id) > 1 },
+                            countTag = deckRemainingTestTag(card.id),
                         )
-
-                        // Top right, always. At 11 dp beside the powers it was a smudge, and the
-                        // element is what a deck is built around — the affinity rules turn on it.
-                        // Pinned to its own corner rather than stacked over the count, which only
-                        // some cards carry: an element that moves depending on how many copies
-                        // the player owns is one the eye has to look for on every card.
-                        Box(modifier = Modifier.align(Alignment.TopEnd).padding(1.dp)) {
-                            CardTypeBadge(card = card, size = DeckTypeBadgeSize)
-                        }
-
-                        if (profile.copiesOf(card.id) > 1) {
-                            Text(
-                                text = "$REMAINING_PREFIX$remaining",
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                modifier = Modifier
-                                    .testTag(deckRemainingTestTag(card.id))
-                                    .align(Alignment.BottomEnd)
-                                    .padding(1.dp)
-                                    .background(
-                                        MaterialTheme.colorScheme.primary,
-                                        RoundedCornerShape(3.dp),
-                                    )
-                                    .padding(horizontal = 3.dp),
-                            )
-                        }
                     }
 
                     // Under the thumbnail rather than on it. A 44dp thumbnail already renders the
@@ -414,9 +384,4 @@ private const val MAX_DECK_NAME = 24
 
 internal val DeckThumbSize = 40.dp
 
-/** The element badge on a deck-builder thumbnail. Bigger than the stats line's, on purpose. */
-private val DeckTypeBadgeSize = 16.dp
-
 private const val SPENT_ALPHA = 0.3f
-
-private const val REMAINING_PREFIX = "\u00d7"

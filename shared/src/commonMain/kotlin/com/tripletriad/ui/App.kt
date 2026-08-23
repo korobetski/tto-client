@@ -28,6 +28,7 @@ import com.tripletriad.data.Campaign
 import com.tripletriad.data.CardCatalog
 import com.tripletriad.data.FormatCatalog
 import com.tripletriad.data.NpcCatalog
+import com.tripletriad.data.PveMatches
 import com.tripletriad.data.StarterCatalog
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.LocalStrings
@@ -585,6 +586,7 @@ private fun CharacterDestination(
                 // frame that state can reach this screen — the startup gate makes it unreachable
                 // in practice, and an opponent list is worth more than a spinner in front of it.
                 cards = startup.catalog?.all?.associateBy { it.id }.orEmpty(),
+                sets = startup.catalog?.sets.orEmpty(),
                 hour = clock.localHour(),
                 onChallenge = {
                     choice.opponent = it
@@ -963,6 +965,24 @@ private fun CampaignDestination(
     val ladder = campaign ?: return
     val scope = rememberCoroutineScope()
     val toOpponents = { onNavigate(Screen.OPPONENTS) }
+    val catalog = startup.catalog
+    // **The ladder's own** format, and not the one free matches use. A ladder names the format
+    // its rungs are played under — that is what `Campaign.format` is for — so the FFXIV Cup is
+    // FFXIV cards under the FFXIV pool however wide the free-play format happens to be.
+    val format = startup.formats?.get(ladder.format)
+
+    /*
+     * Whether the profile can field a hand this ladder's format admits at all.
+     *
+     * The rung itself asks *which* deck — see [CampaignRung] — but the entry fee is taken one
+     * screen earlier, and a run bought for a format the player owns no deck for is four rungs the
+     * referee refuses to deal. So the question is asked twice, at two different altitudes: "is
+     * there one" before the money, "which one" before each board.
+     */
+    val hasDeck = remember(profile.decks, profile.cards, catalog, format) {
+        catalog != null && format != null &&
+            PveMatches.playableDecks(profile, catalog, format).isNotEmpty()
+    }
 
     if (destination == Screen.CAMPAIGN) {
         CampaignScreen(
@@ -973,6 +993,9 @@ private fun CampaignDestination(
             // ladder per day. The screen only *shows* the limit; `CampaignRewards.enter` applies
             // it on the side that holds the profile, and this clock is not the one that decides.
             today = questDayOf(clock.nowMillis()),
+            // False shuts the ladder with a reason rather than letting the fee be taken for a run
+            // whose every rung the referee would refuse to deal.
+            hasDeck = hasDeck,
             // The fee is taken here, on the way in, and never given back: `startCampaign`'s
             // handler does `Game.PROFILE_DATAS.MGP -= 500` and then opens the ladder. A defeat
             // costs another 500 to try again, which is the whole of what makes a ladder a stake.
@@ -1001,11 +1024,6 @@ private fun CampaignDestination(
             onBack = toOpponents,
         )
     } else {
-        val catalog = startup.catalog
-        // **The ladder's own** format, and not the one free matches use. A ladder names the format
-        // its rungs are played under — that is what `Campaign.format` is for — so the FFXIV Cup is
-        // FFXIV cards under the FFXIV pool however wide the free-play format happens to be.
-        val format = startup.formats?.get(ladder.format)
         if (catalog != null && format != null && pve != null) {
             MatchArt(startup) {
                 CampaignMatchScreen(
@@ -1013,6 +1031,7 @@ private fun CampaignDestination(
                     catalog = catalog,
                     format = format,
                     pve = pve,
+                    profile = profile,
                     onFinished = toOpponents,
                     // Only the run on *this* ladder resumes it; one left open on the other is
                     // somebody else's business and must not seed this board's rung.

@@ -56,13 +56,16 @@ class TabsUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
         openFromBar("store", SHOP_LIST_TEST_TAG)
-        assertTrue(exists(SHOP_BUY_TEST_TAG), "the shelf should carry its Buy button")
+        // Buy is in the purchase sheet now, and nothing has opened one. What says the shelf is
+        // up is the shelf itself — its three headers.
+        assertFalse(exists(SHOP_BUY_TEST_TAG), "nothing is picked, so there is nothing to buy")
+        assertTrue(exists(shopShelfTestTag("boons")), "the shelf should name its sections")
 
         onNodeWithTag(screenTabTestTag("bag")).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(INVENTORY_EMPTY_TEST_TAG) }
 
         assertFalse(exists(SHOP_LIST_TEST_TAG), "both tabs were showing at once")
-        assertFalse(exists(SHOP_BUY_TEST_TAG), "Buy stayed over the bag")
+        assertFalse(exists(shopShelfTestTag("boons")), "the shelf stayed over the bag")
     }
 
     @Test

@@ -225,14 +225,7 @@ internal class PveStubServer(
             ?: return refuse(PveRefusal.NO_SUCH_FORMAT, "no such format")
         val npc = npcs.byIcon(request.opponentIconId, format.id)
             ?: return refuse(PveRefusal.NO_SUCH_OPPONENT, "no such opponent")
-        // A board claiming a ladder is checked against the run the profile holds, as the real
-        // referee checks it. This is what makes the entry a *prerequisite* of the first rung
-        // rather than an errand that may still be in flight beside it.
-        if (request.campaignKey != null &&
-            player.save.campaignRun?.campaignKey != request.campaignKey
-        ) {
-            return refuse(PveRefusal.NOT_ON_THAT_RUNG, "no run in ${request.campaignKey}")
-        }
+        undealtReason(request, npc, format)?.let { return refuse(it.first, it.second) }
 
         val match = deal(npc, format, request.deck)
         live = match
@@ -240,6 +233,39 @@ internal class PveStubServer(
             matchProtocolJson.encodeToString(match.wire(match.advance(null))),
             HttpStatusCode.Created,
         )
+    }
+
+    /**
+     * Why this board cannot be opened, or null.
+     *
+     * The two conditions the real referee applies that a canned stub would not, lifted out of
+     * [opened] together because either one alone still leaves it over detekt's return count.
+     *
+     * - the deal resolves the request's slot against the **format's** pool, and a card outside it
+     *   has no entry there. Left to [deal], the lookup throws; the referee answers `UNDEALABLE`,
+     *   and a fixture has to see the refusal a client sees. Skipped under Random, where the hand
+     *   is drawn from the legal pool and no deck is consulted at all.
+     * - a board claiming a ladder is checked against the run the profile holds, which is what
+     *   makes the entry a *prerequisite* of the first rung rather than an errand still in flight
+     *   beside it.
+     */
+    private fun undealtReason(
+        request: PveMatchRequest,
+        npc: Npc,
+        format: Format,
+    ): Pair<PveRefusal, String>? {
+        val legal = cards.admittedBy(format).mapTo(mutableSetOf()) { it.id }
+        return when {
+            !npc.gameRules().random &&
+                !legal.containsAll(PveMatches.playerDeck(player.save, request.deck)) ->
+                PveRefusal.UNDEALABLE to "you cannot field five cards in that format"
+
+            request.campaignKey != null &&
+                player.save.campaignRun?.campaignKey != request.campaignKey ->
+                PveRefusal.NOT_ON_THAT_RUNG to "no run in ${request.campaignKey}"
+
+            else -> null
+        }
     }
 
     private fun MockRequestHandleScope.active(): HttpResponseData {

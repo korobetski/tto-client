@@ -1,5 +1,8 @@
 package com.tripletriad.ui
 
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -11,6 +14,7 @@ import androidx.compose.ui.platform.testTag
 import com.tripletriad.data.CardCatalog
 import com.tripletriad.data.Format
 import com.tripletriad.data.ShopCatalog
+import com.tripletriad.data.ShopOffer
 import com.tripletriad.data.StarterCatalog
 import com.tripletriad.data.StarterPack
 import com.tripletriad.i18n.LocalStrings
@@ -30,6 +34,7 @@ internal enum class StoreTab {
     BAG,
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 @Suppress("LongParameterList")
 internal fun StoreScreen(
@@ -65,43 +70,32 @@ internal fun StoreScreen(
     // thing the original does in the bag that a line of text cannot: the player has often never
     // seen this card, and the note names it without showing it.
     var unlocked by remember(format) { mutableStateOf<Card?>(null) }
+    val sheet = rememberModalBottomSheetState()
+
+    // Hoisted out of the bottom bar that used to hold it: the button now lives in the sheet, and
+    // the sheet is not the only thing that will ever want to spend the money.
+    val buy: (ShopOffer) -> Unit = { offer ->
+        val bought = itemName(strings, offer.item, cards)
+        scope.launch {
+            // Asked, not computed. On an account the price is the server's and the profile that
+            // comes back is the one it wrote — see `BuyRequest`.
+            val outcome = onIntent(Intent.Buy(offer, format.id))
+            // After the write, not before: the note says the purchase happened, and a line shown
+            // while the save was in flight would be a promise.
+            //
+            // **And only if it did.** This line used to be unconditional, so a purchase the
+            // server declined — or one that never reached it — announced the item anyway, over a
+            // purse that had not moved. The button's `isAffordableBy` guard is the client's
+            // opinion about the client's price; the server holds both.
+            note.show(boughtNote(strings, outcome, bought))
+        }
+    }
 
     CharacterScaffold(
         profile = profile,
         title = strings[StringKeys.SHOP],
         onBack = onBack,
         snackbar = note,
-        bottomBar = if (tab != StoreTab.SHOP) {
-            null
-        } else {
-            {
-                WideButton(
-                    label = selected
-                        ?.let { "${strings[StringKeys.BUY]}$DOT_SEPARATOR${it.price}" }
-                        ?: strings[StringKeys.BUY],
-                    tag = SHOP_BUY_TEST_TAG,
-                    enabled = selected?.isAffordableBy(profile) == true,
-                    onClick = {
-                        val offer = selected ?: return@WideButton
-                        val bought = itemName(strings, offer.item, cards)
-                        scope.launch {
-                            // Asked, not computed. On an account the price is the server's and the
-                            // profile that comes back is the one it wrote — see `BuyRequest`.
-                            val outcome = onIntent(Intent.Buy(offer, format.id))
-                            // After the write, not before: the note says the purchase happened,
-                            // and a line shown while the save was in flight would be a promise.
-                            //
-                            // **And only if it did.** This line used to be unconditional, so a
-                            // purchase the server declined — or one that never reached it —
-                            // announced the item anyway, over a purse that had not moved. The
-                            // button's `isAffordableBy` guard is the client's opinion about the
-                            // client's price; the server holds both.
-                            note.show(boughtNote(strings, outcome, bought))
-                        }
-                    },
-                )
-            }
-        },
     ) {
         ScreenTabs(
             tabs = listOf(
@@ -155,8 +149,26 @@ internal fun StoreScreen(
         }
     }
 
-    // Outside the scaffold, so it is drawn over the whole screen rather than inside the column
-    // that lists the bag.
+    // Outside the scaffold for the same reason `unlocked` is: it covers the screen rather than
+    // sitting in the column. Only on the shop tab — the bag has its own buttons and nothing to
+    // sell.
+    if (tab == StoreTab.SHOP) {
+        selected?.let { offer ->
+            ModalBottomSheet(
+                onDismissRequest = { selectedTag = null },
+                sheetState = sheet,
+                modifier = Modifier.testTag(SHOP_SHEET_TEST_TAG),
+            ) {
+                ShopOfferSheet(
+                    offer = offer,
+                    cards = cards,
+                    profile = profile,
+                    onBuy = { buy(offer) },
+                )
+            }
+        }
+    }
+
     unlocked?.let { card ->
         UnlockedCard(card = card) { unlocked = null }
     }

@@ -199,15 +199,15 @@ class InventoryUiTest {
         //
         // Unmerged: the whole screen is one `clickable` — a tap anywhere reveals the next card —
         // and Compose folds the slots' semantics into it. See `existsUnmerged`.
-        for (slot in 0 until BoosterType.BRONZE.size) {
+        for (slot in 0 until BoosterType.BRONZE.cardCount) {
             onNodeWithTag(packSlotTestTag(slot), useUnmergedTree = true).assertExists()
         }
         assertFalse(
-            existsUnmerged(packSlotTestTag(BoosterType.BRONZE.size)),
+            existsUnmerged(packSlotTestTag(BoosterType.BRONZE.cardCount)),
             "no slot past the pack's size",
         )
 
-        repeat(BoosterType.BRONZE.size + 1) {
+        repeat(BoosterType.BRONZE.cardCount + 1) {
             onNodeWithTag(PACK_REVEAL_ACTION_TEST_TAG).performClick()
         }
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { !exists(PACK_REVEAL_TEST_TAG) }
@@ -218,7 +218,7 @@ class InventoryUiTest {
         val drawn = save.bag.filterIsInstance<CardItem>()
             .filter { it.cardId in BoosterType.BRONZE.pool }
         assertEquals(
-            BoosterType.BRONZE.size,
+            BoosterType.BRONZE.cardCount,
             drawn.sumOf { it.stack },
             "every card the pack dealt should be in the bag: ${save.bag}",
         )

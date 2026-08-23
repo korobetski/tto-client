@@ -311,7 +311,8 @@ class TutorialPuzzleTest {
         const val DODO_ID = 257
         val DODO_POWERS = listOf(4, 2, 3, 4)
 
-        const val GAYLA_ID = 518
+        /** Gayla, number 6 of the FFVIII set — block 8 since that set moved. See `CardSet`. */
+        const val GAYLA_ID = 2054
         val GAYLA_POWERS = listOf(2, 1, 4, 4)
     }
 }

@@ -73,16 +73,20 @@ class ShopUiTest {
     }
 
     @Test
-    fun buyIsDeadUntilAnOfferIsPicked() = runComposeUiTest {
+    fun thereIsNothingToBuyUntilAnOfferIsPicked() = runComposeUiTest {
         val documents = seeded(profile(mgp = GameSave.STARTING_MGP))
         setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openShop(documents)
 
-        onNodeWithTag(SHOP_BUY_TEST_TAG).assertIsNotEnabled()
+        // The button used to be a permanent bar at the foot of the screen, disabled for as long
+        // as nothing was picked. It is in the purchase sheet now, so "nothing picked" is a
+        // button that does not exist rather than one that cannot be pressed.
+        assertFalse(exists(SHOP_SHEET_TEST_TAG), "no sheet before anything is picked")
+        assertFalse(exists(SHOP_BUY_TEST_TAG), "and so no buy button")
 
         val potion = ShopCatalog.ff14.first { it.item == PotionItem(PotionType.MGP) }
         onNodeWithTag(shopOfferTestTag(potion)).performClick()
-        waitForIdle()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(SHOP_BUY_TEST_TAG) }
 
         onNodeWithTag(SHOP_BUY_TEST_TAG).assertIsEnabled()
     }

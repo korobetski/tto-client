@@ -102,9 +102,13 @@ internal fun ColumnScope.CardListBody(
     var ownedOnly by remember(format) { mutableStateOf(false) }
     val sheet = rememberModalBottomSheetState()
 
-    val cards = remember(admitted, set, type, rarity, ownedOnly, owned) {
+    // A card's block folds down to the block that speaks for its whole *set* before it is grouped
+    // or compared — FFXIV spans two blocks and a filter should still offer one "FFXIV" chip, not
+    // one per block it happens to occupy. See `representativeBlocks`.
+    val blockGroups = remember(catalog) { representativeBlocks(catalog.sets) }
+    val cards = remember(admitted, set, type, rarity, ownedOnly, owned, blockGroups) {
         admitted.filter {
-            (set == null || it.block == set) &&
+            (set == null || blockGroups[it.block] == set) &&
                 (type == null || it.type == type) &&
                 (rarity == null || it.rarity == rarity) &&
                 (!ownedOnly || owned.containsKey(it.id))
@@ -139,7 +143,9 @@ internal fun ColumnScope.CardListBody(
     }
 
     CardFilters(
-        sets = remember(admitted) { admitted.map { it.block }.distinct().sorted() },
+        sets = remember(admitted, blockGroups) {
+            admitted.mapNotNull { blockGroups[it.block] }.distinct().sorted()
+        },
         types = remember(
             admitted,
         ) { CardType.entries.filter { t -> admitted.any { it.type == t } } },
@@ -603,25 +609,6 @@ private val DetailPaneWidth = 260.dp
 
 private const val UNOWNED_ALPHA = 0.28f
 
-/**
- * What a set is called, taken from the format that plays it alone.
- *
- * `formats.json` already names both tables — "FFXIV" and "FFVIII" — and the card list was
- * calling them "Set 1" and "Set 2", which is the block number the ids carry rather than
- * anything a player recognises. Looked up by key rather than through the format catalog, which
- * this screen is not given; [BLOCK_PREFIX] is what an unnamed block still falls back to.
- */
-private fun setLabel(strings: Strings, block: Int): String {
-    val key = SET_NAME_KEYS[block]
-    return if (key != null && strings.has(key)) strings[key] else "$BLOCK_PREFIX$block"
-}
-
-private val SET_NAME_KEYS = mapOf(
-    1 to "APP_FORMAT_FF14_STANDARD",
-    2 to "APP_FORMAT_FF8_STANDARD",
-)
-
-private const val BLOCK_PREFIX = "Set "
 private const val STAR = "★"
 
 private val TypeChipSize = 16.dp
@@ -630,5 +617,4 @@ private val TypeChipSize = 16.dp
 private val RarityChipWidth = 29.dp
 private val RarityChipHeight = 28.dp
 
-private const val COPIES_PREFIX = "\u00d7"
 private val CopiesBadgeCorner = 3.dp

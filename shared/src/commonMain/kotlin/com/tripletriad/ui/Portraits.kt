@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -14,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
@@ -55,11 +57,18 @@ internal fun AvatarBadge(
     }
 }
 
+/**
+ * An opponent's portrait, always at the art's own [PORTRAIT_SIZE] — 50x50, what every scraped NPC
+ * portrait file measures. Callers used to ask for this at half a dozen different sizes (26dp in
+ * the match banner, 36dp on a campaign tile, 64dp in the confirmation sheet…), and each one but the
+ * source's own forced a resize: upscaled the low-resolution source into a blur, or downscaled it
+ * and threw resolution away for no reason, since a fixed 50dp box costs a caller nothing a bigger
+ * one did. Fixed at the source size instead, so a portrait is never stretched.
+ */
 @Composable
 internal fun NpcPortrait(
     npc: Npc,
     name: String,
-    size: Dp = PORTRAIT_SIZE,
     modifier: Modifier = Modifier,
 ) {
     val image = rememberPortrait(LocalUiArt.current, npc.iconId)
@@ -68,7 +77,7 @@ internal fun NpcPortrait(
     Box(
         modifier = modifier
             .testTag(portraitTestTag(npc.iconId))
-            .size(size)
+            .size(PORTRAIT_SIZE)
             .clip(shape)
             .background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center,
@@ -227,6 +236,66 @@ internal fun CardThumb(
 }
 
 /**
+ * A card as every grid in the app draws it: the framed thumbnail, its element in the top corner
+ * and a count in the bottom one.
+ *
+ * One composable rather than one per screen. The collection, the deck builder and the shop all
+ * show the same object answering the same two questions — *what element is it* and *how many do
+ * I have* — and they had drifted into three arrangements of it, the shop's being a fourth I had
+ * just invented. What differs between them is only what the count *counts*: copies owned, copies
+ * still unspent by a draft, copies already on the shelf. That stays the caller's business, which
+ * is why the number and its tag are passed in rather than worked out here.
+ *
+ * @param count the badge's number, or null for no badge. A caller that hides `x1` passes
+ *   `copies.takeIf { it > 1 }` — the rule is not the same on every screen.
+ * @param showType false where the element is already said underneath, as the collection's
+ *   detail panel says it.
+ */
+@Composable
+internal fun CardTile(
+    card: Card,
+    modifier: Modifier = Modifier,
+    selected: Boolean = false,
+    dim: Boolean = false,
+    count: Int? = null,
+    countTag: String? = null,
+    showType: Boolean = true,
+) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        CardThumb(
+            card = card,
+            selected = selected,
+            modifier = if (dim) Modifier.alpha(TILE_DIM) else Modifier,
+        )
+
+        if (showType) {
+            Box(modifier = Modifier.align(Alignment.TopEnd).padding(1.dp)) {
+                CardTypeBadge(card = card, size = TileBadgeSize)
+            }
+        }
+
+        if (count != null) {
+            Text(
+                text = "$COPIES_PREFIX$count",
+                color = MaterialTheme.colorScheme.onPrimary,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                modifier = Modifier
+                    .then(countTag?.let { Modifier.testTag(it) } ?: Modifier)
+                    .align(Alignment.BottomEnd)
+                    .padding(1.dp)
+                    .background(
+                        MaterialTheme.colorScheme.primary,
+                        RoundedCornerShape(TileBadgeCorner),
+                    )
+                    .padding(horizontal = 3.dp),
+            )
+        }
+    }
+}
+
+/**
  * A card-sized hole: the frame with nothing in it.
  *
  * An empty deck position is a place a card goes, so it is drawn as one — same footprint, same
@@ -327,9 +396,19 @@ fun portraitTestTag(iconId: String): String = "portrait-$iconId"
 fun thumbTestTag(textureId: String): String = "thumb-$textureId"
 
 private val AVATAR_SIZE = 56.dp
-private val PORTRAIT_SIZE = 44.dp
+
+/** What every NPC portrait file measures — see [NpcPortrait]. */
+private val PORTRAIT_SIZE = 50.dp
 private val ICON_SIZE = 32.dp
 private val THUMB_SIZE = 40.dp
+
+/** The element badge on a tile. Bigger than the stats line's, because it is read at a glance. */
+private val TileBadgeSize = 16.dp
+
+private val TileBadgeCorner = 3.dp
+
+/** How far a tile fades when its card is unowned, or spent by the draft that is being built. */
+private const val TILE_DIM = 0.35f
 
 /** The margin `card_frame.png` leaves around the picture, on each side. */
 internal val FrameMargin = 2.dp

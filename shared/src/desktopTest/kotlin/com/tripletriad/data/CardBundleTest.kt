@@ -1,5 +1,6 @@
 package com.tripletriad.data
 
+import com.tripletriad.FF8_BLOCK
 import com.tripletriad.model.Card
 import com.tripletriad.model.CardType
 import com.tripletriad.ui.loadCardArt
@@ -16,15 +17,22 @@ class CardBundleTest {
 
     @Test
     fun theBundledCatalogHoldsBothCollectionsInFull() {
-        assertEquals(FF14_CARDS, catalog.block(1).size, "the FF14 set")
-        assertEquals(FF8_CARDS, catalog.block(2).size, "the FF8 set")
-        assertEquals(FF14_CARDS + FF8_CARDS, catalog.all.size, "both sets together")
+        // FF14 spans two blocks since the set outgrew 255 cards: block 1 holds the first 255,
+        // block 2 the remaining 199. See `CardSet`.
+        assertEquals(FF14_CARDS_BLOCK_1, catalog.block(1).size, "the FF14 set's first block")
+        assertEquals(FF14_CARDS_BLOCK_2, catalog.block(2).size, "the FF14 set's second block")
+        assertEquals(FF8_CARDS, catalog.block(FF8_BLOCK).size, "the FF8 set")
+        assertEquals(
+            FF14_CARDS_BLOCK_1 + FF14_CARDS_BLOCK_2 + FF8_CARDS,
+            catalog.all.size,
+            "both sets together",
+        )
         assertEquals(listOf("ff14", "ff8"), catalog.releasedSets.map { it.slug })
     }
 
     @Test
     fun everyBundledIdNamesADeclaredSetAndANumberInRange() {
-        val blocks = catalog.sets.map { it.block }.toSet()
+        val blocks = catalog.sets.flatMap { it.blocks }.toSet()
 
         assertEquals(catalog.all.size, catalog.all.map { it.id }.toSet().size, "ids are unique")
         for (card in catalog.all) {
@@ -88,7 +96,8 @@ class CardBundleTest {
     }
 
     private companion object {
-        const val FF14_CARDS = 153
+        const val FF14_CARDS_BLOCK_1 = 255
+        const val FF14_CARDS_BLOCK_2 = 199
         const val FF8_CARDS = 110
         const val MISSING_TO_REPORT = 10
 

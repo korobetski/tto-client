@@ -37,5 +37,3 @@ internal fun ownedNote(strings: Strings, item: Item, owned: Map<Int, Int>): Stri
     val copies = (item as? CardItem)?.let { owned[it.cardId] } ?: 0
     return if (copies > 0) "${strings[StringKeys.ALREADY_OWNED]} $COPIES_PREFIX$copies" else null
 }
-
-private const val COPIES_PREFIX = "\u00d7"

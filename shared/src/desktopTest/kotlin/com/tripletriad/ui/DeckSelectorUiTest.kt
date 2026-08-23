@@ -57,6 +57,7 @@ class DeckSelectorUiTest {
         openOpponents()
         scrollToOpponent(iconId)
         onNodeWithTag(opponentRowTestTag(iconId)).performClick()
+        onNodeWithTag(OPPONENT_CHALLENGE_TEST_TAG).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_SELECT_CHOOSE_TEST_TAG) }
     }
 
@@ -178,6 +179,7 @@ class DeckSelectorUiTest {
             .performScrollToNode(hasTestTag(opponentRowTestTag(RANDOM_OPPONENT)))
         scrollToOpponent(RANDOM_OPPONENT)
         onNodeWithTag(opponentRowTestTag(RANDOM_OPPONENT)).performClick()
+        onNodeWithTag(OPPONENT_CHALLENGE_TEST_TAG).performClick()
         awaitBoard()
 
         assertFalse(exists(DECK_SELECT_CHOOSE_TEST_TAG), "Random must not ask for a deck")

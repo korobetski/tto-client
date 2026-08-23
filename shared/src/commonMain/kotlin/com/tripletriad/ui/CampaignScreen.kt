@@ -27,12 +27,14 @@ import com.tripletriad.data.Campaign
 import com.tripletriad.data.CampaignStep
 import com.tripletriad.data.CardCatalog
 import com.tripletriad.data.Format
+import com.tripletriad.data.PveMatches
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.Strings
 import com.tripletriad.model.Card
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.MatchResult
+import com.tripletriad.protocol.ANY_DECK
 import com.tripletriad.ui.theme.LocalTtoColors
 
 const val CAMPAIGN_LIST_TEST_TAG: String = "campaign-list"
@@ -54,11 +56,14 @@ fun campaignRowTestTag(key: String): String = "campaign-row-$key"
 fun campaignSummaryRowTestTag(step: Int): String = "campaign-summary-row-$step"
 
 @Composable
+@Suppress("LongParameterList")
 internal fun CampaignScreen(
     campaign: Campaign,
     profile: GameSave,
     cards: Map<Int, Card> = emptyMap(),
     today: String = "",
+    /** Whether any deck this ladder's format admits exists. See [CampaignRung] for the choice. */
+    hasDeck: Boolean = true,
     onStart: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -105,9 +110,15 @@ internal fun CampaignScreen(
         // rung costs the attempt, so a run that is over does not hand it back. Shown as a reason
         // rather than left to the button being mysteriously grey.
         val spent = resuming == null && profile.hasEnteredToday(campaign.key, today)
+        // A ladder is played under its **own** format, so a profile whose decks are all of the
+        // other block cannot field a hand on any rung of it. Said here, before the fee, because
+        // the referee's answer to it is `UNDEALABLE` — a refusal arriving after the entry was
+        // bought, on a board that never dealt.
+        val undealable = !hasDeck
         val reason = when {
             locked -> StringKeys.CAMPAIGN_LOCKED
             spent -> StringKeys.CAMPAIGN_ENTERED_TODAY
+            undealable -> StringKeys.CAMPAIGN_NO_DECK
             else -> null
         }
         if (reason != null) {
@@ -135,7 +146,8 @@ internal fun CampaignScreen(
             // holds the profile, which is what actually decides. This is the button being honest
             // about the answer, not the rule — a hidden button is not a rule, which is the lesson
             // the entry fee itself taught.
-            enabled = !locked && !spent && (resuming != null || profile.mgp >= campaign.fee),
+            enabled = !locked && !spent && !undealable &&
+                (resuming != null || profile.mgp >= campaign.fee),
             onClick = onStart,
         )
     }
@@ -159,7 +171,7 @@ private fun RungRow(step: Int, entry: CampaignStep) {
         )
         // The Card Club's seven rungs are the ones with no portrait in the asset tree, so this is
         // also where the monogram fallback earns its keep — see `NpcPortrait`.
-        NpcPortrait(npc = npc, name = strings[npc.nameKey], size = 36.dp)
+        NpcPortrait(npc = npc, name = strings[npc.nameKey])
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -259,6 +271,7 @@ internal fun CampaignMatchScreen(
     catalog: CardCatalog,
     format: Format,
     pve: PveSession,
+    profile: GameSave,
     onFinished: () -> Unit,
     resumedStep: Int? = null,
 ) {
@@ -348,25 +361,16 @@ internal fun CampaignMatchScreen(
         // sharing an icon would otherwise silently keep the board. `attempt` is in the key for the
         // same reason a rung is — a replayed draw is a different match on the same rung.
         key(step, attempt) {
-            // One match per rung, opened when the rung opens. `resume` first, so a ladder
-            // interrupted mid-rung comes back on the board it was on rather than paying the
-            // entry fee for a position the player had already reached.
-            LaunchedEffect(pve, entry.npc.iconId, step, attempt) {
-                pve.resume(against = entry.npc.iconId)
-                if (pve.match == null) {
-                    // Named as a ladder match, so the referee can waive the opponent's own stake
-                    // and pay the run's rates. It is a claim the server checks against the run it
-                    // holds — see `PveMatchRequest.campaignKey`.
-                    pve.open(entry.npc.iconId, format.id, campaignKey = campaign.key)
-                }
-            }
-            PveMatchScreen(
-                session = pve,
+            CampaignRung(
+                campaign = campaign,
+                entry = entry,
                 catalog = catalog,
-                npc = entry.npc,
-                onExit = onFinished,
+                format = format,
+                pve = pve,
+                profile = profile,
                 script = script,
-                scriptExit = exit,
+                exit = exit,
+                onFinished = onFinished,
                 onResult = {
                     result = it
                     record[step] = it
@@ -374,6 +378,100 @@ internal fun CampaignMatchScreen(
             )
         }
     }
+}
+
+/**
+ * One rung: the deck question, then the board.
+ *
+ * ### The deck is asked **per rung**, and under the ladder's format
+ *
+ * A run is four matches, and what beat the last opponent is not what beats the next — so the
+ * question is put again between every one of them, exactly as free play puts it before a match.
+ * `key(step, attempt)` at the call site is what resets the answer, which is also why a replayed
+ * draw asks again: it is a different match on the same rung.
+ *
+ * [DeckSelectorScreen] draws from `PveMatches.playableDecks` under **[format]**, the ladder's own,
+ * so only decks this tournament admits are offered. That is the half that was missing: a rung used
+ * to be opened with whatever [PveSession.deck] still held from somewhere else, and the referee's
+ * fallback for `ANY_DECK` — `PveMatches.playerDeck` — takes the first *complete* deck and asks
+ * nothing about the format. An FFXIV deck brought to the Balamb ladder is five cards its pool does
+ * not admit, so the deal threw and the request came back `UNDEALABLE` on every attempt, which the
+ * board reported as a dead connection.
+ *
+ * ### Which is why "Random" is not `ANY_DECK` here
+ *
+ * The selector's own Random means "no choice, you draw", and the referee draws format-blind. In a
+ * ladder that is the very trap above, so it is resolved on this side to the first deck the format
+ * does admit. The player still said "pick for me"; this picks something that can be dealt.
+ *
+ * A match already in progress is never asked about — [PveSession.resume] runs first, and a player
+ * coming back to a board they were mid-way through is not offered a re-deal.
+ */
+@Composable
+@Suppress("LongParameterList")
+private fun CampaignRung(
+    campaign: Campaign,
+    entry: CampaignStep,
+    catalog: CardCatalog,
+    format: Format,
+    pve: PveSession,
+    profile: GameSave,
+    script: MatchScript,
+    exit: ScriptExit?,
+    onFinished: () -> Unit,
+    onResult: (MatchResult) -> Unit,
+) {
+    // Null is "not answered yet"; `ANY_DECK` is an answer. The same two states free play uses.
+    var deck by remember { mutableStateOf<Int?>(null) }
+    var resumed by remember { mutableStateOf(false) }
+
+    LaunchedEffect(pve, entry.npc.iconId) {
+        pve.resume(against = entry.npc.iconId)
+        resumed = true
+    }
+    if (!resumed) return
+
+    val playable = remember(profile.decks, profile.cards, catalog, format) {
+        PveMatches.playableDecks(profile, catalog, format)
+    }
+
+    if (pve.match == null && deck == null) {
+        DeckSelectorScreen(
+            profile = profile,
+            catalog = catalog,
+            format = format,
+            npc = entry.npc,
+            rules = entry.npc.gameRules(),
+            onChoose = { chosen ->
+                deck = if (chosen == ANY_DECK) {
+                    playable.firstOrNull()?.index ?: ANY_DECK
+                } else {
+                    chosen
+                }
+            },
+            onBack = onFinished,
+        )
+        return
+    }
+
+    LaunchedEffect(pve, entry.npc.iconId, deck) {
+        if (pve.match != null) return@LaunchedEffect
+        pve.deck = deck ?: ANY_DECK
+        // Named as a ladder match, so the referee can waive the opponent's own stake and pay the
+        // run's rates. It is a claim the server checks against the run it holds — see
+        // `PveMatchRequest.campaignKey`.
+        pve.open(entry.npc.iconId, format.id, campaignKey = campaign.key)
+    }
+
+    PveMatchScreen(
+        session = pve,
+        catalog = catalog,
+        npc = entry.npc,
+        onExit = onFinished,
+        script = script,
+        scriptExit = exit,
+        onResult = onResult,
+    )
 }
 
 /**
@@ -455,7 +553,7 @@ private fun SummaryRow(step: Int, entry: CampaignStep, outcome: MatchResult?) {
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold,
         )
-        NpcPortrait(npc = entry.npc, name = strings[entry.npc.nameKey], size = 36.dp)
+        NpcPortrait(npc = entry.npc, name = strings[entry.npc.nameKey])
         Text(
             text = strings[entry.npc.nameKey],
             color = colors.onSurface,

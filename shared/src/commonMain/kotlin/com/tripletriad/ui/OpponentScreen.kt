@@ -1,16 +1,28 @@
 package com.tripletriad.ui
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -19,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tripletriad.data.Campaign
+import com.tripletriad.data.CardSet
 import com.tripletriad.data.NpcCatalog
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
@@ -27,8 +40,8 @@ import com.tripletriad.model.Card
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.MatchResult
 import com.tripletriad.model.Npc
+import com.tripletriad.model.NpcLevel
 import com.tripletriad.ui.theme.LocalTtoColors
-import kotlin.math.roundToInt
 import kotlin.random.Random
 
 const val OPPONENT_LIST_TEST_TAG: String = "opponent-list"
@@ -40,26 +53,24 @@ const val OPPONENT_UNEARNED_TEST_TAG: String = "opponent-unearned"
 
 const val RANDOM_OPPONENT_TEST_TAG: String = "opponent-random"
 
-/*
- * `TUTORIAL_ROW_TEST_TAG` used to be here, over a row this panel drew above the ladders —
- * `PVEScreen.as:79` draws the tutorial as a bare `tt_tuto` texture in exactly that place.
- *
- * It is gone because the tutorial is no longer one thing: it is a course of twelve lessons with an
- * order and a place you are up to, none of which a row on a list of *opponents* can say. It has a
- * screen and a dashboard entry of its own — see `LessonsScreen`, which explains the move and why
- * there is only one way in.
- */
+const val OPPONENT_SHEET_TEST_TAG: String = "opponent-sheet"
+
+const val OPPONENT_CHALLENGE_TEST_TAG: String = "opponent-challenge"
+
+fun opponentBlockFilterTestTag(block: Int?): String = "opponent-filter-block-${block ?: "all"}"
 
 fun opponentRowTestTag(iconId: String): String = "opponent-row-$iconId"
 
 fun opponentRewardsTestTag(iconId: String): String = "opponent-rewards-$iconId"
 
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 @Suppress("LongParameterList")
 internal fun OpponentScreen(
     profile: GameSave,
     catalog: NpcCatalog,
     cards: Map<Int, Card>,
+    sets: List<CardSet>,
     hour: Int,
     formatId: String,
     onChallenge: (Npc) -> Unit,
@@ -84,48 +95,116 @@ internal fun OpponentScreen(
         catalog.lockedByAchievement(formatId, earned)
     }
 
+    // Which of `opponents`' own card pools is playing — FFXIV's blocks or FFVIII's. Not a format:
+    // the widest format admits every block at once, on purpose (see the caller), so telling two
+    // collections apart on this screen is a read of the roster the format already handed back,
+    // not a second query. Reset with the roster so a stale choice from a wider format cannot hide
+    // every opponent a narrower one has.
+    //
+    // A card's raw block folds down to the block that speaks for its whole *set* before it is
+    // grouped or compared — FFXIV spans two blocks and an opponent drawing from the second should
+    // still file under the same "FFXIV" chip as one drawing from the first, not a "Set 2" of its
+    // own. See `representativeBlocks`.
+    val blockGroups = remember(sets) { representativeBlocks(sets) }
+    fun Npc.group(): Int? = block()?.let { blockGroups[it] ?: it }
+    var block by remember(opponents) { mutableStateOf<Int?>(null) }
+    val blocks = remember(opponents, blockGroups) {
+        opponents.mapNotNull { it.group() }.distinct().sorted()
+    }
+    val shown = remember(opponents, block, blockGroups) {
+        if (block == null) opponents else opponents.filter { it.group() == block }
+    }
+    // Grouped rather than flattened, so a sticky header can say which skill band a row belongs to
+    // without repeating it on every row. `shown` is already sorted by difficulty (`available()`),
+    // and `NpcLevel` is derived from difficulty by `NpcRating.levelFor` — non-decreasing in it — so
+    // the groups come out in ascending order for free, the same way `groupBy` preserves the order
+    // it first sees a key in.
+    val tiers = remember(shown) { shown.groupBy { it.level } }
+
+    // The opponent a tap opened the detail sheet for, or null. Kept as an id rather than the `Npc`
+    // itself so a filter change that removes it from `shown` closes the sheet by simply finding
+    // nothing, instead of holding a stale reference to an opponent no longer on screen.
+    var detailIcon by remember(shown) { mutableStateOf<String?>(null) }
+    val detail = shown.firstOrNull { it.iconId == detailIcon }
+    val sheetState = rememberModalBottomSheetState()
+
     ScreenScaffold(
         title = strings[StringKeys.OPPONENTS],
         onBack = onBack,
     ) {
-        CampaignPanel(
-            campaigns = campaigns,
-            profile = profile,
-            onCampaign = onCampaign,
-        )
+        // One `LazyColumn` for the whole screen rather than a static header above a second,
+        // separately-scrolling one. The header used to be a handful of composables sitting above
+        // the roster's own `LazyColumn`, each consuming real height in a `Column` that does not
+        // scroll — and the more shelves this screen grew, the less of that height was left for the
+        // roster to compose *any* row into, on a short window. A row a test could find without
+        // scrolling stopped being found not because it moved, but because the space it needed had
+        // been spent above it. One scrollable list is the same fix `ShopBody` makes for the same
+        // reason: nothing above the fold can starve what is below it.
+        LazyColumn(
+            modifier = Modifier.testTag(OPPONENT_LIST_TEST_TAG).fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(SpaceSm),
+        ) {
+            // Only when there is a second collection to tell apart from the first — one block
+            // admitted is not a filter, it is a row of one chip that does nothing. Same rule the
+            // card list's own set row follows.
+            if (blocks.size > 1) {
+                item(key = BLOCK_FILTER_KEY) {
+                    BlockFilterRow(blocks = blocks, selected = block, onSelect = { block = it })
+                }
+            }
 
-        if (opponents.isEmpty()) {
-            Text(
-                text = strings[StringKeys.NO_OPPONENT],
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.testTag(OPPONENT_EMPTY_TEST_TAG).padding(vertical = SpaceXl),
-            )
-        } else {
-            // One tap into a match against whoever the roster hands back, rather than scrolling
-            // the list to pick. `opponents` is already the unlocked roster — the same list a row
-            // is drawn from — so this can never land on somebody still gated by level or hour.
-            WideButton(
-                label = strings[StringKeys.RANDOM_OPPONENT],
-                tag = RANDOM_OPPONENT_TEST_TAG,
-                filled = false,
-                onClick = { onChallenge(opponents.random(Random)) },
-            )
+            item(key = CAMPAIGNS_KEY) {
+                CampaignPanel(campaigns = campaigns, profile = profile, onCampaign = onCampaign)
+            }
 
-            LazyColumn(
-                modifier = Modifier
-                    .testTag(OPPONENT_LIST_TEST_TAG)
-                    .fillMaxWidth()
-                    .padding(top = SpaceSm),
-                verticalArrangement = Arrangement.spacedBy(SpaceSm),
-            ) {
-                items(opponents, key = { it.iconId }) { npc ->
-                    OpponentRow(
-                        npc = npc,
-                        cards = cards,
-                        owned = profile.cards,
-                        onClick = { onChallenge(npc) },
+            item(key = SHELVES_KEY) {
+                OpponentShelves(
+                    opponents = shown,
+                    cards = cards,
+                    profile = profile,
+                    // Opens the same confirmation sheet a roster row does rather than launching a
+                    // match straight from a tap — a shelf tile is a shortcut to *find* an opponent,
+                    // not a shortcut past reading their rules before playing them.
+                    onSelect = { detailIcon = it.iconId },
+                )
+            }
+
+            if (shown.isEmpty()) {
+                item(key = EMPTY_KEY) {
+                    Text(
+                        text = strings[StringKeys.NO_OPPONENT],
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier
+                            .testTag(OPPONENT_EMPTY_TEST_TAG)
+                            .padding(vertical = SpaceXl),
                     )
+                }
+            } else {
+                item(key = RANDOM_KEY) {
+                    // One tap into a match against whoever the roster hands back, rather than
+                    // scrolling the list to pick. `shown` is already the unlocked roster, one
+                    // collection's worth of it — the same list a row is drawn from — so this can
+                    // never land on somebody still gated by level or hour, or in the collection
+                    // the player just hid.
+                    WideButton(
+                        label = strings[StringKeys.RANDOM_OPPONENT],
+                        tag = RANDOM_OPPONENT_TEST_TAG,
+                        filled = false,
+                        onClick = { onChallenge(shown.random(Random)) },
+                    )
+                }
+
+                for ((level, npcs) in tiers) {
+                    stickyHeader(key = "tier-${level.name}") { TierHeader(level) }
+                    items(npcs, key = { it.iconId }) { npc ->
+                        OpponentRow(
+                            npc = npc,
+                            cards = cards,
+                            owned = profile.cards,
+                            onClick = { detailIcon = npc.iconId },
+                        )
+                    }
                 }
 
                 // Under the list rather than over it: it is a footnote about what is *not* here,
@@ -153,6 +232,27 @@ internal fun OpponentScreen(
             }
         }
     }
+
+    // Outside the scaffold for the same reason `StoreScreen` puts its own sheet there: it covers
+    // the screen rather than sitting in the column, and `ModalBottomSheet` hoists itself to its own
+    // surface regardless of where it is called from.
+    detail?.let { npc ->
+        ModalBottomSheet(
+            onDismissRequest = { detailIcon = null },
+            sheetState = sheetState,
+            modifier = Modifier.testTag(OPPONENT_SHEET_TEST_TAG),
+        ) {
+            OpponentDetailSheet(
+                npc = npc,
+                cards = cards,
+                owned = profile.cards,
+                onChallenge = {
+                    detailIcon = null
+                    onChallenge(npc)
+                },
+            )
+        }
+    }
 }
 
 /** The two footnotes under the roster, which differ only in what they say. */
@@ -166,52 +266,59 @@ private fun Footnote(text: String, tag: String) {
     )
 }
 
+private const val BLOCK_FILTER_KEY = "block-filter"
+
+private const val CAMPAIGNS_KEY = "campaigns"
+
+private const val SHELVES_KEY = "shelves"
+
+private const val EMPTY_KEY = "empty"
+
+private const val RANDOM_KEY = "random"
+
 private const val LOCKED_KEY = "locked-note"
 
 private const val UNEARNED_KEY = "unearned-note"
 
+/**
+ * The block this opponent's own card pool plays — FFXIV's or FFVIII's — or null for an opponent
+ * with no cards to speak of.
+ *
+ * Not a field on [Npc]: it is read off the same fact [com.tripletriad.data.ShopOffer.block]
+ * derives a shop offer's block from, an opponent's `cards` pool, rather than authored a second
+ * time. Roulette-format opponents can only ever draw from one block regardless — nothing in
+ * `npcs.json` mixes the two — so the first card is as good a witness as any.
+ */
+private fun Npc.block(): Int? = cards.firstOrNull()?.shr(Card.BLOCK_SHIFT)
+
+/**
+ * The skill-band header a run of rows sticks under while it scrolls.
+ *
+ * Painted over an explicit background rather than left transparent: a sticky header sits on top of
+ * the rows still scrolling underneath it, and a transparent one would show them bleeding through.
+ */
 @Composable
-private fun CampaignPanel(
-    campaigns: List<Campaign>,
-    profile: GameSave,
-    onCampaign: (Campaign) -> Unit,
-) {
+private fun TierHeader(level: NpcLevel) {
     val strings = LocalStrings.current
-
-    SectionHeader(text = strings[StringKeys.CAMPAIGNS], modifier = Modifier.fillMaxWidth())
-    for (campaign in campaigns) {
-        // A ladder still to be earned is dimmed rather than hidden — the same reasoning the entry
-        // fee's disabled button follows. A tournament nobody can see is a tournament nobody knows
-        // to work towards, and being told what to beat first is the point of gating it.
-        val locked = !campaign.isUnlockedFor(profile)
-        CampaignRow(
-            label = campaignTitle(strings, campaign),
-            tag = campaignRowTestTag(campaign.key),
-            locked = locked,
-            onClick = { onCampaign(campaign) },
-        )
-    }
-}
-
-@Composable
-private fun CampaignRow(label: String, tag: String, locked: Boolean, onClick: () -> Unit) {
     Text(
-        text = label,
-        color = MaterialTheme.colorScheme.primary.copy(alpha = if (locked) DISABLED else 1f),
-        style = MaterialTheme.typography.titleSmall,
+        text = strings[level.labelKey].uppercase(),
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = SUBDUED),
+        style = MaterialTheme.typography.labelSmall,
         fontWeight = FontWeight.Bold,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
         modifier = Modifier
-            .testTag(tag)
             .fillMaxWidth()
-            .padding(bottom = SpaceSm)
-            .rowSurface()
-            .ttoClickable(onClick = onClick)
-            .padding(SpaceMd),
+            .background(MaterialTheme.colorScheme.background)
+            .padding(vertical = SpaceXs, horizontal = 2.dp),
     )
 }
 
+/**
+ * One opponent, 56 dp tall rather than the four-line card this used to be.
+ *
+ * Everything that does not fit at a glance — the rules imposed, the full drop table, the win/xp
+ * payout — moved into [OpponentDetailSheet], which a tap on this row opens rather than starting a
+ * match outright. Eighty-five of these no longer cost twenty screens of scrolling to get through.
+ */
 @Composable
 private fun OpponentRow(
     npc: Npc,
@@ -220,69 +327,137 @@ private fun OpponentRow(
     onClick: () -> Unit,
 ) {
     val strings = LocalStrings.current
-    val rewards = remember(npc, cards) { npcCardRewards(npc, cards) }
+    // Only whether the drop table has something missing, not what it is — the same fact the
+    // "they have a card you're missing" shelf filters on, read here as a dot because a 56 dp row
+    // has no room to spell it out and the shelf above already does.
+    val wants = remember(npc, cards, owned) {
+        npcCardRewards(npc, cards).any { (card, _) -> (owned[card.id] ?: 0) <= 0 }
+    }
 
-    Column(
+    Row(
         modifier = Modifier
             .testTag(opponentRowTestTag(npc.iconId))
             .fillMaxWidth()
             .rowSurface()
             .ttoClickable(onClick = onClick)
-            .padding(SpaceMd),
-        verticalArrangement = Arrangement.spacedBy(3.dp),
+            .padding(horizontal = SpaceMd, vertical = SpaceSm),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(SpaceSm),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(SpaceSm),
-        ) {
-            NpcPortrait(npc = npc, name = strings[npc.nameKey])
+        NpcPortrait(npc = npc, name = strings[npc.nameKey])
+
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = strings[npc.nameKey],
                 color = MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
             )
             Text(
                 text = strings[npc.level.labelKey],
-                color = MaterialTheme.colorScheme.primary,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
                 style = MaterialTheme.typography.labelSmall,
                 maxLines = 1,
-                softWrap = false,
             )
+        }
+
+        if (wants) {
+            Box(
+                modifier = Modifier
+                    .size(WantDotSize)
+                    .background(MaterialTheme.colorScheme.tertiary, CircleShape),
+            )
+        }
+
+        Icon(
+            imageVector = TtoIcons.Chip,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.tertiary,
+            modifier = Modifier.size(FeeCoinSize),
+        )
+        Text(
+            text = "${npc.matchFee}",
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
+            softWrap = false,
+        )
+    }
+}
+
+private val WantDotSize = 6.dp
+private val FeeCoinSize = 13.dp
+
+/**
+ * The detail a row's tap opens: portrait at full size, the rules and payout the row has no room
+ * for, the drop table — still without its odds, see [RewardCards] — and the [StringKeys.CHALLENGE]
+ * button that actually starts the match.
+ */
+@Composable
+private fun OpponentDetailSheet(
+    npc: Npc,
+    cards: Map<Int, Card>,
+    owned: Map<Int, Int>,
+    onChallenge: () -> Unit,
+) {
+    val strings = LocalStrings.current
+    val rewards = remember(npc, cards) { npcCardRewards(npc, cards) }
+
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = SpaceLg, vertical = SpaceSm),
+        verticalArrangement = Arrangement.spacedBy(SpaceSm),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(SpaceMd),
+        ) {
+            NpcPortrait(npc = npc, name = strings[npc.nameKey])
+            Column {
+                Text(
+                    text = strings[npc.nameKey],
+                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = strings[npc.level.labelKey],
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
         }
 
         Text(
             text = rewardLine(strings, npc),
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
-            style = MaterialTheme.typography.labelMedium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            style = MaterialTheme.typography.bodyMedium,
         )
 
-        // The rules line is omitted rather than shown empty: "no special rules" is what an absent
-        // line already says, and a row that is always three lines tall wastes a third of a phone
-        // list on the majority of opponents that impose nothing.
+        // Omitted rather than shown empty: "no special rules" is what an absent line already
+        // says, the same reasoning the old row's own rules line followed.
         val rules = npc.ruleKeys
         if (rules.isNotEmpty()) {
             Text(
                 text = rules.joinToString(DOT_SEPARATOR) { strings[it] },
                 color = LocalTtoColors.current.transient,
                 style = MaterialTheme.typography.labelSmall,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
             )
         }
 
-        // Omitted rather than shown empty, for the same reason as the rules line. One of the 85
-        // opponents drops no card at all — `STR_NPC_MARTINE` — and a caption over nothing would
-        // read as a missing image.
+        // Omitted rather than shown empty, for the same reason. One of the 85 opponents drops no
+        // card at all — `STR_NPC_MARTINE` — and a caption over nothing would read as a missing
+        // image.
         if (rewards.isNotEmpty()) {
             RewardCards(iconId = npc.iconId, rewards = rewards, owned = owned)
         }
+
+        WideButton(
+            label = strings[StringKeys.CHALLENGE],
+            tag = OPPONENT_CHALLENGE_TEST_TAG,
+            onClick = onChallenge,
+        )
     }
 }
 
@@ -292,6 +467,10 @@ private fun OpponentRow(
  * A copy already in the bag is drawn at full strength and one that is not is dimmed — the same
  * [UNOWNED_ALPHA] the card list dims an unowned thumb by, see `CardListBody.kt`, so "not yet mine"
  * reads the same wherever a card is shown next to others the collection may or may not hold.
+ *
+ * **No odds are shown**, on the same instruction the shop's booster tiles follow: knowing which
+ * cards are in play is worth keeping, knowing exactly how likely each one is is worth losing —
+ * see `ShopBody.BoosterTile`.
  */
 @Composable
 internal fun RewardCards(iconId: String, rewards: List<Pair<Card, Double>>, owned: Map<Int, Int>) {
@@ -307,21 +486,12 @@ internal fun RewardCards(iconId: String, rewards: List<Pair<Card, Double>>, owne
         modifier = Modifier.testTag(opponentRewardsTestTag(iconId)),
         horizontalArrangement = Arrangement.spacedBy(SpaceSm),
     ) {
-        for ((card, rate) in rewards) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                val dim = (owned[card.id] ?: 0) <= 0
-                CardThumb(
-                    card = card,
-                    modifier = if (dim) Modifier.alpha(UNOWNED_ALPHA) else Modifier,
-                )
-                Text(
-                    text = "${(rate * PERCENT).roundToInt()}%",
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1,
-                    softWrap = false,
-                )
-            }
+        for ((card, _) in rewards) {
+            val dim = (owned[card.id] ?: 0) <= 0
+            CardThumb(
+                card = card,
+                modifier = if (dim) Modifier.alpha(UNOWNED_ALPHA) else Modifier,
+            )
         }
     }
 }
@@ -338,8 +508,6 @@ internal fun npcCardRewards(npc: Npc, cards: Map<Int, Card>): List<Pair<Card, Do
     npc.itemRewards.mapNotNull { reward ->
         reward.cardId?.let { id -> cards[id]?.let { it to reward.rate } }
     }
-
-private const val PERCENT = 100
 
 private const val UNOWNED_ALPHA = 0.28f
 

@@ -158,8 +158,6 @@ object StringKeys {
     const val PACK_REVEAL: String = "APP_PACK_REVEAL"
     const val PACK_TO_COLLECTION: String = "APP_PACK_TO_COLLECTION"
 
-    const val PACK_GUARANTEE: String = "APP_PACK_GUARANTEE"
-
     const val PACK_ODDS: String = "APP_PACK_ODDS"
 
     const val ALL: String = "APP_ALL"
@@ -177,6 +175,7 @@ object StringKeys {
     const val WIN_RATE: String = "APP_WIN_RATE"
 
     const val BOONS: String = "APP_BOONS"
+    const val BOOSTERS: String = "APP_BOOSTERS"
 
     const val NO_ACHIEVEMENT: String = "APP_NO_ACHIEVEMENT"
 
@@ -369,6 +368,14 @@ object StringKeys {
 
     const val CAMPAIGN_ENTERED_TODAY: String = "APP_CAMPAIGN_ENTERED_TODAY"
 
+    // The tournament tile's subtitle: "5 rounds", read off `Campaign.steps.size`. Distinct from
+    // `CAMPAIGN_STEP` ("Match 3 of 5"), which is a position inside a run under way rather than
+    // a fact about the ladder shown before entering one.
+    const val CAMPAIGN_ROUNDS: String = "APP_CAMPAIGN_ROUNDS"
+
+    /** No deck this ladder's own format admits. The one gate the player fixes in the editor. */
+    const val CAMPAIGN_NO_DECK: String = "APP_CAMPAIGN_NO_DECK"
+
     // ---- The account the menu remembers.
     const val SERVERS: String = "APP_SERVERS"
 
@@ -404,8 +411,11 @@ object StringKeys {
 
     const val ERROR_STATUS: String = "APP_ERROR_STATUS"
 
-    /** One line for every `PveRefusal`: the board on screen is out of date. */
+    /** One line for every `PveRefusal` but `UNDEALABLE`: the board on screen is out of date. */
     const val ERROR_STALE_MATCH: String = "APP_ERROR_STALE_MATCH"
+
+    /** `PveRefusal.UNDEALABLE`, which retrying never fixes — the deck is the wrong pool. */
+    const val ERROR_UNDEALABLE: String = "APP_ERROR_UNDEALABLE"
 
     const val LOADING: String = "APP_LOADING"
 
@@ -433,6 +443,11 @@ object StringKeys {
     const val OPPONENTS_LOCKED: String = "APP_OPPONENTS_LOCKED"
 
     const val OPPONENTS_UNEARNED: String = "APP_OPPONENTS_UNEARNED"
+
+    /** The three shelves above the roster — see `OpponentShelves`. */
+    const val OPPONENTS_NEW: String = "APP_OPPONENTS_NEW"
+    const val OPPONENTS_WANTED: String = "APP_OPPONENTS_WANTED"
+    const val OPPONENTS_TIMED: String = "APP_OPPONENTS_TIMED"
 
     // ---- The server list, which had no translated string on it at all.
     const val SERVERS_BLURB: String = "APP_SERVERS_BLURB"
@@ -483,7 +498,7 @@ object StringKeys {
         ITEM_REFUSED, NOTHING_HAPPENED, ACTION_FAILED,
         STARTER_PACK, STARTER_PACK_DESC, FREE, CLAIM, ALL,
         PACK_SEALED, PACK_BREAK_SEAL, PACK_SPENT, PACK_REVEAL, PACK_TO_COLLECTION,
-        PACK_GUARANTEE, PACK_ODDS,
+        PACK_ODDS, BOOSTERS,
         ACHIEVEMENTS_LIST, FORFEITS, MATCHES, WIN_RATE, BOONS, NO_ACHIEVEMENT, NEXT_TIER,
         QUESTS, QUESTS_RESET, QUEST_DONE, NO_QUEST,
         QUEST_PLAY_3, QUEST_WIN_1, QUEST_WIN_3, QUEST_BEAT, QUEST_RULE, QUEST_PVP_1,
@@ -525,16 +540,17 @@ object StringKeys {
         CAMPAIGNS, CAMPAIGN_FINAL_REWARD, CAMPAIGN_BALAMB, CAMPAIGN_STEP,
         CAMPAIGN_RESULTS, CAMPAIGN_COMPLETE, CAMPAIGN_ELIMINATED, CAMPAIGN_NOT_REACHED,
         CAMPAIGN_LOCKED,
-        CAMPAIGN_ENTERED_TODAY,
+        CAMPAIGN_ENTERED_TODAY, CAMPAIGN_NO_DECK, CAMPAIGN_ROUNDS,
         SERVERS, CONTINUE, SESSION_RESTORED, SESSION_CONNECTING, SESSION_LAPSED,
         SIGN_IN_AGAIN, SWITCH_ACCOUNT,
         SIGN_IN, CREATE_ACCOUNT, PASSWORD, ACCOUNT_BLURB,
         ACCOUNT_TO_REGISTER, ACCOUNT_TO_SIGN_IN, UPDATE_NEEDED,
-        ERROR_OFFLINE, ERROR_UPDATE, ERROR_STATUS, ERROR_STALE_MATCH,
+        ERROR_OFFLINE, ERROR_UPDATE, ERROR_STATUS, ERROR_STALE_MATCH, ERROR_UNDEALABLE,
         ERROR_THROTTLED, ERROR_THROTTLED_IN,
         NO_SEEDS, LOADING, RETRY, CARD_FACE_DOWN, PROFILE_LOCAL_NOTE,
         ERROR_NAME_TAKEN, ERROR_BAD_CREDENTIALS, ERROR_EXPIRED,
         OPPONENTS_LOCKED, OPPONENTS_UNEARNED, REWARD_CARDS,
+        OPPONENTS_NEW, OPPONENTS_WANTED, OPPONENTS_TIMED,
         HELP_FAMILY_SIGHT, HELP_FAMILY_PLAY, HELP_FAMILY_CAPTURE, HELP_FAMILY_ELEMENTS,
         SERVERS_BLURB, SERVERS_CHECK, SERVERS_CHECKING,
         SERVER_UNKNOWN, SERVER_CHECKING, SERVER_ONLINE, SERVER_DEGRADED,

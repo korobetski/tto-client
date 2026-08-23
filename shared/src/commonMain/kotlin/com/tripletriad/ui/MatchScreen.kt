@@ -560,7 +560,7 @@ private fun StatusRow(
                 horizontalArrangement = Arrangement.spacedBy(5.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                NpcPortrait(npc = npc, name = opponentName, size = BannerPortraitSize)
+                NpcPortrait(npc = npc, name = opponentName)
                 Text(
                     text = opponentName,
                     color = CardColor.RED.edge,
@@ -724,8 +724,6 @@ private val TurnTimerHeight = 3.dp
 private val TurnTimerShape = RoundedCornerShape(2.dp)
 
 private val ExitButtonSize = 34.dp
-
-private val BannerPortraitSize = 26.dp
 
 private fun HandVisibility.reindexedFor(played: MatchState): HandVisibility =
     played.lastPlay

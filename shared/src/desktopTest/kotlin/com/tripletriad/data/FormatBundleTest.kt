@@ -18,10 +18,17 @@ class FormatBundleTest {
 
     @Test
     fun eachSetHasASingleSetFormatThatDrawsSomething() {
-        for ((id, block) in listOf(FF14_FORMAT to FF14_BLOCK, FF8_FORMAT to FF8_BLOCK)) {
+        // FF14 admits both of its blocks — it outgrew 255 cards and split across two, and a
+        // format that took only the first would deal a collection nobody can play out of. FF8
+        // still fits in one.
+        val expected = listOf(
+            FF14_FORMAT to listOf(FF14_BLOCK, 2),
+            FF8_FORMAT to listOf(FF8_BLOCK),
+        )
+        for ((id, blocks) in expected) {
             val format = assertNotNull(formats[id], "$id is not authored")
 
-            assertEquals(listOf(block), format.blocks, "$id should admit block $block alone")
+            assertEquals(blocks, format.blocks, "$id should admit exactly $blocks")
             assertTrue(format.rules.isNotEmpty(), "$id has nothing to draw")
         }
     }
@@ -48,8 +55,10 @@ class FormatBundleTest {
     fun everyReleasedSetIsAdmittedBySomeFormat() {
         for (set in cards.releasedSets) {
             assertTrue(
-                formats.admitting(set.block).isNotEmpty(),
-                "${set.slug} is released and no format admits it",
+                // Every block of it, not just the first: a set spanning two blocks whose second
+                // one no format admits is half a collection nobody can play.
+                set.blocks.all { formats.admitting(it).isNotEmpty() },
+                "${set.slug} is released and some block of it is admitted by no format",
             )
         }
     }

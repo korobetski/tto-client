@@ -78,11 +78,12 @@ class OpponentUiTest {
         newCharacter()
         openOpponents()
 
+        // The drop table moved into the detail sheet a row's tap opens — see
+        // `OpponentDetailSheet` — rather than sitting on the row itself, so seeing it now starts
+        // with the tap.
         onNodeWithTag(OPPONENT_LIST_TEST_TAG)
             .performScrollToNode(hasTestTag(opponentRowTestTag(drops.iconId)))
-        // Unmerged: the row is a clickable card, so it merges its descendants' semantics and the
-        // inner tag is invisible to the default finder. The same reason the quest badge is read
-        // this way in `QuestsUiTest`.
+        onNodeWithTag(opponentRowTestTag(drops.iconId)).performClick()
         onNodeWithTag(opponentRewardsTestTag(drops.iconId), useUnmergedTree = true).assertExists()
     }
 
@@ -103,6 +104,7 @@ class OpponentUiTest {
         }
         onNodeWithTag(OPPONENT_LIST_TEST_TAG)
             .performScrollToNode(hasTestTag(opponentRowTestTag(barren.iconId)))
+        onNodeWithTag(opponentRowTestTag(barren.iconId)).performClick()
         onNodeWithTag(opponentRewardsTestTag(barren.iconId), useUnmergedTree = true)
             .assertDoesNotExist()
     }
@@ -113,9 +115,19 @@ class OpponentUiTest {
         newCharacter()
         openOpponents()
 
-        assertTrue(isVisible("All Open"), "tt-master imposes All Open and the row should say so")
-        assertTrue(isVisible("Difficulty"), "the row should state the difficulty")
-        assertTrue(isVisible("Match Fee"), "the row should state the fee")
+        // Scrolled to rather than assumed visible: the hub above the roster now carries a
+        // campaign rack and up to three shelves of its own, so a row that used to sit in the
+        // first screenful can sit well below it. That is the roster and the hub sharing one
+        // scroll, not a row that moved away.
+        onNodeWithTag(OPPONENT_LIST_TEST_TAG)
+            .performScrollToNode(hasTestTag(opponentRowTestTag(TEST_OPPONENT)))
+        // The rules line moved into the detail sheet a tap opens — the row itself is 56 dp now
+        // and has no room left for it.
+        onNodeWithTag(opponentRowTestTag(TEST_OPPONENT)).performClick()
+
+        assertTrue(isVisible("All Open"), "tt-master imposes All Open and the sheet should say so")
+        assertTrue(isVisible("Difficulty"), "the sheet should state the difficulty")
+        assertTrue(isVisible("Match Fee"), "the sheet should state the fee")
     }
 
     @Test

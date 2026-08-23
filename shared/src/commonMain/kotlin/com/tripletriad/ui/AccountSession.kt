@@ -21,6 +21,7 @@ import com.tripletriad.protocol.AccountError
 import com.tripletriad.protocol.Credentials
 import com.tripletriad.protocol.ItemEffect
 import com.tripletriad.protocol.PlayerState
+import com.tripletriad.protocol.PveRefusal
 import com.tripletriad.protocol.PvpRefusal
 import com.tripletriad.protocol.SeedTickets
 import com.tripletriad.protocol.Session
@@ -348,11 +349,18 @@ internal fun AccountResult<*>.message(strings: Strings): String = when (this) {
     is AccountResult.Failed -> strings.format(StringKeys.ERROR_STATUS, status.toString())
     is AccountResult.RefusedPvp -> code.message(strings)
 
-    // One sentence for all six codes, unlike the player-versus-player refusals above. Every one of
-    // them means "this screen's idea of the match is wrong", and the answer to all of them is the
-    // same: re-read it. A player who is told *which* way their client was out of date learns
+    // One sentence for five of the six codes, unlike the player-versus-player refusals above. Each
+    // of those means "this screen's idea of the match is wrong", and the answer to all of them is
+    // the same: re-read it. A player who is told *which* way their client was out of date learns
     // nothing they can act on.
-    is AccountResult.RefusedPve -> strings[StringKeys.ERROR_STALE_MATCH]
+    //
+    // `UNDEALABLE` is the exception and had to be pulled out: it is not staleness, re-reading does
+    // not fix it, and the retry button under that sentence never once helped. It is a deck the
+    // format does not admit, and saying so is the only thing that lets the player act.
+    is AccountResult.RefusedPve -> when (code) {
+        PveRefusal.UNDEALABLE -> strings[StringKeys.ERROR_UNDEALABLE]
+        else -> strings[StringKeys.ERROR_STALE_MATCH]
+    }
 
     // Deliberately not phrased as an error. The player did nothing wrong and the answer is to
     // wait, so the wording says that — and says how long whenever the server was willing to.

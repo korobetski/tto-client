@@ -42,3 +42,12 @@ internal const val MUTED = 0.7f
 internal const val FAINT = 0.6f
 
 internal const val DISABLED = 0.4f
+
+/**
+ * The multiplication sign a count of copies is written with — `x3`.
+ *
+ * One constant rather than the three private copies the collection, the deck builder and the
+ * bag each kept: they are the same badge on the same kind of thing, and a fourth caller
+ * (the shop) is what made that worth saying once.
+ */
+internal const val COPIES_PREFIX = "×"

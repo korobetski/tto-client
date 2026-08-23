@@ -1,7 +1,9 @@
 package com.tripletriad.data
 
+import com.tripletriad.FF8_BLOCK
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.loadStrings
+import com.tripletriad.model.Card
 import com.tripletriad.model.HAND_SIZE
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
@@ -15,7 +17,8 @@ class StarterBundleTest {
     private companion object {
         val FF14_COMMONS = listOf(257, 258, 259)
 
-        val FF8_COMMON = listOf(513)
+        /** One FFVIII card, whose whole job here is to be from a *different* block. */
+        val FF8_COMMON = listOf(Card.idFor(block = FF8_BLOCK, number = 1))
 
         const val GHOST = 999_998
     }
@@ -29,10 +32,18 @@ class StarterBundleTest {
 
     @Test
     fun everyReleasedSetHasAStarterAndNothingElseDoes() {
-        val released = cards.releasedSets.map { it.block }.toSet()
+        // One starter per released *set*, not per block. A set spanning two blocks is still one
+        // collection to the player and opens with one box, whose ten cards all sit in whichever of
+        // its blocks holds the commons — see `CardSet`.
+        val released = cards.releasedSets
 
         assertEquals(released.size, starters.starters.size)
-        assertEquals(released, starters.starters.mapTo(mutableSetOf()) { it.block })
+        for (set in released) {
+            assertTrue(
+                starters.starters.count { it.block in set.blocks } == 1,
+                "${set.slug} should be opened by exactly one starter",
+            )
+        }
         assertEquals(
             starters.starters.map { it.id },
             starters.released(cards.sets).map { it.id },

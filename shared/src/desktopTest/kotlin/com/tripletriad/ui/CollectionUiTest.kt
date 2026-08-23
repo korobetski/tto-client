@@ -140,7 +140,8 @@ class CollectionUiTest {
             .assertHeightIsEqualTo(CELL_SIDE)
     }
     private companion object {
-        const val ALL_CARDS = 263
+        // 153 FF14 + 110 FF8 before the FF14 set completed to its full 454 across two blocks.
+        const val ALL_CARDS = 564
 
         /** `card_frame.png`'s authored size, and so the cell's. See `CardListBody`. */
         val CELL_SIDE = 44.dp

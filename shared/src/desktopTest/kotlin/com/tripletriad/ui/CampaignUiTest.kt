@@ -197,7 +197,7 @@ class CampaignUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         openRefereedLadder()
         onNodeWithTag(CAMPAIGN_START_TEST_TAG).performClick()
-        awaitBoard()
+        settleDeck()
 
         playOut()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(MATCH_DONE_TEST_TAG) }
@@ -219,7 +219,7 @@ class CampaignUiTest {
         openRefereedLadder()
 
         onNodeWithTag(CAMPAIGN_START_TEST_TAG).performClick()
-        awaitBoard()
+        settleDeck()
 
         assertTrue(existsUnmerged(CAMPAIGN_STEP_TEST_TAG), "the ladder should say which rung it is")
     }
@@ -251,7 +251,29 @@ class CampaignUiTest {
         assertFalse(exists(PVE_RECONNECT_TEST_TAG), "the rung must not be opened before the entry")
 
         gate.complete(Unit)
-        awaitBoard()
+        settleDeck()
+    }
+
+    /**
+     * A ladder played under the *other* block's format is shut, not sold.
+     *
+     * Balamb Garden is `ff8-standard`, and an FFXIV starter owns nothing that pool admits — so
+     * there is no deck to bring to any of its four rungs. The button used to be enabled anyway:
+     * the fee was taken, the run opened, and the first rung came back `UNDEALABLE` from a referee
+     * that had done nothing wrong. On the board that reads as "the server is unreachable", which
+     * is how this was reported and why it took a logcat to find.
+     *
+     * The purse is deliberately ample, so the only thing refusing is the deck.
+     */
+    @Test
+    fun aLadderInTheOtherFormatIsShutRatherThanSold() = runComposeUiTest {
+        val balamb = campaigns.byKey(BALAMB) ?: error("no $BALAMB campaign")
+        val documents = seeded(freshSave(block = FF14_BLOCK).copy(mgp = balamb.fee * 2))
+        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openLadder(documents, BALAMB)
+
+        assertTrue(exists(CAMPAIGN_LOCKED_TEST_TAG), "having no deck for the format should be said")
+        onNodeWithTag(CAMPAIGN_START_TEST_TAG).assertIsNotEnabled()
     }
 
     @Test
@@ -259,7 +281,7 @@ class CampaignUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US), server = payingServer().connection) }
         openRefereedLadder()
         onNodeWithTag(CAMPAIGN_START_TEST_TAG).performClick()
-        awaitBoard()
+        settleDeck()
 
         playOut()
 
@@ -290,6 +312,10 @@ class CampaignUiTest {
         const val GOLD_SAUCER = "gs"
 
         const val CARD_CLUB = "cc"
+
+        // The one shipped ladder in the FFVIII pool that no achievement gates, which is what makes
+        // it the case where a missing deck is the *only* thing shutting the door.
+        const val BALAMB = "balamb"
 
         const val POCKET_CHANGE = 7
 

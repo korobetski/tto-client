@@ -197,7 +197,7 @@ class NpcBundleTest {
 
         // The full FFXIV set, both of its blocks, now that it has grown past 153 — see `CardSet`.
         const val FF14_CARDS = 454
-        const val FF8_CARDS = 110
+        const val FF8_CARDS = 110 + 1
         const val HOURS = 24
     }
 }

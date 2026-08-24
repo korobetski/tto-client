@@ -108,7 +108,8 @@ internal fun ColumnScope.CardListBody(
     val blockGroups = remember(catalog) { representativeBlocks(catalog.sets) }
     val cards = remember(admitted, set, type, rarity, ownedOnly, owned, blockGroups) {
         admitted.filter {
-            (set == null || blockGroups[it.block] == set) &&
+            (it.id !in SECRET_CARD_IDS || owned.containsKey(it.id)) &&
+                (set == null || blockGroups[it.block] == set) &&
                 (type == null || it.type == type) &&
                 (rarity == null || it.rarity == rarity) &&
                 (!ownedOnly || owned.containsKey(it.id))
@@ -600,6 +601,17 @@ private fun cardFacts(strings: Strings, card: Card): String = listOf(
         .joinToString(" ", transform = ::powerLabel),
     "${strings[StringKeys.RARITY]} ${"★".repeat(card.rarity)}",
 ).joinToString(DOT_SEPARATOR)
+
+/**
+ * Cards this list hides until the profile actually owns one — an easter egg stops being one the
+ * moment it is readable off a menu nobody has to earn anything to see. Mooba (`0x086f`) is the one
+ * shipped so far.
+ *
+ * Purely a fact about how *this screen* lists cards, not one the rest of the game needs: a match
+ * replay never reads this set, `:core` does not know it exists, and a secret card plays, sells and
+ * trades exactly like any other the moment it is in the profile's collection.
+ */
+private val SECRET_CARD_IDS = setOf(0x086f)
 
 private const val DETAIL_SCALE = 1f
 

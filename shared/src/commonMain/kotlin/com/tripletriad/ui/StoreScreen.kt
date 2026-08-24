@@ -76,6 +76,11 @@ internal fun StoreScreen(
     // the sheet is not the only thing that will ever want to spend the money.
     val buy: (ShopOffer) -> Unit = { offer ->
         val bought = itemName(strings, offer.item, cards)
+        // Closed immediately rather than left open behind the note: `ModalBottomSheet` draws in
+        // its own `Popup`, on top of the scaffold and everything in it, `snackbarHost` included —
+        // so a note shown while the sheet stayed open was there, just hidden under it. Closing the
+        // sheet is what lets the confirmation actually be seen.
+        selectedTag = null
         scope.launch {
             // Asked, not computed. On an account the price is the server's and the profile that
             // comes back is the one it wrote — see `BuyRequest`.

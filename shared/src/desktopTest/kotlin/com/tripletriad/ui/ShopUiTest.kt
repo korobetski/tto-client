@@ -110,10 +110,14 @@ class ShopUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openShop(documents)
 
+        // The sheet now closes itself on a buy — see `StoreScreen.buy` — so the second purchase
+        // reopens it on the same offer rather than pressing a button that is no longer there.
         val potion = ShopCatalog.ff14.first { it.item == PotionItem(PotionType.MGP) }
         onNodeWithTag(shopOfferTestTag(potion)).performClick()
         onNodeWithTag(SHOP_BUY_TEST_TAG).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { storedSave(documents).bag.isNotEmpty() }
+        onNodeWithTag(shopOfferTestTag(potion)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(SHOP_BUY_TEST_TAG) }
         onNodeWithTag(SHOP_BUY_TEST_TAG).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
             Inventory.count(storedSave(documents), potion.item) == 2

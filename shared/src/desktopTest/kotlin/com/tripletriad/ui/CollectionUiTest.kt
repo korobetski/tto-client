@@ -141,6 +141,10 @@ class CollectionUiTest {
     }
     private companion object {
         // 153 FF14 + 110 FF8 before the FF14 set completed to its full 454 across two blocks.
+        // Still 564, not 565, now that FF8 carries a 111th card: Mooba is secret, and a secret
+        // card the fixture's profile does not own does not widen this total either — the same
+        // filter that hides it from the grid hides it from the count under it. See
+        // `SECRET_CARD_IDS` in `CardListBody.kt`.
         const val ALL_CARDS = 564
 
         /** `card_frame.png`'s authored size, and so the cell's. See `CardListBody`. */
@@ -192,7 +196,9 @@ class CollectionUiTest {
         onNodeWithTag(setFilterTestTag(FF8_BLOCK)).performClick()
         waitForIdle()
 
-        val ff8 = catalog.block(FF8_BLOCK).size
+        // Mooba is in this block but the fixture profile does not own it, so the list — and the
+        // total beneath it — hides that one card. See `SECRET_CARD_IDS` in `CardListBody.kt`.
+        val ff8 = catalog.block(FF8_BLOCK).size - 1
         onNodeWithTag(CARD_TOTAL_TEST_TAG).assertTextEquals(
             "Owned$DOT_SEPARATOR" + "0 / $ff8",
         )

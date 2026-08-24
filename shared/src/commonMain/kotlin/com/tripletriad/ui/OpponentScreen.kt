@@ -361,6 +361,19 @@ private fun OpponentRow(
                 style = MaterialTheme.typography.labelSmall,
                 maxLines = 1,
             )
+            // The rules a match is played under, said here rather than only in the sheet a tap
+            // opens: which rules an opponent imposes is exactly the thing worth reading *before*
+            // committing to a match fee, not after. Omitted when there are none, the same reasoning
+            // the sheet's own rules line follows.
+            if (npc.ruleKeys.isNotEmpty()) {
+                Text(
+                    text = npc.ruleKeys.joinToString(DOT_SEPARATOR) { strings[it] },
+                    color = LocalTtoColors.current.transient,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
 
         if (wants) {

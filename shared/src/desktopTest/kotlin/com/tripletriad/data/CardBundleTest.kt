@@ -98,7 +98,11 @@ class CardBundleTest {
     private companion object {
         const val FF14_CARDS_BLOCK_1 = 255
         const val FF14_CARDS_BLOCK_2 = 199
-        const val FF8_CARDS = 110
+
+        // 110 shipped, plus the one secret card the collection screen hides until it is owned —
+        // see `SECRET_CARD_IDS` in `CardListBody.kt`. It is still in the catalog and in this count:
+        // hidden is a fact about one screen's list, not about the card table.
+        const val FF8_CARDS = 110 + 1
         const val MISSING_TO_REPORT = 10
 
         val PRINTED_POWERS = 1..10

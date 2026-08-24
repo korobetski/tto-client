@@ -162,13 +162,17 @@ class StringsBundleTest {
         // Two consequences to note. The gaps below are **unchanged**: a key authored in all four
         // bundles widens nobody's. And the arithmetic is why these are wrong — measure the counts
         // from a run and paste them, rather than adding up what a change ought to have done.
-        const val UNION_KEYS = 1666
+        //
+        // +1 since: `STR_FF8_CARD_111` for Mooba, the secret FF8 card, authored in all four
+        // bundles at once — so it moves every TRANSLATED_KEYS entry and UNION_KEYS by one, and
+        // touches none of the gaps below.
+        const val UNION_KEYS = 1667
 
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 1662,
-            AppLocale.FR_FR to 1362,
-            AppLocale.DE_DE to 1027,
-            AppLocale.JA_JA to 1060,
+            AppLocale.EN_US to 1663,
+            AppLocale.FR_FR to 1363,
+            AppLocale.DE_DE to 1028,
+            AppLocale.JA_JA to 1061,
         )
 
         val EXPECTED_GAPS = mapOf(

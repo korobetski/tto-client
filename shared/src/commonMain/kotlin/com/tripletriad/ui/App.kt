@@ -582,6 +582,31 @@ private fun CharacterDestination(
             // is every released block. When a player picks a format this becomes their choice.
             val formatId = startup.formats?.default?.id ?: return@let
 
+            /*
+             * What the player is in the middle of, asked on the way in.
+             *
+             * Nothing else asks. [MatchDestination] resumes `against` one named opponent, which
+             * answers "am I already playing *them*" and is deliberately blind to a match against
+             * anybody else — so a match interrupted by a closed app was only ever findable by
+             * walking back to the same opponent's board and hoping to pick the right row. This is
+             * the question with no opponent in it, and `PveSession.resume` already takes null for
+             * exactly that.
+             *
+             * Keyed on the session, so it runs once each time the roster is opened rather than on
+             * every recomposition: the answer can change while the player is away from this
+             * screen, and cannot change while they are on it.
+             */
+            LaunchedEffect(pve) { pve?.resume() }
+
+            // **A live match, not a recent one.** `resume(null)` also answers with a match that
+            // has just been settled — `PveStore.recentFor` keeps one findable for a couple of
+            // minutes so a player killed between the last card and the result still sees it — and
+            // offering to "resume" a match that is over would walk them into a result panel they
+            // have already read. `isOver` is the whole of that distinction.
+            val resumable = pve?.match
+                ?.takeIf { pve.isOver.not() }
+                ?.let { live -> opponents.npcs.firstOrNull { it.iconId == live.opponentIconId } }
+
             OpponentScreen(
                 profile = profile,
                 catalog = opponents,
@@ -608,6 +633,14 @@ private fun CharacterDestination(
                     onNavigate(Screen.CAMPAIGN)
                 },
                 onBack = toDashboard,
+                resumable = resumable,
+                // The same door a challenge goes through, and that is the point: the board it
+                // opens resumes `against` this opponent and finds the match already there, so
+                // there is no second path into a match and nothing here that could deal one.
+                onResume = {
+                    choice.opponent = it
+                    onNavigate(Screen.MATCH)
+                },
             )
         }
 

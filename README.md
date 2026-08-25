@@ -17,13 +17,14 @@ Built with modern Kotlin Multiplatform and Compose technologies.
 |---|---|
 | ![Main menu](docs/screenshots/menu.png)<br>**Main menu** | ![Dashboard](docs/screenshots/dashboard.png)<br>**Dashboard** — the hub a character lands on |
 | ![Match, landscape](docs/screenshots/match_landscape.png)<br>**Match, landscape** — three cards down, All Open | ![Match, portrait](docs/screenshots/match_portrait.png)<br>**Match, portrait** — the phone layout, not a scaled one |
-| ![Collection](docs/screenshots/collection.png)<br>**Collection** — grid and detail, two panes | ![Deck builder](docs/screenshots/deck_builder.png)<br>**Deck builder** — the starter deck open |
+| ![Collection](docs/screenshots/collection.png)<br>**Collection** — grid and detail, two panes, 564 cards | ![Deck builder](docs/screenshots/deck_builder.png)<br>**Deck builder** — the starter deck open |
 | ![Card detail](docs/screenshots/card_detail.png)<br>**Card detail** | ![Tutorial](docs/screenshots/tutorial.png)<br>**Tutorial** — the first lesson, mid-sentence |
+| ![Opponents](docs/screenshots/opponents.png)<br>**Opponents** — ladders, then the shelves that say who is worth playing | |
 
 ### How these are taken
 
 The app photographs itself. `ScreenshotCapture` (in `shared/src/desktopTest/`) drives the same
-screens the UI tests drive, at a fixed window size and density, and writes the eight files above
+screens the UI tests drive, at a fixed window size and density, and writes the nine files above
 into `docs/screenshots/`. No device, no emulator, and the same picture every run:
 
 ```bash
@@ -33,6 +34,14 @@ into `docs/screenshots/`. No device, no emulator, and the same picture every run
 Without `-Ptto.screenshots` every capture is skipped, so an ordinary `./gradlew build` neither
 writes into the repository nor pays for the run. Adding a screenshot means adding a method there —
 the landmark tag it waits on is what pins *which* screen it caught.
+
+Two things to know before adding one. The landmark must be something the screen has actually
+**composed**: a `LazyColumn` item below the fold never appears, so waiting on it only ever times
+out. And the landscape board capture takes its own window (`BOARD`, 960 x 600 dp) rather than the
+640 x 480 dp `DESKTOP` one, because a match is started through the opponent detail sheet and on a
+480 dp-tall window that sheet's own challenge button falls outside the window — the same reason a
+player cannot start a match on a window that short. The portrait capture is unaffected: a phone is
+844 dp tall.
 
 ### From a real device
 

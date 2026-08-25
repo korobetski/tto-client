@@ -18,6 +18,19 @@ import kotlin.test.Test
 @OptIn(ExperimentalTestApi::class)
 class ScreenshotCapture {
 
+    /**
+     * A referee, for the two captures that photograph a board.
+     *
+     * They had none, and had been failing since the deal moved to the server: `startMatch` signs
+     * in and asks for a match, so without a connection the dashboard never arrives and the capture
+     * times out. The two match pictures in `docs/screenshots/` predate that change — this is what
+     * makes them re-takeable rather than frozen.
+     *
+     * Only these two need it. Everything else here is a screen the app draws from its own shipped
+     * data.
+     */
+    private val stub = PveStubServer()
+
     @Test
     fun menu() = shoot("menu", DESKTOP) {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -31,15 +44,35 @@ class ScreenshotCapture {
     }
 
     @Test
-    fun matchLandscape() = shoot("match_landscape", DESKTOP) {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+    fun matchLandscape() = shoot("match_landscape", BOARD) {
+        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         playSomeOfAMatch()
     }
 
     @Test
     fun matchPortrait() = shoot("match_portrait", PHONE) {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         playSomeOfAMatch()
+    }
+
+    /**
+     * The roster, and the one screen here shot without a card on screen anywhere.
+     *
+     * No server, like every capture in this file: the rows, the shelves and the ladders are all
+     * drawn from the shipped `npcs.json`, and only *playing* one of them needs a referee. What the
+     * picture would gain from a stub is the resume button — see `ResumeMatchUiTest` — and that is
+     * a state the roster is usually not in.
+     */
+    @Test
+    fun opponents() = shoot("opponents", DESKTOP) {
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        newCharacter()
+        // `openOpponents` waits on `OPPONENT_LIST_TEST_TAG`, which is the landmark that pins
+        // which screen this caught. Not the random-opponent button, which reads as the obvious
+        // thing to wait for and is wrong: it is a `LazyColumn` item below the shelves, so on this
+        // window it is never composed and the wait only ever times out.
+        openOpponents()
+        waitForIdle()
     }
 
     @Test
@@ -105,6 +138,24 @@ class ScreenshotCapture {
         const val DENSITY = 2f
 
         val DESKTOP = Size(1280f, 960f)
+
+        /**
+         * 960 x 600 dp at [DENSITY], and both numbers are load-bearing.
+         *
+         * **The height, because the challenge has to be reachable.** [DESKTOP] is 640 x 480 dp —
+         * shorter than the 560 x 640 dp window `:desktopApp` itself opens at — and a match is
+         * started through the opponent detail sheet, whose own challenge button lands about
+         * 503 dp down. On a 480 dp window that button is outside the window and the capture dies
+         * on "cannot start a mouse gesture outside the Compose root bounds". Worth knowing beyond
+         * this file: that is not the capture being fussy, it is a control a player cannot reach on
+         * a window that short.
+         *
+         * **The width and the ratio, because of what the picture is for.** The move log beside the
+         * board is the thing a landscape shot is supposed to show, and it appears at this size and
+         * not at 960 x 540 — where the panel is dropped and the space it would have filled is left
+         * empty on the right.
+         */
+        val BOARD = Size(1920f, 1200f)
 
         val DETAIL = Size(1280f, 1200f)
 

@@ -292,6 +292,7 @@
   "APP_DELETE_ACCOUNT": "Delete account",
   "APP_DELETE_ACCOUNT_BODY": "This deletes your account and everything on it: your cards, your MGP, your decks, your achievements and your match history. It cannot be undone and there is no grace period. Finished matches disappear from your opponents' histories too, because a match record names both players. Type your password to confirm.",
   "APP_DELETE_ACCOUNT_CONFIRM": "Delete permanently",
+  "APP_MATCH_RESUME": "Resume against {0}",
   "APP_SELL_ALL": "Sell all",
   "STR_BEAST_BOOSTER": "Beast Booster",
   "STR_BRONZE_BOOSTER": "Bronze Booster",

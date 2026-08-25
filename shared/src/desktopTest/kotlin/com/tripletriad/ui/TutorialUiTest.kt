@@ -169,7 +169,7 @@ class TutorialUiTest {
      */
     @Test
     fun theCourseEndsAtTheRuleBook() = runComposeUiTest {
-        setContent { TestApp(store = settingsFor(AppLocale.EN_US), pacing = Pacing.Default) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openLesson()
 
         playOut(TUTORIAL_TIMEOUT_MS)

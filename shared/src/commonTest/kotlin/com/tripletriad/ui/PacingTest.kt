@@ -35,17 +35,21 @@ class PacingTest {
     @Test
     fun aSlowerFactorIsAStrictSlowdownAndAFasterOneAStrictSpeedup() {
         assertEquals(2_800L, Pacing(2.0) * 1_400L, "twice the pace is twice the wait")
-        assertEquals(100, Pacing(0.02) * 5_000, "a fiftieth of five seconds is a tenth of one")
+        assertEquals(500, Pacing(0.1) * 5_000, "a tenth of five seconds is half of one")
     }
 
     /**
      * The property the test pace depends on: `TalkBubble` races a tap against its hold, and a hold
      * that scaled to zero would decide that race before the tap could be made. Every authored pause
      * has to stay positive at the factor the suite uses.
+     *
+     * The literal mirrors `TEST_PACING`, which lives in `desktopTest` and cannot be seen from here.
+     * If one moves, move both — and read that KDoc first: the factor is measured against harness
+     * latency, not picked.
      */
     @Test
     fun theTestFactorNeverFloorsAPauseToNothing() {
-        val fast = Pacing(0.02)
+        val fast = Pacing(0.1)
 
         for (millis in listOf(100, 240, 280, 300, 400, 450, 550, 700, 1_000, 1_400, 5_000)) {
             assertTrue(fast * millis > 0, "$millis ms scaled to ${fast * millis}")

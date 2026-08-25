@@ -166,11 +166,19 @@ class StringsBundleTest {
         // +1 since: `STR_FF8_CARD_111` for Mooba, the secret FF8 card, authored in all four
         // bundles at once — so it moves every TRANSLATED_KEYS entry and UNION_KEYS by one, and
         // touches none of the gaps below.
-        const val UNION_KEYS = 1667
+        //
+        // +1 since: `APP_MATCH_RESUME`, the roster's way back into a match the server still has
+        // open — see `ResumeMatchUiTest`. App-owned, so English and French only, which is the
+        // shape that moves four numbers rather than five: the two authored counts and the two
+        // gaps widen, and the two authored locales' own gaps do not.
+        //
+        // Measured from a `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted, as
+        // the correction above asks — not added up from what the change ought to have done.
+        const val UNION_KEYS = 1668
 
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 1663,
-            AppLocale.FR_FR to 1363,
+            AppLocale.EN_US to 1664,
+            AppLocale.FR_FR to 1364,
             AppLocale.DE_DE to 1028,
             AppLocale.JA_JA to 1061,
         )
@@ -178,10 +186,10 @@ class StringsBundleTest {
         val EXPECTED_GAPS = mapOf(
             AppLocale.EN_US to 4,
             AppLocale.FR_FR to 304,
-            // 44 imported keys short, plus all 294 app-owned, plus the 301 FF14 names; and 11
-            // short, plus the 294, plus the 301.
-            AppLocale.DE_DE to 639,
-            AppLocale.JA_JA to 606,
+            // 44 imported keys short, plus all 295 app-owned, plus the 301 FF14 names; and 11
+            // short, plus the 295, plus the 301.
+            AppLocale.DE_DE to 640,
+            AppLocale.JA_JA to 607,
         )
     }
 }

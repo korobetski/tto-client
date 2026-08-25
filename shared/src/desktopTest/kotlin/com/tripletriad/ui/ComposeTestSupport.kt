@@ -61,14 +61,25 @@ internal fun TestApp(
 )
 
 /**
- * Fast, but not instant, and the gap matters.
+ * Fast, but not instant, and **a tenth rather than a fiftieth** — which was measured, not chosen.
  *
- * At zero, `withTimeoutOrNull(0)` in [TalkBubble] never lets a tap win the race and `tween(0)`
- * stops being an animation at all — the tests would then be exercising code paths the player never
- * takes. A fiftieth keeps every ordering intact (a line still enters, holds, then leaves) while
- * turning five seconds into a hundred milliseconds.
+ * Two floors. The first is zero: `withTimeoutOrNull(0)` in [TalkBubble] never lets a tap win its
+ * race and `tween(0)` stops being an animation, so the tests would exercise paths the player never
+ * takes.
+ *
+ * The second is the one that actually bit. Uniform scaling preserves the app's own orderings — the
+ * tutor still speaks before it plays, whatever the factor — but it does not scale the *test
+ * harness*: a `waitUntil` poll, a `performClick`, a frame. At a fiftieth the app's windows come
+ * down to about a hundred milliseconds, which is the same order as that latency, and the two start
+ * racing. It showed up as `TutorialUiTest.theTutorSpeaksBeforePlaying` reading the second line
+ * where it asserts the first, and as `theCourseEndsAtTheRuleBook` needing the shipped pace and then
+ * overrunning `runTest`'s one-minute limit at it. At a tenth every window is back above half a
+ * second, both pass, and the suite gives up a few seconds of the win to stop being flaky.
+ *
+ * Three tests still take [Pacing.Default], and each says why where it stands: they measure the
+ * pacing itself rather than something the pacing merely delays.
  */
-internal val TEST_PACING = Pacing(0.02)
+internal val TEST_PACING = Pacing(0.1)
 
 internal const val UI_TIMEOUT_MS = 10_000L
 

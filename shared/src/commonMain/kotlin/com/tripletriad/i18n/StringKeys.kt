@@ -478,6 +478,9 @@ object StringKeys {
 
     const val DELETE_ACCOUNT_CONFIRM: String = "APP_DELETE_ACCOUNT_CONFIRM"
 
+    /** The way back into a match the server still has open. Takes the opponent's name. */
+    const val MATCH_RESUME: String = "APP_MATCH_RESUME"
+
     val all: List<String> = listOf(
         NEXT_MATCH, YOU_WIN, YOU_LOSE, DRAW, SUDDEN_DEATH,
         LOADING_CARDS, SIDE_BLUE, SIDE_RED, TURN_PICK_CARD, TURN_PICK_CELL,
@@ -558,6 +561,7 @@ object StringKeys {
         UPDATE_REQUIRED, UPDATE_REQUIRED_BODY, UPDATE_AVAILABLE, UPDATE_AVAILABLE_BODY, UPDATE_GET,
         SELL_ALL,
         ACCOUNT_SETTINGS, DELETE_ACCOUNT, DELETE_ACCOUNT_BODY, DELETE_ACCOUNT_CONFIRM,
+        MATCH_RESUME,
     )
 
     val appOwned: List<String> = all.filter { it.startsWith("APP_") }

@@ -57,6 +57,8 @@ const val OPPONENT_SHEET_TEST_TAG: String = "opponent-sheet"
 
 const val OPPONENT_CHALLENGE_TEST_TAG: String = "opponent-challenge"
 
+const val OPPONENT_RESUME_TEST_TAG: String = "opponent-resume"
+
 fun opponentBlockFilterTestTag(block: Int?): String = "opponent-filter-block-${block ?: "all"}"
 
 fun opponentRowTestTag(iconId: String): String = "opponent-row-$iconId"
@@ -77,6 +79,16 @@ internal fun OpponentScreen(
     campaigns: List<Campaign>,
     onCampaign: (Campaign) -> Unit,
     onBack: () -> Unit,
+    /**
+     * The opponent of a match the server still has open, or null when there is nothing to go back
+     * to.
+     *
+     * An `Npc` rather than an id because the button names who is waiting, and this screen already
+     * holds the roster to resolve it — see the caller, which cannot: a match may be against an
+     * opponent the current filter is hiding, and the answer has to survive that.
+     */
+    resumable: Npc? = null,
+    onResume: (Npc) -> Unit = {},
 ) {
     val strings = LocalStrings.current
     // Keyed on the format, not on the character: who a player may challenge is a property of the
@@ -144,6 +156,22 @@ internal fun OpponentScreen(
             modifier = Modifier.testTag(OPPONENT_LIST_TEST_TAG).fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(SpaceSm),
         ) {
+            // **First, and filled.** A match already under way is the one thing on this screen
+            // that is not a choice: everything below it starts something new, and starting
+            // something new is what abandons the match — the server closes the live one when the
+            // next is opened (`PveStore.open`). So it goes above the filter chips rather than
+            // among the opponents, where a player who had scrolled would never see it, and it is
+            // not filtered by the block chips for the same reason.
+            resumable?.let { npc ->
+                item(key = RESUME_KEY) {
+                    WideButton(
+                        label = strings.format(StringKeys.MATCH_RESUME, strings[npc.nameKey]),
+                        tag = OPPONENT_RESUME_TEST_TAG,
+                        onClick = { onResume(npc) },
+                    )
+                }
+            }
+
             // Only when there is a second collection to tell apart from the first — one block
             // admitted is not a filter, it is a row of one chip that does nothing. Same rule the
             // card list's own set row follows.
@@ -265,6 +293,8 @@ private fun Footnote(text: String, tag: String) {
         modifier = Modifier.testTag(tag).fillMaxWidth().padding(vertical = SpaceSm),
     )
 }
+
+private const val RESUME_KEY = "resume"
 
 private const val BLOCK_FILTER_KEY = "block-filter"
 

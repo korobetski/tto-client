@@ -3,7 +3,6 @@ package com.tripletriad.i18n
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class StringsBundleTest {
@@ -59,21 +58,10 @@ class StringsBundleTest {
     }
 
     @Test
-    fun theAppOwnedStringsAreTranslatedInEnglishAndFrenchAndFallBackElsewhere() {
+    fun theAppOwnedStringsAreTranslatedInEveryLocale() {
         for (key in StringKeys.appOwned) {
-            for (locale in listOf(AppLocale.EN_US, AppLocale.FR_FR)) {
+            for (locale in AppLocale.entries) {
                 assertTrue(loaded.getValue(locale).isTranslated(key), "${locale.tag}/$key")
-            }
-            for (locale in listOf(AppLocale.DE_DE, AppLocale.JA_JA)) {
-                assertFalse(
-                    loaded.getValue(locale).isTranslated(key),
-                    "${locale.tag}/$key is translated now — update this test and the KDoc",
-                )
-                assertEquals(
-                    loaded.getValue(AppLocale.EN_US)[key],
-                    loaded.getValue(locale)[key],
-                    "${locale.tag}/$key should fall through to English",
-                )
             }
         }
     }
@@ -174,22 +162,31 @@ class StringsBundleTest {
         //
         // Measured from a `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted, as
         // the correction above asks — not added up from what the change ought to have done.
+        //
+        // FR/DE/JA completed against the EN source: FR gains its 301 missing `_DESC` paragraphs
+        // (it already had every app-owned string and every card name); DE and JA gain both their
+        // 295 app-owned strings and their 301 `_DESC` paragraphs — the fallback-to-English policy
+        // for app-owned strings in DE/JA is retired, hence
+        // `theAppOwnedStringsAreTranslatedInEveryLocale` replacing the old fallback test. `UNION_KEYS`
+        // is unchanged: every key it counts already existed in `app-en_US.json` before this change,
+        // only the other three bundles' values were filled in. The 15 `STR_*_BOOSTER` overrides
+        // don't move any bundle's count — they already exist as imported keys, so DE only widens by
+        // 295 + 301 = 596, not 611, on top of its APP_-string count. Measured from a
+        // `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted.
         const val UNION_KEYS = 1668
 
         val TRANSLATED_KEYS = mapOf(
             AppLocale.EN_US to 1664,
-            AppLocale.FR_FR to 1364,
-            AppLocale.DE_DE to 1028,
-            AppLocale.JA_JA to 1061,
+            AppLocale.FR_FR to 1665,
+            AppLocale.DE_DE to 1624,
+            AppLocale.JA_JA to 1657,
         )
 
         val EXPECTED_GAPS = mapOf(
             AppLocale.EN_US to 4,
-            AppLocale.FR_FR to 304,
-            // 44 imported keys short, plus all 295 app-owned, plus the 301 FF14 names; and 11
-            // short, plus the 295, plus the 301.
-            AppLocale.DE_DE to 640,
-            AppLocale.JA_JA to 607,
+            AppLocale.FR_FR to 3,
+            AppLocale.DE_DE to 44,
+            AppLocale.JA_JA to 11,
         )
     }
 }

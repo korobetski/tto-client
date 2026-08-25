@@ -215,8 +215,11 @@ The three new screens were rendered to PNG through `captureToImage()` at phone d
 looked at, in French and in Japanese, before being called done. Two things came out of it that no
 assertion in this suite would have found:
 
-* the Japanese options screen shows its two app-owned strings **in English**, because `app-ja_JA.json`
-  is empty — correct, documented fallback behaviour, and quite different to read about than to see;
+* the Japanese options screen showed its two app-owned strings **in English**, because
+  `app-ja_JA.json` was empty at the time — correct, documented fallback behaviour, and quite
+  different to read about than to see. `app-ja_JA.json` (and `app-de_DE.json`) were completed
+  against the English source since, so DE/JA app-owned strings render in their own language now —
+  see `StringsBundleTest.theAppOwnedStringsAreTranslatedInEveryLocale`;
 * a suspected rendering defect — a stray vertical tick beside each volume slider — turned out to be
   the Material 3 slider **thumb**, which in this version is a thin detached bar. Rendering the same
   screen at 40% instead of 100% moved the tick with the value and settled it. The "fix" was reverted,

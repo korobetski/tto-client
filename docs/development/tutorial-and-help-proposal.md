@@ -254,10 +254,11 @@ again.
 ## 7. Costs that are not code
 
 - **Strings.** New `APP_ACADEMY_*` keys go in `StringKeys`, in its `appOwned` list
-  (`StringKeys.kt:732`), and in `app-en_US.json` and `app-fr_FR.json` **only** — `StringsBundleTest`
-  asserts app-owned keys are translated in exactly those two and fall through to English in `de_DE`
-  and `ja_JA` (`StringsBundleTest.kt:92`), and it pins total key counts, so `TRANSLATED_KEYS` and
-  `UNION_KEYS` must move in the same commit. Four to six lines a lesson is roughly 60 keys.
+  (`StringKeys.kt:732`), and in all four `app-<locale>.json` bundles — FR, DE and JA were brought to
+  full parity with EN, so `StringsBundleTest.theAppOwnedStringsAreTranslatedInEveryLocale` now
+  asserts every app-owned key is translated in every locale, with no English fallback for DE/JA.
+  It still pins total key counts, so `TRANSLATED_KEYS` and `UNION_KEYS` must move in the same
+  commit. Four to six lines a lesson is roughly 60 keys, times four locales.
 - **Copy is the part that cannot be refactored.** Write lesson 1's four lines and read them aloud
   before writing the other eleven.
 - **Bubble pacing.** `LessonBubbles` advances on a 6.1-second timer and the turn clock runs behind it

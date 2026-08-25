@@ -45,7 +45,7 @@ class CampaignUiTest {
 
     @Test
     fun bothLaddersAreOffered() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter(FF14_BLOCK)
         openOpponents()
 
@@ -55,7 +55,7 @@ class CampaignUiTest {
 
     @Test
     fun anFf8CharacterSeesBothToo() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter(FF8_BLOCK)
         openOpponents()
 
@@ -65,7 +65,7 @@ class CampaignUiTest {
 
     @Test
     fun aFreshPurseCannotEnter() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
         openOpponents()
         onNodeWithTag(campaignRowTestTag(GOLD_SAUCER)).performClick()
@@ -77,7 +77,7 @@ class CampaignUiTest {
     @Test
     fun theLadderShowsItsRungsBeforeTheFee() = runComposeUiTest {
         val documents = withFee()
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openLadder(documents)
 
         onNodeWithTag(CAMPAIGN_START_TEST_TAG).assertIsEnabled()
@@ -106,7 +106,7 @@ class CampaignUiTest {
     @Test
     fun theLadderNamesWhatFinishingItPays() = runComposeUiTest {
         val documents = withFee()
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openLadder(documents)
 
         val champion = goldSaucer.steps.last().npc
@@ -129,7 +129,7 @@ class CampaignUiTest {
     fun aGatedLadderNamesItsGateAndStaysShut() = runComposeUiTest {
         val cardClub = campaigns.byKey(CARD_CLUB) ?: error("no $CARD_CLUB campaign")
         val documents = seeded(GameSave.new(createdAt = 0L).copy(mgp = cardClub.fee * 2))
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openLadder(documents, CARD_CLUB)
 
         assertTrue(exists(CAMPAIGN_LOCKED_TEST_TAG), "a locked ladder should say why")
@@ -152,7 +152,7 @@ class CampaignUiTest {
                 campaignEntries = mapOf(GOLD_SAUCER to today),
             ),
         )
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openLadder(documents)
 
         assertTrue(exists(CAMPAIGN_LOCKED_TEST_TAG), "the day's entry being spent should be said")
@@ -168,7 +168,7 @@ class CampaignUiTest {
                 campaignEntries = mapOf(GOLD_SAUCER to YESTERDAY),
             ),
         )
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openLadder(documents)
 
         assertFalse(exists(CAMPAIGN_LOCKED_TEST_TAG), "a stale stamp should not shut the ladder")
@@ -194,7 +194,7 @@ class CampaignUiTest {
             save = freshSave().copy(mgp = goldSaucer.fee + POCKET_CHANGE),
             seed = LOSING_SEED,
         )
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         openRefereedLadder()
         onNodeWithTag(CAMPAIGN_START_TEST_TAG).performClick()
         settleDeck()
@@ -215,7 +215,12 @@ class CampaignUiTest {
 
     @Test
     fun startingALadderOpensItsFirstRung() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = payingServer().connection) }
+        setContent {
+            TestApp(
+                store = settingsFor(AppLocale.EN_US),
+                server = payingServer().connection,
+            )
+        }
         openRefereedLadder()
 
         onNodeWithTag(CAMPAIGN_START_TEST_TAG).performClick()
@@ -243,7 +248,7 @@ class CampaignUiTest {
             save = freshSave().copy(mgp = goldSaucer.fee + POCKET_CHANGE),
             entryGate = gate,
         )
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         openRefereedLadder()
 
         onNodeWithTag(CAMPAIGN_START_TEST_TAG).performClick()
@@ -269,7 +274,7 @@ class CampaignUiTest {
     fun aLadderInTheOtherFormatIsShutRatherThanSold() = runComposeUiTest {
         val balamb = campaigns.byKey(BALAMB) ?: error("no $BALAMB campaign")
         val documents = seeded(freshSave(block = FF14_BLOCK).copy(mgp = balamb.fee * 2))
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openLadder(documents, BALAMB)
 
         assertTrue(exists(CAMPAIGN_LOCKED_TEST_TAG), "having no deck for the format should be said")
@@ -278,7 +283,12 @@ class CampaignUiTest {
 
     @Test
     fun aRungOffersTheNextRungRatherThanARematch() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = payingServer().connection) }
+        setContent {
+            TestApp(
+                store = settingsFor(AppLocale.EN_US),
+                server = payingServer().connection,
+            )
+        }
         openRefereedLadder()
         onNodeWithTag(CAMPAIGN_START_TEST_TAG).performClick()
         settleDeck()

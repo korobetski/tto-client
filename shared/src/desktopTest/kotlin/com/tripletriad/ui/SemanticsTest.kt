@@ -19,7 +19,7 @@ class SemanticsTest {
 
     @Test
     fun aCardCellIsAButtonThatReportsWhetherItIsShowing() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
 
         newCharacter()
         openFromBar("cards", CARD_GRID_TEST_TAG)
@@ -36,7 +36,7 @@ class SemanticsTest {
 
     @Test
     fun aDeckSlotIsAButtonWithNoSelectionToReport() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
 
         newCharacter()
         openFromBar("cards", CARD_GRID_TEST_TAG)
@@ -53,7 +53,7 @@ class SemanticsTest {
 
     @Test
     fun theLanguageChipsReportWhichIsChosen() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
 
         awaitMenu()
         onNodeWithTag(MENU_OPTIONS_TEST_TAG).performClick()
@@ -65,7 +65,7 @@ class SemanticsTest {
 
     @Test
     fun theSettingsGroupsAreHeadings() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
 
         awaitMenu()
         onNodeWithTag(MENU_OPTIONS_TEST_TAG).performClick()
@@ -80,7 +80,7 @@ class SemanticsTest {
 
     @Test
     fun aBoardCellIsAButtonEvenThoughItSkipsTheSharedModifier() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
 
         startMatch()
 

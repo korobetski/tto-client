@@ -39,7 +39,7 @@ class ShopUiTest {
     @Test
     fun buyingTakesTheMgpAndPutsTheItemInTheBag() = runComposeUiTest {
         val documents = seeded(profile(mgp = GameSave.STARTING_MGP))
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openShop(documents)
 
         val potion = ShopCatalog.ff14.first { it.item == PotionItem(PotionType.MGP) }
@@ -57,7 +57,7 @@ class ShopUiTest {
     @Test
     fun anUnaffordableOfferLeavesTheProfileAlone() = runComposeUiTest {
         val documents = seeded(profile(mgp = GameSave.STARTING_MGP))
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openShop(documents)
 
         val expensive = ShopCatalog.ff14.first { it.item == CardItem(MILLION_MGP_CARD) }
@@ -75,7 +75,7 @@ class ShopUiTest {
     @Test
     fun thereIsNothingToBuyUntilAnOfferIsPicked() = runComposeUiTest {
         val documents = seeded(profile(mgp = GameSave.STARTING_MGP))
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openShop(documents)
 
         // The button used to be a permanent bar at the foot of the screen, disabled for as long
@@ -94,7 +94,7 @@ class ShopUiTest {
     @Test
     fun buyingSaysWhatWasBought() = runComposeUiTest {
         val documents = seeded(profile(mgp = GameSave.STARTING_MGP))
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openShop(documents)
 
         val potion = ShopCatalog.ff14.first { it.item == PotionItem(PotionType.MGP) }
@@ -107,7 +107,7 @@ class ShopUiTest {
     @Test
     fun buyingTheSameThingTwiceStacksIt() = runComposeUiTest {
         val documents = seeded(profile(mgp = GameSave.STARTING_MGP))
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openShop(documents)
 
         // The sheet now closes itself on a buy — see `StoreScreen.buy` — so the second purchase
@@ -129,7 +129,7 @@ class ShopUiTest {
     @Test
     fun bothShelvesAreOnOneScreen() = runComposeUiTest {
         val documents = seeded(profile(mgp = ENOUGH_FOR_ANY_PACK))
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openShop(documents)
 
         // Only the item decides the tag; the price is derived and not what this test is about.
@@ -147,7 +147,7 @@ class ShopUiTest {
     fun aBoughtCardDoesNotEnterTheCollectionByItself() = runComposeUiTest {
         val offer = ShopCatalog.ff14.first { it.item == CardItem(CHEAP_CARD) }
         val documents = seeded(profile(mgp = offer.price))
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openShop(documents)
 
         onNodeWithTag(SHOP_LIST_TEST_TAG).performScrollToNode(hasTestTag(shopOfferTestTag(offer)))
@@ -164,7 +164,7 @@ class ShopUiTest {
     fun theFreePackIsOfferedToACharacterThatCannotPlayAndThenGoesAway() = runComposeUiTest {
         val stranded = profile(mgp = 0).copy(cards = emptyMap(), decks = emptyList())
         val documents = seeded(stranded)
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openShop(documents)
 
         assertTrue(exists(SHOP_STARTER_TEST_TAG), "a stranded character should be offered the pack")
@@ -185,7 +185,7 @@ class ShopUiTest {
     @Test
     fun theFreePackIsAbsentForACharacterWithAStarterDeck() = runComposeUiTest {
         val documents = seeded(profile(mgp = GameSave.STARTING_MGP))
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openShop(documents)
 
         assertFalse(exists(SHOP_STARTER_TEST_TAG), "a playable character is owed nothing")

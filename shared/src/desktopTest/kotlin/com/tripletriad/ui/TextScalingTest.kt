@@ -82,7 +82,7 @@ class TextScalingTest {
             val base = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(base.density, fontScale)) {
                 Box(modifier = Modifier.size(PHONE_WIDTH, PHONE_HEIGHT)) {
-                    App(store = settingsFor(AppLocale.EN_US))
+                    TestApp(store = settingsFor(AppLocale.EN_US))
                 }
             }
         }

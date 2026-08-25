@@ -81,8 +81,9 @@ private fun Caption(banner: MatchBanner, onFinished: () -> Unit) {
         return
     }
     if (image == null) {
-        LaunchedEffect(banner) {
-            delay(banner.totalMillis.toLong())
+        val pacing = LocalPacing.current
+        LaunchedEffect(banner, pacing) {
+            delay(pacing * banner.totalMillis.toLong())
             onFinished()
         }
         return
@@ -106,18 +107,19 @@ private fun BannerImage(
     val alpha = remember(banner) { Animatable(0f) }
     val offset = remember(banner) { Animatable(banner.motion.enterOffset) }
     val rotation = remember(banner) { Animatable(0f) }
+    val pacing = LocalPacing.current
 
-    LaunchedEffect(banner) {
-        if (banner.leadInMillis > 0) delay(banner.leadInMillis.toLong())
+    LaunchedEffect(banner, pacing) {
+        if (banner.leadInMillis > 0) delay(pacing * banner.leadInMillis.toLong())
 
-        val enter = tween<Float>(banner.enterMillis, easing = LinearEasing)
+        val enter = tween<Float>(pacing * banner.enterMillis, easing = LinearEasing)
         launch { scale.animateTo(1f, enter) }
         launch { offset.animateTo(0f, enter) }
         alpha.animateTo(1f, enter)
 
-        delay(banner.holdMillis.toLong())
+        delay(pacing * banner.holdMillis.toLong())
 
-        val exit = tween<Float>(banner.exitMillis, easing = LinearEasing)
+        val exit = tween<Float>(pacing * banner.exitMillis, easing = LinearEasing)
         // `SuddenDeathAnim` tilts as it goes; nothing else rotates at all.
         if (banner.motion == BannerMotion.ZOOM_BOUNCE) {
             launch { rotation.animateTo(BOUNCE_DEGREES, exit) }

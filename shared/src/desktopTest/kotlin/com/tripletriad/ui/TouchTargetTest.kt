@@ -51,7 +51,7 @@ class TouchTargetTest {
 
     @Test
     fun everyOrdinaryRowIsBigEnoughToTap() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
 
         newCharacter()
 
@@ -75,7 +75,7 @@ class TouchTargetTest {
     @Test
     fun theSmallestSharedTargetIsBigEnoughToTap() = runComposeUiTest {
         val documents = seeded(GameSave.new(username = "Kuplu", createdAt = 0L))
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
 
         awaitMenu()
         onNodeWithTag(MENU_PLAY_TEST_TAG).performClick()

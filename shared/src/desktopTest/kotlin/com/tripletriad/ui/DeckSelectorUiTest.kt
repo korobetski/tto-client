@@ -74,7 +74,7 @@ class DeckSelectorUiTest {
     @Test
     fun onlyCompleteDecksAreOffered() = runComposeUiTest {
         setContent {
-            App(store = settingsFor(AppLocale.EN_US), server = serving(withDecks()).connection)
+            TestApp(store = settingsFor(AppLocale.EN_US), server = serving(withDecks()).connection)
         }
         reachSelector()
 
@@ -89,7 +89,7 @@ class DeckSelectorUiTest {
     @Test
     fun theChosenDeckIsTheHandThatIsDealt() = runComposeUiTest {
         setContent {
-            App(store = settingsFor(AppLocale.EN_US), server = serving(withDecks()).connection)
+            TestApp(store = settingsFor(AppLocale.EN_US), server = serving(withDecks()).connection)
         }
         reachSelector()
 
@@ -128,7 +128,7 @@ class DeckSelectorUiTest {
             ),
         )
         setContent {
-            App(store = settingsFor(AppLocale.EN_US), server = serving(profile).connection)
+            TestApp(store = settingsFor(AppLocale.EN_US), server = serving(profile).connection)
         }
         reachSelector()
 
@@ -140,7 +140,7 @@ class DeckSelectorUiTest {
     @Test
     fun theFirstDeckIsAlreadySelected() = runComposeUiTest {
         setContent {
-            App(store = settingsFor(AppLocale.EN_US), server = serving(withDecks()).connection)
+            TestApp(store = settingsFor(AppLocale.EN_US), server = serving(withDecks()).connection)
         }
         reachSelector()
 
@@ -152,7 +152,7 @@ class DeckSelectorUiTest {
         val profile = GameSave.new(createdAt = 0L)
             .copy(decks = listOf(Deck(name = "Half", cards = STARTER.take(HALF_A_DECK))))
         setContent {
-            App(store = settingsFor(AppLocale.EN_US), server = serving(profile).connection)
+            TestApp(store = settingsFor(AppLocale.EN_US), server = serving(profile).connection)
         }
         reachSelector()
 
@@ -171,7 +171,7 @@ class DeckSelectorUiTest {
     @Test
     fun theRandomRuleSkipsTheSelectorEntirely() = runComposeUiTest {
         val server = serving(freshSave(createdAt = 0L, block = FF8_BLOCK), block = FF8_BLOCK)
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = server.connection) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = server.connection) }
         openDashboard()
         openOpponents()
 
@@ -206,7 +206,7 @@ class DeckSelectorUiTest {
     @Test
     fun backingOutOfTheSelectorLeavesNoMatchBehind() = runComposeUiTest {
         val server = serving(withDecks())
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = server.connection) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = server.connection) }
         reachSelector()
 
         onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()

@@ -10,9 +10,16 @@ internal fun placementSound(audio: AudioPlayer, captures: List<Capture>, finishe
     if (!finished) audio.play(Sound.TURN_CHANGE)
 }
 
-internal suspend fun cascadeSounds(audio: AudioPlayer, captures: List<Capture>, won: Boolean?) {
+internal suspend fun cascadeSounds(
+    audio: AudioPlayer,
+    captures: List<Capture>,
+    won: Boolean?,
+    // Passed rather than read: this is not a composable, and the wave it counts out has to stay in
+    // step with the flips [MatchBoard] is drawing to the same beat.
+    pacing: Pacing = Pacing.Default,
+) {
     repeat(captures.maxOfOrNull { it.wave } ?: 0) {
-        delay(COMBO_WAVE_MS)
+        delay(pacing * COMBO_WAVE_MS)
         audio.play(Sound.COMBO)
     }
 

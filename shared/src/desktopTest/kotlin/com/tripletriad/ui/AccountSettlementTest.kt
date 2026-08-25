@@ -62,7 +62,7 @@ class AccountSettlementTest {
         }
 
         setContent {
-            App(store = settingsFor(AppLocale.EN_US), server = connection(sessions, reporter))
+            TestApp(store = settingsFor(AppLocale.EN_US), server = connection(sessions, reporter))
         }
         openTheBag()
 
@@ -91,7 +91,7 @@ class AccountSettlementTest {
         val server = PveStubServer(reporter = reporter)
 
         setContent {
-            App(store = settingsFor(AppLocale.EN_US), server = server.connection)
+            TestApp(store = settingsFor(AppLocale.EN_US), server = server.connection)
         }
         openDashboard()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { reporter.drained.size == 1 }

@@ -142,6 +142,6 @@ class AdaptiveUiTest {
 @androidx.compose.runtime.Composable
 private fun Sized(width: androidx.compose.ui.unit.Dp, server: ServerConnection? = null) {
     Box(modifier = Modifier.width(width).fillMaxHeight()) {
-        App(store = settingsFor(AppLocale.EN_US), server = server)
+        TestApp(store = settingsFor(AppLocale.EN_US), server = server)
     }
 }

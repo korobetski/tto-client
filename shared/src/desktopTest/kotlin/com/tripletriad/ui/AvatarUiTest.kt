@@ -19,7 +19,7 @@ class AvatarUiTest {
     @Test
     fun theRecordOpensThePickerAndTheChoiceReachesTheFile() = runComposeUiTest {
         val documents = seeded(GameSave(username = "kuplu"))
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
 
         loadCharacter(documents)
         openPicker()
@@ -31,7 +31,7 @@ class AvatarUiTest {
     @Test
     fun everyImportedPortraitIsOffered() = runComposeUiTest {
         val documents = seeded(GameSave(username = "kuplu"))
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
 
         loadCharacter(documents)
         openPicker()
@@ -46,7 +46,7 @@ class AvatarUiTest {
     @Test
     fun aSecondChoiceReplacesTheFirst() = runComposeUiTest {
         val documents = seeded(GameSave(username = "kuplu"))
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
 
         loadCharacter(documents)
         openPicker()

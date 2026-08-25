@@ -29,7 +29,7 @@ class DecksUiTest {
 
     @Test
     fun allFiveSlotsAreListedIncludingTheEmptyOnes() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openDecks()
 
         for (slot in 0 until GameSave.MAX_DECKS) {
@@ -42,7 +42,7 @@ class DecksUiTest {
 
     @Test
     fun openingASlotShowsItsCardsAndBackReturnsToTheSlots() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openDecks()
 
         onNodeWithTag(deckSlotTestTag(0)).performClick()
@@ -60,7 +60,7 @@ class DecksUiTest {
     @Test
     fun removingACardAndSavingWritesTheShorterDeck() = runComposeUiTest {
         val documents = seeded(freshSave())
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
         openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
 
@@ -80,7 +80,7 @@ class DecksUiTest {
     @Test
     fun leavingTheEditorWithoutSavingChangesNothing() = runComposeUiTest {
         val documents = seeded(GameSave.new(createdAt = 0L))
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
         openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
         val before = storedSave(documents)
@@ -98,7 +98,7 @@ class DecksUiTest {
     @Test
     fun anEmptySlotCanBeFilledFromTheCollection() = runComposeUiTest {
         val documents = seeded(freshSave())
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
         openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
 
@@ -125,7 +125,7 @@ class DecksUiTest {
         val extra = GameSave.new(createdAt = 0L)
             .copy(cards = (STARTER_CARDS + SIXTH_CARD).associateWith { 1 })
         val documents = seeded(extra)
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
         openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
 
@@ -149,7 +149,7 @@ class DecksUiTest {
             decks = listOf(Deck(name = "Half", cards = listOf(single))),
         )
         val documents = seeded(profile)
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
         openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
 
@@ -171,7 +171,7 @@ class DecksUiTest {
             decks = listOf(Deck(name = "Half", cards = listOf(twin))),
         )
         val documents = seeded(profile)
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
         openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
 
@@ -196,7 +196,7 @@ class DecksUiTest {
     @Test
     fun everyPickableCardShowsItsPowersAndItsType() = runComposeUiTest {
         val documents = seeded(freshSave())
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
         openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
 
@@ -223,7 +223,7 @@ class DecksUiTest {
     fun aDeckNamingACardNoLongerOwnedSaysSo() = runComposeUiTest {
         val lost = STARTER_DECK.first()
         val documents = seeded(freshSave().withoutCard(lost))
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
         openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
 
@@ -243,7 +243,7 @@ class DecksUiTest {
 
     @Test
     fun anIntactDeckIsNotWarnedAbout() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openDecks()
 
         onNodeWithTag(deckMissingTestTag(0), useUnmergedTree = true).assertDoesNotExist()

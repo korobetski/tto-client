@@ -95,10 +95,11 @@ internal fun animationsFor(view: MatchView, intro: List<MatchAnimation>): List<M
 @Composable
 internal fun pveIntroFinished(key: Any, intro: List<MatchAnimation>): Boolean {
     var done by remember(key) { mutableStateOf(false) }
+    val pacing = LocalPacing.current
 
-    LaunchedEffect(key) {
+    LaunchedEffect(key, pacing) {
         done = false
-        delay(intro.sumOf { it.totalMillis }.toLong())
+        delay(pacing * intro.sumOf { it.totalMillis }.toLong())
         done = true
     }
 
@@ -110,10 +111,11 @@ internal fun introFinished(key: Any, setup: MatchSetup): Boolean {
     // Keyed on the setup as well: a sudden-death rematch replaces it in place without changing
     // the match, and plays a second intro that has to be waited through in turn.
     var done by remember(key, setup) { mutableStateOf(false) }
+    val pacing = LocalPacing.current
 
-    LaunchedEffect(key, setup) {
+    LaunchedEffect(key, setup, pacing) {
         done = false
-        delay(introAnimations(setup).sumOf { it.totalMillis }.toLong())
+        delay(pacing * introAnimations(setup).sumOf { it.totalMillis }.toLong())
         done = true
     }
 

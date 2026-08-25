@@ -99,6 +99,7 @@ internal fun PveMatchScreen(
 ) {
     val strings = LocalStrings.current
     val audio = LocalAudio.current
+    val pacing = LocalPacing.current
     val scope = rememberCoroutineScope()
     val cards = catalog.byId
 
@@ -152,7 +153,7 @@ internal fun PveMatchScreen(
         // Only a placement being *told* sounds. The walk ends by adopting the referee's own view,
         // which is the position the last step already reached — sounding it again played every
         // capture twice and announced the winner twice.
-        if (told) playMatchSounds(audio, scope, next)
+        if (told) playMatchSounds(audio, scope, next, pacing)
     }
 
     val view = shown
@@ -192,7 +193,7 @@ internal fun PveMatchScreen(
         val outcome = session.match?.outcome ?: return@LaunchedEffect
         if (reward != null || shown !== served) return@LaunchedEffect
         onResult(outcome.result)
-        delay(PVE_OUTCOME_PAUSE_MS + settleMillis(view.lastPlay))
+        delay(pacing * (PVE_OUTCOME_PAUSE_MS + settleMillis(view.lastPlay)))
         reward = outcome.reward?.asMatchReward(outcome.result)
     }
 
@@ -321,8 +322,9 @@ private fun PveExchange(
     onStep: (MatchView, told: Boolean) -> Unit,
 ) {
     val plays = session.match?.plays.orEmpty()
+    val pacing = LocalPacing.current
 
-    LaunchedEffect(session.match) {
+    LaunchedEffect(session.match, pacing) {
         val target = served ?: return@LaunchedEffect
         // Nothing to tell: a plain read, a resumed match, or the opening deal. The board is the
         // truth and it is adopted whole. It still *announces* when the answer carried placements —
@@ -343,7 +345,7 @@ private fun PveExchange(
             // Everything after it waits twice: once for the screen to go quiet, and once more
             // because a program that answers the instant the flip ends does not read as an
             // opponent taking a turn.
-            if (index > 0) delay(quietMillis(at) + thinking.inWholeMilliseconds)
+            if (index > 0) delay(pacing * (quietMillis(at) + thinking.inWholeMilliseconds))
             at = at.after(play, card)
             onStep(at, true)
         }
@@ -351,7 +353,7 @@ private fun PveExchange(
         // to a different position than the one that was sent is a rendering bug here; the player
         // still gets the position the server has.
         // The last placement's own animation, and no thinking pause: nobody is about to move.
-        delay(settleMillis(at.lastPlay))
+        delay(pacing * settleMillis(at.lastPlay))
         onStep(target, false)
     }
 }

@@ -26,7 +26,7 @@ class QuestsUiTest {
 
     @Test
     fun aCharacterWhoHasNotPlayedSeesTodaysQuestsAtZero() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
         openQuests()
 
@@ -41,7 +41,7 @@ class QuestsUiTest {
 
     @Test
     fun theDashboardBadgeCountsWhatIsFinished() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
 
         onNodeWithTag(DASHBOARD_QUESTS_BADGE_TEST_TAG, useUnmergedTree = true)
@@ -63,7 +63,7 @@ class QuestsUiTest {
             ),
         )
         val documents = seeded(save)
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
 
         // The badge first, because it is read from the same record and computed separately.
@@ -90,7 +90,7 @@ class QuestsUiTest {
             ),
         )
         val documents = seeded(save)
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
         openQuests()
 
@@ -102,7 +102,7 @@ class QuestsUiTest {
 
     @Test
     fun aMatchPlayedThroughTheUiReachesTheQuestRecord() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         openDashboard()
         openOpponents()
         challenge()
@@ -134,7 +134,7 @@ class QuestsUiTest {
         // Seeded on the **server**, because that is where a profile lives now: the quest is one
         // match short of done, and the match that finishes it is refereed.
         val server = PveStubServer(save = save)
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = server.connection) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = server.connection) }
         openDashboard()
         openOpponents()
         challenge()
@@ -149,7 +149,7 @@ class QuestsUiTest {
 
     @Test
     fun theHeaderNamesTheDayAndTheReset() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
         openQuests()
 
@@ -166,7 +166,7 @@ class QuestsUiTest {
             ),
         )
         val documents = seeded(save)
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
         openFromDashboard(DASHBOARD_QUESTS_TEST_TAG, QUESTS_NONE_TEST_TAG)
 

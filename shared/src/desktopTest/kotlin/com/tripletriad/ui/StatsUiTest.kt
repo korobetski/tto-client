@@ -25,7 +25,7 @@ class StatsUiTest {
 
     @Test
     fun aFreshCharacterReadsZeroWithoutDividingByZero() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
         openStats()
 
@@ -43,7 +43,7 @@ class StatsUiTest {
             endedMatches = 4,
         )
         val documents = seeded(played)
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
         openStats()
 
@@ -57,7 +57,7 @@ class StatsUiTest {
 
     @Test
     fun unearnedAchievementsAreListedWithTheirProgress() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
         openStats()
 
@@ -71,7 +71,7 @@ class StatsUiTest {
 
     @Test
     fun theCollectorsFirstTierIsMetOnArrival() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
         openStats()
 
@@ -87,7 +87,7 @@ class StatsUiTest {
             .copy(npcWins = mapOf("tt-master" to 1))
             .withAchievement(FIRST_WIN, instant = 1_000L)
         val documents = seeded(decorated)
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
         openStats()
 
@@ -104,7 +104,7 @@ class StatsUiTest {
                 .copy(npcWins = mapOf("tt-master" to 1))
                 .withAchievement(FIRST_WIN, instant = UNLOCKED_AT),
         )
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
         openStats()
 
@@ -118,7 +118,7 @@ class StatsUiTest {
                 .copy(npcWins = mapOf("tt-master" to 1))
                 .withAchievement(FIRST_WIN, instant = UNLOCKED_AT),
         )
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
         openStats()
 

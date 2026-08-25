@@ -74,9 +74,10 @@ fun pvpBackTestTag(slot: Int): String = "pvp-back-$slot"
 @Composable
 private fun PvpMatchSounds(matchId: String?, view: MatchView?) {
     val audio = LocalAudio.current
+    val pacing = LocalPacing.current
     val joinedAt = remember(matchId) { view?.placement ?: 0 }
 
-    LaunchedEffect(matchId, view?.placement) {
+    LaunchedEffect(matchId, view?.placement, pacing) {
         if (matchId == null || view == null) return@LaunchedEffect
 
         if (view.placement <= joinedAt) {
@@ -94,6 +95,7 @@ private fun PvpMatchSounds(matchId: String?, view: MatchView?) {
             // From this player's side, which against a person is not always blue — see
             // [cascadeSounds]. A draw answers null and stays silent, as the original's does.
             won = if (view.isFinished) view.score.winner()?.let { it == view.side } else null,
+            pacing = pacing,
         )
     }
 }

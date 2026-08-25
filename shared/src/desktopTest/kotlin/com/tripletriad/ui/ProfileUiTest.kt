@@ -30,7 +30,7 @@ class ProfileUiTest {
     @Test
     fun creatingACharacterGrantsTheAuthoredStarter() = runComposeUiTest {
         val documents = store()
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         newCharacter(FF8_BLOCK)
 
         val save = stored(documents).single()
@@ -42,7 +42,7 @@ class ProfileUiTest {
 
     @Test
     fun theCreationScreenShowsTheStarterItWouldGrant() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         awaitMenu()
         onNodeWithTag(MENU_PLAY_TEST_TAG).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_NEW_TEST_TAG) }
@@ -64,7 +64,7 @@ class ProfileUiTest {
 
     @Test
     fun aFreshInstallHasNoCharacters() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         awaitMenu()
         onNodeWithTag(MENU_PROFILES_TEST_TAG).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_EMPTY_TEST_TAG) }
@@ -76,7 +76,7 @@ class ProfileUiTest {
     @Test
     fun creatingACharacterWritesItAndOpensItsDashboard() = runComposeUiTest {
         val documents = store()
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
 
         newCharacter()
 
@@ -89,7 +89,7 @@ class ProfileUiTest {
     @Test
     fun theTypedNameIsTheCharactersName() = runComposeUiTest {
         val documents = store()
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         awaitMenu()
         onNodeWithTag(MENU_PROFILES_TEST_TAG).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_NEW_TEST_TAG) }
@@ -111,7 +111,7 @@ class ProfileUiTest {
     @Test
     fun theChosenBoxDealsItsCardsAndLeavesTheRosterWhole() = runComposeUiTest {
         val documents = store()
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
 
         newCharacter(FF8_BLOCK)
         openOpponents()
@@ -127,7 +127,7 @@ class ProfileUiTest {
 
     @Test
     fun aCreatedCharacterIsListedAndNamedOnTheMenu() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
 
         // Back out to the menu: dashboard → characters → menu.
@@ -147,7 +147,7 @@ class ProfileUiTest {
     @Test
     fun deletingTakesTwoTapsAndRemovesTheFile() = runComposeUiTest {
         val documents = store()
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         newCharacter()
         onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_LIST_TEST_TAG) }
@@ -169,7 +169,7 @@ class ProfileUiTest {
     @Test
     fun deletingTheLoadedCharacterUnloadsIt() = runComposeUiTest {
         val documents = store()
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         newCharacter()
         onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_LIST_TEST_TAG) }
@@ -187,7 +187,7 @@ class ProfileUiTest {
     @Test
     fun twoCharactersCanCoexist() = runComposeUiTest {
         val documents = store()
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         newCharacter(FF14_BLOCK)
         onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_LIST_TEST_TAG) }
@@ -212,7 +212,7 @@ class ProfileUiTest {
     @Test
     fun choosingAListedCharacterLoadsIt() = runComposeUiTest {
         val documents = store()
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         newCharacter(FF8_BLOCK)
         onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_LIST_TEST_TAG) }
@@ -228,13 +228,13 @@ class ProfileUiTest {
     @Test
     fun aStoredCharacterSurvivesARelaunch() = runComposeUiTest {
         val documents = store()
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         newCharacter()
         val written = documents.stored.toMap()
 
         // A second `App` over the same store is what "launching again" is, short of a new process.
         setContent {
-            App(
+            TestApp(
                 store = settingsFor(AppLocale.EN_US),
                 documents = InMemoryDocumentStore(written),
                 clock = FixedClock(),

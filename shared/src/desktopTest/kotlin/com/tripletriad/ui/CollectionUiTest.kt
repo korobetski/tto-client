@@ -43,7 +43,7 @@ class CollectionUiTest {
 
     @Test
     fun theTotalCountsWhatIsOwnedAgainstTheWholeTable() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openCards()
 
         onNodeWithTag(CARD_TOTAL_TEST_TAG).assertTextEquals(
@@ -53,7 +53,7 @@ class CollectionUiTest {
 
     @Test
     fun theDetailPanelIsEmptyUntilACardIsPicked() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openCards()
 
         onNodeWithTag(CARD_DETAIL_EMPTY_TEST_TAG).assertExists()
@@ -68,7 +68,7 @@ class CollectionUiTest {
 
     @Test
     fun tappingTheSameCardTwiceClosesTheDetail() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openCards()
         val card = STARTER_CARDS.first()
 
@@ -80,7 +80,7 @@ class CollectionUiTest {
 
     @Test
     fun anUnownedCardIsStillListedAndStillReadable() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openCards()
 
         assertFalse(UNOWNED_CARD in STARTER_CARDS, "the fixture assumes this is unowned")
@@ -92,7 +92,7 @@ class CollectionUiTest {
 
     @Test
     fun everyCharacterBrowsesOneTable() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openCards(FF8_BLOCK)
 
         onNodeWithTag(CARD_TOTAL_TEST_TAG).assertTextEquals(
@@ -114,7 +114,7 @@ class CollectionUiTest {
             GameSave.new(createdAt = 0L)
                 .copy(cards = STARTER_CARDS.associateWith { 1 } + (twin to 3)),
         )
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
         openFromBar("cards", CARD_GRID_TEST_TAG)
 
@@ -129,7 +129,7 @@ class CollectionUiTest {
 
     @Test
     fun aCellIsExactlyTheFrameAndNeverWiderThanIt() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openCards()
 
         // The frame art is drawn over the picture at `fillMaxSize`, so a cell that is any
@@ -159,7 +159,7 @@ class CollectionUiTest {
 
     @Test
     fun filteringByTypeNarrowsTheGridAndItsTotal() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openCards()
 
         onNodeWithTag(CARD_FILTERS_TEST_TAG).assertExists()
@@ -176,7 +176,7 @@ class CollectionUiTest {
 
     @Test
     fun tappingTheChosenTypeAgainClearsIt() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openCards()
 
         onNodeWithTag(typeFilterTestTag(CardType.FIRE)).performClick()
@@ -190,7 +190,7 @@ class CollectionUiTest {
 
     @Test
     fun filteringBySetShowsOneTableAtATime() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openCards()
 
         onNodeWithTag(setFilterTestTag(FF8_BLOCK)).performClick()
@@ -210,7 +210,7 @@ class CollectionUiTest {
     fun aSpareCopyCanBeSoldFromTheCollection() = runComposeUiTest {
         val spare = STARTER_CARDS.first { it !in STARTER_DECK }
         val documents = seeded(freshSave().copy(mgp = 0))
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
         openFromBar("cards", CARD_GRID_TEST_TAG)
 
@@ -229,7 +229,7 @@ class CollectionUiTest {
     fun aCardADeckNeedsIsNotOffered() = runComposeUiTest {
         val inDeck = STARTER_DECK.first()
         val documents = seeded(freshSave())
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
         openFromBar("cards", CARD_GRID_TEST_TAG)
 

@@ -19,7 +19,7 @@ class ArtworkUiTest {
 
     @Test
     fun theRecordShowsTheCharactersAvatar() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
         openFromDashboard(DASHBOARD_STATS_TEST_TAG, STATS_TABLE_TEST_TAG)
 
@@ -30,7 +30,7 @@ class ArtworkUiTest {
     fun theCollectionGridDrawsThumbnails() = runComposeUiTest {
         val card = runBlocking { loadCardCatalog() }.all
             .first { it.id == STARTER_CARDS.first() }
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
         openFromBar("cards", CARD_GRID_TEST_TAG)
 
@@ -42,7 +42,7 @@ class ArtworkUiTest {
 
     @Test
     fun theOpponentListShowsPortraits() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
         openOpponents()
         scrollToOpponent(TEST_OPPONENT)
@@ -57,7 +57,7 @@ class ArtworkUiTest {
     fun aDeckSlotFillsWithAThumbnailWhenACardIsPicked() = runComposeUiTest {
         val first = STARTER_CARDS.first()
         val card = runBlocking { loadCardCatalog() }.all.first { it.id == first }
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
         openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
         onNodeWithTag(deckSlotTestTag(0)).performClick()

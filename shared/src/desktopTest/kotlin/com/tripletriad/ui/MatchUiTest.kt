@@ -20,7 +20,7 @@ class MatchUiTest {
 
     @Test
     fun theBoardHasNineCellsAndAFullPlayerHand() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         startMatch()
 
         onNodeWithTag(BOARD_TEST_TAG).assertExists()
@@ -37,7 +37,7 @@ class MatchUiTest {
 
     @Test
     fun theScoreStartsFiveFive() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         startMatch()
 
         onNodeWithTag(SCORE_TEST_TAG).assertTextEquals(LEVEL_SCORE)
@@ -45,7 +45,7 @@ class MatchUiTest {
 
     @Test
     fun theBoardNamesTheOpponent() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         startMatch()
 
         onNodeWithTag(MATCH_OPPONENT_TEST_TAG).assertTextEquals("Triple Triad Master")
@@ -53,7 +53,7 @@ class MatchUiTest {
 
     @Test
     fun theRulesInForceAreNamedOnTheBoard() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         startMatch()
 
         onNodeWithTag(MATCH_RULES_TEST_TAG).assertTextEquals("All Open")
@@ -61,7 +61,7 @@ class MatchUiTest {
 
     @Test
     fun theRuleStripOpensToExplainWhatItNames() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         startMatch()
 
         // Read unmerged: the strip is `clickable`, so it absorbs its children's semantics.
@@ -79,7 +79,7 @@ class MatchUiTest {
 
     @Test
     fun theBoardShowsTheOpponentsPortrait() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         startMatch()
 
         onNodeWithTag(portraitTestTag(TEST_OPPONENT)).assertExists()
@@ -87,7 +87,7 @@ class MatchUiTest {
 
     @Test
     fun pickingACardThenACellPlacesItAndPassesTheTurn() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         startMatch()
 
         onNodeWithTag(handCardTestTag(CardColor.BLUE, 0)).performClick()
@@ -101,7 +101,7 @@ class MatchUiTest {
 
     @Test
     fun theOpponentPlaysByItself() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         startMatch()
 
         // Whoever the flip favours, red will have played once the turn is back with blue and blue
@@ -114,7 +114,7 @@ class MatchUiTest {
 
     @Test
     fun theOpponentsHandIsNeverSelectable() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         startMatch()
 
         onNodeWithTag(handCardTestTag(CardColor.RED, 0)).performClick()
@@ -125,7 +125,7 @@ class MatchUiTest {
 
     @Test
     fun placingOnATakenCellIsIgnored() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         startMatch()
 
         val taken = playOneCard()
@@ -142,7 +142,7 @@ class MatchUiTest {
 
     @Test
     fun capturesMoveTheScoreAndItAlwaysTotalsTen() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         startMatch()
 
         val seen = mutableListOf(score())
@@ -162,7 +162,7 @@ class MatchUiTest {
 
     @Test
     fun playingOutTheMatchProducesAResultAndAPayout() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         startMatch()
 
         playOut()
@@ -181,7 +181,7 @@ class MatchUiTest {
 
     @Test
     fun theRematchControlDealsAgain() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         startMatch()
 
         playOut()
@@ -196,7 +196,7 @@ class MatchUiTest {
 
     @Test
     fun leavingTheResultPanelReturnsToTheOpponentList() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         startMatch()
 
         playOut()
@@ -209,7 +209,7 @@ class MatchUiTest {
 
     @Test
     fun theUiIsInTheChosenLanguage() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.FR_FR), server = stub.connection) }
+        setContent { TestApp(store = settingsFor(AppLocale.FR_FR), server = stub.connection) }
         startMatch()
 
         assertTrue(
@@ -222,7 +222,7 @@ class MatchUiTest {
 
     @Test
     fun aMissingStringFallsBackToEnglishWithoutDisturbingTheRest() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.DE_DE), server = stub.connection) }
+        setContent { TestApp(store = settingsFor(AppLocale.DE_DE), server = stub.connection) }
         startMatch()
 
         // `RULE_ALL_OPEN` resolves in German — to the English words, because the imported de_DE

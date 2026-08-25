@@ -25,11 +25,12 @@ const val UNLOCKED_CARD_TEST_TAG: String = "unlocked-card"
 internal fun UnlockedCard(card: Card, onFinished: () -> Unit) {
     val entry = remember(card.id) { Animatable(0f) }
     val exit = remember(card.id) { Animatable(0f) }
+    val pacing = LocalPacing.current
 
-    LaunchedEffect(card.id) {
-        entry.animateTo(1f, tween(ENTER_MILLIS, easing = EaseOut))
-        delay(HOLD_MILLIS.toLong())
-        exit.animateTo(1f, tween(EXIT_MILLIS, easing = LinearEasing))
+    LaunchedEffect(card.id, pacing) {
+        entry.animateTo(1f, tween(pacing * ENTER_MILLIS, easing = EaseOut))
+        delay(pacing * HOLD_MILLIS.toLong())
+        exit.animateTo(1f, tween(pacing * EXIT_MILLIS, easing = LinearEasing))
         onFinished()
     }
 

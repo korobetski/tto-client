@@ -57,25 +57,31 @@ internal fun TalkBubble(message: String, speaker: String, onFinished: () -> Unit
     val alpha = remember(message) { Animatable(0f) }
     var textUp by remember(message) { mutableStateOf(false) }
     var dismissed by remember(message) { mutableStateOf(false) }
+    val pacing = LocalPacing.current
 
-    LaunchedEffect(message) {
+    LaunchedEffect(message, pacing) {
         // **Together, not one after the other.** These were two suspending `animateTo` calls in a
         // row, so a "0.4s" entry took 0.8s and the exit another 0.8 — a second and a half of every
         // line spent on its own animation. `coroutineScope` returns when both have landed.
         coroutineScope {
-            launch { alpha.animateTo(1f, tween(ENTER_MILLIS, easing = LinearEasing)) }
-            scale.animateTo(1f, tween(ENTER_MILLIS, easing = FastOutSlowInEasing))
+            launch { alpha.animateTo(1f, tween(pacing * ENTER_MILLIS, easing = LinearEasing)) }
+            scale.animateTo(1f, tween(pacing * ENTER_MILLIS, easing = FastOutSlowInEasing))
         }
 
         textUp = true // predispose(): the two TextFields are built here, not before.
         // Whichever comes first: the five seconds, or a tap. `withTimeoutOrNull` returning null is
         // the ordinary case and carries no meaning beyond "nobody touched it".
-        withTimeoutOrNull(HOLD_MILLIS.toLong()) { snapshotFlow { dismissed }.first { it } }
+        //
+        // `withTimeoutOrNull(0)` would never let the tap win, so a scaled-down hold keeps a
+        // millisecond: the branch a test exercises has to be the one the player exercises.
+        withTimeoutOrNull((pacing * HOLD_MILLIS.toLong()).coerceAtLeast(1L)) {
+            snapshotFlow { dismissed }.first { it }
+        }
         textUp = false // setTimeout(… visible = false, 5000)
 
         coroutineScope {
-            launch { alpha.animateTo(0f, tween(EXIT_MILLIS, easing = LinearEasing)) }
-            scale.animateTo(EXIT_SCALE, tween(EXIT_MILLIS, easing = FastOutSlowInEasing))
+            launch { alpha.animateTo(0f, tween(pacing * EXIT_MILLIS, easing = LinearEasing)) }
+            scale.animateTo(EXIT_SCALE, tween(pacing * EXIT_MILLIS, easing = FastOutSlowInEasing))
         }
 
         onFinished()

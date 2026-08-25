@@ -128,7 +128,7 @@ class ThemeTest {
 
     @Test
     fun theFontResourcesAreShipped() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
 
         awaitMenu()
     }

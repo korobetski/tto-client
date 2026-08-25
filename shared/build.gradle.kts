@@ -276,6 +276,62 @@ desktopTestTask.configure {
     providers.gradleProperty("tto.screenshots").orNull?.let {
         systemProperty("tto.screenshots", it)
     }
+
+    // -----------------------------------------------------------------------------------
+    // Half the cores, and never more than that.
+    //
+    // Measured here on 2026-08-25, 8 cores, 974 tests, `--rerun` each time. The left column is
+    // before `Pacing` existed and every test sat through the game's scripted pauses; the right
+    // is after:
+    //
+    //   forks   wall (before)   wall (after)   summed test time (after)
+    //   1       530s            —              —
+    //   2       462s            235s           342s
+    //   4       436s            207s           453s
+    //   8      1492s            —              —
+    //
+    // Two things in that table are worth keeping. The first is that this suite is **CPU-bound on
+    // rendering**, not idle: a Compose UI test looks like it is asleep in `delay()`, but the board
+    // is animating the whole time and the fork is drawing every frame of it. That is why the
+    // summed time inflates as forks are added, and why one fork per core is not a plateau but a
+    // cliff — at 8 the forks spent their time descheduling each other and the run took nearly
+    // three times as long as running them one after another.
+    //
+    // The second is that `availableProcessors() / 2` is the part that matters and the cap is only
+    // a ceiling on memory: on the 4-core CI runner the formula gives 2, so the 1-fork-per-core
+    // case cannot be reached by moving to a smaller machine. Do not replace the division with the
+    // cap.
+    //
+    // `-Ptto.testForks=1` restores a single JVM, which is what to reach for when a failure looks
+    // like interference rather than a real one.
+    //
+    // Nothing is shared across forks that could make that interference real: separate JVMs, so no
+    // static state, and the only two classes that write files write different ones
+    // (`NpcRatingBundleTest` -> `build/npc-ratings.json`, `ScreenshotCapture` ->
+    // `docs/screenshots/`). JaCoCo is safe too — its agent takes an exclusive `FileLock` on the
+    // exec file precisely so several JVMs can append to one.
+    // -----------------------------------------------------------------------------------
+    maxParallelForks = providers.gradleProperty("tto.testForks").orNull?.toInt()
+        ?: (Runtime.getRuntime().availableProcessors() / 2).coerceIn(1, 4)
+
+    maxHeapSize = "1g"
+
+    // -----------------------------------------------------------------------------------
+    // Instrument our own classes and nothing else.
+    //
+    // The agent's default is every class it sees, which here means the whole of Compose,
+    // Skiko, Ktor and kotlinx — and per the table above the hot path in this suite is
+    // exactly the recomposition and drawing machinery it would be probing. `coverageReport`
+    // reads `classDirectories` from the desktop main output alone, so none of that
+    // instrumentation ever reached the report: this drops the cost, not the coverage.
+    //
+    // `com.tripletriad.*` is wider than what is reported — it takes `:core` in too — and is
+    // left that way on purpose: the engine's classes are a rounding error next to Compose,
+    // and a narrower pattern would have to be edited every time a package moves.
+    // -----------------------------------------------------------------------------------
+    extensions.configure<JacocoTaskExtension> {
+        includes = listOf("com.tripletriad.*")
+    }
 }
 
 tasks.register<JacocoReport>("coverageReport") {

@@ -1,5 +1,6 @@
 package com.tripletriad.ui
 
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasTestTag
@@ -9,13 +10,65 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import com.tripletriad.FF14_BLOCK
+import com.tripletriad.audio.AudioPlayer
+import com.tripletriad.audio.SilentAudioPlayer
 import com.tripletriad.data.SaveRepository
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.GameSave
+import com.tripletriad.net.ServerConnection
 import com.tripletriad.settings.InMemorySettingsStore
 import com.tripletriad.settings.SettingsStore
+import com.tripletriad.storage.DocumentStore
 import com.tripletriad.storage.InMemoryDocumentStore
+import com.tripletriad.time.Clock
+import com.tripletriad.time.FixedClock
 import kotlinx.coroutines.runBlocking
+
+/**
+ * The app under test, at a pace no one has to sit through.
+ *
+ * Everything else about it is [App] — same composition, same defaults, same code paths. The one
+ * difference is [TEST_PACING], and it is the difference between a suite that takes nine minutes
+ * and one that does not: a Compose UI test waits out the game's scripted pauses in real time, and
+ * `TutorialUiTest` alone was 247s of a 526s run because `TalkBubble` holds every line for five
+ * seconds.
+ *
+ * A wrapper rather than an argument at each of the 235 call sites, so that the pace is written
+ * down once and a test written tomorrow gets it without knowing it exists. A test that needs the
+ * real thing — because what it is checking *is* the pacing — passes `pacing = Pacing.Default`.
+ *
+ * [ScreenshotCapture] deliberately still calls [App]: the README's pictures should be of the app
+ * as it ships.
+ */
+@Composable
+@Suppress("LongParameterList")
+internal fun TestApp(
+    store: SettingsStore = InMemorySettingsStore(),
+    documents: DocumentStore = InMemoryDocumentStore(),
+    clock: Clock = FixedClock(),
+    audio: AudioPlayer = SilentAudioPlayer,
+    onQuit: () -> Unit = {},
+    server: ServerConnection? = null,
+    pacing: Pacing = TEST_PACING,
+) = App(
+    store = store,
+    documents = documents,
+    clock = clock,
+    audio = audio,
+    onQuit = onQuit,
+    server = server,
+    pacing = pacing,
+)
+
+/**
+ * Fast, but not instant, and the gap matters.
+ *
+ * At zero, `withTimeoutOrNull(0)` in [TalkBubble] never lets a tap win the race and `tween(0)`
+ * stops being an animation at all — the tests would then be exercising code paths the player never
+ * takes. A fiftieth keeps every ordering intact (a line still enters, holds, then leaves) while
+ * turning five seconds into a hundred milliseconds.
+ */
+internal val TEST_PACING = Pacing(0.02)
 
 internal const val UI_TIMEOUT_MS = 10_000L
 

@@ -15,7 +15,7 @@ class LessonsUiTest {
 
     @Test
     fun theDashboardOpensTheCourse() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
 
         openLessons()
@@ -31,7 +31,7 @@ class LessonsUiTest {
 
     @Test
     fun aNewCharacterHasFinishedNothing() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
 
         openLessons()
@@ -47,7 +47,7 @@ class LessonsUiTest {
 
     @Test
     fun aLessonCanBeStartedOutOfOrder() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
         openLessons()
 
@@ -59,7 +59,7 @@ class LessonsUiTest {
 
     @Test
     fun finishingALessonIsRemembered() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
         openLessons()
         onNodeWithTag(lessonRowTestTag(0)).performClick()
@@ -79,7 +79,11 @@ class LessonsUiTest {
 
     @Test
     fun aFinishedCourseSaysSoInsteadOfExplainingItself() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US, lessonsDone = TUTORIAL_COURSE.size)) }
+        setContent {
+            TestApp(
+                store = settingsFor(AppLocale.EN_US, lessonsDone = TUTORIAL_COURSE.size),
+            )
+        }
         newCharacter()
 
         openLessons()
@@ -98,7 +102,7 @@ class LessonsUiTest {
 
     @Test
     fun anUnfinishedCourseKeepsTheBlurb() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US, lessonsDone = PART_WAY)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US, lessonsDone = PART_WAY)) }
         newCharacter()
 
         openLessons()

@@ -53,7 +53,7 @@ class InventoryUiTest {
 
     @Test
     fun aFreshCharactersBagSaysItIsEmpty() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
 
         openFromDashboard(DASHBOARD_INVENTORY_TEST_TAG, INVENTORY_EMPTY_TEST_TAG)
@@ -64,7 +64,7 @@ class InventoryUiTest {
     @Test
     fun theActionsAppearOnlyOnceSomethingIsSelected() = runComposeUiTest {
         val documents = seeded(withBag())
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openBag(documents)
 
         assertFalse(exists(INVENTORY_USE_TEST_TAG), "the footer is up with nothing selected")
@@ -77,7 +77,7 @@ class InventoryUiTest {
     @Test
     fun tappingTheSelectedRowAgainClearsTheSelection() = runComposeUiTest {
         val documents = seeded(withBag())
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openBag(documents)
 
         select(CardItem(SELLABLE_CARD))
@@ -91,7 +91,7 @@ class InventoryUiTest {
     @Test
     fun sellingACardPaysForItAndLeavesTheRest() = runComposeUiTest {
         val documents = seeded(withBag())
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openBag(documents)
         val before = storedSave(documents).mgp
 
@@ -111,7 +111,7 @@ class InventoryUiTest {
     @Test
     fun aPackCannotBeSoldByEitherButton() = runComposeUiTest {
         val documents = seeded(withBag())
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openBag(documents)
 
         select(BoosterItem(BoosterType.BRONZE))
@@ -126,7 +126,7 @@ class InventoryUiTest {
     @Test
     fun usingACardAddsItToTheCollection() = runComposeUiTest {
         val documents = seeded(withBag())
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openBag(documents)
 
         assertFalse(storedSave(documents).ownsCard(SELLABLE_CARD))
@@ -142,10 +142,25 @@ class InventoryUiTest {
         )
     }
 
+    /**
+     * At the shipped pace: this test's whole claim is that the reveal is *held* long enough to be
+     * seen and then goes away on its own.
+     *
+     * `UnlockedCard` is 300ms in, 1.4s held, 200ms out. Scaled by [TEST_PACING] that is 38ms end to
+     * end, and the first `waitUntil` misses the tag altogether — the card comes and goes between
+     * two polls. Waiting for something to appear and then disappear cannot be made fast without
+     * ceasing to be the same check.
+     */
     @Test
     fun usingACardShowsIt() = runComposeUiTest {
         val documents = seeded(withBag())
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent {
+            TestApp(
+                store = settingsFor(AppLocale.EN_US),
+                documents = documents,
+                pacing = Pacing.Default,
+            )
+        }
         openBag(documents)
 
         select(CardItem(SELLABLE_CARD))
@@ -158,7 +173,7 @@ class InventoryUiTest {
     @Test
     fun openingAPackRevealsNothing() = runComposeUiTest {
         val documents = seeded(withBag())
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openBag(documents)
 
         select(BoosterItem(BoosterType.BRONZE))
@@ -175,7 +190,7 @@ class InventoryUiTest {
     @Test
     fun useIsOfferedForACardAlreadyInTheCollectionAndSaysHowMany() = runComposeUiTest {
         val documents = seeded(withBag())
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openBag(documents)
 
         select(CardItem(STARTER_CARDS.first()))
@@ -187,7 +202,7 @@ class InventoryUiTest {
     @Test
     fun openingAPackRevealsItsCardsAndPutsThemInTheBag() = runComposeUiTest {
         val documents = seeded(withBag())
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openBag(documents)
         val cardsBefore = storedSave(documents).cards
 
@@ -227,7 +242,7 @@ class InventoryUiTest {
     @Test
     fun drinkingAPotionRaisesTheBoon() = runComposeUiTest {
         val documents = seeded(withBag())
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openBag(documents)
 
         assertEquals(0, storedSave(documents).boons.mgp)
@@ -244,7 +259,7 @@ class InventoryUiTest {
     @Test
     fun sellingAllEmptiesTheStackAndPaysForEveryOne() = runComposeUiTest {
         val documents = seeded(withBag())
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openBag(documents)
 
         val before = storedSave(documents)
@@ -268,7 +283,7 @@ class InventoryUiTest {
     @Test
     fun sellAllIsInertWhenThereIsOnlyOne() = runComposeUiTest {
         val documents = seeded(withBag())
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openBag(documents)
 
         select(CardItem(STARTER_CARDS.first()))

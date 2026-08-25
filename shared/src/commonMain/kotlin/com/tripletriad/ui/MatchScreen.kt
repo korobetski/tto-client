@@ -166,6 +166,7 @@ internal fun MatchScreen(
 ) {
     val audio = LocalAudio.current
     val strings = LocalStrings.current
+    val pacing = LocalPacing.current
     // For the chain's audio, which has to outlive the placement that started it — see
     // [cascadeSounds].
     val scope = rememberCoroutineScope()
@@ -275,17 +276,19 @@ internal fun MatchScreen(
         // dismissible; see the note where it was removed, in `MatchScript`.
         snapshotFlow { speech.isSpeaking }.first { !it }
         delay(
-            OPPONENT_PAUSE_MS + animationsFor(state, setup).sumOf { it.totalMillis } +
-                // A chain takes longer to finish turning than a single capture, and the opponent
-                // moving over the top of it would undo what the stagger is for.
-                waveDelayMillis(state.lastPlay),
+            pacing * (
+                OPPONENT_PAUSE_MS + animationsFor(state, setup).sumOf { it.totalMillis } +
+                    // A chain takes longer to finish turning than a single capture, and the
+                    // opponent moving over the top of it would undo what the stagger is for.
+                    waveDelayMillis(state.lastPlay)
+                ),
         )
         val next = ai.play(state, random)
         if (next.placement > state.placement) {
             val reindexed = visibility.reindexedFor(next)
             visibility = reindexed
             state = next
-            playMatchSounds(audio, scope, MatchView.of(next, CardColor.BLUE, reindexed))
+            playMatchSounds(audio, scope, MatchView.of(next, CardColor.BLUE, reindexed), pacing)
         }
     }
 
@@ -317,8 +320,10 @@ internal fun MatchScreen(
         // one worth watching — in a lesson it is often the only one there was — and the panel is a
         // scrim over the whole board.
         delay(
-            animationsFor(state, setup).sumOf { it.totalMillis } + OUTCOME_PAUSE_MS +
-                waveDelayMillis(state.lastPlay),
+            pacing * (
+                animationsFor(state, setup).sumOf { it.totalMillis } + OUTCOME_PAUSE_MS +
+                    waveDelayMillis(state.lastPlay)
+                ),
         )
         reward = MatchReward(result = result, mgp = 0, xp = 0)
     }
@@ -331,7 +336,7 @@ internal fun MatchScreen(
             val next = state.play(card, position)
             state = next
             selected = null
-            playMatchSounds(audio, scope, MatchView.of(next, CardColor.BLUE, visibility))
+            playMatchSounds(audio, scope, MatchView.of(next, CardColor.BLUE, visibility), pacing)
         }
     }
 
@@ -427,7 +432,12 @@ internal fun MatchScreen(
     }
 }
 
-internal fun playMatchSounds(audio: AudioPlayer, scope: CoroutineScope, view: MatchView) {
+internal fun playMatchSounds(
+    audio: AudioPlayer,
+    scope: CoroutineScope,
+    view: MatchView,
+    pacing: Pacing = Pacing.Default,
+) {
     val captures = view.lastPlay?.captures.orEmpty()
 
     placementSound(audio, captures, finished = view.isFinished)
@@ -436,6 +446,7 @@ internal fun playMatchSounds(audio: AudioPlayer, scope: CoroutineScope, view: Ma
             audio = audio,
             captures = captures,
             won = (view.outcome() as? MatchOutcome.Win)?.let { it.winner == view.side },
+            pacing = pacing,
         )
     }
 }

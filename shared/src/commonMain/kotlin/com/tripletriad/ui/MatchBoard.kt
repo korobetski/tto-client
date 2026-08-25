@@ -456,12 +456,14 @@ private fun BoardCard(placed: PlacedCard, scale: Float, highlight: Set<Side>, wa
     val landing = remember { Animatable(0f) }
     var shown by remember { mutableStateOf(placed.owner) }
     var showBack by remember { mutableStateOf(false) }
+    val pacing = LocalPacing.current
+    val flipLeg = pacing * FLIP_LEG_MS
 
     // `afterFly`'s second tween. It runs once, on the composition that first has a card in this
     // cell, which is exactly when a card is played onto it — [TileCell] composes nothing here
     // while the cell is empty, so the state above is created fresh with the card.
     LaunchedEffect(Unit) {
-        landing.animateTo(1f, tween(LAND_MS, easing = EaseOut))
+        landing.animateTo(1f, tween(pacing * LAND_MS, easing = EaseOut))
     }
 
     LaunchedEffect(placed.owner) {
@@ -469,21 +471,21 @@ private fun BoardCard(placed: PlacedCard, scale: Float, highlight: Set<Side>, wa
         // A card that fell to the chain waits for the one that took it — see [captureWaves]. Held
         // *before* the flip and not inside it, so what the player sees is the card sitting there
         // unchanged while the previous generation turns, which is what makes it read as a wave.
-        delay(wave * COMBO_WAVE_MS)
+        delay(pacing * (wave * COMBO_WAVE_MS))
         // `horizon = false` is the default and the only value the match screens pass, so the
         // squash is vertical and the widening horizontal.
         coroutineScope {
-            launch { stretchX.animateTo(FLIP_STRETCH, tween(FLIP_LEG_MS, easing = EaseIn)) }
-            squashY.animateTo(0f, tween(FLIP_LEG_MS, easing = EaseIn))
+            launch { stretchX.animateTo(FLIP_STRETCH, tween(flipLeg, easing = EaseIn)) }
+            squashY.animateTo(0f, tween(flipLeg, easing = EaseIn))
         }
         shown = placed.owner // yoyo(): switchColor()
         showBack = true // yoyo(): hide()
-        squashY.animateTo(FLIP_STRETCH, tween(FLIP_LEG_MS, easing = EaseOut))
-        squashY.animateTo(0f, tween(FLIP_LEG_MS, easing = EaseIn)) // unflip()
+        squashY.animateTo(FLIP_STRETCH, tween(flipLeg, easing = EaseOut))
+        squashY.animateTo(0f, tween(flipLeg, easing = EaseIn)) // unflip()
         showBack = false // yoyo2(): show()
         coroutineScope {
-            launch { stretchX.animateTo(1f, tween(FLIP_LEG_MS, easing = EaseOut)) }
-            squashY.animateTo(1f, tween(FLIP_LEG_MS, easing = EaseOut))
+            launch { stretchX.animateTo(1f, tween(flipLeg, easing = EaseOut)) }
+            squashY.animateTo(1f, tween(flipLeg, easing = EaseOut))
         }
     }
 

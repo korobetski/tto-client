@@ -13,7 +13,7 @@ import kotlin.test.assertTrue
 class TabsUiTest {
     @Test
     fun theCardsEntryOpensTheCollectionAndItsOtherTabIsTheDecks() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
         openFromBar("cards", CARD_GRID_TEST_TAG)
 
@@ -27,7 +27,7 @@ class TabsUiTest {
 
     @Test
     fun theDecksEntryOpensTheSameScreenOnTheOtherTab() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
         openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
 
@@ -38,7 +38,7 @@ class TabsUiTest {
 
     @Test
     fun backLeavesTheDeckEditorBeforeItLeavesTheScreen() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
         openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
 
@@ -53,7 +53,7 @@ class TabsUiTest {
 
     @Test
     fun theShopEntryOpensTheShelfAndTheBagIsOneTabAway() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
         openFromBar("store", SHOP_LIST_TEST_TAG)
         // Buy is in the purchase sheet now, and nothing has opened one. What says the shelf is
@@ -70,7 +70,7 @@ class TabsUiTest {
 
     @Test
     fun theBagEntryOpensTheSameScreenOnTheOtherTab() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
         openFromDashboard(DASHBOARD_INVENTORY_TEST_TAG, INVENTORY_EMPTY_TEST_TAG)
 

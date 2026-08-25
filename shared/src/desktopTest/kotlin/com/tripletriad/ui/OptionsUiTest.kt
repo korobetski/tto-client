@@ -17,7 +17,7 @@ import kotlin.test.assertTrue
 class OptionsUiTest {
     @Test
     fun pickingALanguageRedrawsTheAppInItImmediately() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openOptions()
 
         onNodeWithTag(optionsLanguageTestTag(AppLocale.FR_FR)).performClick()
@@ -33,7 +33,7 @@ class OptionsUiTest {
     @Test
     fun aLanguageChangeIsWrittenToTheStore() = runComposeUiTest {
         val store = InMemorySettingsStore("""{"language":"en_US"}""")
-        setContent { App(store = store) }
+        setContent { TestApp(store = store) }
         openOptions()
 
         onNodeWithTag(optionsLanguageTestTag(AppLocale.JA_JA)).performClick()
@@ -48,7 +48,7 @@ class OptionsUiTest {
 
     @Test
     fun theChangeSurvivesLeavingAndReopeningTheScreen() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openOptions()
         onNodeWithTag(optionsLanguageTestTag(AppLocale.DE_DE)).performClick()
         waitForIdle()
@@ -63,7 +63,7 @@ class OptionsUiTest {
 
     @Test
     fun theMenuFollowsTheLanguageChosenInTheOptions() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openOptions()
         onNodeWithTag(optionsLanguageTestTag(AppLocale.FR_FR)).performClick()
         waitForIdle()
@@ -76,7 +76,7 @@ class OptionsUiTest {
     @Test
     fun aVolumeChangeIsClampedPersistedAndShownAsAPercentage() = runComposeUiTest {
         val store = InMemorySettingsStore("""{"language":"en_US","background_volume":1.0}""")
-        setContent { App(store = store) }
+        setContent { TestApp(store = store) }
         openOptions()
 
         // Dragged to the far left, which is 0. Using the semantics action rather than a swipe
@@ -95,7 +95,7 @@ class OptionsUiTest {
 
     @Test
     fun theAudioSectionAdmitsNothingPlaysYet() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openOptions()
 
         assertTrue(isVisible("saved, but nothing plays yet"))
@@ -103,7 +103,7 @@ class OptionsUiTest {
 
     @Test
     fun bothVolumesAreOnTheScreenWithTheirAs3Labels() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openOptions()
 
         assertTrue(isVisible("Background Volume"))

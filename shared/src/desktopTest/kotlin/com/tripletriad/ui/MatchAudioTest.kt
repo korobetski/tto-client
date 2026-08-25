@@ -25,7 +25,7 @@ class MatchAudioTest {
     @Test
     fun theMusicStartsWithTheMatchAndStopsWhenItIsLeft() = runComposeUiTest {
         setContent {
-            App(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio)
+            TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio)
         }
         awaitMenu()
 
@@ -51,7 +51,7 @@ class MatchAudioTest {
     @Test
     fun openingAMatchPlaysTheDealSound() = runComposeUiTest {
         setContent {
-            App(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio)
+            TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio)
         }
         startMatch()
 
@@ -60,7 +60,7 @@ class MatchAudioTest {
 
     @Test
     fun everyMenuButtonClicks() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), audio = audio) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), audio = audio) }
         awaitMenu()
 
         onNodeWithTag(MENU_OPTIONS_TEST_TAG).performClick()
@@ -69,10 +69,24 @@ class MatchAudioTest {
         assertEquals(listOf(Sound.UI_CLICK), audio.played.filter { it == Sound.UI_CLICK })
     }
 
+    /**
+     * At the shipped pace, because the window this measures *is* the shipped pace.
+     *
+     * It clears the recorder, plays one card and reads back what sounded — which only attributes
+     * the sounds to the player's own placement for as long as the opponent has not answered yet.
+     * `OPPONENT_PAUSE_MS` is what buys that. At [TEST_PACING] the reply lands inside the window and
+     * the assertion reads `[CARD_PLACED, TURN_CHANGE, CARD_CAPTURED, TURN_CHANGE]` — two placements
+     * counted as one, which is a broken measurement rather than a broken app.
+     */
     @Test
     fun eachPlayerPlacementPlaysTheSoundThatMatchesWhatItDid() = runComposeUiTest {
         setContent {
-            App(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio)
+            TestApp(
+                store = settingsFor(AppLocale.EN_US),
+                server = stub.connection,
+                audio = audio,
+                pacing = Pacing.Default,
+            )
         }
         startMatch()
 
@@ -109,7 +123,7 @@ class MatchAudioTest {
     @Test
     fun anOpponentPlacementAlsoSounds() = runComposeUiTest {
         setContent {
-            App(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio)
+            TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio)
         }
         startMatch()
 
@@ -128,7 +142,7 @@ class MatchAudioTest {
     @Test
     fun theLastPlacementPlaysTheOutcomeInsteadOfATurnChange() = runComposeUiTest {
         setContent {
-            App(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio)
+            TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio)
         }
         startMatch()
         // The opponent may already have played, if the coin flip favoured it — so the window this
@@ -155,7 +169,7 @@ class MatchAudioTest {
     @Test
     fun anUnfinishedMatchPlaysATurnChange() = runComposeUiTest {
         setContent {
-            App(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio)
+            TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio)
         }
         startMatch()
 
@@ -170,7 +184,7 @@ class MatchAudioTest {
     @Test
     fun theRematchControlSoundsAndDealsAgain() = runComposeUiTest {
         setContent {
-            App(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio)
+            TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio)
         }
         startMatch()
         playOut()
@@ -189,7 +203,7 @@ class MatchAudioTest {
     @Test
     fun theStoredVolumesAreHandedToThePlayer() = runComposeUiTest {
         setContent {
-            App(
+            TestApp(
                 store = InMemorySettingsStore(STORED_VOLUMES),
                 audio = audio,
             )
@@ -201,7 +215,7 @@ class MatchAudioTest {
 
     @Test
     fun changingAVolumeInTheOptionsReachesThePlayer() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), audio = audio) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), audio = audio) }
         awaitMenu()
         onNodeWithTag(MENU_OPTIONS_TEST_TAG).performClick()
         waitForIdle()
@@ -215,7 +229,7 @@ class MatchAudioTest {
 
     @Test
     fun aChainSoundsOncePerGenerationAndAfterTheCaptureThatStartedIt() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), audio = audio) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), audio = audio) }
         newCharacter()
         openLessons()
         onNodeWithTag(lessonRowTestTag(COMBO_LESSON_ROW)).performClick()

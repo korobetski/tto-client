@@ -22,7 +22,7 @@ class NavigationTest {
 
     @Test
     fun theSplashHoldsWhileStartupIsUnfinishedAndNamesItsPhase() = runComposeUiTest {
-        setContent { App(store = NeverAnswers) }
+        setContent { TestApp(store = NeverAnswers) }
         waitForIdle()
 
         assertFalse(isVisible("Play"), "the menu was up although startup never finished")
@@ -41,7 +41,7 @@ class NavigationTest {
 
     @Test
     fun theSplashGivesWayToTheMenuOnItsOwn() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
 
         awaitMenu()
 
@@ -52,7 +52,7 @@ class NavigationTest {
 
     @Test
     fun playWithNoCharacterAsksForOne() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         awaitMenu()
         onNodeWithTag(
             MENU_PROFILE_TEST_TAG,
@@ -66,7 +66,7 @@ class NavigationTest {
 
     @Test
     fun playReachesABoardAndTheChevronComesBack() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         startMatch()
 
         onNodeWithTag(MATCH_EXIT_TEST_TAG).performClick()
@@ -88,7 +88,7 @@ class NavigationTest {
 
     @Test
     fun playWithACharacterLoadedGoesStraightToItsDashboard() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
 
         onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
@@ -102,7 +102,7 @@ class NavigationTest {
 
     @Test
     fun everyDashboardEntryOpensItsScreen() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
 
         val entries = listOf(
@@ -120,7 +120,7 @@ class NavigationTest {
 
     @Test
     fun everyNavigationBarEntryOpensItsScreen() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
 
         val entries = listOf(
@@ -140,7 +140,7 @@ class NavigationTest {
 
     @Test
     fun theNavigationBarIsAbsentOnTheMenuAndDuringAMatch() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         awaitMenu()
         assertFalse(exists(navTestTag("home")), "the menu has no character and so no bar")
 
@@ -150,7 +150,7 @@ class NavigationTest {
 
     @Test
     fun logoutReturnsToTheCharacterList() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
 
         onNodeWithTag(DASHBOARD_LOGOUT_TEST_TAG).performClick()
@@ -159,7 +159,7 @@ class NavigationTest {
 
     @Test
     fun optionsOpensAndBackReturnsToTheMenu() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         awaitMenu()
 
         onNodeWithTag(MENU_OPTIONS_TEST_TAG).performClick()
@@ -175,7 +175,7 @@ class NavigationTest {
     @Test
     fun quitCallsTheHostRatherThanDoingAnythingItself() = runComposeUiTest {
         var quits = 0
-        setContent { App(store = settingsFor(AppLocale.EN_US), onQuit = { quits++ }) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), onQuit = { quits++ }) }
         awaitMenu()
 
         onNodeWithTag(MENU_QUIT_TEST_TAG).performClick()
@@ -187,7 +187,7 @@ class NavigationTest {
 
     @Test
     fun theMenuIsInTheStoredLanguage() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.FR_FR)) }
+        setContent { TestApp(store = settingsFor(AppLocale.FR_FR)) }
         awaitMenu()
 
         onNodeWithTag(MENU_PLAY_TEST_TAG).assertTextEquals("Jouer")
@@ -197,7 +197,7 @@ class NavigationTest {
     @Test
     fun aFirstRunWithNoSettingsFileStillStarts() = runComposeUiTest {
         val store = InMemorySettingsStore()
-        setContent { App(store = store) }
+        setContent { TestApp(store = store) }
 
         awaitMenu()
 
@@ -207,7 +207,7 @@ class NavigationTest {
     @Test
     fun aStoreThatThrowsDoesNotStrandTheSplash() = runComposeUiTest {
         setContent {
-            App(store = InMemorySettingsStore(failure = IllegalStateException("no permission")))
+            TestApp(store = InMemorySettingsStore(failure = IllegalStateException("no permission")))
         }
 
         awaitMenu()

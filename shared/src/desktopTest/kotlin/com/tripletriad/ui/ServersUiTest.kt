@@ -46,7 +46,7 @@ class ServersUiTest {
 
     @Test
     fun theMenuNamesTheServerInPlay() = runComposeUiTest {
-        setContent { App(store = english(), server = connection()) }
+        setContent { TestApp(store = english(), server = connection()) }
 
         awaitMenu()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { isVisible("online") }
@@ -55,7 +55,7 @@ class ServersUiTest {
 
     @Test
     fun theIndicatorOpensTheList() = runComposeUiTest {
-        setContent { App(store = english(), server = connection()) }
+        setContent { TestApp(store = english(), server = connection()) }
 
         awaitMenu()
         onNodeWithTag(MENU_SERVER_TEST_TAG).performClick()
@@ -66,7 +66,7 @@ class ServersUiTest {
 
     @Test
     fun theListShowsEachServersOwnState() = runComposeUiTest {
-        setContent { App(store = english(), server = connection(secondIsDown = true)) }
+        setContent { TestApp(store = english(), server = connection(secondIsDown = true)) }
 
         openServers()
 
@@ -76,7 +76,7 @@ class ServersUiTest {
 
     @Test
     fun choosingAnotherServerMovesTheAppOntoIt() = runComposeUiTest {
-        setContent { App(store = english(), server = connection()) }
+        setContent { TestApp(store = english(), server = connection()) }
 
         openServers()
         onNodeWithTag(serverRowTestTag(entries[1])).performClick()
@@ -88,7 +88,7 @@ class ServersUiTest {
 
     @Test
     fun theSignInFormIsReachedOnWhicheverServerIsChosen() = runComposeUiTest {
-        setContent { App(store = english(), server = connection()) }
+        setContent { TestApp(store = english(), server = connection()) }
 
         openServers()
         onNodeWithTag(serverRowTestTag(entries[1])).performClick()
@@ -103,7 +103,7 @@ class ServersUiTest {
 
     @Test
     fun aBuildTheServerWillNotServeIsToldToUpdateInsteadOfSigningIn() = runComposeUiTest {
-        setContent { App(store = english(), server = connection(info = tooNewForThisBuild)) }
+        setContent { TestApp(store = english(), server = connection(info = tooNewForThisBuild)) }
 
         awaitMenu()
         onNodeWithTag(MENU_PLAY_TEST_TAG).performClick()
@@ -114,7 +114,7 @@ class ServersUiTest {
 
     @Test
     fun aPublishedDownloadForThisPlatformIsOfferedAsAButton() = runComposeUiTest {
-        setContent { App(store = english(), server = connection(info = tooNewForThisBuild)) }
+        setContent { TestApp(store = english(), server = connection(info = tooNewForThisBuild)) }
 
         awaitMenu()
         onNodeWithTag(MENU_PLAY_TEST_TAG).performClick()
@@ -125,7 +125,7 @@ class ServersUiTest {
     @Test
     fun aDeploymentThatPublishesNothingOffersNoButton() = runComposeUiTest {
         val bare = tooNewForThisBuild.copy(release = null)
-        setContent { App(store = english(), server = connection(info = bare)) }
+        setContent { TestApp(store = english(), server = connection(info = bare)) }
 
         awaitMenu()
         onNodeWithTag(MENU_PLAY_TEST_TAG).performClick()

@@ -63,6 +63,10 @@ fun App(
     audio: AudioPlayer = SilentAudioPlayer,
     onQuit: () -> Unit = {},
     server: ServerConnection? = null,
+    // The pace the game ships at, unless a test asks for less of it. See [Pacing]: at the default
+    // factor every scaled duration is the number its constant says, so this parameter changes
+    // nothing for anyone but `:shared:desktopTest`.
+    pacing: Pacing = Pacing.Default,
 ) {
     TripleTriadTheme {
         Surface(modifier = Modifier.fillMaxSize(), color = LocalTtoColors.current.backdrop) {
@@ -181,6 +185,7 @@ fun App(
                 LocalStrings provides strings,
                 LocalAudio provides audio,
                 LocalUiArt provides startup.ui,
+                LocalPacing provides pacing,
             ) {
                 // Only a hairline of padding: the board and ten cards want every dp there is.
                 //

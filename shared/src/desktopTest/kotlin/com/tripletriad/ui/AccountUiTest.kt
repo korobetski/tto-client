@@ -55,7 +55,7 @@ class AccountUiTest {
 
     @Test
     fun withNoServerPlayStillLeadsToTheLocalCharacterList() = runComposeUiTest {
-        setContent { App(store = english()) }
+        setContent { TestApp(store = english()) }
 
         awaitMenu()
         onNodeWithTag(MENU_PLAY_TEST_TAG).performClick()
@@ -65,7 +65,7 @@ class AccountUiTest {
 
     @Test
     fun withAServerPlayLeadsToTheSignInFormAndItSaysWhichBuildThisIs() = runComposeUiTest {
-        setContent { App(store = english(), server = connection()) }
+        setContent { TestApp(store = english(), server = connection()) }
 
         openForm()
 
@@ -74,7 +74,7 @@ class AccountUiTest {
 
     @Test
     fun signingInLandsOnTheAccountsDashboard() = runComposeUiTest {
-        setContent { App(store = english(), server = connection()) }
+        setContent { TestApp(store = english(), server = connection()) }
 
         openForm()
         submitCredentials()
@@ -98,7 +98,7 @@ class AccountUiTest {
             )
         }
 
-        setContent { App(store = english(), server = connection(sessions = documents)) }
+        setContent { TestApp(store = english(), server = connection(sessions = documents)) }
 
         awaitMenu()
         onNodeWithTag(MENU_PLAY_TEST_TAG).performClick()
@@ -118,7 +118,7 @@ class AccountUiTest {
             )
         }
 
-        setContent { App(store = english(), server = connection(sessions = documents)) }
+        setContent { TestApp(store = english(), server = connection(sessions = documents)) }
 
         // The form, and not the dashboard: the token is dead, so this is a sign-in and not a
         // restore. Both halves matter — a passing assertion below with a *live* token would only
@@ -129,7 +129,7 @@ class AccountUiTest {
 
     @Test
     fun aFirstRunLeavesTheFormBlank() = runComposeUiTest {
-        setContent { App(store = english(), server = connection()) }
+        setContent { TestApp(store = english(), server = connection()) }
 
         openForm()
         // The label, then the empty value — `assertTextEquals` reads both, and the label is stable
@@ -139,7 +139,7 @@ class AccountUiTest {
 
     @Test
     fun theFieldsTellThePasswordManagerWhatTheyAre() = runComposeUiTest {
-        setContent { App(store = english(), server = connection()) }
+        setContent { TestApp(store = english(), server = connection()) }
 
         openForm()
         onNodeWithTag(ACCOUNT_NAME_TEST_TAG).assertContentType(AutofillType.Username)
@@ -148,7 +148,7 @@ class AccountUiTest {
 
     @Test
     fun creatingAnAccountAsksForANewPasswordInstead() = runComposeUiTest {
-        setContent { App(store = english(), server = connection()) }
+        setContent { TestApp(store = english(), server = connection()) }
 
         openForm()
         onNodeWithTag(ACCOUNT_TOGGLE_TEST_TAG).performClick()
@@ -165,7 +165,7 @@ class AccountUiTest {
                 """{"error":"INVALID_CREDENTIALS","detail":"no"}""",
             )
         }
-        setContent { App(store = english(), server = connection(engine = refusing)) }
+        setContent { TestApp(store = english(), server = connection(engine = refusing)) }
 
         openForm()
         submitCredentials()
@@ -183,7 +183,7 @@ class AccountUiTest {
             )
         }
         setContent {
-            App(store = settingsFor(AppLocale.FR_FR), server = connection(engine = refusing))
+            TestApp(store = settingsFor(AppLocale.FR_FR), server = connection(engine = refusing))
         }
 
         openForm()
@@ -206,7 +206,7 @@ class AccountUiTest {
             if (request.url.encodedPath != "/server") asked = true
             respondJson(HttpStatusCode.OK, encode(session))
         }
-        setContent { App(store = english(), server = connection(engine = engine)) }
+        setContent { TestApp(store = english(), server = connection(engine = engine)) }
 
         openForm()
         onNodeWithTag(ACCOUNT_NAME_TEST_TAG).performTextInput("ku")
@@ -227,7 +227,7 @@ class AccountUiTest {
             }
             respondJson(HttpStatusCode.Created, encode(session))
         }
-        setContent { App(store = english(), server = connection(engine = engine)) }
+        setContent { TestApp(store = english(), server = connection(engine = engine)) }
 
         register()
         onNodeWithTag(starterChoiceTestTag(starterFor(FF8_BLOCK).id)).performClick()

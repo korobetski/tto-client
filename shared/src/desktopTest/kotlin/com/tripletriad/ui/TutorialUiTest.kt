@@ -21,7 +21,7 @@ import kotlin.test.assertTrue
 class TutorialUiTest {
     @Test
     fun theLessonOpensStraightOntoABoard() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
         openLessons()
 
@@ -36,7 +36,7 @@ class TutorialUiTest {
 
     @Test
     fun theTutorMovesFirst() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openLesson()
 
         awaitPlayer(TUTORIAL_TIMEOUT_MS)
@@ -50,7 +50,7 @@ class TutorialUiTest {
 
     @Test
     fun theTutorSpeaksBeforePlaying() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openLesson()
 
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(TALK_BUBBLE_TEST_TAG) }
@@ -63,7 +63,7 @@ class TutorialUiTest {
 
     @Test
     fun theLessonIsWinnableByPlayingBadly() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openLesson()
 
         playOut(TUTORIAL_TIMEOUT_MS)
@@ -77,7 +77,7 @@ class TutorialUiTest {
 
     @Test
     fun theLessonAnnouncesNoPayout() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openLesson()
 
         playOut(TUTORIAL_TIMEOUT_MS)
@@ -90,7 +90,7 @@ class TutorialUiTest {
     @Test
     fun theLessonLeavesTheProfileUntouched() = runComposeUiTest {
         val documents = InMemoryDocumentStore()
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openLesson()
         val before = storedSave(documents)
 
@@ -107,7 +107,7 @@ class TutorialUiTest {
 
     @Test
     fun theEndOfTheFirstLessonLeadsToTheNext() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openLesson()
 
         playOut(TUTORIAL_TIMEOUT_MS)
@@ -130,7 +130,7 @@ class TutorialUiTest {
 
     @Test
     fun aLessonEndsByNamingItselfRatherThanClaimingAVictory() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openLesson()
 
         playOut(TUTORIAL_TIMEOUT_MS)
@@ -148,7 +148,7 @@ class TutorialUiTest {
             StringKeys.LESSON_BASICS_DRAW,
         ).map { strings[it] }
 
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openLesson()
         playOut(TUTORIAL_TIMEOUT_MS)
 
@@ -156,9 +156,20 @@ class TutorialUiTest {
         assertFalse(isVisible("APP_LESSON"), "the tutor read out a string key")
     }
 
+    /**
+     * The one lesson test that runs at the pace the game ships at, and it has to.
+     *
+     * `TalkBubble` is `clickable` — that is how a line is advanced early — so wherever it overlaps
+     * the board it takes the tap the cell underneath wanted. The bubble's own note says this test
+     * is what caught that, and it still is: run at [TEST_PACING] it fails with "no cell accepted a
+     * card", because a hurried line is still up when the player is given the turn. That is the
+     * overlap, reproduced. Speeding this one up would mean deleting the only check on it.
+     *
+     * The other lesson tests are not about the bubble and take the fast pace.
+     */
     @Test
     fun theCourseEndsAtTheRuleBook() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), pacing = Pacing.Default) }
         openLesson()
 
         playOut(TUTORIAL_TIMEOUT_MS)

@@ -27,7 +27,7 @@ class HelpUiTest {
 
     @Test
     fun tappingARuleOpensItsTextAndTappingAgainClosesIt() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openHelp()
 
         assertFalse(existsUnmerged(helpTextTestTag(FIRST_RULE)), "nothing is open on arrival")
@@ -41,7 +41,7 @@ class HelpUiTest {
 
     @Test
     fun openingASecondRuleClosesTheFirst() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openHelp()
 
         onNodeWithTag(helpRuleTestTag(FIRST_RULE)).performClick()
@@ -54,7 +54,7 @@ class HelpUiTest {
 
     @Test
     fun everyRuleHasARowOnTheScreen() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openHelp()
 
         for (ruleKey in HELP_RULES) {
@@ -88,7 +88,7 @@ class HelpUiTest {
 
     @Test
     fun theRulesAreGroupedUnderFourHeadings() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openHelp()
 
         assertEquals(FAMILIES, HELP_FAMILIES.size)

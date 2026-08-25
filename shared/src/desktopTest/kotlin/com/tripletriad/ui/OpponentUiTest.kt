@@ -29,7 +29,7 @@ class OpponentUiTest {
 
     @Test
     fun opponentsAreListedEasiestFirst() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
         openOpponents()
 
@@ -56,7 +56,7 @@ class OpponentUiTest {
      */
     @Test
     fun theRandomButtonOpensAMatch() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         openDashboard()
         openOpponents()
 
@@ -74,7 +74,7 @@ class OpponentUiTest {
             .available(FF14_FORMAT, FixedClock.DEFAULT_HOUR, ANY_LEVEL)
             .first { npc -> npc.itemRewards.any { it.cardId != null } }
 
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
         openOpponents()
 
@@ -93,7 +93,7 @@ class OpponentUiTest {
             .available(FF14_FORMAT, FixedClock.DEFAULT_HOUR, ANY_LEVEL)
             .firstOrNull { npc -> npc.itemRewards.none { it.cardId != null } }
 
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
         openOpponents()
 
@@ -111,7 +111,7 @@ class OpponentUiTest {
 
     @Test
     fun aRowNamesTheRulesTheOpponentImposes() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
         openOpponents()
 
@@ -136,7 +136,7 @@ class OpponentUiTest {
         // character made through the UI starts at level 1. What is under test here is the *hour*.
         val documents = seeded(veteran())
         setContent {
-            App(
+            TestApp(
                 store = settingsFor(AppLocale.EN_US),
                 documents = documents,
                 clock = FixedClock(hour = NOON),
@@ -156,7 +156,7 @@ class OpponentUiTest {
     fun anEveningOpponentIsThereInTheEvening() = runComposeUiTest {
         val documents = seeded(veteran())
         setContent {
-            App(
+            TestApp(
                 store = settingsFor(AppLocale.EN_US),
                 documents = documents,
                 clock = FixedClock(hour = EVENING),
@@ -188,7 +188,7 @@ class OpponentUiTest {
 
     @Test
     fun aFinishedMatchIsWrittenToTheProfile() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         startMatch()
         val before = stub.player.save.mgp
 
@@ -218,7 +218,7 @@ class OpponentUiTest {
      */
     @Test
     fun abandoningAMatchIsNotAResultAndPaysNothing() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         startMatch()
         val before = stub.player.save
 
@@ -233,7 +233,7 @@ class OpponentUiTest {
 
     @Test
     fun aSecondMatchAddsToTheProfile() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         startMatch()
 
         playOut()
@@ -256,7 +256,7 @@ class OpponentUiTest {
     @Test
     fun theOpponentListIsHeldBackByTheCharactersLevel() = runComposeUiTest {
         setContent {
-            App(store = settingsFor(AppLocale.EN_US), clock = FixedClock(hour = EVENING))
+            TestApp(store = settingsFor(AppLocale.EN_US), clock = FixedClock(hour = EVENING))
         }
         newCharacter()
         openOpponents()
@@ -285,7 +285,7 @@ class OpponentUiTest {
     fun levellingOpensTheOnesThatWereHeldBack() = runComposeUiTest {
         val documents = seeded(veteran())
         setContent {
-            App(
+            TestApp(
                 store = settingsFor(AppLocale.EN_US),
                 documents = documents,
                 clock = FixedClock(hour = EVENING),
@@ -317,7 +317,7 @@ class OpponentUiTest {
      */
     @Test
     fun anUnearnedOpponentIsOffTheRosterAndSaidToBe() = runComposeUiTest {
-        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
         openOpponents()
 
@@ -338,7 +338,7 @@ class OpponentUiTest {
                 .copy(xp = XpTable.thresholdFor(ishtar.difficulty))
                 .withAchievement(CARD_CLUB, instant = 0L),
         )
-        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
         openOpponents()
 

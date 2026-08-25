@@ -29,6 +29,8 @@ internal const val COIN_FLIP_TOTAL_MILLIS: Int = 1_000
 
 @Composable
 internal fun CoinFlipCards(flip: CoinFlip, onFinished: () -> Unit) {
+    val pacing = LocalPacing.current
+
     Box(
         modifier = Modifier.fillMaxSize().testTag(COIN_FLIP_TEST_TAG),
         contentAlignment = Alignment.Center,
@@ -41,8 +43,8 @@ internal fun CoinFlipCards(flip: CoinFlip, onFinished: () -> Unit) {
     // One timer for the whole flip rather than a completion callback on the last card, so
     // the queue's timing does not depend on which of three parallel animations happens to
     // settle last.
-    LaunchedEffect(flip) {
-        delay(COIN_FLIP_TOTAL_MILLIS.toLong())
+    LaunchedEffect(flip, pacing) {
+        delay(pacing * COIN_FLIP_TOTAL_MILLIS.toLong())
         onFinished()
     }
 }
@@ -53,17 +55,18 @@ private fun TossedCard(roll: Int, color: CardColor) {
     val progress = remember(roll, color) { Animatable(0f) }
     val exit = remember(roll, color) { Animatable(0f) }
     val alpha = remember(roll, color) { Animatable(0f) }
+    val pacing = LocalPacing.current
 
-    LaunchedEffect(roll, color) {
-        delay(fan.delayMillis.toLong())
-        launch { alpha.animateTo(1f, tween(ENTER_MILLIS, easing = LinearEasing)) }
-        progress.animateTo(1f, tween(ENTER_MILLIS, easing = EaseOut))
+    LaunchedEffect(roll, color, pacing) {
+        delay(pacing * fan.delayMillis.toLong())
+        launch { alpha.animateTo(1f, tween(pacing * ENTER_MILLIS, easing = LinearEasing)) }
+        progress.animateTo(1f, tween(pacing * ENTER_MILLIS, easing = EaseOut))
 
         // Waits out the cards behind it as well as its own hold, so the three leave
         // together however they were staggered coming in.
-        delay((LAST_DELAY_MILLIS - fan.delayMillis + HOLD_MILLIS).toLong())
+        delay(pacing * (LAST_DELAY_MILLIS - fan.delayMillis + HOLD_MILLIS).toLong())
 
-        val leaving = tween<Float>(EXIT_MILLIS, easing = LinearEasing)
+        val leaving = tween<Float>(pacing * EXIT_MILLIS, easing = LinearEasing)
         launch { alpha.animateTo(0f, leaving) }
         exit.animateTo(1f, leaving)
     }

@@ -54,7 +54,7 @@ class AccountBagAppTest {
     @Test
     fun openingAPackThroughTheAppKeepsTheRestOfTheBag() = runComposeUiTest {
         val sessions = signedInStore()
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = connection(sessions)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = connection(sessions)) }
 
         openTheBag()
         onNodeWithTag(inventoryRowTestTag(BoosterItem(PACK))).performClick()
@@ -76,7 +76,7 @@ class AccountBagAppTest {
     @Test
     fun theBagIsWholeOnScreenAfterTheReveal() = runComposeUiTest {
         val sessions = signedInStore()
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = connection(sessions)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = connection(sessions)) }
 
         openTheBag()
         onNodeWithTag(inventoryRowTestTag(BoosterItem(PACK))).performClick()
@@ -102,7 +102,7 @@ class AccountBagAppTest {
     @Test
     fun openingAPackWritesNoProfileBack() = runComposeUiTest {
         val sessions = signedInStore()
-        setContent { App(store = settingsFor(AppLocale.EN_US), server = connection(sessions)) }
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = connection(sessions)) }
 
         openTheBag()
         onNodeWithTag(inventoryRowTestTag(BoosterItem(PACK))).performClick()

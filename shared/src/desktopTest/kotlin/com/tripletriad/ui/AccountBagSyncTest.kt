@@ -76,11 +76,21 @@ class AccountBagSyncTest {
 
         onNodeWithTag(inventoryRowTestTag(CardItem(WON_CARD))).performClick()
         onNodeWithTag(INVENTORY_USE_TEST_TAG).performClick()
-        waitForIdle()
 
-        val owned = session.save?.ownsCard(WON_CARD) == true
+        // Use is a round trip here, and `waitForIdle` stood in this line's place settling nothing:
+        // the coroutine suspends inside Ktor, off the dispatcher Compose tracks, so idle is reached
+        // with the request still out and the assertion raced the engine. Delaying the mock's
+        // `/me/bag/use` by 300 ms failed it on every run; every other test in this class already
+        // waits on its outcome rather than on idleness.
+        //
+        // The wait *is* the assertion's condition, so a timeout is swallowed and the failure is
+        // left to the assertion, which can name the bag it found.
+        fun settled() =
+            session.save?.ownsCard(WON_CARD) == true || exists(INVENTORY_NOTE_TEST_TAG)
+        runCatching { waitUntil(timeoutMillis = UI_TIMEOUT_MS) { settled() } }
+
         assertTrue(
-            owned || exists(INVENTORY_NOTE_TEST_TAG),
+            settled(),
             "Use neither added the card nor said why not — the bag is now ${session.save?.bag}",
         )
     }

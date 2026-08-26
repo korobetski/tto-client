@@ -129,6 +129,10 @@ internal fun PvpMatchScreen(
     // from the rules, which it does. See `serverIntroAnimations`.
     val banners = pvpBannerQueue(wire?.matchId, view)
 
+    // Read before the early return below, like the queue above: a composable that is called on some
+    // compositions and not others is not one Compose can keep state for.
+    val revealed = pvpOpenRevealed(wire?.matchId, view)
+
     // And the sounds, which were absent for the same reason and are worth more: a capture the
     // player did not initiate is a thing that happens while they are looking elsewhere.
     PvpMatchSounds(wire?.matchId, view)
@@ -168,6 +172,7 @@ internal fun PvpMatchScreen(
                     view = view,
                     layout = layout,
                     selected = selected,
+                    revealed = revealed,
                     onSelect = { card -> selected = if (selected?.id == card.id) null else card },
                     onPlace = { position ->
                         val card = selected ?: return@PvpPlayArea
@@ -207,6 +212,27 @@ internal fun PvpMatchScreen(
             )
         }
     }
+}
+
+/**
+ * Whether the opponent's revealed cards are face up yet, on the screen that has no `MatchSetup`.
+ *
+ * Only a client that **arrived at the opening** has a turn owing: one joining a match already in
+ * progress — a reconnection, a second device — missed the announcement, and cards that turned over
+ * for it now would be reporting a moment that has passed. Empty intro, so [openRevealed] answers
+ * true on the first frame and nothing animates.
+ */
+@Composable
+private fun pvpOpenRevealed(matchId: String?, view: MatchView?): Boolean {
+    val intro = remember(matchId, view != null) {
+        if (view == null || view.placement > 0) {
+            emptyList()
+        } else {
+            serverIntroAnimations(view.rules, view.order.first)
+        }
+    }
+
+    return openRevealed(matchId ?: Unit, intro)
 }
 
 @Composable
@@ -280,6 +306,7 @@ private fun PvpPlayArea(
     view: MatchView,
     layout: MatchLayout,
     selected: Card?,
+    revealed: Boolean,
     onSelect: (Card) -> Unit,
     onPlace: (Int) -> Unit,
     onDrop: (Card, Int) -> Unit,
@@ -304,7 +331,7 @@ private fun PvpPlayArea(
             // is nothing.
             verticalArrangement = Arrangement.spacedBy(HandBoardGap, Alignment.CenterVertically),
         ) {
-            OpponentRow(view = view, layout = layout)
+            OpponentRow(view = view, layout = layout, revealed = revealed)
             BoardGrid(
                 board = view.board,
                 // Both travel on the view already — `MatchView.tally` has been on the wire since
@@ -341,7 +368,7 @@ private fun PvpPlayArea(
 }
 
 @Composable
-private fun OpponentRow(view: MatchView, layout: MatchLayout) {
+private fun OpponentRow(view: MatchView, layout: MatchLayout, revealed: Boolean) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(HandGap * layout.scale),
         modifier = Modifier.graphicsLayer {
@@ -357,7 +384,12 @@ private fun OpponentRow(view: MatchView, layout: MatchLayout) {
                 )
             } else {
                 Box(modifier = Modifier.testTag(pvpHandTestTag(slot))) {
-                    CardFace(card = card, scale = layout.scale)
+                    RevealingCardFace(
+                        card = card,
+                        scale = layout.scale,
+                        revealed = revealed,
+                        slot = slot,
+                    )
                 }
             }
         }

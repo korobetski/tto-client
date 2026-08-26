@@ -101,6 +101,10 @@ internal fun PlayArea(
     onSelect: (Card) -> Unit,
     onPlace: (Int) -> Unit,
     onDrop: (Card, Int) -> Unit,
+    // Whether the Open rules have finished announcing themselves. False holds the opponent's
+    // revealed cards face down until they have; the default is for every caller with no intro to
+    // wait for — a preview, a screenshot, a board resumed mid-match.
+    revealed: Boolean = true,
 ) {
     val drag = rememberBoardDragState()
     val hand: @Composable (Boolean) -> Unit = { own ->
@@ -115,6 +119,7 @@ internal fun PlayArea(
             selected = selected,
             layout = layout,
             playableSlots = if (own) view.playableHandIndices else emptyList(),
+            revealed = revealed,
             drag = drag,
             onSelect = onSelect,
             onDrop = onDrop,
@@ -521,6 +526,7 @@ private fun HandArea(
     selected: Card?,
     layout: MatchLayout,
     playableSlots: List<Int>,
+    revealed: Boolean,
     drag: BoardDragState,
     onSelect: (Card) -> Unit,
     onDrop: (Card, Int) -> Unit,
@@ -593,6 +599,10 @@ private fun HandArea(
                                     // Ringed when the rules have left exactly this one. Not when
                                     // the whole hand is playable: five rings state nothing.
                                     chosen = narrowed && slot in playableSlots,
+                                    // Your own hand is never turned over for you: Open is only ever
+                                    // about the opponent, so this is `true` on the near side and
+                                    // the flip below is skipped.
+                                    revealed = own || revealed,
                                     // Only the player's own playable cards are draggable.
                                     // `Card._draggable` is the same gate (`Card.as:137`), and it
                                     // matters more here than it looks: dragging a card that
@@ -625,6 +635,7 @@ private fun HandCard(
     allowed: Boolean,
     chosen: Boolean,
     scale: Float,
+    revealed: Boolean,
     drag: BoardDragState?,
     onSelect: (Card) -> Unit,
     onDrop: (Card, Int) -> Unit,
@@ -685,7 +696,7 @@ private fun HandCard(
                 }
             },
         ) {
-            CardFace(card = card, scale = scale)
+            RevealingCardFace(card = card, scale = scale, revealed = revealed, slot = slot)
         }
         // Never both: a chosen card that has been picked up is simply the selected one, and two
         // rings on one card at two weights would read as a rendering fault.
@@ -699,6 +710,43 @@ private fun HandCard(
             PlayableRing(scale = scale)
         }
     }
+}
+
+/**
+ * A hand card that turns over when [revealed] does — the Open rules' own animation.
+ *
+ * Under All Open and Three Open the opponent's revealed cards used to be face up on the first
+ * frame, which meant the rule was already over by the time its caption said what it was. Here the
+ * hand sits face down through the announcement and turns as it ends.
+ *
+ * The turn is [BoardCard]'s, halved: squash to nothing, switch, come back. Only two legs of the
+ * four, because there is nothing to *unflip* — a card revealing itself changes face once, where a
+ * captured card changes owner and has to settle back into the board it is part of.
+ *
+ * [slot] only staggers the start, so the five do not turn as one sheet.
+ */
+@Composable
+internal fun RevealingCardFace(card: Card, scale: Float, revealed: Boolean, slot: Int) {
+    val squashY = remember { Animatable(1f) }
+    // Face down only when it arrives that way. A card that is already revealed when this composes
+    // — the second half of a match, a hand re-laid-out — has no turn owing and must not play one.
+    var showBack by remember { mutableStateOf(!revealed) }
+    val pacing = LocalPacing.current
+
+    LaunchedEffect(revealed) {
+        if (!revealed || !showBack) return@LaunchedEffect
+        delay(pacing * (slot * REVEAL_STAGGER_MS).toLong())
+        squashY.animateTo(0f, tween(pacing * FLIP_LEG_MS, easing = EaseIn))
+        showBack = false
+        squashY.animateTo(1f, tween(pacing * FLIP_LEG_MS, easing = EaseOut))
+    }
+
+    CardFace(
+        card = card,
+        scale = scale,
+        showBack = showBack,
+        modifier = Modifier.graphicsLayer { scaleY = squashY.value },
+    )
 }
 
 internal data class MatchLayout(
@@ -742,6 +790,9 @@ private const val LAND_OFFSET_X = 0.48f
 private const val LAND_OFFSET_Y = -0.78f
 
 internal const val FLIP_LEG_MS = 100
+
+/** Between one revealed card turning and the next. See [RevealingCardFace]. */
+internal const val REVEAL_STAGGER_MS = 80
 
 /** The four legs of [BoardCard]'s flip: squash, switch, stretch, settle. */
 internal const val FLIP_MS: Long = 4L * FLIP_LEG_MS

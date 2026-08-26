@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.CoinFlip
 import com.tripletriad.model.GameRules
+import com.tripletriad.model.MatchIntroStep
 import com.tripletriad.model.MatchPreparation
 import com.tripletriad.model.MatchSetup
 import com.tripletriad.model.MatchState
@@ -50,16 +51,47 @@ internal fun animationsFor(state: MatchState, setup: MatchSetup): List<MatchAnim
     }
 
 internal fun introAnimations(setup: MatchSetup): List<MatchAnimation> =
-    setup.intro.mapNotNull { step ->
-        MatchBanner.forIntroStep(step)?.let(MatchAnimation::Caption)
-            ?: setup.coinFlip?.let(MatchAnimation::Toss)
-    }
+    opening(setup.intro.flatMap { step -> animationsForIntroStep(step) { setup.coinFlip } })
 
 internal fun serverIntroAnimations(rules: GameRules, first: CardColor): List<MatchAnimation> =
-    MatchPreparation.introSteps(rules).mapNotNull { step ->
-        MatchBanner.forIntroStep(step)?.let(MatchAnimation::Caption)
-            ?: MatchAnimation.Toss(CoinFlip.forced(first))
+    opening(
+        MatchPreparation.introSteps(rules).flatMap { step ->
+            animationsForIntroStep(step) { CoinFlip.forced(first) }
+        },
+    )
+
+/**
+ * The beat before the first caption — see [MatchAnimation.Opening].
+ *
+ * Only on an intro that has something to say. An empty list means there is no board to open, and a
+ * pause in front of nothing is a pause the player waits out for no reason.
+ */
+private fun opening(intro: List<MatchAnimation>): List<MatchAnimation> =
+    if (intro.isEmpty()) intro else listOf(MatchAnimation.Opening) + intro
+
+/**
+ * One step's animations, in the order they play.
+ *
+ * Every step but [MatchIntroStep.SWAP] is exactly its caption, or — for [MatchIntroStep.COIN_FLIP],
+ * which has none — the toss [flip] supplies. Swap gets its caption *and* [MatchAnimation.SwapCards]
+ * right behind it, so the rule is both named and shown.
+ */
+private fun animationsForIntroStep(
+    step: MatchIntroStep,
+    flip: () -> CoinFlip?,
+): List<MatchAnimation> {
+    val banner = MatchBanner.forIntroStep(step)
+        ?: return listOfNotNull(flip()?.let(MatchAnimation::Toss))
+    val caption = MatchAnimation.Caption(banner)
+    return if (banner == MatchBanner.SWAP) {
+        listOf(
+            caption,
+            MatchAnimation.SwapCards,
+        )
+    } else {
+        listOf(caption)
     }
+}
 
 /**
  * The same queue for a match this client is not refereeing.
@@ -91,6 +123,49 @@ internal fun pveBannerQueue(
 
 internal fun animationsFor(view: MatchView, intro: List<MatchAnimation>): List<MatchAnimation> =
     if (view.lastPlay == null) intro else MatchBanner.afterPlacement(view).asAnimations()
+
+/**
+ * When the Open rule has finished announcing itself, or null if no Open rule is in force.
+ *
+ * The moment the opponent's revealed cards turn face up. Measured to the *end* of the caption
+ * rather than its start, so the cards turn as the words leave rather than underneath them — which
+ * is the difference between the rule explaining what is about to happen and the two competing.
+ *
+ * Null and "0" are different answers and the caller has to tell them apart: no Open rule means
+ * there is nothing to turn, not that everything turns immediately.
+ */
+internal fun openRevealMillis(intro: List<MatchAnimation>): Int? {
+    val at = intro.indexOfFirst {
+        it is MatchAnimation.Caption &&
+            (it.banner == MatchBanner.ALL_OPEN || it.banner == MatchBanner.THREE_OPEN)
+    }
+    return if (at < 0) null else intro.take(at + 1).sumOf { it.totalMillis }
+}
+
+/**
+ * Whether the opponent's revealed cards should be face up yet.
+ *
+ * True from the first frame when no Open rule is in force: there is nothing revealed to turn, and a
+ * hand of backs that waits for a caption nobody played would simply be a hand of backs.
+ */
+@Composable
+internal fun openRevealed(key: Any, intro: List<MatchAnimation>): Boolean {
+    val at = remember(key, intro) { openRevealMillis(intro) }
+    var revealed by remember(key, intro) { mutableStateOf(at == null) }
+    val pacing = LocalPacing.current
+
+    LaunchedEffect(key, intro, pacing) {
+        if (at == null) {
+            revealed = true
+            return@LaunchedEffect
+        }
+        revealed = false
+        delay(pacing * at.toLong())
+        revealed = true
+    }
+
+    return revealed
+}
 
 @Composable
 internal fun pveIntroFinished(key: Any, intro: List<MatchAnimation>): Boolean {

@@ -21,6 +21,7 @@ import com.tripletriad.model.PlayResult
 import com.tripletriad.model.TypeRule
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class MatchBannerTest {
@@ -225,12 +226,41 @@ class MatchBannerTest {
 
         assertEquals(
             listOf(
+                MatchAnimation.Opening,
                 MatchAnimation.Caption(MatchBanner.SWAP),
+                MatchAnimation.SwapCards,
                 MatchAnimation.Toss(flip),
                 MatchAnimation.Caption(MatchBanner.START),
             ),
             played,
         )
+    }
+
+    @Test
+    fun theSwapCaptionIsFollowedByTheCardsCrossing() {
+        val played = serverIntroAnimations(GameRules(swap = true), CardColor.BLUE)
+
+        assertEquals(
+            listOf(MatchBanner.SWAP, MatchBanner.START),
+            played.filterIsInstance<MatchAnimation.Caption>().map { it.banner },
+        )
+        val swapIndex = played.indexOf(MatchAnimation.Caption(MatchBanner.SWAP))
+        assertEquals(MatchAnimation.SwapCards, played[swapIndex + 1], "SwapCards must follow SWAP")
+    }
+
+    @Test
+    fun noOtherIntroStepEarnsTheCardsCrossing() {
+        val rules = GameRules(
+            open = OpenRule.ALL_OPEN,
+            order = OrderRule.CHAOS,
+            random = true,
+            reverse = true,
+            fallenAce = true,
+        )
+
+        val played = serverIntroAnimations(rules, CardColor.BLUE)
+
+        assertEquals(0, played.count { it == MatchAnimation.SwapCards }, "$played")
     }
 
     @Test
@@ -250,11 +280,20 @@ class MatchBannerTest {
 
         assertEquals(
             listOf(
+                MatchAnimation.Opening,
                 MatchAnimation.Caption(MatchBanner.REVERSE),
                 MatchAnimation.Caption(MatchBanner.START),
             ),
             played,
         )
+    }
+
+    @Test
+    fun everyIntroOpensWithItsBeatBeforeAnythingIsAnnounced() {
+        val played = serverIntroAnimations(GameRules(), CardColor.BLUE)
+
+        assertEquals(MatchAnimation.Opening, played.first(), "the board announced itself at once")
+        assertEquals(1, played.count { it == MatchAnimation.Opening })
     }
 
     @Test
@@ -365,6 +404,59 @@ class MatchBannerTest {
         assertTrue(
             longest.totalMillis <= LONGEST_REASONABLE_MILLIS,
             "${longest.name} runs for ${longest.totalMillis}ms",
+        )
+    }
+
+    @Test
+    fun theCardsCrossingDoesNotOutlastTheCaptionItFollows() {
+        assertTrue(MatchAnimation.SwapCards.totalMillis in 1..LONGEST_REASONABLE_MILLIS)
+    }
+
+    // ---- When the Open rules turn the cards over ----------------------------
+
+    @Test
+    fun aMatchWithNoOpenRuleHasNothingToTurnOver() {
+        val intro = serverIntroAnimations(GameRules(reverse = true), CardColor.BLUE)
+
+        assertEquals(null, openRevealMillis(intro))
+    }
+
+    @Test
+    fun bothOpenRulesTurnTheirCardsOver() {
+        for (rule in listOf(OpenRule.ALL_OPEN, OpenRule.THREE_OPEN)) {
+            val intro = serverIntroAnimations(GameRules(open = rule), CardColor.BLUE)
+
+            assertNotNull(openRevealMillis(intro), "$rule announced nothing to turn on")
+        }
+    }
+
+    /**
+     * The cards turn as the caption *ends*, not as it starts — so the rule finishes saying what it
+     * is and the hand answers. Measured against the queue rather than a copied number.
+     */
+    @Test
+    fun theCardsTurnAsTheOpenCaptionFinishes() {
+        val intro = serverIntroAnimations(GameRules(open = OpenRule.ALL_OPEN), CardColor.BLUE)
+        val caption = MatchAnimation.Caption(MatchBanner.ALL_OPEN)
+        val upTo = intro.indexOf(caption)
+
+        assertEquals(intro.take(upTo + 1).sumOf { it.totalMillis }, openRevealMillis(intro))
+        // And it is genuinely after the caption began: the opening beat is in front of it.
+        assertTrue(openRevealMillis(intro)!! > MatchBanner.ALL_OPEN.totalMillis)
+    }
+
+    @Test
+    fun theTurnWaitsThroughEveryRuleAnnouncedBeforeOpen() {
+        val early = serverIntroAnimations(GameRules(open = OpenRule.ALL_OPEN), CardColor.BLUE)
+        val late = serverIntroAnimations(
+            GameRules(open = OpenRule.ALL_OPEN, random = true),
+            CardColor.BLUE,
+        )
+
+        // Random is announced first, so its caption is time the cards spend still face down.
+        assertTrue(
+            openRevealMillis(late)!! > openRevealMillis(early)!!,
+            "a rule announced ahead of Open did not delay the turn",
         )
     }
 

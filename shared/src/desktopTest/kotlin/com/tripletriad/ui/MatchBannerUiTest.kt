@@ -128,6 +128,36 @@ class MatchBannerUiTest {
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(matchBannerTestTag(MatchBanner.START)) }
     }
 
+    // ---- Swap ---------------------------------------------------------------
+
+    /**
+     * Rendered on its own rather than through the overlay, for the reason [SwapCardsCrossing]
+     * gives: played from the queue it finishes before the first layout, leaving no node to find.
+     */
+    @Test
+    fun theSwapCrossingPutsACardOfEachSideOnScreen() = runComposeUiTest {
+        setContent { SwapCardsCrossing {} }
+
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(SWAP_CARDS_TEST_TAG) }
+        for (color in CardColor.entries) {
+            onNodeWithTag(swapCardsTestTag(color), useUnmergedTree = true)
+                .assertContentDescriptionEquals(swapCardsTestTag(color))
+        }
+    }
+
+    // ---- The beat that opens a board ----------------------------------------
+
+    @Test
+    fun theOpeningBeatHoldsTheQueueAndDrawsNothing() = runComposeUiTest {
+        val start = MatchAnimation.Caption(MatchBanner.START)
+        setContent { Overlay(BannerEvent(at = 0, listOf(MatchAnimation.Opening, start))) }
+
+        waitForIdle()
+        assertFalse(exists(MATCH_BANNER_TEST_TAG), "Start jumped the opening beat")
+
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(matchBannerTestTag(MatchBanner.START)) }
+    }
+
     @Composable
     private fun Overlay(event: BannerEvent?) {
         val art = remember { BannerArt(AppLocale.EN_US) }

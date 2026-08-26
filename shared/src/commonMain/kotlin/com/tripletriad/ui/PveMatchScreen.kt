@@ -173,6 +173,7 @@ internal fun PveMatchScreen(
     }
     val banners = pveBannerQueue(boardKey, view, intro)
     val underway = pveIntroFinished(boardKey, intro)
+    val revealed = openRevealed(boardKey, intro)
 
     // The campaign's opening line. Read once per placement rather than per recomposition, for the
     // reason the local screen gives: the bubbles are played from this list and nothing else may
@@ -261,6 +262,7 @@ internal fun PveMatchScreen(
                 },
                 onPlace = { position -> selected?.let { place(it, position) } },
                 onDrop = place,
+                revealed = revealed,
             )
             reward?.let {
                 OutcomePanel(

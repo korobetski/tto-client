@@ -19,8 +19,9 @@ class PacingTest {
         val pacing = Pacing.Default
 
         // `TalkBubble.HOLD_MILLIS`, `MatchScreen.OPPONENT_PAUSE_MS` / `OUTCOME_PAUSE_MS`,
-        // `MatchBoard.LAND_MS` / `COMBO_WAVE_MS` / `FLIP_LEG_MS`, `CoinFlipCards`' total, and
-        // `UnlockedCard`'s hold — every authored pause in the match screens, by value.
+        // `MatchBoard.LAND_MS` / `COMBO_WAVE_MS` / `FLIP_LEG_MS`, `CoinFlipCards`' total,
+        // `MATCH_OPENING_MILLIS`, `SWAP_CARDS_TOTAL_MILLIS` and `UnlockedCard`'s hold — every
+        // authored pause in the match screens, by value.
         for (millis in listOf(100, 200, 240, 280, 300, 400, 450, 550, 700, 1_000, 1_400, 5_000)) {
             assertEquals(millis, pacing * millis, "$millis ms as an Int")
             assertEquals(millis.toLong(), pacing * millis.toLong(), "$millis ms as a Long")
@@ -51,7 +52,10 @@ class PacingTest {
     fun theTestFactorNeverFloorsAPauseToNothing() {
         val fast = Pacing(0.1)
 
-        for (millis in listOf(100, 240, 280, 300, 400, 450, 550, 700, 1_000, 1_400, 5_000)) {
+        val authored = listOf(100, 240, 280, 300, 400, 450, 550, 700, 1_000, 1_400, 5_000) +
+            // By constant rather than by value, so retiming either one moves this with it.
+            listOf(MATCH_OPENING_MILLIS, SWAP_CARDS_TOTAL_MILLIS)
+        for (millis in authored) {
             assertTrue(fast * millis > 0, "$millis ms scaled to ${fast * millis}")
         }
     }

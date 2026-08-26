@@ -984,5 +984,6 @@
   "STR_NPC_Prideful_Stag": "成金のプライド・フルスタグ",
   "STR_NPC_Flichoirel_The_Lordling": "高貴なるフリショワレル",
   "STR_NPC_Hall_Overseer": "ルームマスター",
-  "STR_FF8_CARD_111": "Mooba"
+  "STR_FF8_CARD_111": "Mooba",
+  "RULE_SWAP_HELP": "お互いのデッキからランダムで選ばれた1枚を、相手と交換してプレイする。渡したカードは相手の手札でも表向きのままとなる。スリーオープン時は、公開される3枚のうちの1枚として数えられる。"
 }

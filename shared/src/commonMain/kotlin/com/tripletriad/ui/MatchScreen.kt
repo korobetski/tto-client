@@ -257,6 +257,11 @@ internal fun MatchScreen(
      */
     val underway = introFinished(match, setup)
 
+    // Keyed on the setup as [introFinished] is, and for the same reason: a sudden-death rematch
+    // deals again in place, and its Open rule announces itself a second time.
+    val introAnimations = remember(match, setup) { introAnimations(setup) }
+    val revealed = openRevealed(match to setup, introAnimations)
+
     /*
      * What the script has to say before this placement, fixed for the whole of it.
      *
@@ -405,6 +410,7 @@ internal fun MatchScreen(
                 onSelect = { if (it in view.playableCards) selected = it },
                 onPlace = { position -> selected?.let { place(it, position) } },
                 onDrop = place,
+                revealed = revealed,
             )
             reward?.let {
                 OutcomePanel(

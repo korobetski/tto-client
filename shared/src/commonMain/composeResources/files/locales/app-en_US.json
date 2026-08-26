@@ -984,5 +984,6 @@
   "STR_NPC_Prideful_Stag": "Prideful Stag",
   "STR_NPC_Flichoirel_The_Lordling": "Flichoirel The Lordling",
   "STR_NPC_Hall_Overseer": "Hall Overseer",
-  "STR_FF8_CARD_111": "Mooba"
+  "STR_FF8_CARD_111": "Mooba",
+  "RULE_SWAP_HELP": "One random card from each player's deck will be swapped with the other. The card you gave away stays face up in your opponent's hand — under Three Open it is one of the three revealed, not a fourth."
 }

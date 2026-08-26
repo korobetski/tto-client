@@ -984,5 +984,6 @@
   "STR_NPC_Prideful_Stag": "Prideful Stag Le Parvenu",
   "STR_NPC_Flichoirel_The_Lordling": "Flichoirel Le Seigneurial",
   "STR_NPC_Hall_Overseer": "Croupier de l'arène",
-  "STR_FF8_CARD_111": "Mooba"
+  "STR_FF8_CARD_111": "Mooba",
+  "RULE_SWAP_HELP": "<i>FF14 uniquement</i>\nÉchange une carte choisie aléatoirement dans le jeu des deux adversaires. La carte cédée reste visible dans la main adverse : sous Trois Ouvertes, elle compte parmi les trois révélées et non en plus."
 }

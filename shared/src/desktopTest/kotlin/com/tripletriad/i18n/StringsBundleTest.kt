@@ -167,25 +167,34 @@ class StringsBundleTest {
         // (it already had every app-owned string and every card name); DE and JA gain both their
         // 295 app-owned strings and their 301 `_DESC` paragraphs — the fallback-to-English policy
         // for app-owned strings in DE/JA is retired, hence
-        // `theAppOwnedStringsAreTranslatedInEveryLocale` replacing the old fallback test. `UNION_KEYS`
-        // is unchanged: every key it counts already existed in `app-en_US.json` before this change,
+        // `theAppOwnedStringsAreTranslatedInEveryLocale` replacing the old fallback test.
+        // `UNION_KEYS` is unchanged: every key it counts already existed in `app-en_US.json`,
         // only the other three bundles' values were filled in. The 15 `STR_*_BOOSTER` overrides
         // don't move any bundle's count — they already exist as imported keys, so DE only widens by
         // 295 + 301 = 596, not 611, on top of its APP_-string count. Measured from a
         // `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted.
+        //
+        // +1 to DE alone since: `RULE_SWAP_HELP`, overridden in all four `app-*` bundles to say
+        // that a swapped card stays face up in the hand it moved to — see `MatchPreparation.swap`.
+        // In EN, FR and JA the imported bundle already carries the key, so the override only wins
+        // the merge and moves nothing, exactly as the 15 `STR_*_BOOSTER` overrides do. **The German
+        // `tto-de_DE.json` has no `RULE_SWAP_HELP` at all** — that locale had been reading the
+        // English sentence by fallback — so there the override adds a key rather than replacing
+        // one, and DE's count and gap both move by one. `UNION_KEYS` is unchanged: three bundles
+        // already had it.
         const val UNION_KEYS = 1668
 
         val TRANSLATED_KEYS = mapOf(
             AppLocale.EN_US to 1664,
             AppLocale.FR_FR to 1665,
-            AppLocale.DE_DE to 1624,
+            AppLocale.DE_DE to 1625,
             AppLocale.JA_JA to 1657,
         )
 
         val EXPECTED_GAPS = mapOf(
             AppLocale.EN_US to 4,
             AppLocale.FR_FR to 3,
-            AppLocale.DE_DE to 44,
+            AppLocale.DE_DE to 43,
             AppLocale.JA_JA to 11,
         )
     }

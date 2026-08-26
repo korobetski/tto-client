@@ -984,5 +984,6 @@
   "STR_NPC_Prideful_Stag": "Stolzer Hirsch [t] Neureich[a]",
   "STR_NPC_Flichoirel_The_Lordling": "Flichoirel [t] Hochnäsig[a]",
   "STR_NPC_Hall_Overseer": "Salon-Meister",
-  "STR_FF8_CARD_111": "Mooba"
+  "STR_FF8_CARD_111": "Mooba",
+  "RULE_SWAP_HELP": "Je eine zufällige Karte aus den Decks beider Spieler wird getauscht. Die abgegebene Karte bleibt in der gegnerischen Hand offen liegen — bei Drei Offen ist sie eine der drei aufgedeckten, keine vierte."
 }

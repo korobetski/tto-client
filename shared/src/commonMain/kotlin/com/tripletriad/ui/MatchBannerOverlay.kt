@@ -20,6 +20,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import com.tripletriad.model.CardColor
 import com.tripletriad.model.CoinFlip
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -37,6 +38,29 @@ internal sealed interface MatchAnimation {
 
     data class Toss(val flip: CoinFlip) : MatchAnimation {
         override val totalMillis: Int get() = COIN_FLIP_TOTAL_MILLIS
+    }
+
+    /**
+     * A blue card and a red card crossing paths — `RULE_SWAP`'s caption names the rule, this shows
+     * it. The exchange it announces already happened, on the server or in `MatchPreparation.swap`,
+     * before either hand was dealt, and the client is never told which two cards changed sides — so
+     * this is deliberately generic rather than pretending to know.
+     */
+    data object SwapCards : MatchAnimation {
+        override val totalMillis: Int get() = SWAP_CARDS_TOTAL_MILLIS
+    }
+
+    /**
+     * Nothing on screen, for a beat, before the first caption.
+     *
+     * A board used to arrive and announce itself on the same frame, so the rules were being read
+     * out before the player had looked at the cards they were dealt. Modelled as an animation
+     * rather than a `delay` in each screen because the two intro gates — `introFinished` and
+     * `pveIntroFinished` — measure the intro by summing [totalMillis], and a wait they cannot see
+     * is a wait that lets the clock start early.
+     */
+    data object Opening : MatchAnimation {
+        override val totalMillis: Int get() = MATCH_OPENING_MILLIS
     }
 }
 
@@ -68,6 +92,19 @@ internal fun MatchBannerOverlay(event: BannerEvent?) {
         null -> Unit
         is MatchAnimation.Caption -> Caption(current.banner) { playing = null }
         is MatchAnimation.Toss -> CoinFlipCards(current.flip) { playing = null }
+        is MatchAnimation.SwapCards -> SwapCardsCrossing { playing = null }
+        is MatchAnimation.Opening -> Beat(current.totalMillis) { playing = null }
+    }
+}
+
+/** A wait with nothing drawn over it. */
+@Composable
+private fun Beat(millis: Int, onFinished: () -> Unit) {
+    val pacing = LocalPacing.current
+
+    LaunchedEffect(millis, pacing) {
+        delay(pacing * millis.toLong())
+        onFinished()
     }
 }
 
@@ -153,6 +190,84 @@ private fun BannerImage(
             },
     )
 }
+
+const val SWAP_CARDS_TEST_TAG: String = "swap-cards"
+
+fun swapCardsTestTag(color: CardColor): String = "$SWAP_CARDS_TEST_TAG-${color.name}"
+
+internal const val SWAP_CARDS_TOTAL_MILLIS: Int = 700
+
+/** The beat a board takes before it starts announcing itself. See [MatchAnimation.Opening]. */
+internal const val MATCH_OPENING_MILLIS: Int = 400
+
+/**
+ * The blue card leaves from the left as the red one arrives from the right, and each keeps going
+ * past the other's starting side — one continuous cross rather than a meet-in-the-middle, so the
+ * two never appear to pause on top of each other.
+ *
+ * `internal` rather than private so a test can render it on its own, the way [CoinFlipCards] is.
+ * Asserting it *through* [MatchBannerOverlay] does not work: under `runComposeUiTest` the crossing
+ * runs to completion before the first layout pass, so the queue has already cleared it by the time
+ * a node could be found. `MatchBannerTest` covers its place in the queue instead.
+ */
+@Composable
+internal fun SwapCardsCrossing(onFinished: () -> Unit) {
+    val pacing = LocalPacing.current
+    // One timeline for both cards rather than a timer per card, for the reason `CoinFlipCards`
+    // gives about its own: the queue's timing must not depend on which of two parallel animations
+    // happens to settle last.
+    val progress = remember { Animatable(0f) }
+
+    Box(
+        modifier = Modifier.fillMaxSize().testTag(SWAP_CARDS_TEST_TAG),
+        contentAlignment = Alignment.Center,
+    ) {
+        SwapCard(CardColor.BLUE, from = -SWAP_OFF_SCREEN, to = SWAP_OFF_SCREEN, progress = progress)
+        SwapCard(CardColor.RED, from = SWAP_OFF_SCREEN, to = -SWAP_OFF_SCREEN, progress = progress)
+    }
+
+    LaunchedEffect(pacing) {
+        progress.animateTo(
+            1f,
+            tween(pacing * SWAP_CARDS_TOTAL_MILLIS, easing = LinearEasing),
+        )
+        onFinished()
+    }
+}
+
+/** One card, crossing from [from] to [to] as [progress] runs, faded at both ends of the pass. */
+@Composable
+private fun SwapCard(
+    color: CardColor,
+    from: Float,
+    to: Float,
+    progress: Animatable<Float, *>,
+) {
+    CardBack(
+        color = color,
+        scale = SWAP_CARD_SCALE,
+        modifier = Modifier
+            .testTag(swapCardsTestTag(color))
+            // A card back says nothing to a screen reader on its own; the SWAP caption is what
+            // names the rule, this only has to say which side is moving.
+            .semantics { contentDescription = swapCardsTestTag(color) }
+            .graphicsLayer {
+                val fraction = progress.value
+                translationX = (from + (to - from) * fraction) * size.minDimension
+                // Up from nothing over the first quarter and back down over the last, so neither
+                // card is ever seen standing still at the edge it came from.
+                alpha = (fraction / SWAP_FADE).coerceAtMost(1f) *
+                    ((1f - fraction) / SWAP_FADE).coerceAtMost(1f)
+            },
+    )
+}
+
+/** The share of the crossing each card spends fading in, and again fading out. */
+private const val SWAP_FADE = 0.25f
+
+private const val SWAP_CARD_SCALE = 0.8f
+
+private const val SWAP_OFF_SCREEN = 3f
 
 private val BannerMotion.enterOffset: Float
     get() = when (this) {

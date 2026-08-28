@@ -695,7 +695,12 @@ private fun CharacterDestination(
                 onNavigate(Screen.PVP_TABLE)
             },
             onClaim = { onNavigate(Screen.PVP_CLAIM) },
-            onBack = toDashboard,
+            // `up` rather than the dashboard, which is the difference between two of these three:
+            // the lobby and the rule book sit under the dashboard, the table editor sits under the
+            // *lobby*. It was `toDashboard` for all three, so opening a table — `onOpened` is this
+            // same lambda — dropped the host out of multiplayer altogether, onto a hub with no
+            // sign that a table of theirs was open and no way back to it but a second tap.
+            onBack = { onNavigate(destination.up) },
         )
 
         // The four that browse the card table. Grouped for the same reason the character-bearing
@@ -989,8 +994,25 @@ private fun MatchDestination(
         return
     }
 
-    LaunchedEffect(session, chosen.iconId, deck) {
-        if (session.match != null) return@LaunchedEffect
+    /*
+     * Whether there is a match to draw, which is what asking for one is conditional on — and
+     * therefore what asking for one has to be **keyed** on.
+     *
+     * It was keyed on the deck alone, on the reasoning that a rematch puts the deck question back
+     * and the answer moving is the signal. That is true of most of the roster and false of
+     * twenty-eight of it: an opponent that declares Random is never asked, so `deck` is null for
+     * the entire life of this screen. `rematchExit` cleared the match and set it to null again,
+     * nothing this effect watched had moved, and the effect did not run — so the board sat on
+     * `PveWaiting`'s "Loading" forever, waiting for a deal nobody had asked the referee for.
+     *
+     * Reading it as a key rather than only as a guard is what makes the two agree. It flips false
+     * when the deal lands, which restarts the effect once to take the early return, and that is
+     * the whole cost.
+     */
+    val undealt = session.match == null
+
+    LaunchedEffect(session, chosen.iconId, deck, undealt) {
+        if (!undealt) return@LaunchedEffect
         session.deck = deck ?: ANY_DECK
         session.open(chosen.iconId, format.id)
     }

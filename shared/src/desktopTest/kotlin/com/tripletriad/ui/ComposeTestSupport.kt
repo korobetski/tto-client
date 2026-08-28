@@ -225,14 +225,20 @@ internal fun ComposeUiTest.awaitBoard() {
 }
 
 @OptIn(ExperimentalTestApi::class)
-internal fun ComposeUiTest.challenge(iconId: String = TEST_OPPONENT) {
+internal fun ComposeUiTest.challenge(
+    iconId: String = TEST_OPPONENT,
+    // Whether to stay until the player is on move. Almost every fixture wants that and nothing
+    // else; one wants the frames *before* it — see `PveOpeningUiTest`, which is about what the
+    // board looks like while the opening is still being announced.
+    awaitTurn: Boolean = true,
+) {
     scrollToOpponent(iconId)
     // A row's tap now opens the detail sheet rather than starting the match outright — see
     // `OpponentDetailSheet` — so the sheet's own challenge button is what actually registers it.
     onNodeWithTag(opponentRowTestTag(iconId)).performClick()
     onNodeWithTag(OPPONENT_CHALLENGE_TEST_TAG).performClick()
     settleDeck()
-    awaitPlayer()
+    if (awaitTurn) awaitPlayer()
 }
 
 /**

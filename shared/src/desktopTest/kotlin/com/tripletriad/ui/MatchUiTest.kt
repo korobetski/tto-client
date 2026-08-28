@@ -196,6 +196,37 @@ class MatchUiTest {
         onNodeWithTag(SCORE_TEST_TAG).assertTextEquals(LEVEL_SCORE)
     }
 
+    /**
+     * **The same control, against an opponent that is never asked which deck to bring.**
+     *
+     * [theRematchControlDealsAgain] passes for a reason that is not the one it looks like: the deck
+     * question comes back, so `deck` goes from an answer to null and back, and that movement is
+     * what `MatchDestination`'s opening effect was keyed on. Twenty-eight of the roster's
+     * opponents declare Random and are never asked — `deck` is null for the whole life of the
+     * screen — so tapping Rematch cleared the match, moved nothing the effect was watching, and
+     * left the board on "Loading" waiting for a deal nobody had asked the referee for.
+     *
+     * The opponent here is chosen for exactly that property and for costing a novice nothing to
+     * challenge; what is being tested is the absence of the deck question, not who asks it.
+     */
+    @Test
+    fun theRematchControlDealsAgainWhenNoDeckIsAsked() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        startMatch(RANDOM_OPPONENT)
+
+        assertFalse(
+            exists(DECK_SELECT_CHOOSE_TEST_TAG),
+            "the fixture is pointless unless this opponent skips the deck question",
+        )
+        playOut()
+        onNodeWithTag(NEW_MATCH_TEST_TAG).performClick()
+
+        // Straight to a board: there is no deck question to answer on the way.
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { !isFinished() && exists(BOARD_TEST_TAG) }
+        assertEquals(HAND_SIZE, handSize(CardColor.BLUE), "the player should be dealt again")
+        onNodeWithTag(SCORE_TEST_TAG).assertTextEquals(LEVEL_SCORE)
+    }
+
     @Test
     fun leavingTheResultPanelReturnsToTheOpponentList() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
@@ -239,6 +270,14 @@ class MatchUiTest {
 
     private companion object {
         const val CENTRE = 4
+
+        /**
+         * An opponent whose declared rules include Random, so the deck question is never asked.
+         *
+         * Named here rather than picked at random from the roster because it also has to be one a
+         * novice can afford to challenge — see `PveStubServer.undealtReason`.
+         */
+        const val RANDOM_OPPONENT = "maisenta"
 
         const val LEVEL_SCORE = "5 — 5"
     }

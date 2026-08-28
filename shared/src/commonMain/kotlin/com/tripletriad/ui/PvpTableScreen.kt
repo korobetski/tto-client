@@ -21,7 +21,6 @@ import androidx.compose.ui.platform.testTag
 import com.tripletriad.data.CardCatalog
 import com.tripletriad.data.Format
 import com.tripletriad.data.FormatCatalog
-import com.tripletriad.data.PveMatches
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.GameRules
@@ -43,9 +42,6 @@ fun formatToggleTestTag(id: String): String = "pvp-format-$id"
 
 fun tradeToggleTestTag(trade: TradeRule): String = "pvp-trade-${trade.name.lowercase()}"
 
-fun pvpDeckTestTag(slot: Int): String =
-    if (slot == ANY_DECK) "pvp-deck-any" else "pvp-deck-$slot"
-
 @Composable
 internal fun PvpTableScreen(
     profile: GameSave,
@@ -63,6 +59,44 @@ internal fun PvpTableScreen(
     var roulette by remember { mutableStateOf(false) }
     var trade by remember { mutableStateOf(TradeRule.NONE) }
     var mgp by remember { mutableStateOf(0) }
+    // The terms as filled in, waiting only on which deck the host brings. See [HostDeck].
+    var proposed by remember { mutableStateOf<PvpTableRequest?>(null) }
+
+    val propose: (PvpTableRequest) -> Unit = { terms ->
+        scope.launch {
+            if (invitee == null) {
+                session.host(terms)
+            } else {
+                session.challenge(invitee, terms)
+            }
+            // Back to the lobby either way, refused or not. The lobby is where the table
+            // would have appeared and where its refusal is shown — see the note host
+            // there — so it is the one screen that can report either outcome.
+            onOpened()
+        }
+    }
+
+    // Below nothing and above the form, because the deck question replaces this screen rather
+    // than sitting inside it — the same branch `PvpScreen` takes for a seat, and for the same
+    // reason: the terms above are `remember`ed state, and a destination of its own would have
+    // thrown them away on the way there and back.
+    val pending = proposed
+    if (pending != null) {
+        HostDeck(
+            profile = profile,
+            catalog = catalog,
+            format = format,
+            invitee = invitee,
+            terms = pending,
+            onChoose = { deck ->
+                session.deck = deck
+                propose(pending)
+                proposed = null
+            },
+            onBack = { proposed = null },
+        )
+        return
+    }
 
     CharacterScaffold(
         profile = profile,
@@ -143,15 +177,6 @@ internal fun PvpTableScreen(
             }
         }
 
-        SectionLabel(strings[StringKeys.PVP_DECK])
-        DeckPicker(
-            profile = profile,
-            catalog = catalog,
-            format = format,
-            selected = session.deck,
-            onSelect = { session.deck = it },
-        )
-
         SectionLabel(strings[StringKeys.PVP_STAKE])
         Text(
             text = strings.format(StringKeys.PVP_STAKE_MGP, "$mgp"),
@@ -193,22 +218,22 @@ internal fun PvpTableScreen(
             tag = PVP_TABLE_OPEN_TEST_TAG,
             enabled = !session.isBusy,
             onClick = {
-                scope.launch {
-                    val terms = PvpTableRequest(
-                        formatId = format.id,
-                        rules = rules,
-                        roulette = roulette,
-                        stake = PvpStake(mgp = mgp, trade = trade),
-                    )
-                    if (invitee == null) {
-                        session.host(terms)
-                    } else {
-                        session.challenge(invitee, terms)
-                    }
-                    // Back to the lobby either way, refused or not. The lobby is where the table
-                    // would have appeared and where its refusal is shown — see the note host
-                    // there — so it is the one screen that can report either outcome.
-                    onOpened()
+                val terms = PvpTableRequest(
+                    formatId = format.id,
+                    rules = rules,
+                    roulette = roulette,
+                    stake = PvpStake(mgp = mgp, trade = trade),
+                )
+                // Nothing to ask under **Random**: the referee splices the hand from the whole
+                // collection and the deck the host would choose is ignored. The same decision
+                // `PvpScreen.sit` makes for a seat, on the same rule and for the same reason —
+                // the *declared* one, not the one a roulette may add on top, which the server
+                // draws after this answer is given.
+                if (terms.rules.random) {
+                    session.deck = ANY_DECK
+                    propose(terms)
+                } else {
+                    proposed = terms
                 }
             },
         )
@@ -216,60 +241,64 @@ internal fun PvpTableScreen(
 }
 
 /**
- * Which deck this table is opened with.
+ * Which deck this table is opened with, asked once the terms are settled.
  *
- * ### Why hosting keeps a chip row while joining gets the whole screen
+ * ### Why the question comes after "Open the table" and not on the form
  *
- * A host is **proposing terms, not sitting down**. There is no opponent yet — that is what an open
- * table is — so the "arrive knowing who and under what, then choose a deck" sequence has nothing to
- * arrive at; what a host has is the rules, and they are being set three inches above this. The deck
- * is part of the proposal, and the server takes it as such: `pvp_tables.host_deck` is written when
- * the table is opened, because when somebody joins there may be nobody at this end to ask.
+ * It was a row of chips three inches above the button, between the roulette and the wager, and read
+ * as one more term of the proposal. It is not one: the rules, the format and the stake are what is
+ * being **offered to somebody else**, and the deck is the only line on that screen the host answers
+ * for themselves. So it leaves the form and becomes the step it is everywhere else in the game —
+ * [DeckSelectorScreen], showing the rules the deck has to survive and the stake it is being wagered
+ * against, both of which are now *decided* rather than half-typed. See [PvpSeat] for the joining
+ * half, which arrives at the same screen from the other side.
  *
- * Joining is the other half and is a real sitting down, so it gets [DeckSelectorScreen] — the same
- * screen, in the same place in the sequence, as a match against a program. See [PvpSeat].
+ * **Still before the request, not after.** The deck cannot wait for an opponent: `PvpJoinRequest`
+ * carries the joiner's, the referee deals the moment the second player arrives, and there may be
+ * nobody at this end to ask by then — which is why `pvp_tables.host_deck` is written when the table
+ * is opened. What moved is where in this screen the question is put, not which side of the wire
+ * answers it.
  *
  * ### Filtered by the format, which the lobby could not do
  *
- * This row used to live above the lobby's tabs, where the only thing it could test was whether a
- * deck was complete. The format is chosen on this screen, so admissibility can be tested too — and
- * has to be: an FFXIV deck brought to an FFVIII table is five cards its pool does not admit, and
- * the referee answers `UNDEALABLE` rather than dealing them. `CampaignRung` documents the same trap
- * at length; this is the multiplayer end of it.
+ * The chips this replaces used to live above the lobby's tabs, where the only thing they could test
+ * was whether a deck was complete. The format is chosen on this screen, so admissibility can be
+ * tested too — and has to be: an FFXIV deck brought to an FFVIII table is five cards its pool does
+ * not admit, and the referee answers `UNDEALABLE` rather than dealing them. `CampaignRung`
+ * documents the same trap at length; this is the multiplayer end of it. [DeckSelectorScreen] draws
+ * from `PveMatches.playableDecks` under the [format] it is handed, so that filtering is the same
+ * one, done in one place.
+ *
+ * @param invitee the player being challenged, or null for an open table.
  */
 @Composable
-private fun DeckPicker(
+@Suppress("LongParameterList")
+private fun HostDeck(
     profile: GameSave,
     catalog: CardCatalog,
     format: Format,
-    selected: Int,
-    onSelect: (Int) -> Unit,
+    invitee: String?,
+    terms: PvpTableRequest,
+    onChoose: (Int) -> Unit,
+    onBack: () -> Unit,
 ) {
     val strings = LocalStrings.current
-    val decks = remember(profile.decks, catalog, format) {
-        PveMatches.playableDecks(profile, catalog, format)
-    }
 
-    FlowRow(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(SpaceSm),
-        verticalArrangement = Arrangement.spacedBy(SpaceXs),
-    ) {
-        TtoFilterChip(
-            label = strings[StringKeys.PVP_DECK_ANY],
-            tag = pvpDeckTestTag(ANY_DECK),
-            selected = selected == ANY_DECK,
-            onClick = { onSelect(ANY_DECK) },
-        )
-        for ((slot, deck) in decks) {
-            TtoFilterChip(
-                label = deckLabel(strings, deck, slot),
-                tag = pvpDeckTestTag(slot),
-                selected = selected == slot,
-                onClick = { onSelect(slot) },
-            )
-        }
-    }
+    DeckSelectorScreen(
+        profile = profile,
+        catalog = catalog,
+        format = format,
+        terms = MatchTerms(
+            // An open table has nobody opposite — that is what makes it open — so the line names
+            // what is being opened instead. A challenge does have somebody, and names them.
+            opponent = invitee ?: strings[StringKeys.PVP_TABLE_MINE],
+            rules = terms.rules,
+            roulette = terms.roulette,
+            stake = stakeLine(terms.stake, strings),
+        ),
+        onChoose = onChoose,
+        onBack = onBack,
+    )
 }
 
 @Composable

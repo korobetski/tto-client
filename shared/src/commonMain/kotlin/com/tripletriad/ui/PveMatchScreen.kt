@@ -136,7 +136,9 @@ internal fun PveMatchScreen(
      * opening toss let the opponent play, and `plays` announces it: starting from the served
      * position would apply that placement to a board it had already been applied to, putting a
      * second card on a taken cell and leaving the match unplayable from the first turn. Null is
-     * how [PveExchange] is told there is nothing to walk from, and it adopts the answer whole.
+     * how [PveExchange] is told this is an opening, and it walks from the position the referee
+     * *dealt* — `MatchView.asDealt` — so that the card the toss won lands after the toss has been
+     * announced rather than under it.
      *
      * **Referential, not structural.** The walk ends by adopting the referee's own view, and on the
      * last placement of a match that view is `equals` to the one the walk just stepped to — same
@@ -149,12 +151,28 @@ internal fun PveMatchScreen(
         mutableStateOf<MatchView?>(null, referentialEqualityPolicy())
     }
 
+    /*
+     * The intro the server's deal implies, read **before** the board is drawn.
+     *
+     * `serverIntroAnimations` derives the captions from the rules and the toss from `first` — both
+     * facts the referee decided and sent — so an announced Reverse is the rule the match is
+     * actually being played under.
+     *
+     * Read here rather than beside the queue it feeds because [PveExchange] needs its length: an
+     * opening the opponent won is a card that must not land until the announcements that decided
+     * it have finished.
+     */
+    val intro = remember(boardKey) {
+        session.match?.let { serverIntroAnimations(it.rules, it.first) }.orEmpty()
+    }
+
     PveExchange(
         session = session,
         served = served,
         cards = cards,
         shown = shown,
         thinking = thinking,
+        introMillis = intro.sumOf { it.totalMillis }.toLong(),
     ) { next, told ->
         shown = next
         // Only a placement being *told* sounds. The walk ends by adopting the referee's own view,
@@ -172,12 +190,6 @@ internal fun PveMatchScreen(
     var selected by remember(boardKey) { mutableStateOf<Card?>(null) }
     var reward by remember(matchId) { mutableStateOf<MatchReward?>(null) }
 
-    // The intro the server's deal implies. `serverIntroAnimations` derives the captions from the
-    // rules and the toss from `first` — both facts the referee decided and sent — so an announced
-    // Reverse is the rule the match is actually being played under.
-    val intro = remember(boardKey) {
-        session.match?.let { serverIntroAnimations(it.rules, it.first) }.orEmpty()
-    }
     val banners = pveBannerQueue(boardKey, view, intro)
     val underway = pveIntroFinished(boardKey, intro)
     val revealed = openRevealed(boardKey, intro)
@@ -308,14 +320,25 @@ internal fun PveMatchScreen(
  * The pause between them is the same beat the local opponent used to take before moving. It was a
  * lie then — the AI had decided instantly — and it is a lie now, for the same good reason: a reply
  * that appears on the frame the player's own card lands on is a reply nobody sees.
+ *
+ * ### The opening is a walk too, and used not to be
+ *
+ * A deal the opponent won the toss for comes back with their card already played, and this adopted
+ * it whole: the board's first frame had a card on it, its sound played, and the announcements that
+ * *explain* that card — the rules, the hand opening, the coin flip deciding who moves first — then
+ * played over the top of a decision already taken. So an opening is walked like any other answer,
+ * from the position the referee dealt (`MatchView.asDealt`) and after the intro has finished.
  */
 @Composable
+@Suppress("LongParameterList")
 private fun PveExchange(
     session: PveSession,
     served: MatchView?,
     cards: Map<Int, Card>,
     shown: MatchView?,
     thinking: Duration,
+    // How long the opening announcements take, and the one thing this walk needs from them.
+    introMillis: Long,
     onStep: (MatchView, told: Boolean) -> Unit,
 ) {
     val plays = session.match?.plays.orEmpty()
@@ -323,26 +346,44 @@ private fun PveExchange(
 
     LaunchedEffect(session.match, pacing) {
         val target = served ?: return@LaunchedEffect
-        // Nothing to tell: a plain read, a resumed match, or the opening deal. The board is the
-        // truth and it is adopted whole. It still *announces* when the answer carried placements —
-        // the opening toss can have given the opponent the first move, and a card that appears in
-        // silence appears from nowhere.
-        if (plays.isEmpty() || shown == null) {
+        // A board nothing has been shown on yet: a deal, a rematch, a resumed match or a plain
+        // read. Only a deal has anything to walk, and only from the position it was dealt at.
+        val opening = shown == null
+        val from = shown ?: plays.singleOrNull()
+            ?.let { play -> cards[play.cardId]?.let { target.asDealt(play, it) } }
+
+        // Nothing to tell, or nowhere honest to tell it from: a resumed match replays no history
+        // — the board is the truth and it is adopted whole — and neither does an opening this
+        // screen could not take apart, which falls back to showing the card straight away.
+        if (plays.isEmpty() || from == null) {
             onStep(target, plays.isNotEmpty())
             return@LaunchedEffect
         }
+        // The board as dealt, so the opening plays over it. Told as *not* a placement: nothing has
+        // been played on it, and sounding it would announce a capture that has not happened.
+        if (opening) onStep(from, false)
 
-        var at: MatchView = shown
+        var at: MatchView = from
         for ((index, play) in plays.withIndex()) {
             val card = cards[play.cardId] ?: break
-            // The player's own card lands on the frame they asked for it — index 0 is the move
-            // they just made, and making somebody wait to see their own tap answered is the one
-            // delay that reads as lag rather than as an opponent.
-            //
-            // Everything after it waits twice: once for the screen to go quiet, and once more
-            // because a program that answers the instant the flip ends does not read as an
-            // opponent taking a turn.
-            if (index > 0) delay(pacing * (quietMillis(at) + thinking.inWholeMilliseconds))
+            val wait = when {
+                // Everything after the first placement waits twice: once for the screen to go
+                // quiet, and once more because a program that answers the instant the flip ends
+                // does not read as an opponent taking a turn.
+                index > 0 -> quietMillis(at) + thinking.inWholeMilliseconds
+                // The opponent's opening waits out the whole intro, and then takes the same beat
+                // every other reply takes. The intro is not decoration here: its last two
+                // announcements are the hand turning face up under Open and the coin flip itself,
+                // and the flip is what says *who holds the first move*. A card already on the
+                // board while it plays contradicts it — the player was shown the answer and then
+                // watched the question.
+                opening -> introMillis + thinking.inWholeMilliseconds
+                // The player's own card lands on the frame they asked for it — index 0 of an
+                // answer is the move they just made, and making somebody wait to see their own tap
+                // answered is the one delay that reads as lag rather than as an opponent.
+                else -> 0L
+            }
+            if (wait > 0) delay(pacing * wait)
             at = at.after(play, card)
             onStep(at, true)
         }

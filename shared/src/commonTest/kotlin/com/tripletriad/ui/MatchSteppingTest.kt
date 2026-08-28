@@ -4,10 +4,12 @@ import com.tripletriad.model.Capture
 import com.tripletriad.model.CaptureKind
 import com.tripletriad.model.Card
 import com.tripletriad.model.CardColor
+import com.tripletriad.model.GameRules
 import com.tripletriad.model.HAND_SIZE
 import com.tripletriad.model.HandVisibility
 import com.tripletriad.model.MatchState
 import com.tripletriad.model.MatchView
+import com.tripletriad.model.OpenRule
 import com.tripletriad.protocol.Placement
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -213,6 +215,99 @@ class MatchSteppingTest {
         assertEquals(served.score, walked.score, "and so the score agrees too")
     }
 
+    // ---- Taking the opening back off --------------------------------------
+
+    /**
+     * **The dealt board, played forward again, is the board the referee sent.**
+     *
+     * The counterpart of [theSteppedBoardEqualsTheOneTheRefereeSent], and the claim that lets an
+     * opening be announced before it is acted on: a deal the opponent won the toss for arrives with
+     * their card already played, [asDealt] takes it back off so the coin flip has something left to
+     * decide, and [after] puts it back. If the round trip lost anything, the player would spend the
+     * first turn looking at a board the server does not have.
+     */
+    @Test
+    fun theDealtBoardPlayedForwardIsTheOneTheRefereeSent() {
+        val theirs = red.first()
+        val opened = redFirst.play(theirs, position = 4)
+        val served = MatchView.of(opened, CardColor.BLUE, HandVisibility.HIDDEN)
+        val play = toPlacement(opened, slot = 0)
+
+        val dealt = assertNotNull(served.asDealt(play, theirs))
+
+        assertEquals(0, dealt.placement, "the deal is before the first placement")
+        assertNull(dealt.lastPlay, "and nothing has been announced on it")
+        assertTrue(dealt.board.cells.all { it == null }, "the board is empty as it was dealt")
+        assertEquals(HAND_SIZE, dealt.opponentHand.size, "the card is back in the hand it left")
+
+        val walked = dealt.after(play, theirs)
+
+        assertEquals(
+            served.board.cells.map { it?.card?.id },
+            walked.board.cells.map { it?.card?.id },
+        )
+        assertEquals(
+            served.board.cells.map { it?.owner },
+            walked.board.cells.map { it?.owner },
+        )
+        assertEquals(served.placement, walked.placement)
+        assertEquals(served.opponentHand.size, walked.opponentHand.size)
+        assertEquals(served.score, walked.score, "and so the score agrees too")
+    }
+
+    /**
+     * A card the rules kept hidden goes back face down.
+     *
+     * Playing it made it public; it was not public *before*, and putting the real card back would
+     * show the player one of the opponent's five under a closed hand — through the very animation
+     * that is meant to be explaining which cards they are allowed to see.
+     */
+    @Test
+    fun aHiddenCardGoesBackIntoTheHandFaceDown() {
+        val theirs = red.first()
+        val opened = redFirst.play(theirs, position = 0)
+        val served = MatchView.of(opened, CardColor.BLUE, HandVisibility.HIDDEN)
+
+        val dealt = assertNotNull(served.asDealt(toPlacement(opened, slot = 0), theirs))
+
+        assertTrue(dealt.opponentHand.all { it == null }, "a closed hand stays closed")
+    }
+
+    /**
+     * Under All Open it goes back the way it was: face up, in the slot it was played from.
+     *
+     * Which slot is not a detail. `HandVisibility.afterPlaying` closes the hand up over the card
+     * that left, so a card put back anywhere else would shuffle the four the player has been
+     * looking at since the deal.
+     */
+    @Test
+    fun anOpenCardGoesBackIntoTheSlotItWasPlayedFrom() {
+        val theirs = red[2]
+        val opened = allOpen.play(theirs, position = 0)
+        val visible = HandVisibility(red.indices.toSet())
+        val served = MatchView.of(opened, CardColor.BLUE, visible.afterPlaying(2))
+
+        val dealt = assertNotNull(served.asDealt(toPlacement(opened, slot = 2), theirs))
+
+        assertContentEquals(red.map { it.id }, dealt.opponentHand.map { it?.id })
+    }
+
+    /**
+     * A board that is not an unplayed opening is not reconstructed at all.
+     *
+     * Every guard in [asDealt] asks the same question, and a no is answered by leaving the caller
+     * with the server's view rather than a guess. A second placement is the cheapest way to ask it:
+     * the position is real, the arithmetic would even work, and it is still not an opening.
+     */
+    @Test
+    fun aBoardPastTheOpeningIsNotTakenApart() {
+        val mine = blue.first()
+        val replied = redFirst.play(red.first(), position = 0).play(mine, position = 4)
+        val served = MatchView.of(replied, CardColor.BLUE, HandVisibility.HIDDEN)
+
+        assertNull(served.asDealt(toPlacement(replied, slot = 0), mine))
+    }
+
     /** Nothing is announced before the first placement is walked. */
     @Test
     fun aBoardNobodyHasPlayedOnAnnouncesNothing() {
@@ -239,6 +334,18 @@ class MatchSteppingTest {
     private val red = hand(from = 11, power = 2)
 
     private val state = MatchState.start(blueHand = blue, redHand = red, first = CardColor.BLUE)
+
+    /** The other half of the toss, which is the only one that deals a board already played on. */
+    private val redFirst =
+        MatchState.start(blueHand = blue, redHand = red, first = CardColor.RED)
+
+    /** The same, under the rule that decides whether a played card goes back face up. */
+    private val allOpen = MatchState.start(
+        blueHand = blue,
+        redHand = red,
+        first = CardColor.RED,
+        rules = GameRules(open = OpenRule.ALL_OPEN),
+    )
 
     private val catalogue: Map<Int, Card> = state.hands.values.flatten().associateBy { it.id }
 

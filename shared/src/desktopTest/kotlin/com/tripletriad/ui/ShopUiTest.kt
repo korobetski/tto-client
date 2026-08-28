@@ -1,5 +1,6 @@
 package com.tripletriad.ui
 
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
@@ -8,6 +9,7 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.FF14_BLOCK
 import com.tripletriad.data.Inventory
@@ -191,11 +193,70 @@ class ShopUiTest {
         assertFalse(exists(SHOP_STARTER_TEST_TAG), "a playable character is owed nothing")
     }
 
+    /**
+     * **The booster rack is scrollable with a mouse**, which for a long while it was not.
+     *
+     * The rack holds nine packs and shows about four. `ScrollHint` was drawn under it as an
+     * indicator, on the claim that the rack "answers shift+wheel on a desktop" — it does not: a
+     * horizontal scroll delta reaches it and moves nothing, and a vertical one belongs to the page.
+     * That left pressing the mouse on a *pack tile* and hauling it sideways as the only way to see
+     * the other five, on a control whose whole job is to be clicked.
+     *
+     * So the bar is a scrollbar now, and this is the assertion that dragging it moves the rack.
+     * Measured on a tile's position rather than on `ScrollState`, because the state is private to
+     * the composable and what is being claimed is that the packs move.
+     *
+     * The drag starts at the **centre**: the bar is inset by `SpaceLg` at both ends, so a gesture
+     * beginning at the node's edge starts in the padding and is never seen — which is a fair
+     * description of the bug this replaces, and not something to reproduce in the test for it.
+     */
+    @Test
+    fun theBoosterRackScrollsFromItsScrollbar() = runComposeUiTest {
+        val documents = seeded(profile(mgp = ENOUGH_FOR_ANY_PACK))
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openShop(documents)
+
+        val bronze = ShopOffer(BoosterItem(BoosterType.BRONZE), price = 1)
+        val tag = shopOfferTestTag(bronze)
+        fun packAt(): Float = onNodeWithTag(tag).fetchSemanticsNode().positionInRoot.x
+
+        assertTrue(
+            exists(SHOP_RACK_HINT_TEST_TAG),
+            "nine packs do not fit; the bar should be there",
+        )
+        val start = packAt()
+
+        onNodeWithTag(SHOP_RACK_HINT_TEST_TAG).performTouchInput {
+            down(center)
+            moveBy(Offset(RACK_DRAG_PX, 0f))
+            up()
+        }
+        waitForIdle()
+
+        val dragged = packAt()
+        assertTrue(
+            dragged < start,
+            "dragging the bar right should carry the rack left: $start -> $dragged",
+        )
+
+        onNodeWithTag(SHOP_RACK_HINT_TEST_TAG).performTouchInput {
+            down(center)
+            moveBy(Offset(-RACK_DRAG_PX, 0f))
+            up()
+        }
+        waitForIdle()
+
+        assertEquals(start, packAt(), "and dragging it back should return the rack")
+    }
+
     private companion object {
         val MILLION_MGP_CARD = Card.idFor(block = 1, number = 74)
 
         val CHEAP_CARD = Card.idFor(block = 1, number = 2)
 
         const val ENOUGH_FOR_ANY_PACK = 200_000
+
+        /** Well past the touch slop, and well short of the track: the rack must not hit its end. */
+        const val RACK_DRAG_PX = 60f
     }
 }

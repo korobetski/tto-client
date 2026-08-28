@@ -4,6 +4,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
@@ -11,11 +12,11 @@ import com.tripletriad.data.Format
 import com.tripletriad.data.FormatCatalog
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.LocalStrings
+import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.loadStrings
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.TradeRule
 import com.tripletriad.net.PvpClient
-import com.tripletriad.protocol.ANY_DECK
 import com.tripletriad.ui.theme.TripleTriadTheme
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -31,6 +32,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
@@ -83,27 +85,81 @@ class PvpTableUiTest {
     }
 
 /**
+     * **The deck is asked after the terms, not among them.** See `PvpTableScreen.HostDeck`.
+     *
+     * The form is what is being offered to somebody else; the deck is the one line the host answers
+     * for themselves, so it is the step that follows rather than a chip row sitting between the
+     * roulette and the wager.
+     */
+    @Test
+    fun theDeckIsAskedOnceTheTermsAreSettled() = editor {
+        onNodeWithTag(DECK_SELECT_TEST_TAG).assertDoesNotExist()
+
+        onNodeWithTag(PVP_TABLE_OPEN_TEST_TAG).performClick()
+        waitForIdle()
+
+        onNodeWithTag(deckChoiceTestTag(0)).assertExists()
+    }
+
+    /**
+     * A question that has not been answered has sent nothing.
+     *
+     * Which is the whole of why it is asked before the request and not after:
+     * `pvp_tables.host_deck` is written when the table is opened, so an answer arriving later
+     * would arrive too late.
+     */
+    @Test
+    fun nothingIsPostedUntilTheDeckIsAnswered() {
+        val paths = mutableListOf<String>()
+        var left = false
+
+        editor(record = paths::add, onOpened = { left = true }) {
+            onNodeWithTag(PVP_TABLE_OPEN_TEST_TAG).performClick()
+            waitForIdle()
+        }
+
+        assertTrue(paths.isEmpty(), "the table was opened before the deck was chosen: $paths")
+        assertFalse(left, "the editor left with the question still on screen")
+    }
+
+    /**
      * **The host's deck is offered against the format the host has just picked.**
      *
-     * This row used to be above the lobby's tabs, where the only thing it could test was whether a
-     * deck was complete — no format had been chosen yet, so none could be applied. An FFXIV deck
-     * brought to an FFVIII table is five cards its pool does not admit, and the referee answers
-     * `UNDEALABLE` rather than dealing them.
+     * This question used to be a chip row above the lobby's tabs, where the only thing it could
+     * test was whether a deck was complete — no format had been chosen yet, so none could be
+     * applied. An FFXIV deck brought to an FFVIII table is five cards its pool does not admit, and
+     * the referee answers `UNDEALABLE` rather than dealing them.
      *
      * The two fixture formats draw from different blocks, and the starting profile's deck is in the
-     * first, so switching format is what takes the deck out of the list.
+     * first, so switching format is what empties the list.
      */
     @Test
     fun onlyDecksTheChosenFormatAdmitsAreOffered() = editor {
-        onNodeWithTag(pvpDeckTestTag(0)).assertExists()
-
         onNodeWithTag(formatToggleTestTag(other.id)).performClick()
         waitForIdle()
 
-        onNodeWithTag(pvpDeckTestTag(0)).assertDoesNotExist()
-        // Automatic survives: it is the absence of a choice, and the referee still has to deal
-        // something. What it can deal is the server's problem, not a chip's.
-        onNodeWithTag(pvpDeckTestTag(ANY_DECK)).assertExists()
+        onNodeWithTag(PVP_TABLE_OPEN_TEST_TAG).performClick()
+        waitForIdle()
+
+        onNodeWithTag(deckChoiceTestTag(0)).assertDoesNotExist()
+        onNodeWithTag(DECK_SELECT_EMPTY_TEST_TAG).assertExists()
+        // Random survives: it is the absence of a choice, and the referee still has to deal
+        // something. What it can deal is the server's problem, not this screen's.
+        onNodeWithTag(DECK_SELECT_RANDOM_TEST_TAG).assertExists()
+    }
+
+    /**
+     * What a host about to wager is choosing cards against — the line a solo match has no
+     * equivalent of, and the reason this is worth a screen rather than a chip.
+     */
+    @Test
+    fun theDeckQuestionShowsWhatIsBeingWagered() = editor {
+        onNodeWithTag(tradeToggleTestTag(TradeRule.ALL)).performClick()
+        onNodeWithTag(PVP_TABLE_OPEN_TEST_TAG).performClick()
+        waitForIdle()
+
+        onNodeWithTag(DECK_SELECT_STAKE_TEST_TAG)
+            .assertTextContains(strings[StringKeys.PVP_TRADE_ALL])
     }
 
     @Test
@@ -111,13 +167,34 @@ class PvpTableUiTest {
         val bodies = mutableListOf<String>()
 
         editor(recordBody = bodies::add) {
-            onNodeWithTag(pvpDeckTestTag(0)).performClick()
             onNodeWithTag(PVP_TABLE_OPEN_TEST_TAG).performClick()
+            waitForIdle()
+            onNodeWithTag(deckChoiceTestTag(0)).performClick()
+            onNodeWithTag(DECK_SELECT_CHOOSE_TEST_TAG).performClick()
             waitForIdle()
         }
 
         val sent = bodies.first { it.contains("formatId") }
         assertTrue(""""deck":0""" in sent, "the host's deck was not sent: $sent")
+    }
+
+    /**
+     * Under Random there is nothing to ask: the referee splices the hand from the whole collection
+     * and the deck the host would name is ignored. The same skip `PvpScreen.sit` makes for a seat.
+     */
+    @Test
+    fun randomOpensTheTableWithoutAskingForADeck() {
+        val paths = mutableListOf<String>()
+
+        editor(record = paths::add) {
+            onNodeWithTag(ruleToggleTestTag("RULE_RANDOM")).performClick()
+            onNodeWithTag(PVP_TABLE_OPEN_TEST_TAG).performClick()
+            waitForIdle()
+
+            onNodeWithTag(DECK_SELECT_TEST_TAG).assertDoesNotExist()
+        }
+
+        assertEquals(1, paths.count { it.endsWith("/pvp/tables") }, "opened via $paths")
     }
 
     @Test
@@ -129,7 +206,7 @@ class PvpTableUiTest {
             onNodeWithTag(PVP_TABLE_ROULETTE_TEST_TAG).performClick()
             onNodeWithTag(tradeToggleTestTag(TradeRule.DIFF)).performClick()
             onNodeWithTag(PVP_TABLE_OPEN_TEST_TAG).performClick()
-            waitForIdle()
+            bringAnyDeck()
         }
 
         val sent = bodies.first { it.contains("formatId") }
@@ -148,7 +225,7 @@ class PvpTableUiTest {
         editor(recordBody = bodies::add) {
             onNodeWithTag(formatToggleTestTag("other-format")).performClick()
             onNodeWithTag(PVP_TABLE_OPEN_TEST_TAG).performClick()
-            waitForIdle()
+            bringAnyDeck()
         }
 
         val sent = bodies.first { it.contains("formatId") }
@@ -175,7 +252,7 @@ class PvpTableUiTest {
 
         editor(record = paths::add, onOpened = { left = true }) {
             onNodeWithTag(PVP_TABLE_OPEN_TEST_TAG).performClick()
-            waitForIdle()
+            bringAnyDeck()
         }
 
         assertEquals(1, paths.count { it.endsWith("/pvp/tables") }, "opened via $paths")
@@ -191,7 +268,7 @@ class PvpTableUiTest {
             onNodeWithTag(ruleToggleTestTag("RULE_SAME")).performClick()
             onNodeWithTag(tradeToggleTestTag(TradeRule.ALL)).performClick()
             onNodeWithTag(PVP_TABLE_OPEN_TEST_TAG).performClick()
-            waitForIdle()
+            bringAnyDeck()
         }
 
         assertEquals(1, paths.count { it.endsWith("/pvp/challenges") }, "posted to $paths")
@@ -204,6 +281,18 @@ class PvpTableUiTest {
     }
 
     // ---- Harness ----------------------------------------------------------
+
+    /**
+     * Answers the deck question with Random and lets the request go.
+     *
+     * Random rather than a row, because these tests are about what the *form* sent and a deck row
+     * is not offered under every format they pick — see [onlyDecksTheChosenFormatAdmitsAreOffered].
+     */
+    private fun androidx.compose.ui.test.ComposeUiTest.bringAnyDeck() {
+        waitForIdle()
+        onNodeWithTag(DECK_SELECT_RANDOM_TEST_TAG).performClick()
+        waitForIdle()
+    }
 
     @Suppress("LongParameterList")
     private fun editor(
@@ -263,6 +352,7 @@ class PvpTableUiTest {
             "RULE_ALL_OPEN",
             "RULE_THREE_OPEN",
             "RULE_ROULETTE",
+            "RULE_RANDOM",
         ),
     )
 

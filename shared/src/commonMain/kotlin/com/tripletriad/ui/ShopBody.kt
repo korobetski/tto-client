@@ -2,6 +2,9 @@ package com.tripletriad.ui
 
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,12 +28,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -70,7 +75,7 @@ fun shopOddsTestTag(offer: ShopOffer): String = "shop-odds-${itemSlug(offer.item
 
 fun shopShelfTestTag(shelf: String): String = "shop-shelf-$shelf"
 
-/** The booster rack's scroll indicator. Absent when every pack already fits. */
+/** The booster rack's scrollbar. Absent when every pack already fits. */
 const val SHOP_RACK_HINT_TEST_TAG: String = "shop-rack-hint"
 
 @Composable
@@ -268,13 +273,29 @@ private fun ShelfHeader(slug: String, title: String, count: Int) {
 }
 
 /**
- * A thin bar under a scrolling rack, saying how much of it is off-screen and where you are.
+ * The rack's scrollbar: how much of it is off-screen, where you are, and a handle to drag.
  *
- * The rack drags on a touch screen and answers shift+wheel on a desktop, and neither of those is
- * discoverable: fifteen packs behind a gesture with no affordance is four packs. Compose
- * Multiplatform's real `HorizontalScrollbar` is a desktop-only artifact and this module is
- * common, so this is drawn by hand from the two numbers [ScrollState] already publishes — the
- * thumb is as wide a share of the track as the viewport is of the content.
+ * Compose Multiplatform's real `HorizontalScrollbar` is a desktop-only artifact and this module is
+ * common, so this is drawn by hand from the two numbers [ScrollState] already publishes — the thumb
+ * is as wide a share of the track as the viewport is of the content.
+ *
+ * ### Why it had to become a control rather than stay a hint
+ *
+ * It was drawn as an indicator, on the claim that "the rack drags on a touch screen and answers
+ * shift+wheel on a desktop". The first half is true. **The second is not**: a horizontal scroll
+ * delta reaches this rack and moves nothing, so on a desktop the only way to reach the packs past
+ * the fourth was to press the mouse on a *tile* — a thing whose whole job is to be clicked — and
+ * haul it sideways. The wheel does what a wheel should do over a page, which is scroll the page.
+ *
+ * Redirecting the wheel was the other candidate and is worse: a band that swallows vertical
+ * scrolling until it reaches its own end traps the page behind it, and a player who wanted the
+ * cards below has to scroll nine packs sideways first.
+ *
+ * ### The hit area is not the bar
+ *
+ * The bar is [ScrollHintHeight] — three pixels of furniture — and nothing is draggable at three
+ * pixels. So the drag belongs to a [ScrollHintTouchHeight] band that the bar is centred in, which
+ * is invisible and is why the two heights exist separately.
  *
  * Nothing is drawn when everything fits, which is also the state before the first measurement
  * (`maxValue` is `Int.MAX_VALUE` until then).
@@ -286,27 +307,69 @@ private fun ScrollHint(state: ScrollState) {
     val content = (state.viewportSize + state.maxValue).toFloat()
     val visible = if (content <= 0f) 1f else state.viewportSize / content
     val travelled = state.value.toFloat() / state.maxValue
+    val thumb = visible.coerceIn(HINT_MIN_THUMB, 1f)
+    // The track's own width, which only a measurement knows: a drag arrives in track pixels and
+    // has to be spent in content pixels, and the two differ by however wide this happens to be.
+    var track by remember { mutableStateOf(0f) }
 
     Box(
         modifier = Modifier
             .testTag(SHOP_RACK_HINT_TEST_TAG)
             .fillMaxWidth()
             .padding(top = SpaceXs, start = SpaceLg, end = SpaceLg)
-            .height(ScrollHintHeight)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = HINT_TRACK)),
-        // -1 is hard left and 1 is hard right, which is exactly how far along the track the
-        // thumb has to sit for a scroll of `travelled`.
-        contentAlignment = BiasAlignment(horizontalBias = -1f + 2f * travelled, verticalBias = 0f),
+            .height(ScrollHintTouchHeight)
+            .onSizeChanged { track = it.width.toFloat() }
+            .draggable(
+                orientation = Orientation.Horizontal,
+                state = rememberDraggableState { delta ->
+                    // `dispatchRawDelta` rather than a `scroll` session: the drag *is* the
+                    // session. The sign carries straight through — `ScrollState.value` counts how
+                    // far the rack has been pushed to the left, which is the direction the thumb
+                    // moves to reveal it.
+                    state.dispatchRawDelta(delta * scrollPerTrackPixel(state, track, thumb))
+                },
+            ),
+        contentAlignment = Alignment.Center,
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth(visible.coerceIn(HINT_MIN_THUMB, 1f))
+                .fillMaxWidth()
                 .height(ScrollHintHeight)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = HINT_THUMB)),
-        )
+                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = HINT_TRACK)),
+            // -1 is hard left and 1 is hard right, which is exactly how far along the track the
+            // thumb has to sit for a scroll of `travelled`.
+            contentAlignment = BiasAlignment(
+                horizontalBias = -1f + 2f * travelled,
+                verticalBias = 0f,
+            ),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(thumb)
+                    .height(ScrollHintHeight)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = HINT_THUMB)),
+            )
+        }
     }
+}
+
+/**
+ * How many pixels of rack one pixel of thumb travel is worth.
+ *
+ * The thumb crosses the part of the track it does not occupy — `track * (1 - thumb)` — while the
+ * rack crosses all of `maxValue`, so the ratio is the second over the first. [thumb] is the
+ * **drawn** width, floored at [HINT_MIN_THUMB], and it has to be: dragging a floored thumb must
+ * still reach the end of the rack as it reaches the end of the track, and the true proportion would
+ * leave the last packs unreachable on any rack long enough for the floor to bite.
+ *
+ * Zero when the thumb has nowhere to go, which is the guard the caller's `maxValue == 0` already
+ * makes and is still worth making here: a track measured at zero would be divided by.
+ */
+private fun scrollPerTrackPixel(state: ScrollState, track: Float, thumb: Float): Float {
+    val travel = track * (1f - thumb)
+    return if (travel <= 0f) 0f else state.maxValue / travel
 }
 
 /**
@@ -732,6 +795,16 @@ internal fun ShopOfferSheet(
 private val BoosterTileWidth = 116.dp
 
 private val ScrollHintHeight = 3.dp
+
+/**
+ * The band the bar is dragged by, which is not the bar.
+ *
+ * Under the 48 dp an ordinary target gets, deliberately: a scrollbar sits between two shelves the
+ * player is reading, and a thumb-sized strip of dead space there would cost more than the drag it
+ * buys. This is about what a desktop scrollbar is, and the rack itself still drags at any point on
+ * the tiles above it.
+ */
+private val ScrollHintTouchHeight = 20.dp
 
 /** Faint enough to be furniture, visible enough to say the rack goes on. */
 private const val HINT_TRACK = 0.10f

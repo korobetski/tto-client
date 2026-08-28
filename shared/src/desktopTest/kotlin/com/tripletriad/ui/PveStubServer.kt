@@ -114,6 +114,20 @@ internal class PveStubServer(
     private val entryGate: CompletableDeferred<Unit>? = null,
     private val reporter: MatchReporter = SilentMatchReporter,
 ) {
+    /**
+     * Who the toss hands the opening move to, or null to let [seed] decide it as it decides
+     * everything else.
+     *
+     * Half of all deals give the opponent the first card, and a fixture about *that* half cannot
+     * be written against a seed without pinning one and hoping it stays pinned: the toss is drawn
+     * after the rules and both hands, so a catalogue that gains a card moves it. The draw still
+     * happens either way, so setting this changes who moves first and nothing else about the deal.
+     *
+     * A property rather than a constructor parameter only because the constructor is already at
+     * detekt's limit, and this is the argument least often given.
+     */
+    var toss: CardColor? = null
+
     val cards = runBlocking { loadCardCatalog() }
     private val npcs = runBlocking { loadNpcCatalog() }
     private val campaigns = runBlocking { loadCampaignCatalog() }
@@ -339,8 +353,8 @@ internal class PveStubServer(
             PveMatches.playerDeck(player.save, deck).map { legal.getValue(it) }
         }
         val red = npc.randomHand(generator).map { legal.getValue(it) }
-        val first = if (generator.nextBoolean()) CardColor.BLUE else CardColor.RED
-        val opening = MatchPreparation.prepareVersus(blue, red, first, rules, generator)
+        val tossed = if (generator.nextBoolean()) CardColor.BLUE else CardColor.RED
+        val opening = MatchPreparation.prepareVersus(blue, red, toss ?: tossed, rules, generator)
 
         return Live(
             id = "stub-$opened",

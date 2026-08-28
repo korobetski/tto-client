@@ -361,7 +361,7 @@ internal fun MatchScreen(
         wide = wide,
         side = {
             MatchSidePanel(
-                npc = npc,
+                face = OpponentFace.Program(npc),
                 opponentName = strings[npc.nameKey],
                 rules = match.rules,
                 log = log,
@@ -371,7 +371,7 @@ internal fun MatchScreen(
         StatusBar(
             view = view,
             selected = selected,
-            npc = npc,
+            face = OpponentFace.Program(npc),
             opponentName = strings[npc.nameKey],
             turnFraction = turnFraction,
             // With a panel the opponent has a whole column of their own, and drawing a 26 dp face
@@ -462,7 +462,7 @@ internal fun playMatchSounds(
 internal fun StatusBar(
     view: MatchView,
     selected: Card?,
-    npc: Npc,
+    face: OpponentFace,
     opponentName: String,
     turnFraction: Float?,
     showOpponent: Boolean,
@@ -473,7 +473,7 @@ internal fun StatusBar(
         StatusRow(
             view = view,
             selected = selected,
-            npc = npc,
+            face = face,
             opponentName = opponentName,
             showOpponent = showOpponent,
             outcomeTitle = outcomeTitle,
@@ -521,7 +521,7 @@ private fun TurnTimerBar(fraction: Float?) {
 private fun StatusRow(
     view: MatchView,
     selected: Card?,
-    npc: Npc,
+    face: OpponentFace,
     opponentName: String,
     showOpponent: Boolean,
     outcomeTitle: String?,
@@ -564,7 +564,12 @@ private fun StatusRow(
                 .then(view.turnTag()?.let { Modifier.testTag(it) } ?: Modifier),
             contentAlignment = Alignment.Center,
         ) {
-            TurnLine(view = view, selected = selected, outcomeTitle = outcomeTitle)
+            TurnLine(
+                view = view,
+                selected = selected,
+                opponentName = opponentName,
+                outcomeTitle = outcomeTitle,
+            )
         }
         // The opponent's face and name where the "next match" control used to be. Abandoning a
         // match is the back control; restarting one is the end-of-match panel's business, and a
@@ -577,7 +582,7 @@ private fun StatusRow(
                 horizontalArrangement = Arrangement.spacedBy(5.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                NpcPortrait(npc = npc, name = opponentName)
+                OpponentPortrait(face = face, name = opponentName)
                 Text(
                     text = opponentName,
                     color = CardColor.RED.edge,
@@ -613,7 +618,12 @@ private fun Score(view: MatchView) {
 }
 
 @Composable
-private fun TurnLine(view: MatchView, selected: Card?, outcomeTitle: String?) {
+private fun TurnLine(
+    view: MatchView,
+    selected: Card?,
+    opponentName: String,
+    outcomeTitle: String?,
+) {
     val strings = LocalStrings.current
     val outcome = view.outcome()
     if (outcome != null) {
@@ -644,7 +654,13 @@ private fun TurnLine(view: MatchView, selected: Card?, outcomeTitle: String?) {
         // Asked of the *view* rather than of the colour: in a refereed match the player is not
         // necessarily blue, and "blue to play" is an instruction to the wrong person.
         text = when {
-            !view.isMyTurn -> strings.format(StringKeys.OPPONENT_TURN, side)
+            // **Named, not coloured.** `APP_OPPONENT_TURN` is "{0} is playing…", and the subject it
+            // wanted was always the opponent rather than the side: "red is playing…" says the one
+            // thing about them the board already shows in the colour of every card they own. It
+            // matters more against a person — a name is who they are, where a colour is an
+            // arbitrary half of this particular board — which is how the multiplayer header came
+            // to format this string with a name while this one formatted it with a word.
+            !view.isMyTurn -> strings.format(StringKeys.OPPONENT_TURN, opponentName)
             selected == null -> strings.format(StringKeys.TURN_PICK_CARD, side)
             else -> strings.format(StringKeys.TURN_PICK_CELL, side, selected.name)
         },

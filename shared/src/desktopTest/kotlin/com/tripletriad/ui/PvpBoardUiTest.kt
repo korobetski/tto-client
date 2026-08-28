@@ -40,6 +40,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
@@ -64,9 +65,16 @@ class PvpBoardUiTest {
         onNodeWithTag(pvpBackTestTag(SHOWN_SLOT)).assertDoesNotExist()
     }
 
+    /**
+     * The **shared** score tag, not one of this board's own.
+     *
+     * That is the assertion, as much as the number is: the two boards draw the same `StatusBar`
+     * now, so "where is the score" has one answer in both modes. `PVP_SCORE_TEST_TAG` and
+     * `PVP_TURN_TEST_TAG` went with the header that carried them.
+     */
     @Test
     fun theScoreIsShown() = board {
-        onNodeWithTag(PVP_SCORE_TEST_TAG).assertTextEquals("5 — 5")
+        onNodeWithTag(SCORE_TEST_TAG).assertTextEquals("5 — 5")
     }
 
     @Test
@@ -173,9 +181,166 @@ class PvpBoardUiTest {
         onNodeWithTag(PVP_RESULT_TEST_TAG).assertDoesNotExist()
     }
 
+/**
+     * **A turn that runs out plays a card. It no longer loses the match.**
+     *
+     * The two modes disagreed on the one thing a clock is for: a PvE board played a card at random
+     * on the player's behalf, while here the server forfeited the match to whoever was on move.
+     * Same thirty seconds, opposite punishment. The server's forfeit is still there and untouched —
+     * it answers a client that has *gone away*, which is what its two minutes of grace are for —
+     * but a player who is present and slow now gets the move a solo board would have given them.
+     *
+     * The move itself is `autoPlay`, which draws a playable card and a free cell and evaluates
+     * nothing: a forced move must never be a good one by accident.
+     */
+    @Test
+    fun aTurnThatRunsOutPlaysACardInsteadOfForfeiting() {
+        val posted = mutableListOf<PvpMove>()
+
+        board(record = posted::add) {
+            waitUntil(timeoutMillis = AUTOPLAY_TIMEOUT_MS) { posted.isNotEmpty() }
+        }
+
+        val move = posted.single()
+        assertTrue(move.handIndex in BLUE_CARDS.indices, "played a slot it did not hold: $move")
+        assertTrue(move.position in 0 until BOARD, "played off the board: $move")
+    }
+
+    /** And it does not fire on a turn that is not the player's. */
+    @Test
+    fun theClockDoesNotPlayForTheOpponent() {
+        val posted = mutableListOf<PvpMove>()
+
+        board(view = playing().copy(playable = emptyList(), first = CardColor.RED)) {
+            posted += emptyList()
+            waitForIdle()
+        }
+
+        assertTrue(posted.isEmpty(), "a card was played on the opponent's turn: $posted")
+    }
+
+/**
+     * **The opponent has a face, and it is the avatar they chose.**
+     *
+     * A solo board draws the NPC portrait the roster showed; this one drew nothing, because
+     * `StatusBar` took an `Npc` and a person is not one. `OpponentFace` is the seam, and
+     * `PvpMatchView.opponentAvatarId` is what fills it — added to the wire beside `opponentName`
+     * because it is the same fact, who you are looking at.
+     */
+    @Test
+    fun theOpponentIsDrawnFromTheAvatarTheyChose() = board(
+        view = playing().copy(opponentAvatarId = AVATAR),
+    ) {
+        onNodeWithTag(portraitTestTag(AVATAR)).assertExists()
+    }
+
+    /** An account with no character yet is a name and no face, not a missing opponent. */
+    @Test
+    fun anOpponentWithNoAvatarIsStillDrawn() = board {
+        onNodeWithTag(portraitTestTag("")).assertExists()
+        onNodeWithTag(MATCH_OPPONENT_TEST_TAG).assertTextEquals("Kuplu")
+    }
+
+/**
+     * **A multiplayer win announces what it unlocked, as a solo one does.**
+     *
+     * `MatchRewards.creditPvp` has credited achievements and daily quests since PvP was refereed —
+     * `RULES_W` counts a rule win whoever was on the other side of it — and said nothing about
+     * either: `PvpOutcome` had no field for them, so a player earned an achievement at the end of
+     * a match and found out by going to look at their profile. Both panels draw `UnlockRows` now.
+     */
+    @Test
+    fun aSettledMatchAnnouncesWhatItUnlocked() = board(
+        view = playing().copy(
+            status = PvpMatchStatus.FINISHED,
+            outcome = PvpOutcome(
+                result = MatchResult.WIN,
+                blue = 6,
+                red = 4,
+                achievementIds = listOf(WHEEL_OF_FORTUNE),
+            ),
+        ),
+    ) {
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PVP_DONE_TEST_TAG) }
+
+        onNodeWithTag(matchAchievementTestTag(WHEEL_OF_FORTUNE)).assertExists()
+    }
+
+    /** An id this build's catalogue does not know is dropped, not drawn as a hole. */
+    @Test
+    fun anUnknownUnlockIsSkippedRatherThanShown() = board(
+        view = playing().copy(
+            status = PvpMatchStatus.FINISHED,
+            outcome = PvpOutcome(
+                result = MatchResult.WIN,
+                blue = 6,
+                red = 4,
+                achievementIds = listOf("ac-from-a-newer-server"),
+            ),
+        ),
+    ) {
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PVP_DONE_TEST_TAG) }
+
+        onNodeWithTag(PVP_PAYOUT_TEST_TAG).assertExists()
+    }
+
+/**
+     * **The loser watches the cards that are about to leave their collection.**
+     *
+     * This screen was a name and a countdown. The board behind it says who owns what *now* and
+     * nothing about what was dealt, so the loser found out which cards had gone by noticing one
+     * missing later. `pickFrom` travels to both sides now — the winner picks from it, the loser
+     * watches it — and the same `PrizeRow` draws both.
+     */
+    @Test
+    fun theLoserIsShownTheCardsAtStake() = board(
+        view = playing().copy(
+            status = PvpMatchStatus.AWAITING_CLAIM,
+            outcome = PvpOutcome(
+                result = MatchResult.LOSE,
+                blue = 4,
+                red = 6,
+                // Zero owed is what makes this the loser's side of the claim.
+                picksOwed = 0,
+                pickFrom = RED_CARDS,
+                claimDeadline = NOW + CLAIM_LEFT_MS,
+            ),
+        ),
+    ) {
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PVP_WAIT_TEST_TAG) }
+
+        for (id in RED_CARDS) {
+            onNodeWithTag(prizeTestTag(id)).assertExists()
+        }
+        // Watching, not choosing: the confirm control belongs to the winner alone.
+        onNodeWithTag(PVP_CLAIM_CONFIRM_TEST_TAG).assertDoesNotExist()
+    }
+
+/**
+     * **A rematch changes the board key even though the match id does not.**
+     *
+     * This is the wiring behind `MatchBannerUiTest.aRematchIsOwedItsOwnOpening`: that one proves a
+     * new key earns a new opening, and this one proves a Sudden Death rematch produces one. The
+     * pair matters because everything downstream is a `remember` key, and a key that quietly stops
+     * changing fails silently — the board would simply never announce itself again.
+     */
+    @Test
+    fun aRematchIsADifferentBoardFromTheSameMatch() {
+        val opening = playing()
+        val second = opening.copy(rematch = 1)
+
+        assertEquals(
+            second.matchId,
+            opening.matchId,
+            "the fixture changed the match, not the board",
+        )
+        assertNotEquals(pvpBoardKey(opening), pvpBoardKey(second))
+        assertEquals(pvpBoardKey(opening), pvpBoardKey(opening.copy(placement = PLACED)))
+    }
+
     @Test
     fun theTurnLineNamesWhoseMoveItIs() = board {
-        onNodeWithTag(PVP_TURN_TEST_TAG).assertExists()
+        onNodeWithTag(TURN_TEST_TAG).assertExists()
         onNodeWithTag(PVP_BOARD_TEST_TAG).assertExists()
     }
 
@@ -183,7 +348,7 @@ class PvpBoardUiTest {
     fun theWaitingSideIsToldWhoTheyAreWaitingFor() = board(
         view = playing().copy(playable = emptyList(), first = CardColor.RED),
     ) {
-        onNodeWithTag(PVP_TURN_TEST_TAG).assertTextContains("Kuplu", substring = true)
+        onNodeWithTag(TURN_TEST_TAG).assertTextContains("Kuplu", substring = true)
     }
 
     @Test
@@ -208,7 +373,7 @@ class PvpBoardUiTest {
     fun theScoreIsToldFromThisPlayersSideWhenTheServerDealtRed() = board(
         view = dealtRed(),
     ) {
-        onNodeWithTag(PVP_SCORE_TEST_TAG).assertTextEquals("6 — 4")
+        onNodeWithTag(SCORE_TEST_TAG).assertTextEquals("6 — 4")
     }
 
     @Test
@@ -312,6 +477,18 @@ class PvpBoardUiTest {
     private val strings = runBlocking { loadStrings(AppLocale.EN_US) }
 
     private companion object {
+        /** Long enough for the thirty second turn to elapse on the test clock. */
+        const val AUTOPLAY_TIMEOUT_MS = 60_000L
+
+        /** A claim deadline still ahead of [NOW], so the countdown has something to count. */
+        const val CLAIM_LEFT_MS = 30_000L
+
+        /** "Win one Roulette match" — a real id from `AchievementCatalog`. */
+        const val WHEEL_OF_FORTUNE = "ac-wof1"
+
+        /** One of the shipped avatars — see `AVATAR_NAMES`. */
+        const val AVATAR = "ffxiv_twi01001"
+
         const val BOARD = 9
         const val HAND = 5
 

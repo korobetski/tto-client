@@ -294,6 +294,21 @@ internal fun CampaignMatchScreen(
     // leave the finished board on screen and never deal a new one.
     var attempt by remember(campaign.key) { mutableStateOf(0) }
 
+    /*
+     * Which deck this rung is being played with. Null until the rung has been answered.
+     *
+     * Held **here** rather than inside [CampaignRung], and that placement is the rule: `key(step,
+     * attempt)` below rebuilds the rung on a replay, so a `remember` inside it would be discarded
+     * every time a draw sent the run round again — which is what happened, and it put the deck
+     * selector back in front of a player who is not entitled to change decks mid-rung. A tournament
+     * entry buys one run with one hand per opponent; a draw is the same rung being finished, not a
+     * new one being started.
+     *
+     * Keyed on [step] and deliberately not on `attempt`: the next rung is a different opponent
+     * under different rules and asks again, a replay of this one does not.
+     */
+    var deck by remember(campaign.key, step) { mutableStateOf<Int?>(null) }
+
     var reviewing by remember(campaign.key) { mutableStateOf(false) }
 
     if (reviewing) {
@@ -360,6 +375,9 @@ internal fun CampaignMatchScreen(
         // Keyed on the rung rather than trusting the opponent to differ: two rungs of one ladder
         // sharing an icon would otherwise silently keep the board. `attempt` is in the key for the
         // same reason a rung is — a replayed draw is a different match on the same rung.
+        //
+        // Which is exactly why `deck` is hoisted above this: everything inside the key is rebuilt
+        // on a replay, and the deck is the one answer that must survive one.
         key(step, attempt) {
             CampaignRung(
                 campaign = campaign,
@@ -370,6 +388,8 @@ internal fun CampaignMatchScreen(
                 profile = profile,
                 script = script,
                 exit = exit,
+                deck = deck,
+                onDeck = { deck = it },
                 onFinished = onFinished,
                 onResult = {
                     result = it
@@ -387,8 +407,14 @@ internal fun CampaignMatchScreen(
  *
  * A run is four matches, and what beat the last opponent is not what beats the next — so the
  * question is put again between every one of them, exactly as free play puts it before a match.
- * `key(step, attempt)` at the call site is what resets the answer, which is also why a replayed
- * draw asks again: it is a different match on the same rung.
+ *
+ * **A replayed draw does not ask again**, and that is the one place this parts company with free
+ * play. The entry fee buys a run, and a run is one hand per opponent: a rung a draw settled nothing
+ * on is the same rung being finished, so it is played out with the five cards it was started with.
+ * Free play is the opposite — see `rematchExit` in `App.kt` — because there is no fee, no ladder
+ * and nothing a second deck could be unfair to. That is why [deck] arrives as a parameter: it is
+ * held above the `key(step, attempt)` that rebuilds this rung, which is what makes it survive a
+ * replay and reset on the next rung.
  *
  * [DeckSelectorScreen] draws from `PveMatches.playableDecks` under **[format]**, the ladder's own,
  * so only decks this tournament admits are offered. That is the half that was missing: a rung used
@@ -418,11 +444,12 @@ private fun CampaignRung(
     profile: GameSave,
     script: MatchScript,
     exit: ScriptExit?,
+    // Null is "not answered yet"; `ANY_DECK` is an answer. The same two states free play uses.
+    deck: Int?,
+    onDeck: (Int) -> Unit,
     onFinished: () -> Unit,
     onResult: (MatchResult) -> Unit,
 ) {
-    // Null is "not answered yet"; `ANY_DECK` is an answer. The same two states free play uses.
-    var deck by remember { mutableStateOf<Int?>(null) }
     var resumed by remember { mutableStateOf(false) }
 
     LaunchedEffect(pve, entry.npc.iconId) {
@@ -440,14 +467,14 @@ private fun CampaignRung(
             profile = profile,
             catalog = catalog,
             format = format,
-            npc = entry.npc,
-            rules = entry.npc.gameRules(),
+            terms = MatchTerms(
+                opponent = LocalStrings.current[entry.npc.nameKey],
+                rules = entry.npc.gameRules(),
+            ),
             onChoose = { chosen ->
-                deck = if (chosen == ANY_DECK) {
-                    playable.firstOrNull()?.index ?: ANY_DECK
-                } else {
-                    chosen
-                }
+                onDeck(
+                    if (chosen == ANY_DECK) playable.firstOrNull()?.index ?: ANY_DECK else chosen,
+                )
             },
             onBack = onFinished,
         )
@@ -469,7 +496,7 @@ private fun CampaignRung(
         npc = entry.npc,
         onExit = onFinished,
         script = script,
-        scriptExit = exit,
+        again = exit,
         onResult = onResult,
     )
 }

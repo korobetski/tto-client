@@ -48,6 +48,14 @@ class PvpSession internal constructor(
 
     private var dismissed: String? = null
 
+    /**
+     * Whether [dismissed] was still owed a settlement when it was put away. See [clear].
+     *
+     * Two fields rather than one id, because "do not show me this again" and "do not show me this
+     * again *yet*" are different instructions and only the match itself can tell them apart.
+     */
+    private var dismissedUnsettled: Boolean = false
+
     var isResumed: Boolean by mutableStateOf(false)
         private set
 
@@ -68,10 +76,7 @@ class PvpSession internal constructor(
 
     val isAwaitingClaim: Boolean get() = match?.status == PvpMatchStatus.AWAITING_CLAIM
 
-    val isSettled: Boolean
-        get() = match?.status?.let {
-            it != PvpMatchStatus.PLAYING && it != PvpMatchStatus.AWAITING_CLAIM
-        } == true
+    val isSettled: Boolean get() = match?.status?.isSettled == true
 
     fun view(cards: Map<Int, Card>): MatchView? = match?.toMatchView(cards)?.asBlue()
 
@@ -81,7 +86,11 @@ class PvpSession internal constructor(
             is AccountResult.Ok -> {
                 val wasPlaying = match?.status == PvpMatchStatus.PLAYING
                 val arrived = result.value
-                match = arrived?.takeUnless { it.matchId == dismissed }
+                // A dismissal taken while the match still owed a claim lapses the moment it
+                // settles — see [clear]. Everything else stays dismissed, including this same
+                // match the second time round.
+                val lapsed = dismissedUnsettled && arrived?.status?.isSettled == true
+                match = arrived?.takeUnless { it.matchId == dismissed && !lapsed }
                 // The transition is what is watched, not the state: a match that is over stays
                 // over, and refreshing the profile on every poll of a finished board would be a
                 // request a second for a number that stopped changing.
@@ -263,8 +272,26 @@ class PvpSession internal constructor(
         isResumed = true
     }
 
+    /**
+     * Puts the board away.
+     *
+     * [dismissed] is what stops it coming straight back: a settled match stays readable on the
+     * server for a couple of minutes on purpose — see `PvpStore.RESULT_MILLIS` — so the next
+     * [poll] would answer with the one that was just left and the lobby would bounce back to it.
+     *
+     * ### Why leaving twice is not the same as leaving once
+     *
+     * Leaving a **settled** match is "I have read the result", and it must never return. Leaving
+     * one still `AWAITING_CLAIM` is not: it is the loser declining to watch the winner choose,
+     * which they are entitled to do — the cards leave their collection whatever they do. What they
+     * are not entitled to is being kept in the dark about *which* cards, and that was the effect,
+     * because the id was struck off for good and no later poll could ever show them the
+     * settlement. So an unsettled dismissal lapses the moment the match settles, the board comes
+     * back once with `cardsLost` on it, and leaving *that* is the dismissal that sticks.
+     */
     fun clear() {
         dismissed = match?.matchId
+        dismissedUnsettled = match?.status?.isSettled == false
         match = null
     }
 
@@ -306,6 +333,17 @@ private fun MatchView.asBlue(): MatchView = if (side == CardColor.BLUE) {
         },
     )
 }
+
+/**
+ * Whether this match is paid and finished with, as opposed to merely off the board.
+ *
+ * `AWAITING_CLAIM` is the state the distinction exists for: nine cards are placed, nothing is
+ * credited, and a card is about to leave somebody's collection. Reading it as an ending is what
+ * `isOver` does, and it is the right reading for "stop accepting moves" and the wrong one for
+ * everything to do with settling.
+ */
+private val PvpMatchStatus.isSettled: Boolean
+    get() = this != PvpMatchStatus.PLAYING && this != PvpMatchStatus.AWAITING_CLAIM
 
 @Composable
 internal fun rememberPvpSession(

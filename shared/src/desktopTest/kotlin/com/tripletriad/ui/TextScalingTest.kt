@@ -117,6 +117,7 @@ class TextScalingTest {
                     Box(modifier = Modifier.size(PHONE_WIDTH, PHONE_HEIGHT)) {
                         PvpTableScreen(
                             profile = GameSave.new(username = "Sigfrid", createdAt = 0L),
+                            catalog = pvpCards,
                             formats = FormatCatalog(listOf(format)),
                             session = session,
                             onOpened = {},

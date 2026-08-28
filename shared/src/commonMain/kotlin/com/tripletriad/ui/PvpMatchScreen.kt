@@ -43,7 +43,9 @@ import com.tripletriad.audio.LocalAudio
 import com.tripletriad.audio.Sound
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
+import com.tripletriad.model.AchievementCatalog
 import com.tripletriad.model.Card
+import com.tripletriad.model.DailyQuestCatalog
 import com.tripletriad.model.MatchResult
 import com.tripletriad.model.MatchView
 import com.tripletriad.protocol.PvpMatchStatus
@@ -51,12 +53,13 @@ import com.tripletriad.protocol.PvpMatchView
 import com.tripletriad.protocol.PvpMove
 import com.tripletriad.protocol.PvpOutcome
 import com.tripletriad.ui.theme.LocalTtoColors
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.random.Random
+import kotlin.time.Duration.Companion.seconds
 
 const val PVP_BOARD_TEST_TAG: String = "pvp-board"
-const val PVP_SCORE_TEST_TAG: String = "pvp-score"
-const val PVP_TURN_TEST_TAG: String = "pvp-turn"
 const val PVP_RESULT_TEST_TAG: String = "pvp-result"
 const val PVP_FORFEIT_TEST_TAG: String = "pvp-forfeit"
 const val PVP_DONE_TEST_TAG: String = "pvp-done"
@@ -72,13 +75,13 @@ fun pvpHandTestTag(slot: Int): String = "pvp-card-$slot"
 fun pvpBackTestTag(slot: Int): String = "pvp-back-$slot"
 
 @Composable
-private fun PvpMatchSounds(matchId: String?, view: MatchView?) {
+private fun PvpMatchSounds(board: Any?, view: MatchView?) {
     val audio = LocalAudio.current
     val pacing = LocalPacing.current
-    val joinedAt = remember(matchId) { view?.placement ?: 0 }
+    val joinedAt = remember(board) { view?.placement ?: 0 }
 
-    LaunchedEffect(matchId, view?.placement, pacing) {
-        if (matchId == null || view == null) return@LaunchedEffect
+    LaunchedEffect(board, view?.placement, pacing) {
+        if (board == null || view == null) return@LaunchedEffect
 
         if (view.placement <= joinedAt) {
             // Nothing has been played since this client arrived. The one thing worth saying is
@@ -99,6 +102,23 @@ private fun PvpMatchSounds(matchId: String?, view: MatchView?) {
         )
     }
 }
+
+/**
+ * The match **and which board of it**, or null when there is no match.
+ *
+ * A Sudden Death rematch keeps the match id — it is the same match — and resets the cells and the
+ * placement count. Everything on the board that remembers "what did I see first" is keyed on this
+ * rather than on the id alone, because a second board is owed its own opening, its own coin flip
+ * and its own clock; keyed on the id, a rematch arrived silently and the client treated it as the
+ * first board rewound.
+ *
+ * The same key `PveMatchScreen` builds from `PveMatchView.rematch`, for the same reason. A named
+ * function rather than an expression at the call site so that the pairing is a thing a test can
+ * hold: everything downstream of it is a `remember` key, and a `remember` key that quietly stops
+ * changing fails silently.
+ */
+internal fun pvpBoardKey(wire: PvpMatchView?): Pair<String, Int>? =
+    wire?.let { it.matchId to it.rematch }
 
 @Composable
 internal fun PvpMatchScreen(
@@ -127,15 +147,32 @@ internal fun PvpMatchScreen(
     // here for the same reason the match had no artwork: this screen was written as "render what
     // the server says" and the announcements are not something the server says — they are derived
     // from the rules, which it does. See `serverIntroAnimations`.
-    val banners = pvpBannerQueue(wire?.matchId, view)
+    val boardKey = pvpBoardKey(wire)
+
+    val banners = pvpBannerQueue(boardKey, view)
 
     // Read before the early return below, like the queue above: a composable that is called on some
     // compositions and not others is not one Compose can keep state for.
-    val revealed = pvpOpenRevealed(wire?.matchId, view)
+    val intro = pvpIntro(boardKey, view)
+    val revealed = openRevealed(boardKey ?: Unit, intro)
+    // And the clock waits it out, as a PvE board's does: a turn that starts counting under the
+    // rule captions is a turn the player spends watching rather than playing.
+    val underway = pveIntroFinished(boardKey ?: Unit, intro)
 
     // And the sounds, which were absent for the same reason and are worth more: a capture the
     // player did not initiate is a thing that happens while they are looking elsewhere.
-    PvpMatchSounds(wire?.matchId, view)
+    PvpMatchSounds(boardKey, view)
+
+    // Read here for the reason the two above are, and answering the same question a PvE board asks
+    // with `PVE_OUTCOME_PAUSE_MS`: has the board finished being watched. This screen used to open
+    // the panel on the frame the status changed, so the win caption played behind a scrim over a
+    // board still mid-flip.
+    val resultDue = outcomeDue(wire, view, session.isOver)
+
+    // Above the early return with everything else Compose has to keep. Seeded from the match, so a
+    // board replayed in a fixture makes the same forced move twice; it is only ever consulted when
+    // a turn runs out, which is not something a transcript records.
+    val autoRandom = remember(boardKey) { Random(boardKey.hashCode()) }
 
     // The opponent's move can make a selected card unplayable — Order and Chaos both move on. Kept
     // only while the server still lists it, so a stale highlight cannot survive a turn.
@@ -154,150 +191,152 @@ internal fun PvpMatchScreen(
         return
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            PvpHeader(
-                view = view,
+    val place: (Card, Int) -> Unit = { card, position ->
+        selected = null
+        scope.launch { session.play(moveFor(view, card, position)) }
+    }
+
+    /*
+     * The clock the PvE board has always had, on the board that until now only threatened one.
+     *
+     * ### Counted here rather than from the server's deadline
+     *
+     * `PvpMatchView.deadline` is `TURN_MILLIS + GRACE_MILLIS` away — thirty seconds to move and two
+     * *minutes* on top for coming back from a tunnel or a killed app. Drawing a ring from it would
+     * either show a hundred and fifty second turn, which is not the turn, or subtract a grace this
+     * side would have to keep its own copy of. So the thirty seconds are counted locally, exactly
+     * as a PvE board counts them, and the grace stays what it is for: the server's patience with a
+     * client that is not there. A client that *is* there now moves inside it every time.
+     *
+     * ### Which is what makes the two modes agree
+     *
+     * Running out used to mean losing the match by forfeit here and playing a card at random there.
+     * It plays a card in both now — `autoPlay`, which draws a playable card and a free cell and
+     * looks at nothing else, so a forced move is never a good one by accident. The server's forfeit
+     * is untouched and becomes what it always should have been: the answer to an absent player,
+     * not to a slow one.
+     */
+    val turnFraction =
+        turnClock(boardKey ?: Unit, view, PVP_TURN_LIMIT, underway && !session.isBusy) {
+            autoPlay(view, autoRandom)?.let { (card, position) -> place(card, position) }
+        }
+
+    val log = rememberViewMoveLog(boardKey ?: Unit, view)
+    // A person's face, from the avatar they chose. Blank for an opponent whose account has no
+    // character yet, which `OpponentFace` answers with their initial rather than with a hole.
+    val face = OpponentFace.Person(wire.opponentAvatarId)
+
+    MatchFrame(
+        wide = LocalWideLayout.current,
+        side = {
+            MatchSidePanel(
+                face = face,
                 opponentName = wire.opponentName,
-                deadline = wire.deadline,
-                now = now,
+                rules = view.rules,
+                log = log,
+            )
+        },
+    ) { panelShown ->
+        StatusBar(
+            view = view,
+            selected = selected,
+            face = face,
+            opponentName = wire.opponentName,
+            turnFraction = turnFraction,
+            showOpponent = !panelShown,
+            outcomeTitle = null,
+            // Navigates, and deliberately does **not** concede. The two modes part company here
+            // and should: leaving a solo board costs nothing, while conceding a wagered match
+            // costs cards, and a 34 dp icon in the corner is not where a player should be able to
+            // do the second by mistake. Conceding stays the labelled button below the board, which
+            // is the only control on this screen that says what it does.
+            onExit = onExit,
+        )
+        BoardRules(view.rules, panelShown)
+
+        BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            // See `MatchScreen`: less what `PvpPlayArea` pads with.
+            val layout = matchLayout(maxWidth - PlayAreaInset * 2, maxHeight - PlayAreaInset * 2)
+
+            PvpPlayArea(
+                view = view,
+                layout = layout,
+                selected = selected,
+                revealed = revealed,
+                onSelect = { card -> selected = if (selected?.id == card.id) null else card },
+                onPlace = { position -> selected?.let { place(it, position) } },
+                onDrop = place,
             )
 
-            BoxWithConstraints(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                // See `MatchScreen`: less what `PvpPlayArea` pads with.
-                val layout =
-                    matchLayout(maxWidth - PlayAreaInset * 2, maxHeight - PlayAreaInset * 2)
+            // The axis the hands are on, which the swap crossing travels along — see [HandAxis].
+            MatchBannerOverlay(banners, HandAxis.of(layout.landscape))
 
-                PvpPlayArea(
-                    view = view,
-                    layout = layout,
-                    selected = selected,
-                    revealed = revealed,
-                    onSelect = { card -> selected = if (selected?.id == card.id) null else card },
-                    onPlace = { position ->
-                        val card = selected ?: return@PvpPlayArea
-                        selected = null
-                        scope.launch { session.play(moveFor(view, card, position)) }
+            // Over the board rather than beside it, exactly where `OutcomePanel` lands on a PvE
+            // board: it is a panel covering a finished match, not another row of the column.
+            if (resultDue) {
+                PvpResult(
+                    session = session,
+                    wire = wire,
+                    cards = cards,
+                    now = now,
+                    onDone = {
+                        session.clear()
+                        onExit()
                     },
-                    onDrop = { card, position ->
-                        selected = null
-                        scope.launch { session.play(moveFor(view, card, position)) }
-                    },
-                )
-            }
-
-            if (!session.isOver) {
-                WideButton(
-                    label = strings[StringKeys.PVP_FORFEIT],
-                    tag = PVP_FORFEIT_TEST_TAG,
-                    filled = false,
-                    enabled = !session.isBusy,
-                    onClick = { scope.launch { session.forfeit() } },
                 )
             }
         }
 
-        MatchBannerOverlay(banners)
-
-        if (session.isOver) {
-            PvpResult(
-                session = session,
-                wire = wire,
-                cards = cards,
-                now = now,
-                onDone = {
-                    session.clear()
-                    onExit()
-                },
+        if (!session.isOver) {
+            WideButton(
+                label = strings[StringKeys.PVP_FORFEIT],
+                tag = PVP_FORFEIT_TEST_TAG,
+                filled = false,
+                enabled = !session.isBusy,
+                onClick = { scope.launch { session.forfeit() } },
             )
         }
     }
 }
 
 /**
- * Whether the opponent's revealed cards are face up yet, on the screen that has no `MatchSetup`.
+ * Whether the result panel is due yet.
  *
- * Only a client that **arrived at the opening** has a turn owing: one joining a match already in
- * progress — a reconnection, a second device — missed the announcement, and cards that turned over
- * for it now would be reporting a moment that has passed. Empty intro, so [openRevealed] answers
- * true on the first frame and nothing animates.
+ * A PvE board waits `PVE_OUTCOME_PAUSE_MS` plus however long the last placement takes to finish
+ * being watched, and this is that same beat: the match being over is a fact about the server, not
+ * a cue to dim the board. Opening the panel on the frame the status changed put a scrim over a
+ * chain still flipping and the win caption still playing. [quietMillis] measures it the way PvE
+ * does — the longer of the placement's own animation and the captions drawn over it, because the
+ * two play at once rather than in turn.
+ *
+ * ### The two cases with nothing to wait for
+ *
+ * A **forfeit**, taken or given, stills the board on the frame it happens: no placement is
+ * animating, and `pvpBannerQueue` draws nothing for it because the placement count did not move.
+ * The pause would sit between a player tapping Forfeit and being told what it cost them.
+ *
+ * A match **already over when this screen opened** — somebody coming back to read a settlement, or
+ * sent back to it by [PvpSession.poll] once the winner has chosen. Nothing is animating, and a
+ * three second dark board in front of an answer decided minutes ago is a wait with nothing at the
+ * end of it. Told the way [PvpMatchSounds] and [pvpOpenRevealed] tell it: by what this client had
+ * in front of it when it arrived.
  */
 @Composable
-private fun pvpOpenRevealed(matchId: String?, view: MatchView?): Boolean {
-    val intro = remember(matchId, view != null) {
-        if (view == null || view.placement > 0) {
-            emptyList()
-        } else {
-            serverIntroAnimations(view.rules, view.order.first)
-        }
+private fun outcomeDue(wire: PvpMatchView?, view: MatchView?, isOver: Boolean): Boolean {
+    val matchId = wire?.matchId
+    val pacing = LocalPacing.current
+    val arrivedOver = remember(matchId) { isOver }
+    var due by remember(matchId) { mutableStateOf(arrivedOver) }
+
+    LaunchedEffect(matchId, isOver, pacing) {
+        if (!isOver || arrivedOver) return@LaunchedEffect
+        val watching = wire != null && view != null &&
+            wire.status != PvpMatchStatus.FORFEITED && wire.status != PvpMatchStatus.ABANDONED
+        if (watching) delay(pacing * (PVP_OUTCOME_PAUSE_MS + quietMillis(checkNotNull(view))))
+        due = true
     }
 
-    return openRevealed(matchId ?: Unit, intro)
-}
-
-@Composable
-private fun pvpBannerQueue(matchId: String?, view: MatchView?): BannerEvent? {
-    var event by remember(matchId) { mutableStateOf<BannerEvent?>(null) }
-    // What this client had seen when it arrived. Anything at or below it is history, not news.
-    val joinedAt = remember(matchId) { view?.placement ?: 0 }
-
-    LaunchedEffect(matchId, view?.placement) {
-        if (matchId == null || view == null) return@LaunchedEffect
-
-        val animations = when {
-            view.placement > joinedAt -> MatchBanner.afterPlacement(view).asAnimations()
-            view.placement > 0 -> emptyList()
-            else -> serverIntroAnimations(view.rules, view.order.first)
-        }
-        animations.takeIf { it.isNotEmpty() }
-            ?.let { event = BannerEvent(at = view.placement, animations = it) }
-    }
-
-    return event
-}
-
-@Composable
-private fun PvpHeader(view: MatchView, opponentName: String, deadline: Long?, now: Long) {
-    val strings = LocalStrings.current
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = SpaceSm, end = SpaceSm, bottom = SpaceSm, top = MatchHeaderTopInset),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
-        Text(
-            text = "${view.score.blue} — ${view.score.red}",
-            color = MaterialTheme.colorScheme.onBackground,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.testTag(PVP_SCORE_TEST_TAG),
-        )
-        Text(
-            text = turnLine(view, opponentName, deadline, now, strings),
-            color = MaterialTheme.colorScheme.onBackground,
-            style = MaterialTheme.typography.labelMedium,
-            modifier = Modifier.testTag(PVP_TURN_TEST_TAG),
-        )
-        RulesStrip(view.rules)
-    }
-}
-
-private fun turnLine(
-    view: MatchView,
-    opponentName: String,
-    deadline: Long?,
-    now: Long,
-    strings: com.tripletriad.i18n.Strings,
-): String = when {
-    view.isFinished -> strings[StringKeys.PVP_OVER]
-    view.isMyTurn -> strings[StringKeys.TURN_PICK_CARD].let { line ->
-        val left = deadline?.minus(now)?.coerceAtLeast(0L)
-        if (left == null) line else "$line · ${left / MILLIS_PER_SECOND}s"
-    }
-
-    else -> strings.format(StringKeys.OPPONENT_TURN, opponentName)
+    return due
 }
 
 @Composable
@@ -524,7 +563,7 @@ private fun PvpResult(
                         ClaimPhase(session, wire, outcome, cards, now)
 
                     session.isAwaitingClaim ->
-                        WitnessPhase(wire.opponentName, outcome?.claimDeadline, now, onDone)
+                        WitnessPhase(wire.opponentName, outcome, cards, now, onDone)
 
                     else -> SettledPhase(wire, outcome, cards, onDone)
                 }
@@ -572,9 +611,38 @@ private fun ClaimPhase(
     )
 }
 
+/**
+ * The loser's side of a claim: the cards at stake, and the wait.
+ *
+ * ### Why the cards are here at all
+ *
+ * This was a name and a countdown. The board behind it says who owns what *now* and nothing about
+ * what was dealt, so a player about to lose cards out of their collection had no way to know which
+ * — they found out afterwards by noticing something missing. `PvpOutcome.pickFrom` is the loser's
+ * dealt hand and now travels to both sides for exactly this: the winner chooses from it, the loser
+ * watches it.
+ *
+ * Drawn with the same [PrizeRow] the winner taps, with nothing picked and nothing pickable. One
+ * component rather than a read-only twin, because the two are looking at the same five cards and a
+ * second implementation is a second thing to keep in step.
+ *
+ * ### Leaving is allowed and changes nothing
+ *
+ * The cards go whichever screen the loser is on — the server settles the claim on its own deadline.
+ * What they are owed is the sight of *which*, and [PvpSession.clear] keeps that promise for
+ * somebody who walks out: a dismissal taken before the match settled lapses the moment it does, and
+ * the board comes back once with the answer on it.
+ */
 @Composable
-private fun WitnessPhase(opponentName: String, deadline: Long?, now: Long, onDone: () -> Unit) {
+private fun WitnessPhase(
+    opponentName: String,
+    outcome: PvpOutcome?,
+    cards: Map<Int, Card>,
+    now: Long,
+    onDone: () -> Unit,
+) {
     val strings = LocalStrings.current
+    val deadline = outcome?.claimDeadline
 
     Text(
         text = strings.format(StringKeys.PVP_CLAIM_WAIT, opponentName),
@@ -588,6 +656,17 @@ private fun WitnessPhase(opponentName: String, deadline: Long?, now: Long, onDon
             text = "${(it - now).coerceAtLeast(0L) / MILLIS_PER_SECOND}s",
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
             style = MaterialTheme.typography.labelMedium,
+        )
+    }
+    outcome?.pickFrom?.takeIf { it.isNotEmpty() }?.let { at ->
+        PrizeRow(
+            ids = at,
+            cards = cards,
+            picked = emptySet(),
+            // Nothing is pickable: `enabled` in `PrizeRow` is `id in picked || picked.size < owed`,
+            // and zero owed with nothing picked is false for every card. The loser is watching.
+            owed = 0,
+            onToggle = {},
         )
     }
     WideButton(
@@ -635,6 +714,15 @@ private fun SettledPhase(
     // told "you win" and left to guess what it had been worth.
     if (outcome != null) {
         Payout(outcome = outcome, cards = cards)
+        // And what the match *unlocked*, in the same words a solo match uses. `creditPvp` has
+        // credited both of these since PvP was refereed; until `PvpOutcome` carried the ids there
+        // was nothing to say, so a player earned an achievement here and only ever found out by
+        // going to look at their profile.
+        UnlockRows(
+            achievements = outcome.achievementIds.mapNotNull(AchievementCatalog::get),
+            quests = outcome.questIds.mapNotNull(DailyQuestCatalog::get),
+            opponentName = wire.opponentName,
+        )
     }
 
     WideButton(
@@ -711,3 +799,22 @@ private fun moveFor(view: MatchView, card: Card, position: Int): PvpMove =
     PvpMove(handIndex = view.ownHand.indexOfFirst { it.id == card.id }, position = position)
 
 private const val MILLIS_PER_SECOND = 1_000L
+
+/**
+ * The beat between the board settling and the panel that covers it.
+ *
+ * The same number `PveMatchScreen` uses, and deliberately the same: the two screens end a match on
+ * the same animations, so ending them at different speeds would be two answers to one question.
+ * Named separately rather than shared because it is the one constant either screen would be
+ * entitled to tune on its own.
+ */
+private const val PVP_OUTCOME_PAUSE_MS = 1_400L
+
+/**
+ * How long a turn is worth, as the player sees it.
+ *
+ * The same thirty seconds `PVE_TURN_LIMIT` is, and the same thirty the server's
+ * `PvpMatchRow.TURN_MILLIS` means by a turn. Not read off `PvpMatchView.deadline`, which is this
+ * plus two minutes of grace for a client that has gone away — see the note at the call site.
+ */
+private val PVP_TURN_LIMIT = 30.seconds

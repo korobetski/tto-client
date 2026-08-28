@@ -58,6 +58,70 @@ internal fun AvatarBadge(
 }
 
 /**
+ * Whose face the board draws for the opponent.
+ *
+ * A board has exactly one opponent and two kinds of them, and until now only one kind had a face:
+ * `StatusBar` and `MatchSidePanel` took an [Npc], which is why the multiplayer board could not use
+ * either and grew a header of its own. This is the seam that let both boards become one.
+ *
+ * @property artId what the art is looked up by, and what the portrait's test tag is built from.
+ */
+internal sealed interface OpponentFace {
+    val artId: String
+
+    /** A program, drawn from the same 50x50 portrait the opponent list showed. */
+    data class Program(val npc: Npc) : OpponentFace {
+        override val artId: String get() = npc.iconId
+    }
+
+    /**
+     * A person, drawn from the avatar they chose.
+     *
+     * A blank id is the ordinary case rather than an error: it is what a client holds for an
+     * opponent whose avatar the wire does not carry, and [Bitmap] answers it with their initial —
+     * which is a face of sorts and is what the board showed for a person before this existed.
+     */
+    data class Person(val avatarId: String) : OpponentFace {
+        override val artId: String get() = avatarId
+    }
+}
+
+/**
+ * The opponent's face, whichever kind of opponent it is.
+ *
+ * One box, one size and one shape for both, and that is the point rather than an economy: the two
+ * boards are supposed to be the same board, and a portrait that changed shape between them would
+ * move everything beside it.
+ */
+@Composable
+internal fun OpponentPortrait(
+    face: OpponentFace,
+    name: String,
+    modifier: Modifier = Modifier,
+) {
+    val art = LocalUiArt.current
+    val image = when (face) {
+        is OpponentFace.Program -> rememberPortrait(art, face.npc.iconId)
+        // Read unconditionally, blank id and all. `UiArt` answers null for a name it does not
+        // hold, and a `remember` that is called on some compositions and not others is not one
+        // Compose can keep.
+        is OpponentFace.Person -> rememberAvatar(art, face.avatarId)
+    }
+    val shape = RoundedCornerShape(8.dp)
+
+    Box(
+        modifier = modifier
+            .testTag(portraitTestTag(face.artId))
+            .size(PORTRAIT_SIZE)
+            .clip(shape)
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center,
+    ) {
+        Bitmap(image = image, description = name, fallback = name)
+    }
+}
+
+/**
  * An opponent's portrait, always at the art's own [PORTRAIT_SIZE] — 50x50, what every scraped NPC
  * portrait file measures. Callers used to ask for this at half a dozen different sizes (26dp in
  * the match banner, 36dp on a campaign tile, 64dp in the confirmation sheet…), and each one but the

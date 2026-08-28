@@ -128,13 +128,17 @@ class MatchAudioTest {
         startMatch()
 
         playOneCard()
-        audio.clear()
-        waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
-            Sound.CARD_PLACED in audio || Sound.CARD_CAPTURED in audio
-        }
+
+        // **Counted, not cleared.** `clear()` here was a race the suite lost about one run in
+        // five: the opponent's reply is walked onto the board a couple of hundred milliseconds
+        // after the player's card lands, and when it sounded *before* the clear rather than after,
+        // the clear deleted the one sound the wait below was waiting for — so the wait timed out
+        // on a match where everything had gone right. Counting cannot lose a sound it has already
+        // seen. Two placement sounds is the player's card and the reply, which is the assertion.
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { audio.placements() >= BOTH_PLACEMENTS }
 
         assertTrue(
-            Sound.CARD_PLACED in audio || Sound.CARD_CAPTURED in audio,
+            audio.placements() >= BOTH_PLACEMENTS,
             "the opponent's own placement was silent: ${audio.played}",
         )
     }
@@ -194,9 +198,11 @@ class MatchAudioTest {
         waitForIdle()
 
         assertTrue(Sound.NEW_MATCH in audio, "played: ${audio.played}")
+        // And then the deck question again, because a second match is a second deal — see
+        // `rematchExit`. `settleDeck` answers it and waits for the board.
+        settleDeck()
         // The deal sound comes with the cards, which is when the referee's board arrives rather
         // than when the screen opens — the two were the same moment before the match was refereed.
-        awaitBoard()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { Sound.MATCH_OPEN in audio }
     }
 
@@ -255,7 +261,14 @@ class MatchAudioTest {
         )
     }
 
+    /** How many cards have been heard landing — either sound a placement can make. */
+    private fun RecordingAudioPlayer.placements(): Int =
+        played.count { it == Sound.CARD_PLACED || it == Sound.CARD_CAPTURED }
+
     private companion object {
+        /** The player's card and the opponent's reply. */
+        const val BOTH_PLACEMENTS = 2
+
         const val COMBO_LESSON_ROW = 3
 
         const val PLAYER_PLACEMENTS_MIN = 4

@@ -186,8 +186,10 @@ class MatchUiTest {
 
         playOut()
         onNodeWithTag(NEW_MATCH_TEST_TAG).performClick()
-        // A rematch is a fresh match, dealt by the referee: the control asks for one and the board
-        // that comes back is the answer, so there is nothing local to settle first.
+        // A rematch is a fresh match, dealt by the referee — deck and all, which is why the deck
+        // question comes back first. `OpponentUiTest` is where that is the assertion rather than
+        // a step; here it is just the way to the second board.
+        settleDeck()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { !isFinished() }
 
         assertEquals(HAND_SIZE, handSize(CardColor.BLUE), "the player should be dealt again")

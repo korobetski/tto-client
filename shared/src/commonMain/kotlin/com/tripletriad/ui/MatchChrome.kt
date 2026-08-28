@@ -38,14 +38,15 @@ import com.tripletriad.data.MatchReward
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.Strings
+import com.tripletriad.model.Achievement
 import com.tripletriad.model.Card
 import com.tripletriad.model.CardColor
+import com.tripletriad.model.DailyQuest
 import com.tripletriad.model.GameRules
 import com.tripletriad.model.Item
 import com.tripletriad.model.MatchResult
 import com.tripletriad.model.MatchState
 import com.tripletriad.model.MatchView
-import com.tripletriad.model.Npc
 import com.tripletriad.model.PlayResult
 import com.tripletriad.ui.theme.LocalTtoColors
 
@@ -109,7 +110,7 @@ private val SidePanelMinHeight = 560.dp
 
 @Composable
 internal fun MatchSidePanel(
-    npc: Npc,
+    face: OpponentFace,
     opponentName: String,
     rules: GameRules,
     log: List<PlayResult>,
@@ -128,7 +129,7 @@ internal fun MatchSidePanel(
             horizontalArrangement = Arrangement.spacedBy(SpaceSm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            NpcPortrait(npc = npc, name = opponentName)
+            OpponentPortrait(face = face, name = opponentName)
             Text(
                 text = opponentName,
                 color = CardColor.RED.edge,
@@ -419,33 +420,11 @@ private fun OutcomeCard(
                     }
                 }
             }
-            for (achievement in reward.achievements) {
-                Text(
-                    text = strings[StringKeys.ACHIEVEMENT_EARNED] + " — " +
-                        strings[achievement.labelKey],
-                    color = LocalTtoColors.current.selectionRing,
-                    style = MaterialTheme.typography.labelMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            // Announced here or nowhere: a quest that finished mid-match and said nothing would be
-            // a reward the player only discovers by going looking for it. The MGP is already in
-            // the payout line above — `MatchRewards` credits quests into the same total — so this
-            // says what was finished, not what it paid.
-            for (quest in reward.quests) {
-                Text(
-                    // `BeatOpponent` is the only quest that names anybody, and by construction the
-                    // opponent it names is the one just played. So no catalogue lookup here.
-                    text = strings[StringKeys.QUEST_DONE] + " — " +
-                        quest.label(strings) { opponentName },
-                    color = LocalTtoColors.current.selectionRing,
-                    style = MaterialTheme.typography.labelMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.testTag(questRowTestTag(quest.id)),
-                )
-            }
+            UnlockRows(
+                achievements = reward.achievements,
+                quests = reward.quests,
+                opponentName = opponentName,
+            )
 
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = SpaceSm),
@@ -470,6 +449,59 @@ private fun OutcomeCard(
                 }
             }
         }
+    }
+}
+
+/**
+ * What a match unlocked, announced here or nowhere.
+ *
+ * An achievement or a quest that finished mid-match and said nothing is a reward the player only
+ * discovers by going looking for it. The MGP is already on the payout line — `MatchRewards` credits
+ * quests into the same total — so this says what was *finished*, not what it paid.
+ *
+ * Shared by both result panels rather than written twice, which is the point: multiplayer credited
+ * both of these from the day it was refereed and announced neither, because `PvpOutcome` carried no
+ * field for them and this panel was not the one it drew. Two modes that pay the same rewards should
+ * say so in the same words.
+ */
+/**
+ * An achievement named on a **result panel**, which is not where `achievementRowTestTag` points.
+ *
+ * That one is the stats screen's list. One tag meaning two places is one tag too few: a test
+ * asserting an unlock was announced at the end of a match would pass on a screen that merely lists
+ * every achievement the player has ever earned.
+ */
+fun matchAchievementTestTag(id: String): String = "match-achievement-$id"
+
+@Composable
+internal fun UnlockRows(
+    achievements: List<Achievement>,
+    quests: List<DailyQuest>,
+    opponentName: String,
+) {
+    val strings = LocalStrings.current
+
+    for (achievement in achievements) {
+        Text(
+            text = strings[StringKeys.ACHIEVEMENT_EARNED] + " — " + strings[achievement.labelKey],
+            color = LocalTtoColors.current.selectionRing,
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.testTag(matchAchievementTestTag(achievement.id)),
+        )
+    }
+    for (quest in quests) {
+        Text(
+            // `BeatOpponent` is the only quest that names anybody, and by construction the
+            // opponent it names is the one just played. So no catalogue lookup here.
+            text = strings[StringKeys.QUEST_DONE] + " — " + quest.label(strings) { opponentName },
+            color = LocalTtoColors.current.selectionRing,
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.testTag(questRowTestTag(quest.id)),
+        )
     }
 }
 

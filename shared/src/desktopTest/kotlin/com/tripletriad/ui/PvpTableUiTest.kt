@@ -15,6 +15,7 @@ import com.tripletriad.i18n.loadStrings
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.TradeRule
 import com.tripletriad.net.PvpClient
+import com.tripletriad.protocol.ANY_DECK
 import com.tripletriad.ui.theme.TripleTriadTheme
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -79,6 +80,44 @@ class PvpTableUiTest {
 
         onNodeWithTag(tradeToggleTestTag(TradeRule.ONE)).assertIsSelected()
         onNodeWithTag(tradeToggleTestTag(TradeRule.NONE)).assertIsNotSelected()
+    }
+
+/**
+     * **The host's deck is offered against the format the host has just picked.**
+     *
+     * This row used to be above the lobby's tabs, where the only thing it could test was whether a
+     * deck was complete — no format had been chosen yet, so none could be applied. An FFXIV deck
+     * brought to an FFVIII table is five cards its pool does not admit, and the referee answers
+     * `UNDEALABLE` rather than dealing them.
+     *
+     * The two fixture formats draw from different blocks, and the starting profile's deck is in the
+     * first, so switching format is what takes the deck out of the list.
+     */
+    @Test
+    fun onlyDecksTheChosenFormatAdmitsAreOffered() = editor {
+        onNodeWithTag(pvpDeckTestTag(0)).assertExists()
+
+        onNodeWithTag(formatToggleTestTag(other.id)).performClick()
+        waitForIdle()
+
+        onNodeWithTag(pvpDeckTestTag(0)).assertDoesNotExist()
+        // Automatic survives: it is the absence of a choice, and the referee still has to deal
+        // something. What it can deal is the server's problem, not a chip's.
+        onNodeWithTag(pvpDeckTestTag(ANY_DECK)).assertExists()
+    }
+
+    @Test
+    fun theRequestCarriesTheChosenDeck() {
+        val bodies = mutableListOf<String>()
+
+        editor(recordBody = bodies::add) {
+            onNodeWithTag(pvpDeckTestTag(0)).performClick()
+            onNodeWithTag(PVP_TABLE_OPEN_TEST_TAG).performClick()
+            waitForIdle()
+        }
+
+        val sent = bodies.first { it.contains("formatId") }
+        assertTrue(""""deck":0""" in sent, "the host's deck was not sent: $sent")
     }
 
     @Test
@@ -191,6 +230,7 @@ class PvpTableUiTest {
                 TripleTriadTheme {
                     PvpTableScreen(
                         profile = GameSave.new(username = "Sigfrid", createdAt = 0L),
+                        catalog = pvpCards,
                         formats = FormatCatalog(listOf(format, other)),
                         session = session,
                         invitee = invitee,

@@ -241,6 +241,8 @@ class OpponentUiTest {
         val afterFirst = stub.player.save
 
         onNodeWithTag(NEW_MATCH_TEST_TAG).performClick()
+        // Playing again puts the deck question back — free play deals afresh, deck included.
+        settleDeck()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { !isFinished() }
         playOut()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { stub.player.save.endedMatches == 2 }
@@ -251,6 +253,30 @@ class OpponentUiTest {
             afterSecond.mgp > afterFirst.mgp,
             "the second match should have paid too: ${afterFirst.mgp} -> ${afterSecond.mgp}",
         )
+    }
+
+    /**
+     * **Playing again asks which deck again.**
+     *
+     * A second match is a second deal, and the deck is part of a deal — a player who has just
+     * watched a deck lose under Reverse is exactly the player who wants to bring another. The
+     * board's rematch control used to call `PveSession.open` itself with whatever deck the session
+     * still held, and the selector could not come back because `MatchDestination` remembers its
+     * answer for as long as the opponent does not change. See `rematchExit` in `App.kt`.
+     *
+     * The tournament is deliberately the opposite — see `CampaignUiTest`.
+     */
+    @Test
+    fun playingAgainAsksWhichDeckToBring() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        startMatch()
+        playOut()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(NEW_MATCH_TEST_TAG) }
+
+        onNodeWithTag(NEW_MATCH_TEST_TAG).performClick()
+
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_SELECT_CHOOSE_TEST_TAG) }
+        assertFalse(exists(BOARD_TEST_TAG), "a board was dealt before the deck was chosen")
     }
 
     @Test

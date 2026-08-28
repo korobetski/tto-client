@@ -143,6 +143,8 @@ class PvpListStateUiTest {
                     PvpScreen(
                         profile = GameSave.new(username = ME, createdAt = 0L),
                         session = session,
+                        catalog = pvpCards,
+                        formats = pvpFormats,
                         now = NOW,
                         onMatch = {},
                         onHost = {},

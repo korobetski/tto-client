@@ -299,6 +299,48 @@ class PvpSessionTest {
         assertNull(session.match, "the finished match was handed back after being dismissed")
     }
 
+    /**
+     * The loser walks out of the claim screen, and is still shown what it cost them.
+     *
+     * `AWAITING_CLAIM` is a board with nothing to watch — the winner is choosing, somewhere else —
+     * and leaving it is something the loser is entitled to do: the cards go whatever they do. What
+     * they are owed is *which* cards, and that answer does not exist until the claim is made. The
+     * dismissal used to be permanent, so the settlement could never reach them and the collection
+     * simply shrank.
+     */
+    @Test
+    fun aMatchDismissedBeforeItSettledComesBackOnceItHas() = runTest {
+        var status = PvpMatchStatus.AWAITING_CLAIM
+        val session = sessionOver(
+            MockEngine { respondJson(HttpStatusCode.OK, encode(playing(status = status))) },
+        )
+        session.poll()
+        session.clear()
+
+        session.poll()
+        assertNull(session.match, "leaving must be honoured while the claim is still owed")
+
+        status = PvpMatchStatus.FINISHED
+        session.poll()
+
+        assertEquals(MATCH_ID, session.match?.matchId, "the settlement never reached the loser")
+    }
+
+    /** And having been shown it, leaving again is final — otherwise the lobby bounces forever. */
+    @Test
+    fun leavingTheSettlementIsTheDismissalThatSticks() = runTest {
+        val session = sessionOver(
+            MockEngine {
+                respondJson(HttpStatusCode.OK, encode(playing(status = PvpMatchStatus.FINISHED)))
+            },
+        )
+        session.poll()
+        session.clear()
+        session.poll()
+
+        assertNull(session.match, "a settlement that has been read must not come back")
+    }
+
     @Test
     fun aNewMatchArrivesAfterOneWasDismissed() = runTest {
         var id = MATCH_ID

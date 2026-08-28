@@ -213,6 +213,42 @@ class CampaignUiTest {
         assertVisible("Knocked out in match 1", "the bilan should say where the run ended")
     }
 
+    /**
+     * **A drawn rung is replayed with the deck it was started with.**
+     *
+     * The opposite of free play, and deliberately: the entry fee buys one run, and a run is one
+     * hand per opponent. A draw settles nothing, so the rung is played again — but it is the *same*
+     * rung, and swapping decks halfway through it is a second choice the fee did not pay for.
+     *
+     * The bug was structural. `deck` lived inside `CampaignRung`, which sits under
+     * `key(step, attempt)`, so bumping `attempt` to replay a draw discarded the answer along with
+     * the board and put the selector back up. It is held above the key now, and reset on [step]
+     * alone.
+     */
+    @Test
+    fun aDrawnRungIsReplayedWithoutAskingForTheDeckAgain() = runComposeUiTest {
+        val stub = PveStubServer(
+            save = freshSave().copy(mgp = goldSaucer.fee + POCKET_CHANGE),
+            seed = DRAWING_SEED,
+        )
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        openRefereedLadder()
+        onNodeWithTag(CAMPAIGN_START_TEST_TAG).performClick()
+        settleDeck()
+
+        playOut()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(MATCH_DONE_TEST_TAG) }
+        assertTrue(isVisible("Draw"), "$DRAWING_SEED no longer draws its first rung")
+
+        onNodeWithTag(NEW_MATCH_TEST_TAG).performClick()
+
+        awaitBoard()
+        assertFalse(
+            exists(DECK_SELECT_CHOOSE_TEST_TAG),
+            "a replayed rung must not offer a second deck",
+        )
+    }
+
     @Test
     fun startingALadderOpensItsFirstRung() = runComposeUiTest {
         setContent {
@@ -331,6 +367,12 @@ class CampaignUiTest {
 
         // A stub seed whose first Gold Saucer rung the player loses. See the test that uses it.
         const val LOSING_SEED = 2
+
+        // And one whose first rung is drawn 5-5, which is the rung a run replays. Found the same
+        // way [LOSING_SEED] was and just as much a property of `PveStubServer`'s generator: the
+        // test that uses it asserts the draw it is named for, so a change to the dealing strands
+        // it loudly rather than quietly testing a win.
+        const val DRAWING_SEED = 1
 
         /**
          * Any day that is not the one [FixedClock] reports.

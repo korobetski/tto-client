@@ -32,6 +32,7 @@ import com.tripletriad.data.PveMatches
 import com.tripletriad.data.StarterCatalog
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.LocalStrings
+import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.rememberStrings
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.Npc
@@ -674,12 +675,13 @@ private fun CharacterDestination(
             onNavigate = onNavigate,
         )
 
-        // The two that need nothing but the profile: the rules, and finding somebody to play. Both
-        // are one call each, and pairing them keeps this `when` inside the complexity gate.
+        // The rules, and finding somebody to play. Paired to keep this `when` inside the complexity
+        // gate; the lobby needs the catalogues as well now that sitting down asks for a deck.
         Screen.HELP, Screen.PVP, Screen.PVP_TABLE -> SocialDestination(
             destination = destination,
             profile = profile,
             pvp = pvp,
+            catalog = startup.catalog,
             formats = startup.formats,
             clock = clock,
             invitee = choice.invitee,
@@ -731,6 +733,7 @@ private fun SocialDestination(
     destination: Screen,
     profile: GameSave,
     pvp: PvpSession?,
+    catalog: CardCatalog?,
     formats: FormatCatalog?,
     clock: Clock,
     invitee: String?,
@@ -747,6 +750,10 @@ private fun SocialDestination(
             PvpScreen(
                 profile = profile,
                 session = session,
+                // Both catalogues, because sitting down at a table now asks which deck to bring
+                // and that question needs the cards to draw and the table's format to admit them.
+                catalog = catalog,
+                formats = formats,
                 // Ticking, not sampled — see [rememberNow]. This is what a table's "expires in
                 // n min" counts against, and it used to be read once and never again.
                 now = rememberNow(clock),
@@ -765,6 +772,9 @@ private fun SocialDestination(
             formats?.let { catalogue ->
                 PvpTableScreen(
                     profile = profile,
+                    // The deck is part of the proposal now, and only the format the host picks
+                    // can say which of their decks it admits. See `PvpTableScreen.DeckPicker`.
+                    catalog = catalog ?: return@let,
                     formats = catalogue,
                     session = session,
                     invitee = invitee,
@@ -946,6 +956,11 @@ private fun MatchDestination(
     var deck by remember(chosen.iconId) { mutableStateOf<Int?>(null) }
     var resumed by remember(chosen.iconId) { mutableStateOf(false) }
 
+    // Built before the early returns below, like everything else Compose has to keep state for:
+    // `rememberCoroutineScope` inside it is a slot, and a slot that exists on some compositions
+    // and not others is one Compose cannot track.
+    val rematch = rematchExit(session) { deck = null }
+
     // First, and on its own: a match interrupted by a closed app comes back on its own board, and
     // asking that player which deck to bring would be offering to re-deal a game in progress. That
     // is the whole of what "a dropped connection is not an abandon" amounts to on this side.
@@ -964,8 +979,10 @@ private fun MatchDestination(
             profile = profile,
             catalog = catalog,
             format = format,
-            npc = chosen,
-            rules = chosen.gameRules(),
+            terms = MatchTerms(
+                opponent = LocalStrings.current[chosen.nameKey],
+                rules = chosen.gameRules(),
+            ),
             onChoose = { deck = it },
             onBack = onExit,
         )
@@ -984,7 +1001,43 @@ private fun MatchDestination(
             catalog = catalog,
             npc = chosen,
             onExit = onExit,
+            again = rematch,
         )
+    }
+}
+
+/**
+ * "Play again" in free play, which starts one screen earlier than the board.
+ *
+ * A second match against the same opponent is a second **deal**, and the deck is part of a deal:
+ * Reverse or Fallen Ace turns a deck of aces into the wrong deck, and a player who has just watched
+ * one lose is exactly the player who wants to bring another. So this puts the question back rather
+ * than reusing the answer, which is what the board's own rematch control did — it called
+ * `PveSession.open` with whatever [PveSession.deck] was still holding, and the selector could not
+ * reappear because [MatchDestination] remembers its answer for as long as the opponent does not
+ * change.
+ *
+ * A ladder rung is the opposite and says so itself — see [CampaignRung], where a drawn rung is
+ * replayed with the five cards it was drawn with.
+ *
+ * Both writes are plain state, so the recomposition they cause sees both: `match == null` and
+ * `deck == null` together is the selector's own condition, and the effect that opens a match is
+ * below the early return it takes, so nothing is dealt behind it.
+ */
+@Composable
+private fun rematchExit(
+    session: PveSession,
+    onAsk: () -> Unit,
+): ScriptExit {
+    val audio = LocalAudio.current
+    val scope = rememberCoroutineScope()
+
+    return ScriptExit(StringKeys.REMATCH) {
+        // Acknowledged on the frame the tap happens on. Nothing else answers it: the deck screen
+        // is silent, and the deal's own sound is a request and a round trip away.
+        scope.launch { audio.play(Sound.NEW_MATCH) }
+        session.clear()
+        onAsk()
     }
 }
 

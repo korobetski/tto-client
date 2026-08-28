@@ -11,13 +11,37 @@ import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.i18n.AppLocale
+import com.tripletriad.model.Card
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.CoinFlip
+import com.tripletriad.model.GameRules
+import com.tripletriad.model.HAND_SIZE
+import com.tripletriad.model.HandVisibility
+import com.tripletriad.model.MatchState
+import com.tripletriad.model.MatchView
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertNotSame
+import kotlin.test.assertSame
 
 @OptIn(ExperimentalTestApi::class)
 class MatchBannerUiTest {
+
+    /** A hand, which is all these fixtures need of one. */
+    private fun hand(): List<Card> = (1..HAND_SIZE).map { number ->
+        Card(
+            id = Card.idFor(block = 1, number = number),
+            nameKey = "STR_TEST_$number",
+            name = "Test $number",
+            top = number,
+            right = number,
+            bottom = number,
+            left = number,
+            rarity = 1,
+        )
+    }
 
     @Test
     fun aCaptionPlaysAndThenLeaves() = runComposeUiTest {
@@ -64,6 +88,62 @@ class MatchBannerUiTest {
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(tag) }
         onNodeWithTag(tag)
             .assertContentDescriptionEquals(MatchBanner.FALLEN_ACE.name)
+    }
+
+/**
+     * **A Sudden Death rematch is a new board and is owed its own opening.**
+     *
+     * The rematch keeps the match id — it is the same match — and resets the cells and the
+     * placement count. `pvpBannerQueue` remembers what this client saw the first time it looked, so
+     * keyed on the id alone the second board arrived looking like the first one rewound: the
+     * announcements were treated as history and never played. `PvpMatchView.rematch` is what tells
+     * the two apart, and the key is the pair.
+     */
+    @Test
+    fun aRematchIsOwedItsOwnOpening() = runComposeUiTest {
+        var board by mutableStateOf(MATCH to 0)
+        var event: BannerEvent? = null
+        val opening = MatchView.of(
+            MatchState.start(hand(), hand(), CardColor.BLUE, GameRules()),
+            CardColor.BLUE,
+            HandVisibility.HIDDEN,
+        )
+
+        setContent { event = pvpBannerQueue(board, opening) }
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { event != null }
+        val first = assertNotNull(event)
+
+        // Same match, next board. Nothing else about the view changes: a fresh board looks exactly
+        // like the opening one, which is the whole reason the id alone could not tell them apart.
+        board = MATCH to 1
+        waitForIdle()
+
+        assertNotSame(first, event, "the second board was given no opening of its own")
+        assertEquals(first.animations, assertNotNull(event).animations)
+    }
+
+    /** And a board that has not changed is not announced twice. */
+    @Test
+    fun theSameBoardIsAnnouncedOnce() = runComposeUiTest {
+        var placement by mutableStateOf(0)
+        var event: BannerEvent? = null
+        val state = MatchState.start(hand(), hand(), CardColor.BLUE, GameRules())
+
+        setContent {
+            event = pvpBannerQueue(
+                MATCH to 0,
+                MatchView.of(state, CardColor.BLUE, HandVisibility.HIDDEN)
+                    .copy(placement = placement),
+            )
+        }
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { event != null }
+        val opening = assertNotNull(event)
+
+        // A recomposition that changes nothing about which board this is.
+        placement = 0
+        waitForIdle()
+
+        assertSame(opening, event, "the opening was announced twice on one board")
     }
 
     @Test
@@ -164,5 +244,9 @@ class MatchBannerUiTest {
         CompositionLocalProvider(LocalBannerArt provides art) {
             MatchBannerOverlay(event)
         }
+    }
+
+    private companion object {
+        const val MATCH = "m-1"
     }
 }

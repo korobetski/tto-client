@@ -18,12 +18,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import com.tripletriad.data.CardCatalog
+import com.tripletriad.data.Format
 import com.tripletriad.data.FormatCatalog
+import com.tripletriad.data.PveMatches
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.GameRules
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.TradeRule
+import com.tripletriad.protocol.ANY_DECK
 import com.tripletriad.protocol.PvpStake
 import com.tripletriad.protocol.PvpTableRequest
 import kotlinx.coroutines.launch
@@ -39,9 +43,13 @@ fun formatToggleTestTag(id: String): String = "pvp-format-$id"
 
 fun tradeToggleTestTag(trade: TradeRule): String = "pvp-trade-${trade.name.lowercase()}"
 
+fun pvpDeckTestTag(slot: Int): String =
+    if (slot == ANY_DECK) "pvp-deck-any" else "pvp-deck-$slot"
+
 @Composable
 internal fun PvpTableScreen(
     profile: GameSave,
+    catalog: CardCatalog,
     formats: FormatCatalog,
     session: PvpSession,
     invitee: String? = null,
@@ -135,6 +143,15 @@ internal fun PvpTableScreen(
             }
         }
 
+        SectionLabel(strings[StringKeys.PVP_DECK])
+        DeckPicker(
+            profile = profile,
+            catalog = catalog,
+            format = format,
+            selected = session.deck,
+            onSelect = { session.deck = it },
+        )
+
         SectionLabel(strings[StringKeys.PVP_STAKE])
         Text(
             text = strings.format(StringKeys.PVP_STAKE_MGP, "$mgp"),
@@ -195,6 +212,63 @@ internal fun PvpTableScreen(
                 }
             },
         )
+    }
+}
+
+/**
+ * Which deck this table is opened with.
+ *
+ * ### Why hosting keeps a chip row while joining gets the whole screen
+ *
+ * A host is **proposing terms, not sitting down**. There is no opponent yet — that is what an open
+ * table is — so the "arrive knowing who and under what, then choose a deck" sequence has nothing to
+ * arrive at; what a host has is the rules, and they are being set three inches above this. The deck
+ * is part of the proposal, and the server takes it as such: `pvp_tables.host_deck` is written when
+ * the table is opened, because when somebody joins there may be nobody at this end to ask.
+ *
+ * Joining is the other half and is a real sitting down, so it gets [DeckSelectorScreen] — the same
+ * screen, in the same place in the sequence, as a match against a program. See [PvpSeat].
+ *
+ * ### Filtered by the format, which the lobby could not do
+ *
+ * This row used to live above the lobby's tabs, where the only thing it could test was whether a
+ * deck was complete. The format is chosen on this screen, so admissibility can be tested too — and
+ * has to be: an FFXIV deck brought to an FFVIII table is five cards its pool does not admit, and
+ * the referee answers `UNDEALABLE` rather than dealing them. `CampaignRung` documents the same trap
+ * at length; this is the multiplayer end of it.
+ */
+@Composable
+private fun DeckPicker(
+    profile: GameSave,
+    catalog: CardCatalog,
+    format: Format,
+    selected: Int,
+    onSelect: (Int) -> Unit,
+) {
+    val strings = LocalStrings.current
+    val decks = remember(profile.decks, catalog, format) {
+        PveMatches.playableDecks(profile, catalog, format)
+    }
+
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(SpaceSm),
+        verticalArrangement = Arrangement.spacedBy(SpaceXs),
+    ) {
+        TtoFilterChip(
+            label = strings[StringKeys.PVP_DECK_ANY],
+            tag = pvpDeckTestTag(ANY_DECK),
+            selected = selected == ANY_DECK,
+            onClick = { onSelect(ANY_DECK) },
+        )
+        for ((slot, deck) in decks) {
+            TtoFilterChip(
+                label = deckLabel(strings, deck, slot),
+                tag = pvpDeckTestTag(slot),
+                selected = selected == slot,
+                onClick = { onSelect(slot) },
+            )
+        }
     }
 }
 

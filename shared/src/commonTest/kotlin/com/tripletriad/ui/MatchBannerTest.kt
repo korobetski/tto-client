@@ -311,6 +311,46 @@ class MatchBannerTest {
         )
     }
 
+    /**
+     * **A deal the opponent has already opened owes the intro *and* the placement.**
+     *
+     * `POST /pve/matches` answers with the opponent's first placement already made when the toss
+     * gave them the opening move, so the very first view of a fresh board arrives at placement one
+     * carrying a `lastPlay`. The discriminator used to be exactly that field — "nothing has been
+     * played, so this is the intro" — which on half of all matches meant the rules were never
+     * announced and the coin flip that decided the card already on the board was never shown.
+     */
+    @Test
+    fun aDealTheOpponentOpenedAnnouncesTheRulesAndThePlacement() {
+        val state = midMatch(rules = GameRules(reverse = true))
+        val view = MatchView.of(state, CardColor.BLUE, HandVisibility.HIDDEN)
+        val intro = serverIntroAnimations(view.rules, CardColor.RED)
+
+        val played = animationsFor(view, intro)
+
+        assertEquals(intro, played.take(intro.size), "the opening was dropped")
+        assertEquals(
+            MatchBanner.afterPlacement(view).asAnimations(),
+            played.drop(intro.size),
+            "the placement's own captions were dropped",
+        )
+    }
+
+    /** And a board already opened owes only the placement — the caller stops offering an intro. */
+    @Test
+    fun aBoardAlreadyOpenedGetsItsPlacementCaptionsAlone() {
+        val view = MatchView.of(
+            midMatch(kinds = arrayOf(CaptureKind.PLUS)),
+            CardColor.BLUE,
+            HandVisibility.HIDDEN,
+        )
+
+        assertEquals(
+            MatchBanner.afterPlacement(view).asAnimations(),
+            animationsFor(view, emptyList()),
+        )
+    }
+
     // ---- What a placement owes ----------------------------------------------
 
     @Test
@@ -418,7 +458,7 @@ class MatchBannerTest {
     fun aMatchWithNoOpenRuleHasNothingToTurnOver() {
         val intro = serverIntroAnimations(GameRules(reverse = true), CardColor.BLUE)
 
-        assertEquals(null, openRevealMillis(intro))
+        assertEquals(null, revealMillis(intro))
     }
 
     @Test
@@ -426,7 +466,7 @@ class MatchBannerTest {
         for (rule in listOf(OpenRule.ALL_OPEN, OpenRule.THREE_OPEN)) {
             val intro = serverIntroAnimations(GameRules(open = rule), CardColor.BLUE)
 
-            assertNotNull(openRevealMillis(intro), "$rule announced nothing to turn on")
+            assertNotNull(revealMillis(intro), "$rule announced nothing to turn on")
         }
     }
 
@@ -440,9 +480,9 @@ class MatchBannerTest {
         val caption = MatchAnimation.Caption(MatchBanner.ALL_OPEN)
         val upTo = intro.indexOf(caption)
 
-        assertEquals(intro.take(upTo + 1).sumOf { it.totalMillis }, openRevealMillis(intro))
+        assertEquals(intro.take(upTo + 1).sumOf { it.totalMillis }, revealMillis(intro))
         // And it is genuinely after the caption began: the opening beat is in front of it.
-        assertTrue(openRevealMillis(intro)!! > MatchBanner.ALL_OPEN.totalMillis)
+        assertTrue(revealMillis(intro)!! > MatchBanner.ALL_OPEN.totalMillis)
     }
 
     @Test
@@ -455,9 +495,40 @@ class MatchBannerTest {
 
         // Random is announced first, so its caption is time the cards spend still face down.
         assertTrue(
-            openRevealMillis(late)!! > openRevealMillis(early)!!,
+            revealMillis(late)!! > revealMillis(early)!!,
             "a rule announced ahead of Open did not delay the turn",
         )
+    }
+
+    /**
+     * **Swap turns a card face up too, and it must not turn before the swap is shown.**
+     *
+     * `MatchPreparation.swap` reports the slot each side is owed sight of — a player knows the card
+     * they handed over — and `HandVisibility.forRule` marks it visible whatever the Open rule says.
+     * With Swap and no Open there was nothing in the intro this function looked for, so it answered
+     * null and the card was face up on the first frame: the result of the swap, shown before the
+     * rule that caused it had been announced.
+     */
+    @Test
+    fun swapAloneStillTurnsACardOverAndWaitsForTheCrossing() {
+        val intro = serverIntroAnimations(GameRules(swap = true), CardColor.BLUE)
+        val crossing = intro.indexOf(MatchAnimation.SwapCards)
+
+        assertEquals(intro.take(crossing + 1).sumOf { it.totalMillis }, revealMillis(intro))
+    }
+
+    /** And with both rules on, the turn waits for whichever of the two finishes last. */
+    @Test
+    fun openAndSwapTogetherTurnOnTheLaterOfTheTwo() {
+        val intro = serverIntroAnimations(
+            GameRules(open = OpenRule.ALL_OPEN, swap = true),
+            CardColor.BLUE,
+        )
+        val caption = intro.indexOf(MatchAnimation.Caption(MatchBanner.ALL_OPEN))
+        val crossing = intro.indexOf(MatchAnimation.SwapCards)
+
+        assertTrue(crossing > caption, "the fixture no longer announces Open before Swap")
+        assertEquals(intro.take(crossing + 1).sumOf { it.totalMillis }, revealMillis(intro))
     }
 
     @Test

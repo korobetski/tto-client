@@ -10,7 +10,6 @@ import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.loadStrings
 import com.tripletriad.model.GameSave
 import com.tripletriad.net.PvpClient
-import com.tripletriad.protocol.ANY_DECK
 import com.tripletriad.protocol.PvpTable
 import com.tripletriad.ui.theme.TripleTriadTheme
 import io.ktor.client.HttpClient
@@ -28,6 +27,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 
 @OptIn(ExperimentalTestApi::class)
 class PvpTablesUiTest {
@@ -71,6 +71,8 @@ class PvpTablesUiTest {
         lobby(tables = listOf(tableJson()), record = paths::add) {
             onNodeWithTag(tableJoinTestTag(TABLE_ID)).performClick()
             waitForIdle()
+            onNodeWithTag(DECK_SELECT_CHOOSE_TEST_TAG).performClick()
+            waitForIdle()
         }
 
         assertEquals(
@@ -84,7 +86,11 @@ class PvpTablesUiTest {
     fun aRefusalIsShown() = lobby(tables = listOf(tableJson()), refuse = true) {
         onNodeWithTag(tableJoinTestTag(TABLE_ID)).performClick()
         waitForIdle()
+        onNodeWithTag(DECK_SELECT_CHOOSE_TEST_TAG).performClick()
+        waitForIdle()
 
+        // Back in the lobby, which is where the note lives: the deck screen closes on the answer
+        // being given, and the refusal arrives after it.
         onNodeWithTag(PVP_NOTE_TEST_TAG).assertExists()
     }
 
@@ -111,17 +117,40 @@ class PvpTablesUiTest {
         assertEquals(0, minutesLeft(table, NOW + FIVE_MINUTES * 2))
     }
 
+    /**
+     * **Joining asks which deck before it sends anything.**
+     *
+     * The lobby used to carry a row of deck chips above the tabs and Join sent whatever it was
+     * holding, which asked the question before either of the things it depends on was known —
+     * which table, and so which rules and what stake. Now Join names a seat and the deck screen the
+     * rest of the game uses takes it from there. See [PvpSeat].
+     */
     @Test
-    fun everyCompleteDeckIsOfferedAlongsideAutomatic() = lobby(profile = twoDecks()) {
-        onNodeWithTag(pvpDeckTestTag(ANY_DECK)).assertExists()
-        onNodeWithTag(pvpDeckTestTag(0)).assertExists()
-        onNodeWithTag(pvpDeckTestTag(1)).assertExists()
+    fun joiningAsksForADeckBeforeSendingAnything() {
+        val bodies = mutableListOf<String>()
+
+        lobby(profile = twoDecks(), tables = listOf(tableJson()), body = bodies::add) {
+            onNodeWithTag(tableJoinTestTag(TABLE_ID)).performClick()
+            waitForIdle()
+
+            onNodeWithTag(DECK_SELECT_CHOOSE_TEST_TAG).assertExists()
+            assertEquals(emptyList(), bodies, "the join was sent before the deck was chosen")
+        }
     }
 
+    /** And the table's own terms are on that screen, because they are what the answer turns on. */
     @Test
-    fun aPartialDeckIsNotOffered() = lobby(profile = onePartialDeck()) {
-        onNodeWithTag(pvpDeckTestTag(0)).assertExists()
-        onNodeWithTag(pvpDeckTestTag(1)).assertDoesNotExist()
+    fun theDeckIsChosenAgainstTheTablesTerms() {
+        lobby(profile = twoDecks(), tables = listOf(tableJson())) {
+            onNodeWithTag(tableJoinTestTag(TABLE_ID)).performClick()
+            waitForIdle()
+
+            // The host, the wager, and — this table sets `roulette` — the note that the referee
+            // will draw more rules on top of the ones listed.
+            assertVisible("Kuplu", "the deck screen should name who is being played")
+            onNodeWithTag(DECK_SELECT_STAKE_TEST_TAG).assertExists()
+            assertVisible("Roulette", "a pending draw should be shown before a deck is chosen")
+        }
     }
 
     @Test
@@ -129,8 +158,10 @@ class PvpTablesUiTest {
         val bodies = mutableListOf<String>()
 
         lobby(profile = twoDecks(), tables = listOf(tableJson()), body = bodies::add) {
-            onNodeWithTag(pvpDeckTestTag(1)).performClick()
             onNodeWithTag(tableJoinTestTag(TABLE_ID)).performClick()
+            waitForIdle()
+            onNodeWithTag(deckChoiceTestTag(1)).performClick()
+            onNodeWithTag(DECK_SELECT_CHOOSE_TEST_TAG).performClick()
             waitForIdle()
         }
 
@@ -138,15 +169,54 @@ class PvpTablesUiTest {
     }
 
     @Test
-    fun joiningWithoutChoosingLeavesItToTheServer() {
+    fun joiningWithRandomLeavesTheDeckToTheServer() {
         val bodies = mutableListOf<String>()
 
         lobby(profile = twoDecks(), tables = listOf(tableJson()), body = bodies::add) {
             onNodeWithTag(tableJoinTestTag(TABLE_ID)).performClick()
             waitForIdle()
+            onNodeWithTag(DECK_SELECT_RANDOM_TEST_TAG).performClick()
+            waitForIdle()
         }
 
         assertEquals(listOf("{}"), bodies, "the join carried $bodies")
+    }
+
+    /**
+     * **Under Random the deck is not asked, because the referee ignores it.**
+     *
+     * `RULE_RANDOM` splices the hand from the player's whole collection and the deck selector never
+     * opens — that is how a solo match behaves, and now how the referee deals a multiplayer one.
+     * Asking a question whose answer is thrown away is worse than not asking it.
+     */
+    @Test
+    fun joiningARandomTableSkipsTheDeckQuestion() {
+        val bodies = mutableListOf<String>()
+
+        lobby(profile = twoDecks(), tables = listOf(randomTableJson()), body = bodies::add) {
+            onNodeWithTag(tableJoinTestTag(TABLE_ID)).performClick()
+            waitForIdle()
+
+            assertFalse(exists(DECK_SELECT_CHOOSE_TEST_TAG), "Random still asked for a deck")
+        }
+
+        assertEquals(listOf("{}"), bodies, "the join carried $bodies")
+    }
+
+    /** Backing out of the deck question leaves the lobby as it was, and sends nothing. */
+    @Test
+    fun leavingTheDeckQuestionJoinsNothing() {
+        val bodies = mutableListOf<String>()
+
+        lobby(profile = twoDecks(), tables = listOf(tableJson()), body = bodies::add) {
+            onNodeWithTag(tableJoinTestTag(TABLE_ID)).performClick()
+            waitForIdle()
+            onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
+            waitForIdle()
+
+            onNodeWithTag(tableJoinTestTag(TABLE_ID)).assertExists()
+            assertEquals(emptyList(), bodies, "backing out still joined")
+        }
     }
 
     // ---- Harness ----------------------------------------------------------
@@ -155,13 +225,6 @@ class PvpTablesUiTest {
         val profile = GameSave.new(username = ME, createdAt = 0L)
         val first = profile.decks.first()
         return profile.copy(decks = listOf(first, first.copy(name = "Second")))
-    }
-
-    private fun onePartialDeck(): GameSave {
-        val profile = GameSave.new(username = ME, createdAt = 0L)
-        val first = profile.decks.first()
-        val partial = first.copy(name = "Partial", cards = first.cards.take(2))
-        return profile.copy(decks = listOf(first, partial))
     }
 
     @Suppress("LongParameterList")
@@ -223,6 +286,8 @@ class PvpTablesUiTest {
                     PvpScreen(
                         profile = profile,
                         session = session,
+                        catalog = pvpCards,
+                        formats = pvpFormats,
                         now = NOW,
                         onMatch = {},
                         onHost = {},
@@ -235,6 +300,13 @@ class PvpTablesUiTest {
         }
         block()
     }
+
+    /** A table whose declared rules include Random, so the deck question has nothing to decide. */
+    private fun randomTableJson() = """
+        {"id":"$TABLE_ID","hostName":"Kuplu","formatId":"free-play",
+         "rules":{"random":true},"roulette":false,
+         "stake":{"mgp":0,"trade":"NONE"},"openedAt":0,"expiresAt":1}
+    """.trimIndent()
 
     private fun tableJson(host: String = "Kuplu") = """
         {"id":"$TABLE_ID","hostName":"$host","formatId":"free-play",

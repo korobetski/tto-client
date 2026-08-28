@@ -3,7 +3,6 @@ package com.tripletriad.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -14,6 +13,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,6 +25,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import com.tripletriad.data.CardCatalog
+import com.tripletriad.data.Format
+import com.tripletriad.data.FormatCatalog
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.Strings
@@ -34,6 +37,7 @@ import com.tripletriad.protocol.ANY_DECK
 import com.tripletriad.protocol.PvpChallenge
 import com.tripletriad.protocol.PvpStake
 import com.tripletriad.protocol.PvpTable
+import com.tripletriad.protocol.PvpTableRequest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -65,16 +69,84 @@ fun tableRowTestTag(id: String): String = "pvp-table-$id"
 
 fun tableJoinTestTag(id: String): String = "pvp-join-$id"
 
-fun pvpDeckTestTag(slot: Int): String =
-    if (slot == ANY_DECK) "pvp-deck-any" else "pvp-deck-$slot"
-
 internal enum class LobbyTab { TABLES, CHALLENGES }
+
+/**
+ * A table or an invitation the player has said yes to, waiting only on which deck they bring.
+ *
+ * ### Why sitting down is two steps now
+ *
+ * It was one: the lobby carried a row of deck chips above the tabs, and Join sent the answer that
+ * row was holding. That put the deck question **before** both of the things it depends on — which
+ * table, and so which rules and what stake — and asked it in a shape multiplayer had invented for
+ * itself while the rest of the game used [DeckSelectorScreen]. A player choosing a deck against a
+ * list of tables is choosing against nothing.
+ *
+ * So Join and Accept no longer send anything. They name a seat, and the deck screen the whole game
+ * shares takes it from there — the same screen, in the same place in the sequence, as a match
+ * against a program.
+ *
+ * Hosting is deliberately **not** routed through here: see `PvpTableScreen`.
+ *
+ * @property terms what is being sat down to. A [PvpTableRequest] because that is the shape both
+ *   sources already have — a challenge carries one, and a table is one plus a host and a clock.
+ */
+@Immutable
+internal data class PvpSeat(
+    val kind: Kind,
+    val id: String,
+    val opponent: String,
+    val terms: PvpTableRequest,
+) {
+    /** Which of the two lists this seat came from, and so which call takes it. */
+    enum class Kind { TABLE, CHALLENGE }
+
+    companion object {
+        fun at(table: PvpTable): PvpSeat = PvpSeat(
+            kind = Kind.TABLE,
+            id = table.id,
+            opponent = table.hostName,
+            terms = PvpTableRequest(
+                formatId = table.formatId,
+                rules = table.rules,
+                roulette = table.roulette,
+                stake = table.stake,
+            ),
+        )
+
+        fun at(challenge: PvpChallenge): PvpSeat = PvpSeat(
+            kind = Kind.CHALLENGE,
+            id = challenge.id,
+            opponent = challenge.fromName,
+            terms = challenge.terms,
+        )
+    }
+}
+
+/**
+ * Sits down at a seat the player has chosen and brought a deck to.
+ *
+ * One entry point for the two lists, because from here they are the same act: the difference
+ * between joining a table and accepting an invitation is which endpoint takes it, and that is the
+ * only thing this decides. `PvpSession.deck` is read by both, and holds whatever the deck screen
+ * just wrote.
+ *
+ * An extension rather than a method, because it decides nothing about the session's own state —
+ * it picks one of two calls the session already offers, from a type the session has no reason to
+ * know about.
+ */
+internal suspend fun PvpSession.take(seat: PvpSeat) = when (seat.kind) {
+    PvpSeat.Kind.TABLE -> join(seat.id)
+    PvpSeat.Kind.CHALLENGE -> accept(seat.id)
+}
 
 @Composable
 @Suppress("LongParameterList")
 internal fun PvpScreen(
     profile: GameSave,
     session: PvpSession,
+    catalog: CardCatalog?,
+    formats: FormatCatalog?,
     now: Long,
     onMatch: () -> Unit,
     onHost: () -> Unit,
@@ -86,6 +158,8 @@ internal fun PvpScreen(
     val scope = rememberCoroutineScope()
     var tab by remember { mutableStateOf(LobbyTab.TABLES) }
     val note = rememberNoteHost(PVP_NOTE_TEST_TAG)
+    // What the player has said yes to and not yet brought a deck to. See [PvpSeat].
+    var seat by remember { mutableStateOf<PvpSeat?>(null) }
 
     // Every refusal this screen can provoke — a stake nobody can cover, a table already open, an
     // invitation to somebody who is not there — used to be recorded on `session.failure` and read
@@ -111,6 +185,51 @@ internal fun PvpScreen(
         if (session.match != null) onMatch()
     }
 
+    /*
+     * Taking a seat is two steps, or one when there is nothing to ask.
+     *
+     * There is nothing to ask under **Random**: the referee splices the hand from the whole
+     * collection and the deck the player would choose is ignored, which is why a solo match does
+     * not ask either. And nothing to ask when the catalogues have not arrived, since a deck row
+     * cannot be drawn without cards to draw it from. Both answer `ANY_DECK`, which is not a deck —
+     * it is the absence of a choice, and the referee draws.
+     *
+     * Decided here rather than inside the deck screen, because a screen that decides it has nothing
+     * to show has no way to say so: it would draw nothing, the seat would sit unanswered, and Join
+     * would be a tap that did nothing at all.
+     */
+    val sit: (PvpSeat) -> Unit = { chosen ->
+        val format = formats?.get(chosen.terms.formatId)
+        if (catalog == null || format == null || chosen.terms.rules.random) {
+            session.deck = ANY_DECK
+            scope.launch { session.take(chosen) }
+        } else {
+            seat = chosen
+        }
+    }
+
+    // Below the effects and not above them, which is the whole of why this is a branch rather than
+    // a screen: the lobby keeps polling behind the deck question — a table can lapse while it is
+    // being answered — and it is `LaunchedEffect(session.match)` up there that opens the board once
+    // the join goes through. A destination of its own would have cancelled both.
+    val chosen = seat
+    val format = chosen?.let { formats?.get(it.terms.formatId) }
+    if (chosen != null && catalog != null && format != null) {
+        SeatDeck(
+            profile = profile,
+            seat = chosen,
+            catalog = catalog,
+            format = format,
+            onChoose = { deck ->
+                session.deck = deck
+                scope.launch { session.take(chosen) }
+                seat = null
+            },
+            onBack = { seat = null },
+        )
+        return
+    }
+
     CharacterScaffold(
         profile = profile,
         title = strings[StringKeys.MULTIPLAYER],
@@ -120,14 +239,6 @@ internal fun PvpScreen(
         if (session.claims.isNotEmpty()) {
             ClaimBanner(count = session.claims.size, onClaim = onClaim)
         }
-
-        // Above the tabs, because it governs both of them: the deck is brought to a table this
-        // player hosts, a table they join and an invitation they accept alike.
-        DeckPicker(
-            profile = profile,
-            selected = session.deck,
-            onSelect = { session.deck = it },
-        )
 
         ScreenTabs(
             tabs = listOf(
@@ -140,58 +251,59 @@ internal fun PvpScreen(
         )
 
         when (tab) {
-            LobbyTab.TABLES ->
-                TablesBody(session = session, now = now, scope = scope, onHost = onHost)
+            LobbyTab.TABLES -> TablesBody(
+                session = session,
+                now = now,
+                scope = scope,
+                onHost = onHost,
+                onSit = sit,
+            )
+
             LobbyTab.CHALLENGES -> ChallengesBody(
                 profile = profile,
                 session = session,
                 scope = scope,
                 onInvite = onInvite,
+                onSit = sit,
             )
         }
     }
 }
 
+/**
+ * The deck question for a seat, in the shape the whole game asks it.
+ *
+ * Whether it is asked at all is the caller's decision — see `sit`, which answers it before a seat
+ * is ever stored.
+ */
 @Composable
-private fun DeckPicker(profile: GameSave, selected: Int, onSelect: (Int) -> Unit) {
+@Suppress("LongParameterList")
+private fun SeatDeck(
+    profile: GameSave,
+    seat: PvpSeat,
+    catalog: CardCatalog,
+    format: Format,
+    onChoose: (Int) -> Unit,
+    onBack: () -> Unit,
+) {
     val strings = LocalStrings.current
-    val decks = remember(profile.decks) {
-        profile.decks.withIndex().filter { it.value.isComplete }
-    }
-    if (decks.isEmpty()) return
 
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(top = SpaceXs),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(SpaceSm),
-    ) {
-        Text(
-            text = strings[StringKeys.PVP_DECK],
-            color = MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold,
-        )
-        FlowRow(
-            modifier = Modifier.weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(SpaceSm),
-            verticalArrangement = Arrangement.spacedBy(SpaceXs),
-        ) {
-            TtoFilterChip(
-                label = strings[StringKeys.PVP_DECK_ANY],
-                tag = pvpDeckTestTag(ANY_DECK),
-                selected = selected == ANY_DECK,
-                onClick = { onSelect(ANY_DECK) },
-            )
-            for ((slot, deck) in decks) {
-                TtoFilterChip(
-                    label = deckLabel(strings, deck, slot),
-                    tag = pvpDeckTestTag(slot),
-                    selected = selected == slot,
-                    onClick = { onSelect(slot) },
-                )
-            }
-        }
-    }
+    DeckSelectorScreen(
+        profile = profile,
+        catalog = catalog,
+        format = format,
+        terms = MatchTerms(
+            opponent = seat.opponent,
+            rules = seat.terms.rules,
+            roulette = seat.terms.roulette,
+            // The one line a solo match has no equivalent of, and the reason it is worth a whole
+            // screen here rather than a chip: a player about to wager cards should be choosing
+            // which cards knowing that they are the stake.
+            stake = stakeLine(seat.terms.stake, strings),
+        ),
+        onChoose = onChoose,
+        onBack = onBack,
+    )
 }
 
 @Composable
@@ -231,6 +343,7 @@ private fun ColumnScope.TablesBody(
     now: Long,
     scope: CoroutineScope,
     onHost: () -> Unit,
+    onSit: (PvpSeat) -> Unit,
 ) {
     val strings = LocalStrings.current
     val mine = session.myTable
@@ -281,7 +394,9 @@ private fun ColumnScope.TablesBody(
                     mine = table.id == mine?.id,
                     now = now,
                     enabled = !session.isBusy,
-                    onJoin = { scope.launch { session.join(table.id) } },
+                    // Names the seat rather than joining. The deck question comes first now —
+                    // see [PvpSeat] — and it is the answer to it that sends the request.
+                    onJoin = { onSit(PvpSeat.at(table)) },
                 )
             }
         }
@@ -383,6 +498,7 @@ private fun ColumnScope.ChallengesBody(
     session: PvpSession,
     scope: CoroutineScope,
     onInvite: (String) -> Unit,
+    onSit: (PvpSeat) -> Unit,
 ) {
     val strings = LocalStrings.current
     var name by remember { mutableStateOf("") }
@@ -436,7 +552,8 @@ private fun ColumnScope.ChallengesBody(
                 ChallengeRow(
                     challenge = challenge,
                     mine = challenge.fromName.equals(profile.username, ignoreCase = true),
-                    onAccept = { scope.launch { session.accept(challenge.id) } },
+                    // As with a table: accepting names the seat, and the deck screen sends it.
+                    onAccept = { onSit(PvpSeat.at(challenge)) },
                     onDrop = { scope.launch { session.dropChallenge(challenge.id) } },
                 )
             }

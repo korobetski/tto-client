@@ -54,6 +54,9 @@ class PvpLobbyUiTest {
         lobby(challenges = listOf(fromKuplu()), record = paths::add) {
             onNodeWithTag(challengeAcceptTestTag(INVITE_ID)).performClick()
             waitForIdle()
+            // Accepting names a seat; the deck screen is what sends it. See [PvpSeat].
+            onNodeWithTag(DECK_SELECT_CHOOSE_TEST_TAG).performClick()
+            waitForIdle()
         }
 
         assertTrue(
@@ -133,6 +136,8 @@ class PvpLobbyUiTest {
                     PvpScreen(
                         profile = GameSave.new(username = ME, createdAt = 0L),
                         session = session,
+                        catalog = pvpCards,
+                        formats = pvpFormats,
                         now = NOW,
                         onMatch = {},
                         onHost = {},

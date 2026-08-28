@@ -22,7 +22,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
-import com.tripletriad.audio.AudioPlayer
 import com.tripletriad.audio.LocalAudio
 import com.tripletriad.audio.Sound
 import com.tripletriad.data.CardCatalog
@@ -37,7 +36,6 @@ import com.tripletriad.model.MatchView
 import com.tripletriad.model.Npc
 import com.tripletriad.protocol.PveMove
 import com.tripletriad.protocol.RewardSummary
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.random.Random
@@ -94,7 +92,16 @@ internal fun PveMatchScreen(
     // moving the match to the server was for. The tutorial still uses all of them — see
     // [MatchScreen], which is local and settles nothing.
     script: MatchScript? = null,
-    scriptExit: ScriptExit? = null,
+    /*
+     * The result panel's second control, or null for a board with nowhere to go.
+     *
+     * **The caller's decision, not this screen's.** It used to build its own — `session.open` with
+     * whatever [PveSession.deck] happened to be holding — and that quietly settled a question this
+     * screen has no standing to answer: whether playing again re-opens the deck question. Free play
+     * says yes and a ladder rung says no, and neither of them is visible from here. See
+     * `MatchDestination`, which owns the answer because it owns the deck, and [CampaignRung].
+     */
+    again: ScriptExit? = null,
     onResult: (MatchResult) -> Unit = {},
 ) {
     val strings = LocalStrings.current
@@ -194,7 +201,13 @@ internal fun PveMatchScreen(
         val outcome = session.match?.outcome ?: return@LaunchedEffect
         if (reward != null || shown !== served) return@LaunchedEffect
         onResult(outcome.result)
-        delay(pacing * (PVE_OUTCOME_PAUSE_MS + settleMillis(view.lastPlay)))
+        // [quietMillis] rather than `settleMillis`, which is the same correction this file already
+        // made for the opponent's reply and then did not make here: `settleMillis` measures the
+        // card landing and the chain flipping, and knows nothing about the captions drawn over the
+        // top of them. The last placement of a match carries the most of them — Same, Combo, and
+        // then the win itself, 1.6s on its own — so a win on a combo opened this panel at 1.7s
+        // over 4.2s of animation, dimming the board mid-flip and announcing the result twice.
+        delay(pacing * (PVE_OUTCOME_PAUSE_MS + quietMillis(view)))
         reward = outcome.reward?.asMatchReward(outcome.result)
     }
 
@@ -222,7 +235,7 @@ internal fun PveMatchScreen(
         wide = wide,
         side = {
             MatchSidePanel(
-                npc = npc,
+                face = OpponentFace.Program(npc),
                 opponentName = strings[npc.nameKey],
                 rules = view.rules,
                 log = log,
@@ -232,7 +245,7 @@ internal fun PveMatchScreen(
         StatusBar(
             view = view,
             selected = selected,
-            npc = npc,
+            face = OpponentFace.Program(npc),
             opponentName = strings[npc.nameKey],
             turnFraction = turnFraction,
             showOpponent = !panelShown,
@@ -245,10 +258,13 @@ internal fun PveMatchScreen(
             modifier = Modifier.weight(1f).fillMaxWidth(),
             contentAlignment = Alignment.Center,
         ) {
+            val layout =
+                matchLayout(maxWidth - PlayAreaInset * 2, maxHeight - PlayAreaInset * 2)
+
             PlayArea(
                 view = view,
                 selected = selected,
-                layout = matchLayout(maxWidth - PlayAreaInset * 2, maxHeight - PlayAreaInset * 2),
+                layout = layout,
                 // Nothing ringed. `captureHighlights` explains *why* a capture happened by naming
                 // the two facing digits, which is a lesson's job; an ordinary match shows the rule
                 // working rather than annotating it.
@@ -269,42 +285,21 @@ internal fun PveMatchScreen(
                     reward = it,
                     opponentName = strings[npc.nameKey],
                     cards = cards,
-                    // A rematch is a *new* match on the server, so the panel's second control opens
-                    // one rather than resetting a board. Outside a campaign there is no next rung
-                    // and the panel offers only the way out.
-                    next = scriptExit ?: rematchExit(session, npc, scope, audio),
+                    // A rematch is a *new* match on the server rather than a reset board, and
+                    // what asking for one involves is the caller's to say — see [again].
+                    next = again,
                     onDone = onExit,
                     title = script?.outcomeTitle,
                 )
             }
-            MatchBannerOverlay(banners)
+            // The axis the hands are on, which the swap crossing travels along — see [HandAxis].
+            MatchBannerOverlay(banners, HandAxis.of(layout.landscape))
             LessonBubbles(speech = speech, script = script, enabled = underway)
             OutcomeBubble(script = script, result = reward?.result)
             // Over everything, because it is the only thing on screen the player can act on.
             session.trouble?.let { PveReconnect(session, against = npc.iconId) }
         }
     }
-}
-
-/**
- * "Play again", which against a refereed opponent is a new match rather than a reset board.
- *
- * The local screen re-dealt in place by bumping a counter, and could: it owned the deal. Here the
- * server owns it, and asking for a second match is the same request as asking for the first —
- * including the deck, the roulette and the toss, none of which this end is entitled to reuse.
- */
-private fun rematchExit(
-    session: PveSession,
-    npc: Npc,
-    scope: CoroutineScope,
-    audio: AudioPlayer,
-): ScriptExit = ScriptExit(StringKeys.REMATCH) {
-    val formatId = session.match?.formatId ?: return@ScriptExit
-    // Answered here rather than by the board arriving, because the board arrives when the server
-    // says so: the tap has to be acknowledged on the frame it happens on, as it was when the deal
-    // was local.
-    scope.launch { audio.play(Sound.NEW_MATCH) }
-    scope.launch { session.open(npc.iconId, formatId) }
 }
 
 /**

@@ -69,8 +69,30 @@ internal fun List<MatchBanner>.asAnimations(): List<MatchAnimation> =
 
 internal data class BannerEvent(val at: Int, val animations: List<MatchAnimation>)
 
+/**
+ * Which way round the two hands sit, which is the only thing an animation needs to know about the
+ * board it is drawn over.
+ *
+ * `PlayAreaContents` stacks the hands in a column in portrait — opponent above, the player's own
+ * below — and lays them out in a row in landscape, opponent on the left. So "from one hand to the
+ * other" is a different direction on a phone held one way than the other, and an animation that
+ * picked one was wrong half the time.
+ */
+internal enum class HandAxis {
+    /** Opponent above, the player below. */
+    VERTICAL,
+
+    /** Opponent left, the player right. */
+    HORIZONTAL,
+    ;
+
+    companion object {
+        fun of(landscape: Boolean): HandAxis = if (landscape) HORIZONTAL else VERTICAL
+    }
+}
+
 @Composable
-internal fun MatchBannerOverlay(event: BannerEvent?) {
+internal fun MatchBannerOverlay(event: BannerEvent?, hands: HandAxis = HandAxis.VERTICAL) {
     val pending = remember { mutableStateListOf<MatchAnimation>() }
     var playing by remember { mutableStateOf<MatchAnimation?>(null) }
 
@@ -92,7 +114,7 @@ internal fun MatchBannerOverlay(event: BannerEvent?) {
         null -> Unit
         is MatchAnimation.Caption -> Caption(current.banner) { playing = null }
         is MatchAnimation.Toss -> CoinFlipCards(current.flip) { playing = null }
-        is MatchAnimation.SwapCards -> SwapCardsCrossing { playing = null }
+        is MatchAnimation.SwapCards -> SwapCardsCrossing(hands) { playing = null }
         is MatchAnimation.Opening -> Beat(current.totalMillis) { playing = null }
     }
 }
@@ -201,9 +223,27 @@ internal const val SWAP_CARDS_TOTAL_MILLIS: Int = 700
 internal const val MATCH_OPENING_MILLIS: Int = 400
 
 /**
- * The blue card leaves from the left as the red one arrives from the right, and each keeps going
- * past the other's starting side — one continuous cross rather than a meet-in-the-middle, so the
- * two never appear to pause on top of each other.
+ * The two cards changing hands: the player's leaves for the opponent as the opponent's arrives.
+ *
+ * ### Along the axis the hands are actually on
+ *
+ * `RULE_SWAP` moves a card **from one hand to the other**, and this used to cross the two cards
+ * horizontally whatever the board looked like. That is the right direction in landscape, where
+ * `PlayAreaContents` puts the opponent on the left and the player on the right — and the wrong one
+ * in portrait, where the hands are stacked and the cards flew across the board instead of between
+ * the hands. So [hands] decides the axis and the sign follows from it: the blue card always starts
+ * at the player's end and finishes at the opponent's, and the red one does the reverse.
+ *
+ * Blue is the player and red the opponent, which is true on every board this draws over: a solo
+ * match deals the player blue, and `PvpSession.view` mirrors a red player's board so they see
+ * themselves in blue like everybody else.
+ *
+ * ### What it does not claim to know
+ *
+ * Which *slots* the two cards came from and went to. `MatchPreparation.swap` picks them and
+ * `SwappedHands` reports them, but they do not travel on the wire, so this animates hand-to-hand
+ * rather than slot-to-slot. A card back leaving one hand for the other is the rule; a card back
+ * leaving a *named* slot would be the rule plus a fact this end has not been told.
  *
  * `internal` rather than private so a test can render it on its own, the way [CoinFlipCards] is.
  * Asserting it *through* [MatchBannerOverlay] does not work: under `runComposeUiTest` the crossing
@@ -211,7 +251,7 @@ internal const val MATCH_OPENING_MILLIS: Int = 400
  * a node could be found. `MatchBannerTest` covers its place in the queue instead.
  */
 @Composable
-internal fun SwapCardsCrossing(onFinished: () -> Unit) {
+internal fun SwapCardsCrossing(hands: HandAxis, onFinished: () -> Unit) {
     val pacing = LocalPacing.current
     // One timeline for both cards rather than a timer per card, for the reason `CoinFlipCards`
     // gives about its own: the queue's timing must not depend on which of two parallel animations
@@ -222,8 +262,10 @@ internal fun SwapCardsCrossing(onFinished: () -> Unit) {
         modifier = Modifier.fillMaxSize().testTag(SWAP_CARDS_TEST_TAG),
         contentAlignment = Alignment.Center,
     ) {
-        SwapCard(CardColor.BLUE, from = -SWAP_OFF_SCREEN, to = SWAP_OFF_SCREEN, progress = progress)
-        SwapCard(CardColor.RED, from = SWAP_OFF_SCREEN, to = -SWAP_OFF_SCREEN, progress = progress)
+        // The player's card sets out from the player's end, which is *below* in portrait and to the
+        // right in landscape — the end their own hand is drawn at, in both cases.
+        SwapCard(CardColor.BLUE, hands, from = SWAP_END, to = -SWAP_END, progress = progress)
+        SwapCard(CardColor.RED, hands, from = -SWAP_END, to = SWAP_END, progress = progress)
     }
 
     LaunchedEffect(pacing) {
@@ -235,10 +277,11 @@ internal fun SwapCardsCrossing(onFinished: () -> Unit) {
     }
 }
 
-/** One card, crossing from [from] to [to] as [progress] runs, faded at both ends of the pass. */
+/** One card, travelling from [from] to [to] as [progress] runs, faded at both ends of the pass. */
 @Composable
 private fun SwapCard(
     color: CardColor,
+    hands: HandAxis,
     from: Float,
     to: Float,
     progress: Animatable<Float, *>,
@@ -253,9 +296,13 @@ private fun SwapCard(
             .semantics { contentDescription = swapCardsTestTag(color) }
             .graphicsLayer {
                 val fraction = progress.value
-                translationX = (from + (to - from) * fraction) * size.minDimension
+                val travelled = (from + (to - from) * fraction) * size.minDimension
+                when (hands) {
+                    HandAxis.VERTICAL -> translationY = travelled
+                    HandAxis.HORIZONTAL -> translationX = travelled
+                }
                 // Up from nothing over the first quarter and back down over the last, so neither
-                // card is ever seen standing still at the edge it came from.
+                // card is ever seen standing still at the end it came from.
                 alpha = (fraction / SWAP_FADE).coerceAtMost(1f) *
                     ((1f - fraction) / SWAP_FADE).coerceAtMost(1f)
             },
@@ -267,7 +314,16 @@ private const val SWAP_FADE = 0.25f
 
 private const val SWAP_CARD_SCALE = 0.8f
 
-private const val SWAP_OFF_SCREEN = 3f
+/**
+ * How far from the centre a swapped card starts and ends, as a multiple of the overlay's shorter
+ * side.
+ *
+ * Past the edge on purpose: the hands sit at the two extremes of the play area and the cards are
+ * meant to be seen *arriving* and *leaving* rather than parked. It is not measured against the hand
+ * rows themselves — the overlay is drawn over the play area and is not told where they landed —
+ * which is the honest limit of a hand-to-hand animation that is not slot-to-slot.
+ */
+private const val SWAP_END = 3f
 
 private val BannerMotion.enterOffset: Float
     get() = when (this) {

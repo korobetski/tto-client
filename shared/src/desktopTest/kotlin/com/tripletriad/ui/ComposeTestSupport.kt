@@ -12,7 +12,11 @@ import androidx.compose.ui.test.performScrollToNode
 import com.tripletriad.FF14_BLOCK
 import com.tripletriad.audio.AudioPlayer
 import com.tripletriad.audio.SilentAudioPlayer
+import com.tripletriad.data.CardCatalog
+import com.tripletriad.data.FormatCatalog
 import com.tripletriad.data.SaveRepository
+import com.tripletriad.data.loadCardCatalog
+import com.tripletriad.data.loadFormatCatalog
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.GameSave
 import com.tripletriad.net.ServerConnection
@@ -250,6 +254,18 @@ internal fun ComposeUiTest.settleDeck() {
     }
     awaitBoard()
 }
+
+/**
+ * The shipped catalogues, loaded once for the whole suite.
+ *
+ * `PvpScreen` needs both since sitting down at a table asks which deck to bring, and every fixture
+ * that mounts the lobby directly needs them for that reason alone — the tests here are about the
+ * lobby, not about which cards exist. `by lazy` rather than a field per test class: reading and
+ * parsing the bundles four times over is four times the cost for one answer.
+ */
+internal val pvpCards: CardCatalog by lazy { runBlocking { loadCardCatalog() } }
+
+internal val pvpFormats: FormatCatalog by lazy { runBlocking { loadFormatCatalog() } }
 
 internal const val ANY_LEVEL: Int = 99
 

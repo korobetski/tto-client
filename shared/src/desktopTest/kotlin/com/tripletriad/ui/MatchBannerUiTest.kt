@@ -10,6 +10,7 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.v2.runComposeUiTest
+import androidx.compose.ui.unit.dp
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.Card
 import com.tripletriad.model.CardColor
@@ -216,7 +217,8 @@ class MatchBannerUiTest {
      */
     @Test
     fun theSwapCrossingPutsACardOfEachSideOnScreen() = runComposeUiTest {
-        setContent { SwapCardsCrossing {} }
+        val layout = matchLayout(300.dp, 800.dp)
+        setContent { SwapCardsCrossing(HandAxis.of(layout.landscape)) {} }
 
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(SWAP_CARDS_TEST_TAG) }
         for (color in CardColor.entries) {

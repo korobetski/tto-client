@@ -8,6 +8,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import com.tripletriad.FF14_BLOCK
 import com.tripletriad.audio.AudioPlayer
@@ -112,16 +113,29 @@ internal fun settingsFor(locale: AppLocale, lessonsDone: Int = 0): SettingsStore
     InMemorySettingsStore("""{"language":"${locale.tag}","lessons_done":$lessonsDone}""")
 
 @OptIn(ExperimentalTestApi::class)
-internal fun ComposeUiTest.awaitMenu() {
-    waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(MENU_PLAY_TEST_TAG) }
+internal fun ComposeUiTest.awaitTitle() {
+    waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(TITLE_SCREEN_TEST_TAG) }
+}
+
+/**
+ * Waits for the title screen to settle on the choice it is going to offer.
+ *
+ * The screen is up before `session.refresh()` and `account.restore()` have answered, so its
+ * first frame offers "create a character" on a device that has three. Waiting on the tag the
+ * *destination* carries is what makes a fixture deterministic rather than fast.
+ */
+@OptIn(ExperimentalTestApi::class)
+internal fun ComposeUiTest.awaitTitleChoice(key: String) {
+    awaitTitle()
+    waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(titleChoiceTestTag(key)) }
 }
 
 @OptIn(ExperimentalTestApi::class)
 internal fun ComposeUiTest.newCharacter(block: Int = FF14_BLOCK) {
-    awaitMenu()
-    onNodeWithTag(MENU_PLAY_TEST_TAG).performClick()
-    waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_NEW_TEST_TAG) }
-    onNodeWithTag(PROFILE_NEW_TEST_TAG).performClick()
+    // Straight to creation. A device with no character has nothing to list, so the title
+    // screen offers the one thing there is to do rather than a list to find it in.
+    awaitTitleChoice("new")
+    onNodeWithTag(titleChoiceTestTag("new")).performClick()
     waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_CREATE_TEST_TAG) }
     onNodeWithTag(starterChoiceTestTag(starterFor(block).id)).performClick()
     onNodeWithTag(PROFILE_CREATE_TEST_TAG).performClick()
@@ -141,8 +155,8 @@ internal fun seeded(save: GameSave): InMemoryDocumentStore {
 
 @OptIn(ExperimentalTestApi::class)
 internal fun ComposeUiTest.loadCharacter(documents: InMemoryDocumentStore) {
-    awaitMenu()
-    onNodeWithTag(MENU_PLAY_TEST_TAG).performClick()
+    awaitTitleChoice("profiles")
+    onNodeWithTag(titleChoiceTestTag("profiles")).performClick()
     waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_LIST_TEST_TAG) }
     onNodeWithTag(profileRowTestTag(documents.stored.keys.single())).performClick()
     awaitDashboard()
@@ -158,7 +172,7 @@ internal fun ComposeUiTest.awaitOpponents() {
 
 @OptIn(ExperimentalTestApi::class)
 internal fun ComposeUiTest.openLessons() {
-    onNodeWithTag(DASHBOARD_LESSONS_TEST_TAG).performClick()
+    onNodeWithTag(DASHBOARD_LESSONS_TEST_TAG).performScrollTo().performClick()
     waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(LESSONS_LIST_TEST_TAG) }
 }
 
@@ -169,13 +183,19 @@ internal fun ComposeUiTest.scrollToLesson(lesson: Int) {
 
 @OptIn(ExperimentalTestApi::class)
 internal fun ComposeUiTest.openOpponents() {
-    onNodeWithTag(DASHBOARD_PLAY_TEST_TAG).performClick()
+    onNodeWithTag(DASHBOARD_PLAY_TEST_TAG).performScrollTo().performClick()
     awaitOpponents()
 }
 
+/**
+ * Opens one of the lobby's entries, scrolling to it first.
+ *
+ * The lobby is five stacked sections rather than one grid, so a test window does not hold all
+ * of it — and `performClick` on a node below the fold clicks where the node would be.
+ */
 @OptIn(ExperimentalTestApi::class)
 internal fun ComposeUiTest.openFromDashboard(entry: String, landmark: String) {
-    onNodeWithTag(entry).performClick()
+    onNodeWithTag(entry).performScrollTo().performClick()
     waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(landmark) }
 }
 
@@ -183,6 +203,18 @@ internal fun ComposeUiTest.openFromDashboard(entry: String, landmark: String) {
 internal fun ComposeUiTest.openFromBar(tab: String, landmark: String) {
     onNodeWithTag(navTestTag(tab)).performClick()
     waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(landmark) }
+}
+
+/**
+ * Leaves the session the way the lobby offers it: through the overflow menu.
+ *
+ * Not the chevron. The lobby is the root of a session and has none — a back arrow that
+ * ends the session is a back arrow that lies about what it does.
+ */
+@OptIn(ExperimentalTestApi::class)
+internal fun ComposeUiTest.signOut() {
+    onNodeWithTag(DASHBOARD_MENU_TEST_TAG).performClick()
+    onNodeWithTag(DASHBOARD_LOGOUT_TEST_TAG).performClick()
 }
 
 @OptIn(ExperimentalTestApi::class)
@@ -196,12 +228,14 @@ internal fun ComposeUiTest.backToDashboard() {
  *
  * The counterpart of [newCharacter], and it exists because a refereed match has no local profile to
  * play it: the account is signed in before the first frame — see `PveStubServer.connection` — so
- * "choose a character" has already been answered and tapping Play lands on the dashboard.
+ * "choose a character" has already been answered and one tap lands on the dashboard.
  */
 @OptIn(ExperimentalTestApi::class)
 internal fun ComposeUiTest.openDashboard() {
-    awaitMenu()
-    onNodeWithTag(MENU_PLAY_TEST_TAG).performClick()
+    awaitTitle()
+    // The whole screen is the button, and it only becomes one once the session has answered.
+    waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(TITLE_CONTINUE_TEST_TAG) }
+    onNodeWithTag(TITLE_CONTINUE_TEST_TAG).performClick()
     awaitDashboard()
 }
 

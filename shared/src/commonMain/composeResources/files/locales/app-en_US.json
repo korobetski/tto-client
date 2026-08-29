@@ -985,5 +985,14 @@
   "STR_NPC_Flichoirel_The_Lordling": "Flichoirel The Lordling",
   "STR_NPC_Hall_Overseer": "Hall Overseer",
   "STR_FF8_CARD_111": "Mooba",
-  "RULE_SWAP_HELP": "One random card from each player's deck will be swapped with the other. The card you gave away stays face up in your opponent's hand — under Three Open it is one of the three revealed, not a fourth."
+  "RULE_SWAP_HELP": "One random card from each player's deck will be swapped with the other. The card you gave away stays face up in your opponent's hand — under Three Open it is one of the three revealed, not a fourth.",
+  "APP_TITLE_CONTINUE": "Tap to continue",
+  "APP_TITLE_CHOOSE": "Choose a character",
+  "APP_LOBBY_RESUME": "Waiting for you",
+  "APP_LOBBY_TODAY": "Today",
+  "APP_LOBBY_MORE": "Also",
+  "APP_LOBBY_SOON": "Coming soon",
+  "APP_AUCTION": "Auction house",
+  "APP_AUCTION_BLURB": "Put your spare cards up for sale and bid on other players’. Every sale is public and settled in MGP — there are no private trades.",
+  "APP_LOCKED_LEVEL": "Unlocks at level {0}"
 }

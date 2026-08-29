@@ -182,13 +182,20 @@ class StringsBundleTest {
         // English sentence by fallback — so there the override adds a key rather than replacing
         // one, and DE's count and gap both move by one. `UNION_KEYS` is unchanged: three bundles
         // already had it.
-        const val UNION_KEYS = 1668
+        //
+        // +9 to every bundle since: the title screen and the L2 lobby — `APP_TITLE_CONTINUE`,
+        // `APP_TITLE_CHOOSE`, `APP_LOBBY_RESUME`, `APP_LOBBY_TODAY`, `APP_LOBBY_MORE`,
+        // `APP_LOBBY_SOON`, `APP_AUCTION`, `APP_AUCTION_BLURB` and `APP_LOCKED_LEVEL`. Authored in
+        // all four `app-*` bundles at once, which is the shape that moves every count by the same
+        // nine and leaves all four gaps where they were. Measured from a
+        // `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted.
+        const val UNION_KEYS = 1677
 
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 1664,
-            AppLocale.FR_FR to 1665,
-            AppLocale.DE_DE to 1625,
-            AppLocale.JA_JA to 1657,
+            AppLocale.EN_US to 1673,
+            AppLocale.FR_FR to 1674,
+            AppLocale.DE_DE to 1634,
+            AppLocale.JA_JA to 1666,
         )
 
         val EXPECTED_GAPS = mapOf(

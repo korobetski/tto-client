@@ -130,7 +130,7 @@ class ThemeTest {
     fun theFontResourcesAreShipped() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
 
-        awaitMenu()
+        awaitTitle()
     }
 
     private companion object {

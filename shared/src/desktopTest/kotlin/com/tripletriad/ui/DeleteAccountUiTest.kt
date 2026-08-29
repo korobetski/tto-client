@@ -154,9 +154,10 @@ class DeleteAccountUiTest {
     private fun Fixture(account: AccountSession?, onDeleted: () -> Unit = {}) {
         CompositionLocalProvider(LocalStrings provides strings) {
             TripleTriadTheme {
-                OptionsScreen(
+                // The body rather than the sheet: a `ModalBottomSheet` draws in its own
+                // `Popup`, and what is under test here is the account group inside it.
+                OptionsBody(
                     settings = SettingsHolder(UserSettings(language = AppLocale.EN_US.tag)) {},
-                    onBack = {},
                     account = account,
                     onDeleted = onDeleted,
                 )

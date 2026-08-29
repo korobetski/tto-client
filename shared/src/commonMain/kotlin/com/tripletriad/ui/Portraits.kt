@@ -38,13 +38,18 @@ internal fun AvatarBadge(
     profile: GameSave,
     size: Dp = AVATAR_SIZE,
     modifier: Modifier = Modifier,
+    // Named by the surface rather than fixed here, because on the lobby this badge is not
+    // a portrait but *the way into the record* — L2 gives that screen no card of its own.
+    // Layering a second `testTag` over this one does not work: semantics merge first-wins,
+    // so the outer tag silently replaced this one and the record lost its avatar.
+    tag: String = AVATAR_TEST_TAG,
 ) {
     val image = rememberAvatar(LocalUiArt.current, profile.avatarId)
     val shape = CircleShape
 
     Box(
         modifier = modifier
-            .testTag(AVATAR_TEST_TAG)
+            .testTag(tag)
             .size(size)
             .clip(shape)
             .background(MaterialTheme.colorScheme.surfaceVariant)

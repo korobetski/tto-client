@@ -45,9 +45,11 @@ internal val Screen.tab: Tab?
         -> Tab.HOME
         Screen.OPPONENTS, Screen.PVP, Screen.PVP_TABLE -> Tab.PLAY
         Screen.CARDS, Screen.DECKS -> Tab.CARDS
-        Screen.SHOP, Screen.INVENTORY -> Tab.STORE
-        Screen.SPLASH, Screen.MENU, Screen.PROFILES, Screen.PROFILE_NEW,
-        Screen.ACCOUNT, Screen.SERVERS, Screen.COLLECTION_CHOICE, Screen.OPTIONS,
+        // The auction house keeps the shop's tab lit, because that is what it is an extension of —
+        // buying a card from a player and buying one from a shelf are the same errand.
+        Screen.SHOP, Screen.INVENTORY, Screen.AUCTION -> Tab.STORE
+        Screen.SPLASH, Screen.TITLE, Screen.PROFILES, Screen.PROFILE_NEW,
+        Screen.ACCOUNT, Screen.SERVERS, Screen.COLLECTION_CHOICE,
         Screen.MATCH, Screen.TUTORIAL, Screen.CAMPAIGN, Screen.CAMPAIGN_MATCH,
         Screen.PVP_MATCH, Screen.PVP_CLAIM,
         -> null

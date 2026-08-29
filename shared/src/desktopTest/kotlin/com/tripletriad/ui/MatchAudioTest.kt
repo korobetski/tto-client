@@ -27,9 +27,9 @@ class MatchAudioTest {
         setContent {
             TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection, audio = audio)
         }
-        awaitMenu()
+        awaitTitle()
 
-        // `MenuScreen` never called `shuffleLoop` — nothing plays on the menu but the tap.
+        // The title screen never calls `shuffleLoop` — nothing plays there but the tap.
         assertFalse(Sound.MATCH_MUSIC in audio, "the music started before a match")
 
         // Play leads straight to the dashboard of the account's profile, so reaching a board is
@@ -61,9 +61,9 @@ class MatchAudioTest {
     @Test
     fun everyMenuButtonClicks() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), audio = audio) }
-        awaitMenu()
+        awaitTitle()
 
-        onNodeWithTag(MENU_OPTIONS_TEST_TAG).performClick()
+        onNodeWithTag(TITLE_OPTIONS_TEST_TAG).performClick()
         waitForIdle()
 
         assertEquals(listOf(Sound.UI_CLICK), audio.played.filter { it == Sound.UI_CLICK })
@@ -214,7 +214,7 @@ class MatchAudioTest {
                 audio = audio,
             )
         }
-        awaitMenu()
+        awaitTitle()
 
         assertEquals(STORED_BACKGROUND to STORED_NOISE, audio.volumes)
     }
@@ -222,8 +222,8 @@ class MatchAudioTest {
     @Test
     fun changingAVolumeInTheOptionsReachesThePlayer() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), audio = audio) }
-        awaitMenu()
-        onNodeWithTag(MENU_OPTIONS_TEST_TAG).performClick()
+        awaitTitle()
+        onNodeWithTag(TITLE_OPTIONS_TEST_TAG).performClick()
         waitForIdle()
 
         onNodeWithTag(OPTIONS_NOISE_VOLUME_TEST_TAG)

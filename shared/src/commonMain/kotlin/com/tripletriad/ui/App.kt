@@ -127,13 +127,16 @@ fun App(
             }
             val connectivity = server?.let { rememberConnectivity(it) }
             var screen by remember { mutableStateOf(Screen.SPLASH) }
+            // A sheet rather than a destination — see [OptionsSheet]. The state is here
+            // because two screens open it and neither of them owns it.
+            var optionsOpen by remember { mutableStateOf(false) }
             val choice = remember { Choice() }
 
             val gate = rememberGate(session, account, startup.catalog, clock)
             val reporter = server?.reporter ?: MatchReporter.None
 
             StartupEffects(startup, server, account, session, pvp) {
-                if (screen == Screen.SPLASH) screen = Screen.MENU
+                if (screen == Screen.SPLASH) screen = Screen.TITLE
             }
 
             HostedTableWatch(
@@ -239,7 +242,31 @@ fun App(
                                 clock = clock,
                                 reporter = reporter,
                                 onNavigate = { screen = it },
+                                onOptions = { optionsOpen = true },
                                 onQuit = onQuit,
+                            )
+                        }
+                    }
+
+                    // Outside the transition, so the sheet is not slid off the edge with the
+                    // screen underneath it when the player navigates from inside it.
+                    if (optionsOpen) {
+                        settings?.let { holder ->
+                            OptionsSheet(
+                                settings = holder,
+                                // Null in local-profile mode, which hides the account group.
+                                account = account,
+                                onDeleted = {
+                                    optionsOpen = false
+                                    // Every screen behind this one is about a character that
+                                    // no longer exists.
+                                    screen = if (account != null) {
+                                        Screen.ACCOUNT
+                                    } else {
+                                        Screen.PROFILES
+                                    }
+                                },
+                                onDismiss = { optionsOpen = false },
                             )
                         }
                     }
@@ -351,33 +378,82 @@ private fun rememberGate(
         rememberLocalGate(session, cards?.byId.orEmpty(), clock)
     }
 
-@Composable
-private fun rememberedAccount(
-    account: AccountSession?,
-    onNavigate: (Screen) -> Unit,
-): RememberedAccount? {
-    // Before the early return, so the scope is remembered in the same slot whether or not there is
-    // an account to remember — and so this reads as one exit rather than two.
-    val scope = rememberCoroutineScope()
-    val username = account?.lastUsername ?: return null
-    val state = when {
+/**
+ * What the device's stored session turned out to be, or null where there is no server to have
+ * one.
+ *
+ * `lastUsername` rather than `player`: a token that has expired still names who it belonged to,
+ * and that name is worth most in exactly the case where the session behind it is gone.
+ */
+private fun sessionState(account: AccountSession?): SessionState? {
+    if (account?.lastUsername == null) return null
+    return when {
         account.player != null -> SessionState.RESTORED
         account.isBusy || !account.isRestored -> SessionState.CONNECTING
         else -> SessionState.LAPSED
     }
+}
 
-    return RememberedAccount(
-        username = username,
-        state = state,
-        // Continue lands where Play lands, which is the point of the card: it is the shortest path
-        // to the character, not a second way of signing in.
-        onGo = {
-            onNavigate(if (state == SessionState.RESTORED) Screen.DASHBOARD else Screen.ACCOUNT)
-        },
-        onSwitch = {
-            onNavigate(Screen.ACCOUNT)
-            scope.launch { account.signOut() }
-        },
+/**
+ * What the title screen offers, from the three things that can be true at once: whether a
+ * character is loaded, what the stored session came back as, and whether there is a server at
+ * all.
+ *
+ * The branches are in order of certainty. A loaded character beats everything, because whatever
+ * the session did, we are already past it.
+ */
+@Suppress("LongParameterList")
+private fun titleEntry(
+    profile: GameSave?,
+    state: SessionState?,
+    hasServer: Boolean,
+    hasProfiles: Boolean,
+    onRegister: () -> Unit,
+    onSignIn: () -> Unit,
+    onNavigate: (Screen) -> Unit,
+): TitleEntry = when {
+    profile != null -> TitleEntry(
+        promptKey = StringKeys.TITLE_CONTINUE,
+        onContinue = { onNavigate(Screen.DASHBOARD) },
+    )
+
+    // The round trip is still out. The tap is not refused, it is held — see [TitleScreen].
+    state == SessionState.CONNECTING -> TitleEntry(
+        promptKey = StringKeys.SESSION_CONNECTING,
+        isWaiting = true,
+    )
+
+    state == SessionState.LAPSED -> TitleEntry(
+        promptKey = StringKeys.SESSION_LAPSED,
+        alarming = true,
+        onContinue = { onNavigate(Screen.ACCOUNT) },
+    )
+
+    // A server, and nobody has signed in on this device. The two paths are named rather than
+    // hidden behind one form with a toggle in it: they are not the same errand, and they are
+    // about to stop being the same form — registration is where an email will be asked for.
+    hasServer -> TitleEntry(
+        promptKey = StringKeys.ACCOUNT_BLURB,
+        choices = listOf(
+            TitleChoice(StringKeys.CREATE_ACCOUNT, "register") { onRegister() },
+            TitleChoice(StringKeys.SIGN_IN, "signin", filled = false) { onSignIn() },
+        ),
+    )
+
+    // No server: the game runs off local `.sav` files, which is a supported configuration and
+    // not a degraded one. The list where there is something to list, creation where there is not.
+    hasProfiles -> TitleEntry(
+        promptKey = StringKeys.TITLE_CHOOSE,
+        choices = listOf(
+            TitleChoice(StringKeys.PROFILES, "profiles") { onNavigate(Screen.PROFILES) },
+        ),
+    )
+
+    else -> TitleEntry(
+        promptKey = StringKeys.NO_PROFILE,
+        choices = listOf(
+            TitleChoice(StringKeys.NEW_PROFILE, "new") { onNavigate(Screen.PROFILE_NEW) },
+        ),
     )
 }
 
@@ -397,29 +473,69 @@ private fun Destination(
     clock: Clock,
     reporter: MatchReporter,
     onNavigate: (Screen) -> Unit,
+    onOptions: () -> Unit,
     onQuit: () -> Unit,
 ) {
     // Where "choose a character" leads. The account screen with a server, the local profile list
     // without one — the one place the two flows differ, named once so the four call sites below do
     // not each decide it again.
     val chooser = if (account != null) Screen.ACCOUNT else Screen.PROFILES
+    val scope = rememberCoroutineScope()
+
+    /*
+     * Ending a session, which is two things and used to be one.
+     *
+     * The token goes, so a shared device does not stay signed in — the distinction the
+     * original never made, its Logout having navigated away and left `Game.PROFILE_DATAS`
+     * loaded. And now the *character* goes with it, because the title screen reads exactly
+     * that: leaving it loaded meant stepping back to a screen still offering to continue as
+     * somebody who had just logged out.
+     */
+    val onLogout = {
+        if (account != null) scope.launch { account.signOut() }
+        session.clearActive()
+        onNavigate(chooser)
+    }
 
     when (destination) {
         Screen.SPLASH -> SplashScreen(startup)
 
-        Screen.MENU -> MainMenuScreen(
-            active = gate.profile,
-            remembered = rememberedAccount(account, onNavigate),
-            connectivity = connectivity,
-            // Play goes straight to the dashboard when a character is loaded and to the chooser
-            // when none is — the original's Continue and Load Game behind one button, chosen by
-            // what is actually loaded rather than by asking which of the two the player meant.
-            onPlay = { onNavigate(if (gate.profile == null) chooser else Screen.DASHBOARD) },
-            onProfiles = { onNavigate(chooser) },
-            onServers = { onNavigate(Screen.SERVERS) },
-            onOptions = { onNavigate(Screen.OPTIONS) },
-            onQuit = onQuit,
-        )
+        Screen.TITLE -> {
+            val state = sessionState(account)
+
+            TitleScreen(
+                profile = gate.profile,
+                entry = titleEntry(
+                    profile = gate.profile,
+                    state = state,
+                    hasServer = account != null,
+                    hasProfiles = session.slots.isNotEmpty(),
+                    onRegister = {
+                        choice.registering = true
+                        onNavigate(Screen.ACCOUNT)
+                    },
+                    onSignIn = {
+                        choice.registering = false
+                        onNavigate(Screen.ACCOUNT)
+                    },
+                    onNavigate = onNavigate,
+                ),
+                // The game's own card back, decoded during the splash's art phase.
+                back = startup.art?.back,
+                connectivity = connectivity,
+                onServers = { onNavigate(Screen.SERVERS) },
+                // Only with somebody to switch away from. Signed out first, so the form that
+                // opens is empty rather than pre-filled with the account being left behind.
+                onSwitchAccount = account?.takeIf { state != null }?.let { signedIn ->
+                    {
+                        onNavigate(Screen.ACCOUNT)
+                        scope.launch { signedIn.signOut() }
+                    }
+                },
+                onOptions = onOptions,
+                onQuit = onQuit,
+            )
+        }
 
         // The two screens that exist only on a build with a server. Grouped so the routing table
         // has one arm for "the account flow" rather than two that each re-derive whether there is
@@ -428,6 +544,7 @@ private fun Destination(
             destination = destination,
             account = account,
             connectivity = connectivity,
+            registering = choice.registering,
             onNavigate = onNavigate,
         )
 
@@ -440,7 +557,7 @@ private fun Destination(
             onDeleted = { reporter.forget(it) },
             onSelected = { onNavigate(Screen.DASHBOARD) },
             onNew = { onNavigate(Screen.PROFILE_NEW) },
-            onBack = { onNavigate(Screen.MENU) },
+            onBack = { onNavigate(Screen.TITLE) },
         )
 
         Screen.PROFILE_NEW -> ProfileCreateScreen(
@@ -450,19 +567,6 @@ private fun Destination(
             onCreated = { onNavigate(Screen.DASHBOARD) },
             onBack = { onNavigate(Screen.PROFILES) },
         )
-
-        Screen.OPTIONS -> settings?.let {
-            OptionsScreen(
-                settings = it,
-                onBack = { onNavigate(Screen.MENU) },
-                // Null in local-profile mode, which hides the account group — see `OptionsScreen`.
-                // The session clears itself on success, so there is nothing to sign out of here.
-                account = account,
-                // The same destination `onLogout` goes to, and for a stronger version of its
-                // reason: every screen behind this one is about a character that no longer exists.
-                onDeleted = { onNavigate(chooser) },
-            )
-        }
 
         // Everything behind the dashboard needs a character, and a missing one is a state the flow
         // cannot reach: the dashboard is only entered from the list or from creation, both of which
@@ -475,7 +579,7 @@ private fun Destination(
         Screen.QUESTS, Screen.PVP, Screen.PVP_MATCH, Screen.PVP_TABLE, Screen.PVP_CLAIM,
         Screen.CAMPAIGN, Screen.CAMPAIGN_MATCH, Screen.AVATAR, Screen.COLLECTION_CHOICE,
         Screen.CARDS, Screen.DECKS, Screen.INVENTORY, Screen.SHOP, Screen.HELP,
-        Screen.LESSONS,
+        Screen.LESSONS, Screen.AUCTION,
         -> gate.profile?.let { profile ->
             // The navigation bar, for the screens that have one. Provided here rather than passed
             // down because eleven screens would otherwise carry two parameters that four of them
@@ -490,12 +594,13 @@ private fun Destination(
                 CharacterDestination(
                     destination = destination,
                     profile = profile,
+                    onOptions = onOptions,
+                    onQuit = onQuit,
                     pvp = pvp,
                     pve = pve,
                     startup = startup,
                     gate = gate,
-                    account = account,
-                    chooser = chooser,
+                    onLogout = onLogout,
                     choice = choice,
                     clock = clock,
                     settings = settings,
@@ -511,6 +616,7 @@ private fun AccountDestination(
     destination: Screen,
     account: AccountSession?,
     connectivity: Connectivity?,
+    registering: Boolean,
     onNavigate: (Screen) -> Unit,
 ) {
     val session = account ?: return
@@ -523,18 +629,19 @@ private fun AccountDestination(
             // row the player just chose shows what it is *now*, on a connection that has already
             // been through a sign-out and a restore.
             onSelect = { entry -> if (session.useServer(entry)) state.refreshAll() },
-            onBack = { onNavigate(Screen.MENU) },
+            onBack = { onNavigate(Screen.TITLE) },
         )
 
         else -> AccountScreen(
             session = session,
             update = state.update,
+            registering = registering,
             // A new account goes through the collection step first — the one moment it can be
             // asked, since registration does not carry one and no match has been played yet.
             onSignedIn = { isNew ->
                 onNavigate(if (isNew) Screen.COLLECTION_CHOICE else Screen.DASHBOARD)
             },
-            onBack = { onNavigate(Screen.MENU) },
+            onBack = { onNavigate(Screen.TITLE) },
         )
     }
 }
@@ -544,12 +651,13 @@ private fun AccountDestination(
 private fun CharacterDestination(
     destination: Screen,
     profile: GameSave,
+    onOptions: () -> Unit,
+    onQuit: () -> Unit,
     pvp: PvpSession?,
     pve: PveSession?,
     startup: StartupState,
     gate: ProfileGate,
-    account: AccountSession?,
-    chooser: Screen,
+    onLogout: () -> Unit,
     choice: Choice,
     clock: Clock,
     settings: SettingsHolder?,
@@ -570,13 +678,18 @@ private fun CharacterDestination(
             destination = destination,
             profile = profile,
             pvp = pvp,
-            account = account,
-            chooser = chooser,
+            onLogout = onLogout,
             choice = choice,
+            startup = startup,
             clock = clock,
             settings = settings,
+            onOptions = onOptions,
+            onQuit = onQuit,
             onNavigate = onNavigate,
         )
+
+        // Not a shop tab yet, and deliberately not a dimmed card either — see [AuctionScreen].
+        Screen.AUCTION -> AuctionScreen(profile = profile, onBack = toDashboard)
 
         Screen.OPPONENTS -> startup.opponents?.let { opponents ->
             // The format ordinary matches are played in: the widest one, which with `MODE` gone
@@ -726,8 +839,8 @@ private fun CharacterDestination(
 
         // The seven screens ahead of a loaded character. [Destination] routes those itself and
         // never calls this with one; the branch exists because Kotlin requires a complete `when`.
-        Screen.SPLASH, Screen.MENU, Screen.PROFILES, Screen.PROFILE_NEW,
-        Screen.ACCOUNT, Screen.SERVERS, Screen.OPTIONS,
+        Screen.SPLASH, Screen.TITLE, Screen.PROFILES, Screen.PROFILE_NEW,
+        Screen.ACCOUNT, Screen.SERVERS,
         -> Unit
     }
 }
@@ -1170,6 +1283,14 @@ private fun MatchArt(startup: StartupState, content: @Composable () -> Unit) {
 internal class Choice {
     var opponent: Npc? by mutableStateOf(null)
     var campaign: Campaign? by mutableStateOf(null)
+
+    /**
+     * Which half of the account form the title screen asked for.
+     *
+     * The two are still one screen behind a toggle, and the toggle is still the way to change
+     * your mind — but a button that says *create an account* must not open a sign-in form.
+     */
+    var registering: Boolean by mutableStateOf(false)
 
     var invitee: String? by mutableStateOf(null)
 

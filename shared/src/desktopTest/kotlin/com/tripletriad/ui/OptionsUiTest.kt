@@ -53,24 +53,21 @@ class OptionsUiTest {
         onNodeWithTag(optionsLanguageTestTag(AppLocale.DE_DE)).performClick()
         waitForIdle()
 
-        onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
-        waitForIdle()
-        onNodeWithTag(MENU_OPTIONS_TEST_TAG).performClick()
-        waitForIdle()
+        closeOptions()
+        openOptions()
 
         assertTrue(isVisible("Sprache"), "the German label is gone, so the choice was lost")
     }
 
     @Test
-    fun theMenuFollowsTheLanguageChosenInTheOptions() = runComposeUiTest {
+    fun theScreenUnderTheSheetFollowsTheLanguageChosenInIt() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openOptions()
         onNodeWithTag(optionsLanguageTestTag(AppLocale.FR_FR)).performClick()
         waitForIdle()
-        onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
-        waitForIdle()
+        closeOptions()
 
-        onNodeWithTag(MENU_PLAY_TEST_TAG).assertTextEquals("Jouer")
+        onNodeWithTag(titleChoiceTestTag("new")).assertTextEquals("Nouvelle Partie")
     }
 
     @Test
@@ -111,8 +108,13 @@ class OptionsUiTest {
     }
 
     private fun ComposeUiTest.openOptions() {
-        awaitMenu()
-        onNodeWithTag(MENU_OPTIONS_TEST_TAG).performClick()
-        waitForIdle()
+        awaitTitleChoice("new")
+        onNodeWithTag(TITLE_OPTIONS_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(OPTIONS_SHEET_TEST_TAG) }
+    }
+
+    private fun ComposeUiTest.closeOptions() {
+        onNodeWithTag(OPTIONS_CLOSE_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { !exists(OPTIONS_SHEET_TEST_TAG) }
     }
 }

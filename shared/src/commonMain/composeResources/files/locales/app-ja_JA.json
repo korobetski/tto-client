@@ -985,5 +985,14 @@
   "STR_NPC_Flichoirel_The_Lordling": "高貴なるフリショワレル",
   "STR_NPC_Hall_Overseer": "ルームマスター",
   "STR_FF8_CARD_111": "Mooba",
-  "RULE_SWAP_HELP": "お互いのデッキからランダムで選ばれた1枚を、相手と交換してプレイする。渡したカードは相手の手札でも表向きのままとなる。スリーオープン時は、公開される3枚のうちの1枚として数えられる。"
+  "RULE_SWAP_HELP": "お互いのデッキからランダムで選ばれた1枚を、相手と交換してプレイする。渡したカードは相手の手札でも表向きのままとなる。スリーオープン時は、公開される3枚のうちの1枚として数えられる。",
+  "APP_TITLE_CONTINUE": "タップして続行",
+  "APP_TITLE_CHOOSE": "キャラクターを選択",
+  "APP_LOBBY_RESUME": "未完了",
+  "APP_LOBBY_TODAY": "今日",
+  "APP_LOBBY_MORE": "その他",
+  "APP_LOBBY_SOON": "近日公開",
+  "APP_AUCTION": "オークションハウス",
+  "APP_AUCTION_BLURB": "余ったカードを出品し、ほかのプレイヤーの出品に入札できます。すべての取引は公開され、MGPで決済されます（個人間のトレードはありません）。",
+  "APP_LOCKED_LEVEL": "レベル{0}で解放"
 }

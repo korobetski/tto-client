@@ -985,5 +985,14 @@
   "STR_NPC_Flichoirel_The_Lordling": "Flichoirel [t] Hochnäsig[a]",
   "STR_NPC_Hall_Overseer": "Salon-Meister",
   "STR_FF8_CARD_111": "Mooba",
-  "RULE_SWAP_HELP": "Je eine zufällige Karte aus den Decks beider Spieler wird getauscht. Die abgegebene Karte bleibt in der gegnerischen Hand offen liegen — bei Drei Offen ist sie eine der drei aufgedeckten, keine vierte."
+  "RULE_SWAP_HELP": "Je eine zufällige Karte aus den Decks beider Spieler wird getauscht. Die abgegebene Karte bleibt in der gegnerischen Hand offen liegen — bei Drei Offen ist sie eine der drei aufgedeckten, keine vierte.",
+  "APP_TITLE_CONTINUE": "Zum Fortfahren tippen",
+  "APP_TITLE_CHOOSE": "Charakter auswählen",
+  "APP_LOBBY_RESUME": "Wartet auf dich",
+  "APP_LOBBY_TODAY": "Heute",
+  "APP_LOBBY_MORE": "Außerdem",
+  "APP_LOBBY_SOON": "Demnächst",
+  "APP_AUCTION": "Auktionshaus",
+  "APP_AUCTION_BLURB": "Stelle deine doppelten Karten zum Verkauf und biete auf die anderer Spieler. Jeder Verkauf ist öffentlich und wird in MGP abgerechnet — private Tauschgeschäfte gibt es nicht.",
+  "APP_LOCKED_LEVEL": "Ab Stufe {0} verfügbar"
 }

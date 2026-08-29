@@ -1,12 +1,9 @@
 package com.tripletriad.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -16,7 +13,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -145,7 +141,7 @@ private fun QuestRow(
                 softWrap = false,
                 modifier = Modifier.testTag(questProgressTestTag(quest.id)),
             )
-            QuestMeter(fraction = status.progress.fraction)
+            Meter(fraction = status.progress.fraction)
         }
     }
 }
@@ -157,31 +153,10 @@ internal fun DailyQuest.label(strings: Strings, nameFor: (String) -> String): St
         else -> strings[labelKey]
     }
 
-private fun DailyQuest.label(
+internal fun DailyQuest.label(
     strings: Strings,
     opponents: NpcCatalog?,
     formatId: String,
 ): String = label(strings) { iconId ->
     opponents?.byIcon(iconId, formatId)?.let { strings[it.nameKey] } ?: iconId
 }
-
-@Composable
-private fun QuestMeter(fraction: Float) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(MeterHeight)
-            .clip(MaterialTheme.shapes.small)
-            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(fraction)
-                .height(MeterHeight)
-                .clip(MaterialTheme.shapes.small)
-                .background(MaterialTheme.colorScheme.tertiary),
-        )
-    }
-}
-
-private val MeterHeight = 4.dp

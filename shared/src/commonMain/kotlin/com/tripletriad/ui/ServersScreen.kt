@@ -165,7 +165,7 @@ internal fun ServerIndicator(connectivity: Connectivity, onClick: () -> Unit) {
     val strings = LocalStrings.current
     Row(
         modifier = Modifier
-            .testTag(MENU_SERVER_TEST_TAG)
+            .testTag(TITLE_SERVER_TEST_TAG)
             .ttoClickable(onClick = onClick)
             .padding(horizontal = SpaceSm, vertical = SpaceSm),
         verticalAlignment = Alignment.CenterVertically,

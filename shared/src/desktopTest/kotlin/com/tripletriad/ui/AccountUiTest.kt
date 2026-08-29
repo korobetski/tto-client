@@ -54,13 +54,14 @@ import androidx.compose.ui.autofill.ContentType as AutofillType
 class AccountUiTest {
 
     @Test
-    fun withNoServerPlayStillLeadsToTheLocalCharacterList() = runComposeUiTest {
+    fun withNoServerTheTitleScreenOffersToMakeALocalCharacter() = runComposeUiTest {
         setContent { TestApp(store = english()) }
 
-        awaitMenu()
-        onNodeWithTag(MENU_PLAY_TEST_TAG).performClick()
+        awaitTitleChoice("new")
+        onNodeWithTag(titleChoiceTestTag("new")).performClick()
 
-        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_NEW_TEST_TAG) }
+        // Straight to creation rather than to a list with nothing in it.
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_CREATE_TEST_TAG) }
     }
 
     @Test
@@ -100,12 +101,9 @@ class AccountUiTest {
 
         setContent { TestApp(store = english(), server = connection(sessions = documents)) }
 
-        awaitMenu()
-        onNodeWithTag(MENU_PLAY_TEST_TAG).performClick()
-
-        // Straight past `Screen.ACCOUNT`: the profile was restored before the splash ended, so
-        // Play is Continue.
-        awaitDashboard()
+        // Straight past `Screen.ACCOUNT`: the profile was restored before the splash ended,
+        // so the title screen is already offering to continue rather than to sign in.
+        openDashboard()
     }
 
     @Test
@@ -123,7 +121,14 @@ class AccountUiTest {
         // The form, and not the dashboard: the token is dead, so this is a sign-in and not a
         // restore. Both halves matter — a passing assertion below with a *live* token would only
         // prove the screen was never reached.
-        openForm()
+        //
+        // And it is reached by tapping the screen rather than by picking Sign in: a device
+        // that has been signed in on before is not asked which errand it is on, it is told
+        // its session lapsed. See `titleEntry`.
+        awaitTitle()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { isVisible("Session expired") }
+        onNodeWithTag(TITLE_CONTINUE_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(ACCOUNT_SCREEN_TEST_TAG) }
         onNodeWithTag(ACCOUNT_NAME_TEST_TAG).assertTextContains("kuplu")
     }
 
@@ -249,8 +254,8 @@ class AccountUiTest {
         assert(SemanticsMatcher.expectValue(SemanticsProperties.ContentType, expected))
 
     private fun ComposeUiTest.openForm() {
-        awaitMenu()
-        onNodeWithTag(MENU_PLAY_TEST_TAG).performClick()
+        awaitTitleChoice("signin")
+        onNodeWithTag(titleChoiceTestTag("signin")).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(ACCOUNT_SCREEN_TEST_TAG) }
     }
 
@@ -325,10 +330,11 @@ class AccountUiTest {
 
 @OptIn(ExperimentalTestApi::class)
 private fun ComposeUiTest.register() {
-    awaitMenu()
-    onNodeWithTag(MENU_PLAY_TEST_TAG).performClick()
+    // No toggle: the title screen's own button says which half of the form it wants, and
+    // the form opens on it. See `Choice.registering`.
+    awaitTitleChoice("register")
+    onNodeWithTag(titleChoiceTestTag("register")).performClick()
     waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(ACCOUNT_SCREEN_TEST_TAG) }
-    onNodeWithTag(ACCOUNT_TOGGLE_TEST_TAG).performClick()
     onNodeWithTag(ACCOUNT_NAME_TEST_TAG).performTextInput("kuplu")
     onNodeWithTag(ACCOUNT_PASSWORD_TEST_TAG).performTextInput("not-a-real-password")
     onNodeWithTag(ACCOUNT_SUBMIT_TEST_TAG).performClick()

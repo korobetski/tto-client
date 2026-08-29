@@ -481,6 +481,23 @@ object StringKeys {
     /** The way back into a match the server still has open. Takes the opponent's name. */
     const val MATCH_RESUME: String = "APP_MATCH_RESUME"
 
+    /** The title screen's invitation, when one tap is all it takes. */
+    const val TITLE_CONTINUE: String = "APP_TITLE_CONTINUE"
+
+    /** The title screen's invitation on a device with local characters but none loaded. */
+    const val TITLE_CHOOSE: String = "APP_TITLE_CHOOSE"
+
+    const val LOBBY_RESUME: String = "APP_LOBBY_RESUME"
+    const val LOBBY_TODAY: String = "APP_LOBBY_TODAY"
+    const val LOBBY_MORE: String = "APP_LOBBY_MORE"
+    const val LOBBY_SOON: String = "APP_LOBBY_SOON"
+
+    const val AUCTION: String = "APP_AUCTION"
+    const val AUCTION_BLURB: String = "APP_AUCTION_BLURB"
+
+    /** Why a door is shut. Takes the level it opens at — see `Unlocks`. */
+    const val LOCKED_LEVEL: String = "APP_LOCKED_LEVEL"
+
     val all: List<String> = listOf(
         NEXT_MATCH, YOU_WIN, YOU_LOSE, DRAW, SUDDEN_DEATH,
         LOADING_CARDS, SIDE_BLUE, SIDE_RED, TURN_PICK_CARD, TURN_PICK_CELL,
@@ -562,6 +579,9 @@ object StringKeys {
         SELL_ALL,
         ACCOUNT_SETTINGS, DELETE_ACCOUNT, DELETE_ACCOUNT_BODY, DELETE_ACCOUNT_CONFIRM,
         MATCH_RESUME,
+        TITLE_CONTINUE, TITLE_CHOOSE,
+        LOBBY_RESUME, LOBBY_TODAY, LOBBY_MORE, LOBBY_SOON,
+        AUCTION, AUCTION_BLURB, LOCKED_LEVEL,
     )
 
     val appOwned: List<String> = all.filter { it.startsWith("APP_") }

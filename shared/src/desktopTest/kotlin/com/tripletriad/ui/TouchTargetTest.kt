@@ -77,8 +77,8 @@ class TouchTargetTest {
         val documents = seeded(GameSave.new(username = "Kuplu", createdAt = 0L))
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
 
-        awaitMenu()
-        onNodeWithTag(MENU_PLAY_TEST_TAG).performClick()
+        awaitTitleChoice("profiles")
+        onNodeWithTag(titleChoiceTestTag("profiles")).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_LIST_TEST_TAG) }
 
         assertTouchTarget(profileDeleteTestTag(documents.stored.keys.single()))

@@ -1,12 +1,10 @@
 package com.tripletriad.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -16,8 +14,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -99,7 +95,11 @@ internal fun StatsScreen(profile: GameSave, onAvatar: () -> Unit, onBack: () -> 
 }
 
 @Composable
-internal fun LevelBar(profile: GameSave, onAvatar: (() -> Unit)? = null) {
+internal fun LevelBar(
+    profile: GameSave,
+    onAvatar: (() -> Unit)? = null,
+    avatarTag: String = AVATAR_TEST_TAG,
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -108,6 +108,7 @@ internal fun LevelBar(profile: GameSave, onAvatar: (() -> Unit)? = null) {
         AvatarBadge(
             profile = profile,
             modifier = onAvatar?.let { Modifier.ttoClickable(onClick = it) } ?: Modifier,
+            tag = avatarTag,
         )
         Box(modifier = Modifier.weight(1f)) { LevelMeter(profile) }
     }
@@ -266,25 +267,6 @@ private fun AchievementRow(family: AchievementFamily, profile: GameSave) {
     }
 }
 
-@Composable
-private fun Meter(fraction: Float, colour: Color) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(MeterHeight)
-            .clip(MaterialTheme.shapes.small)
-            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(fraction)
-                .height(MeterHeight)
-                .clip(MaterialTheme.shapes.small)
-                .background(colour),
-        )
-    }
-}
-
 private data class AchievementFamily(
     val key: String,
     val tiers: List<Achievement>,
@@ -312,5 +294,4 @@ private fun rankedFamilies(profile: GameSave): List<AchievementFamily> {
         untouched.sortedByDescending { it.face.progressFor(profile).fraction }
 }
 
-private val MeterHeight = 4.dp
 private const val PERCENT = 100

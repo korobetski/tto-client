@@ -228,7 +228,10 @@ internal fun SectionHeader(text: String, modifier: Modifier = Modifier) {
 @Composable
 internal fun ScreenScaffold(
     title: String,
-    onBack: () -> Unit,
+    // Null where there is nothing above this screen to go back to — the lobby, which is the root
+    // of a signed-in session. A chevron there used to mean "sign out", which is the one thing a
+    // back arrow must never mean.
+    onBack: (() -> Unit)?,
     actions: @Composable RowScope.() -> Unit = {},
     snackbar: NoteHost? = null,
     bottomBar: (@Composable () -> Unit)? = null,
@@ -266,14 +269,16 @@ internal fun ScreenScaffold(
                             )
                         },
                         navigationIcon = {
-                            IconButton(
-                                onClick = onBack,
-                                modifier = Modifier.testTag(SCREEN_BACK_TEST_TAG),
-                            ) {
-                                Icon(
-                                    imageVector = TtoIcons.Back,
-                                    contentDescription = strings[StringKeys.BACK],
-                                )
+                            onBack?.let { back ->
+                                IconButton(
+                                    onClick = back,
+                                    modifier = Modifier.testTag(SCREEN_BACK_TEST_TAG),
+                                ) {
+                                    Icon(
+                                        imageVector = TtoIcons.Back,
+                                        contentDescription = strings[StringKeys.BACK],
+                                    )
+                                }
                             }
                         },
                         actions = actions,
@@ -498,7 +503,7 @@ private fun BoonMarker(icon: ImageVector, label: String, matches: Int) {
 internal fun CharacterScaffold(
     profile: GameSave,
     title: String,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     snackbar: NoteHost? = null,
     bottomBar: (@Composable () -> Unit)? = null,
     wide: Boolean = false,

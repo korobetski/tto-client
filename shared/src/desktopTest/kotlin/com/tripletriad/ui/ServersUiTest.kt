@@ -48,7 +48,7 @@ class ServersUiTest {
     fun theMenuNamesTheServerInPlay() = runComposeUiTest {
         setContent { TestApp(store = english(), server = connection()) }
 
-        awaitMenu()
+        awaitTitle()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { isVisible("online") }
         assertVisible("Alpha", "the menu did not name the server it is on")
     }
@@ -57,8 +57,8 @@ class ServersUiTest {
     fun theIndicatorOpensTheList() = runComposeUiTest {
         setContent { TestApp(store = english(), server = connection()) }
 
-        awaitMenu()
-        onNodeWithTag(MENU_SERVER_TEST_TAG).performClick()
+        awaitTitle()
+        onNodeWithTag(TITLE_SERVER_TEST_TAG).performClick()
 
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(SERVERS_SCREEN_TEST_TAG) }
         assertVisible("Beta", "the list did not offer the other configured server")
@@ -82,7 +82,7 @@ class ServersUiTest {
         onNodeWithTag(serverRowTestTag(entries[1])).performClick()
         onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
 
-        awaitMenu()
+        awaitTitle()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { isVisible("Beta") }
     }
 
@@ -93,8 +93,8 @@ class ServersUiTest {
         openServers()
         onNodeWithTag(serverRowTestTag(entries[1])).performClick()
         onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
-        awaitMenu()
-        onNodeWithTag(MENU_PLAY_TEST_TAG).performClick()
+        awaitTitleChoice("signin")
+        onNodeWithTag(titleChoiceTestTag("signin")).performClick()
 
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(ACCOUNT_SCREEN_TEST_TAG) }
     }
@@ -105,8 +105,8 @@ class ServersUiTest {
     fun aBuildTheServerWillNotServeIsToldToUpdateInsteadOfSigningIn() = runComposeUiTest {
         setContent { TestApp(store = english(), server = connection(info = tooNewForThisBuild)) }
 
-        awaitMenu()
-        onNodeWithTag(MENU_PLAY_TEST_TAG).performClick()
+        awaitTitleChoice("signin")
+        onNodeWithTag(titleChoiceTestTag("signin")).performClick()
 
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(UPDATE_NOTICE_TEST_TAG) }
         check(!exists(ACCOUNT_SUBMIT_TEST_TAG)) { "the form that cannot work was left on screen" }
@@ -116,8 +116,8 @@ class ServersUiTest {
     fun aPublishedDownloadForThisPlatformIsOfferedAsAButton() = runComposeUiTest {
         setContent { TestApp(store = english(), server = connection(info = tooNewForThisBuild)) }
 
-        awaitMenu()
-        onNodeWithTag(MENU_PLAY_TEST_TAG).performClick()
+        awaitTitleChoice("signin")
+        onNodeWithTag(titleChoiceTestTag("signin")).performClick()
 
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(UPDATE_DOWNLOAD_TEST_TAG) }
     }
@@ -127,8 +127,8 @@ class ServersUiTest {
         val bare = tooNewForThisBuild.copy(release = null)
         setContent { TestApp(store = english(), server = connection(info = bare)) }
 
-        awaitMenu()
-        onNodeWithTag(MENU_PLAY_TEST_TAG).performClick()
+        awaitTitleChoice("signin")
+        onNodeWithTag(titleChoiceTestTag("signin")).performClick()
 
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(UPDATE_NOTICE_TEST_TAG) }
         check(!exists(UPDATE_DOWNLOAD_TEST_TAG)) { "a download was offered with none published" }
@@ -137,8 +137,9 @@ class ServersUiTest {
     // ---- Fixtures ------------------------------------------------------------
 
     private fun ComposeUiTest.openServers() {
-        awaitMenu()
-        onNodeWithTag(MENU_SERVERS_TEST_TAG).performClick()
+        awaitTitle()
+        // The status dot in the corner is the whole of what the old menu card did.
+        onNodeWithTag(TITLE_SERVER_TEST_TAG).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(SERVERS_SCREEN_TEST_TAG) }
     }
 

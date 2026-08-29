@@ -32,9 +32,12 @@ class ScreenshotCapture {
     private val stub = PveStubServer()
 
     @Test
-    fun menu() = shoot("menu", DESKTOP) {
+    fun title() = shoot("title", DESKTOP) {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
-        awaitMenu()
+        // Settled on what it is going to offer, not merely present: the first frame is
+        // drawn before `session.refresh()` answers, and a picture of that frame is a
+        // picture of a screen mid-thought.
+        awaitTitleChoice("new")
     }
 
     @Test

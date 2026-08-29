@@ -43,10 +43,8 @@ class ProfileUiTest {
     @Test
     fun theCreationScreenShowsTheStarterItWouldGrant() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
-        awaitMenu()
-        onNodeWithTag(MENU_PLAY_TEST_TAG).performClick()
-        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_NEW_TEST_TAG) }
-        onNodeWithTag(PROFILE_NEW_TEST_TAG).performClick()
+        awaitTitleChoice("new")
+        onNodeWithTag(titleChoiceTestTag("new")).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_CREATE_TEST_TAG) }
 
         val ff14 = starterFor(FF14_BLOCK)
@@ -65,8 +63,12 @@ class ProfileUiTest {
     @Test
     fun aFreshInstallHasNoCharacters() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
-        awaitMenu()
-        onNodeWithTag(MENU_PROFILES_TEST_TAG).performClick()
+        // The list is reached by stepping back out of creation: the title screen sends a
+        // device with nothing on it straight to the form, since there is nothing to list.
+        awaitTitleChoice("new")
+        onNodeWithTag(titleChoiceTestTag("new")).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_CREATE_TEST_TAG) }
+        onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_EMPTY_TEST_TAG) }
 
         onNodeWithTag(PROFILE_EMPTY_TEST_TAG).assertExists()
@@ -90,10 +92,8 @@ class ProfileUiTest {
     fun theTypedNameIsTheCharactersName() = runComposeUiTest {
         val documents = store()
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
-        awaitMenu()
-        onNodeWithTag(MENU_PROFILES_TEST_TAG).performClick()
-        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_NEW_TEST_TAG) }
-        onNodeWithTag(PROFILE_NEW_TEST_TAG).performClick()
+        awaitTitleChoice("new")
+        onNodeWithTag(titleChoiceTestTag("new")).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_NAME_TEST_TAG) }
 
         onNodeWithTag(PROFILE_NAME_TEST_TAG).performTextClearance()
@@ -126,22 +126,21 @@ class ProfileUiTest {
     }
 
     @Test
-    fun aCreatedCharacterIsListedAndNamedOnTheMenu() = runComposeUiTest {
-        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+    fun aCreatedCharacterIsListedAndCanBeLoadedFromTheTitleScreen() = runComposeUiTest {
+        val documents = store()
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         newCharacter()
 
-        // Back out to the menu: dashboard → characters → menu.
-        onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
+        // Out of the session, then out of the list: lobby → characters → title.
+        signOut()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_LIST_TEST_TAG) }
         assertTrue(isVisible(GameSave.DEFAULT_USERNAME), "the character should be in the list")
 
         onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
-        awaitMenu()
+        awaitTitle()
 
-        assertTrue(
-            isVisible(GameSave.DEFAULT_USERNAME),
-            "the menu should name the loaded character",
-        )
+        // "New Game" was the only offer on the way in; there is somebody to load now.
+        loadCharacter(documents)
     }
 
     @Test
@@ -149,7 +148,7 @@ class ProfileUiTest {
         val documents = store()
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         newCharacter()
-        onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
+        signOut()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_LIST_TEST_TAG) }
 
         val key = documents.stored.keys.single()
@@ -171,7 +170,7 @@ class ProfileUiTest {
         val documents = store()
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         newCharacter()
-        onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
+        signOut()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_LIST_TEST_TAG) }
 
         val key = documents.stored.keys.single()
@@ -179,9 +178,13 @@ class ProfileUiTest {
         onNodeWithTag(profileDeleteTestTag(key)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_EMPTY_TEST_TAG) }
         onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
-        awaitMenu()
+        awaitTitle()
 
-        onNodeWithTag(MENU_PROFILE_TEST_TAG).assertTextEquals(NO_CHARACTER)
+        // The title screen's prompt is where "there is nobody to play as" is now said.
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
+            exists(titleChoiceTestTag("new"))
+        }
+        onNodeWithTag(TITLE_PROMPT_TEST_TAG).assertTextEquals(NO_CHARACTER)
     }
 
     @Test
@@ -189,7 +192,7 @@ class ProfileUiTest {
         val documents = store()
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         newCharacter(FF14_BLOCK)
-        onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
+        signOut()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_LIST_TEST_TAG) }
 
         onNodeWithTag(PROFILE_NEW_TEST_TAG).performClick()
@@ -214,7 +217,7 @@ class ProfileUiTest {
         val documents = store()
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         newCharacter(FF8_BLOCK)
-        onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
+        signOut()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_LIST_TEST_TAG) }
 
         onNodeWithTag(profileRowTestTag(documents.stored.keys.single())).performClick()
@@ -240,8 +243,8 @@ class ProfileUiTest {
                 clock = FixedClock(),
             )
         }
-        awaitMenu()
-        onNodeWithTag(MENU_PROFILES_TEST_TAG).performClick()
+        awaitTitleChoice("profiles")
+        onNodeWithTag(titleChoiceTestTag("profiles")).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_LIST_TEST_TAG) }
 
         assertTrue(isVisible(GameSave.DEFAULT_USERNAME), "the stored character should be listed")

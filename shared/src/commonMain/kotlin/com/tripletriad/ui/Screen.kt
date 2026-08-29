@@ -2,7 +2,7 @@ package com.tripletriad.ui
 
 internal enum class Screen {
     SPLASH,
-    MENU,
+    TITLE,
     PROFILES,
     PROFILE_NEW,
     ACCOUNT,
@@ -26,20 +26,23 @@ internal enum class Screen {
     DECKS,
     INVENTORY,
     SHOP,
+    AUCTION,
     HELP,
-    OPTIONS,
     ;
 
     val up: Screen
         get() = when (this) {
-            SPLASH, MENU -> this
-            PROFILES, ACCOUNT, SERVERS, OPTIONS -> MENU
+            SPLASH, TITLE -> this
+            PROFILES, ACCOUNT, SERVERS -> TITLE
             PROFILE_NEW -> PROFILES
             DASHBOARD -> PROFILES
             // Back out of the collection step keeps `ff14_`, which is what the account already
             // has — so skipping it is a decision the player is allowed to make silently.
             COLLECTION_CHOICE -> DASHBOARD
             OPPONENTS, STATS, QUESTS, PVP, CARDS, DECKS, INVENTORY, SHOP, HELP -> DASHBOARD
+            // Reached from the lobby's own banner and from nowhere else, so it goes back there —
+            // even though it sits under the shop's tab, which is where it will *live*.
+            AUCTION -> DASHBOARD
             // The course sits beside the rule book it ends at, and is reached from one place —
             // see `LessonsScreen`, which explains why it left the opponent list.
             LESSONS -> DASHBOARD

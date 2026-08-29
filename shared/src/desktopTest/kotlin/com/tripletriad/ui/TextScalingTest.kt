@@ -57,8 +57,8 @@ class TextScalingTest {
 
     @Test
     fun theSettingsScreenStaysUsableAtDoubleTextSize() = app(fontScale = 2f) {
-        awaitMenu()
-        onNodeWithTag(MENU_OPTIONS_TEST_TAG).performClick()
+        awaitTitle()
+        onNodeWithTag(TITLE_OPTIONS_TEST_TAG).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(OPTIONS_BACKGROUND_VOLUME_TEST_TAG) }
 
         onNodeWithTag(optionsLanguageTestTag(AppLocale.EN_US)).assertIsDisplayed()

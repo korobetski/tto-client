@@ -15,7 +15,7 @@ Built with modern Kotlin Multiplatform and Compose technologies.
 
 | | |
 |---|---|
-| ![Main menu](docs/screenshots/menu.png)<br>**Main menu** | ![Dashboard](docs/screenshots/dashboard.png)<br>**Dashboard** — the hub a character lands on |
+| ![Title screen](docs/screenshots/title.png)<br>**Title screen** | ![Dashboard](docs/screenshots/dashboard.png)<br>**Dashboard** — the hub a character lands on |
 | ![Match, landscape](docs/screenshots/match_landscape.png)<br>**Match, landscape** — three cards down, All Open | ![Match, portrait](docs/screenshots/match_portrait.png)<br>**Match, portrait** — the phone layout, not a scaled one |
 | ![Collection](docs/screenshots/collection.png)<br>**Collection** — grid and detail, two panes, 564 cards | ![Deck builder](docs/screenshots/deck_builder.png)<br>**Deck builder** — the starter deck open |
 | ![Card detail](docs/screenshots/card_detail.png)<br>**Card detail** | ![Tutorial](docs/screenshots/tutorial.png)<br>**Tutorial** — the first lesson, mid-sentence |
@@ -105,7 +105,7 @@ The client currently implements **7 core systems**:
 3. **Match System** — Complete 3x3 board gameplay with turn-based mechanics
 4. **Rules Engine** — All game rules (Capture, Reverse, Fallen Ace, Same, Same Wall, Plus, Combo, Elemental, etc.)
 5. **State Machine** — Match sequencing as pure state transitions
-6. **App Framework** — Splash screen, main menu, options, and navigation
+6. **App Framework** — Splash screen, title screen, lobby, settings sheet, and navigation
 7. **Audio System** — Original game music and sound effects with dual-channel mixing
 
 ### Game Content
@@ -155,7 +155,7 @@ The client currently implements **7 core systems**:
 │       │       ├── Navigation.kt # Navigation components
 │       │       ├── Controls.kt   # Shared UI controls
 │       │       ├── Startup.kt    # Startup sequence
-│       │       ├── MainMenuScreen.kt
+│       │       ├── TitleScreen.kt
 │       │       ├── OptionsScreen.kt
 │       │       ├── ProfileGate.kt / ProfileScreen.kt
 │       │       ├── AccountSession.kt / AccountScreen.kt

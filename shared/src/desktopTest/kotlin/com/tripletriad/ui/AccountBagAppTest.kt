@@ -123,9 +123,7 @@ class AccountBagAppTest {
     // ---- Harness -----------------------------------------------------------
 
     private fun ComposeUiTest.openTheBag() {
-        awaitMenu()
-        onNodeWithTag(MENU_PLAY_TEST_TAG).performClick()
-        awaitDashboard()
+        openDashboard()
         openFromDashboard(DASHBOARD_INVENTORY_TEST_TAG, INVENTORY_LIST_TEST_TAG)
     }
 

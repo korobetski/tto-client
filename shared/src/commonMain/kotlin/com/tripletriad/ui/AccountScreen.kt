@@ -18,6 +18,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.platform.LocalAutofillManager
@@ -25,9 +26,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.tripletriad.CLIENT_VERSION
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.protocol.Credentials
@@ -48,6 +47,10 @@ const val ACCOUNT_BUSY_TEST_TAG: String = "account-busy"
 internal fun AccountScreen(
     session: AccountSession,
     update: UpdateAdvice?,
+    // Which half the title screen asked for. The toggle below is still how a player changes
+    // their mind; this is so a button that says *create an account* does not open a sign-in
+    // form and leave them to notice.
+    registering: Boolean = false,
     onSignedIn: (isNew: Boolean) -> Unit,
     onBack: () -> Unit,
 ) {
@@ -56,7 +59,7 @@ internal fun AccountScreen(
     // Null wherever the platform has no autofill framework — desktop, and iOS for now.
     val autofill = LocalAutofillManager.current
 
-    var isRegistering by remember { mutableStateOf(false) }
+    var isRegistering by remember(registering) { mutableStateOf(registering) }
     // Keyed on the remembered name so it survives recomposition but not a change of account: this
     // screen is reached again after a sign-out and after a server switch, and both set it to null.
     var username by remember(session.lastUsername) {
@@ -184,23 +187,14 @@ internal fun AccountScreen(
                 )
             }
 
-            VersionLine()
+            Box(
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                VersionLine(ACCOUNT_VERSION_TEST_TAG)
+            }
         }
     }
-}
-
-@Composable
-private fun VersionLine() {
-    Text(
-        text = "v$CLIENT_VERSION",
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
-        style = MaterialTheme.typography.labelSmall,
-        modifier = Modifier
-            .testTag(ACCOUNT_VERSION_TEST_TAG)
-            .fillMaxWidth()
-            .padding(top = 4.dp),
-        textAlign = TextAlign.Center,
-    )
 }
 
 private val ProgressHeight = 4.dp

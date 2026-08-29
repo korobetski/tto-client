@@ -3,24 +3,30 @@ package com.tripletriad.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -30,6 +36,8 @@ import androidx.compose.ui.unit.dp
 import com.tripletriad.audio.LocalAudio
 import com.tripletriad.audio.Sound
 import com.tripletriad.data.DailyQuestRepository
+import com.tripletriad.data.DailyQuestStatus
+import com.tripletriad.data.NpcCatalog
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.GameSave
@@ -46,133 +54,429 @@ const val DASHBOARD_HELP_TEST_TAG: String = "dashboard-help"
 const val DASHBOARD_LESSONS_TEST_TAG: String = "dashboard-lessons"
 const val DASHBOARD_LOGOUT_TEST_TAG: String = "dashboard-logout"
 
+/** The card at the top, present only when the server is holding something for this player. */
+const val DASHBOARD_RESUME_TEST_TAG: String = "dashboard-resume"
+
+const val DASHBOARD_AUCTION_TEST_TAG: String = "dashboard-auction"
+
+/** The overflow the three commands that leave the session live behind. */
+const val DASHBOARD_MENU_TEST_TAG: String = "dashboard-menu"
+
+const val DASHBOARD_OPTIONS_TEST_TAG: String = "dashboard-options"
+const val DASHBOARD_QUIT_TEST_TAG: String = "dashboard-quit"
+
+/**
+ * Something the server is holding that this player has not dealt with.
+ *
+ * A live match, or a prize on a deadline. Both were reachable only by walking into the multiplayer
+ * screen and noticing — `PvpSession.resume()` has answered this question since it was written and
+ * nothing outside its own tests ever asked it at the lobby.
+ */
+@Immutable
+internal class LobbyResume(
+    val label: String,
+    val note: String,
+    val onOpen: () -> Unit,
+)
+
+/**
+ * The lobby, as a report on what is happening rather than a menu of places to go.
+ *
+ * It used to be eight cards over a four-entry navigation bar, and half the cards were the bar said
+ * twice. What is left is arranged by *when it matters*: what the server is holding for you, what
+ * resets tonight, what you came here to do, and everything else. The three commands that end a
+ * session — settings, sign out, quit — moved into the overflow, because a control that leaves is
+ * not a destination and should not be shaped like one.
+ *
+ * There is no back arrow. There was one, and it signed the player out.
+ */
 @Composable
 @Suppress("LongParameterList")
 internal fun DashboardScreen(
     profile: GameSave,
     at: Long,
+    opponents: NpcCatalog?,
+    formatId: String,
+    resume: LobbyResume?,
     onPlay: () -> Unit,
+    onPvp: (() -> Unit)?,
     onStats: () -> Unit,
     onQuests: () -> Unit,
-    onPvp: (() -> Unit)?,
-    pvpBadge: String? = null,
     onDecks: () -> Unit,
     onInventory: () -> Unit,
     onHelp: () -> Unit,
     onLessons: () -> Unit,
     lessonsBadge: String,
+    onAuction: () -> Unit,
+    onOptions: () -> Unit,
     onLogout: () -> Unit,
+    onQuit: () -> Unit,
 ) {
     val strings = LocalStrings.current
     // Read, never written: `statuses` derives the day's draw when the save has not been credited
-    // today, so the badge is right on a character who has not played yet. See [QuestsScreen].
+    // today, so the count is right on a character who has not played yet. See [QuestsScreen].
     val quests = remember(profile, at) { DailyQuestRepository().statuses(profile, at) }
+    val multiplayerOpen = Unlocks.multiplayer(profile)
 
-    // The title is the character's name rather than a screen name: the original had no title here
-    // either — the `UserBar` in the corner was the only thing identifying whose dashboard it was.
     ScreenScaffold(
         title = profile.username,
-        onBack = onLogout,
-        actions = { CharacterActions(profile) },
+        // The root of a signed-in session has nothing above it. What used to be here was
+        // `onLogout` behind a chevron, which is the one thing a back arrow must never mean.
+        onBack = null,
+        actions = {
+            CharacterActions(profile)
+            LobbyMenu(
+                onOptions = onOptions,
+                onLogout = onLogout,
+                onQuit = onQuit,
+            )
+        },
     ) {
-        LevelBar(profile)
-
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            modifier = Modifier.fillMaxWidth().weight(1f).padding(top = SpaceMd),
-            horizontalArrangement = Arrangement.spacedBy(SpaceSm),
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = SpaceMd),
             verticalArrangement = Arrangement.spacedBy(SpaceSm),
-            // A scrolling grid has no natural bottom margin, and the last row would otherwise sit
-            // against the edge of a short window.
-            contentPadding = PaddingValues(bottom = SpaceMd),
         ) {
-            // Play is on the navigation bar too, and is the one repetition worth keeping: it is
-            // what the screen is *for*, and a hero action that also has a bar entry is what every
-            // Material app with a primary task does.
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                HomeCard(
-                    label = strings[StringKeys.PLAY],
-                    icon = TtoIcons.Play,
-                    tag = DASHBOARD_PLAY_TEST_TAG,
-                    accented = true,
-                    onClick = onPlay,
-                )
+            // The lobby's only way into the record, so the badge answers to the lobby's
+            // name for it rather than to the portrait's.
+            LevelBar(profile, onAvatar = onStats, avatarTag = DASHBOARD_STATS_TEST_TAG)
+
+            resume?.let {
+                SectionHeader(strings[StringKeys.LOBBY_RESUME], Modifier.padding(top = SpaceSm))
+                ResumeCard(it)
             }
-            // The two that are a tab *inside* a bar destination. The collection and the shelf are
-            // not here: the bar reaches both in one tap, and a home screen that repeats its own
-            // navigation bar is a home screen with nothing of its own to say.
-            item {
-                HomeCard(
-                    label = strings[StringKeys.CARD_DECKS],
-                    icon = TtoIcons.Collection,
-                    tag = DASHBOARD_DECKS_TEST_TAG,
-                    onClick = onDecks,
-                )
-            }
-            item {
-                HomeCard(
-                    label = strings[StringKeys.INVENTORY],
-                    icon = TtoIcons.Shop,
-                    tag = DASHBOARD_INVENTORY_TEST_TAG,
-                    onClick = onInventory,
-                )
-            }
-            item {
-                HomeCard(strings[StringKeys.PROFILE], TtoIcons.Person, DASHBOARD_STATS_TEST_TAG) {
-                    onStats()
+
+            SectionHeader(strings[StringKeys.LOBBY_TODAY], Modifier.padding(top = SpaceSm))
+            QuestsCard(
+                quests = quests,
+                opponents = opponents,
+                formatId = formatId,
+                onOpen = onQuests,
+            )
+
+            SectionHeader(strings[StringKeys.PLAY], Modifier.padding(top = SpaceSm))
+            Row(horizontalArrangement = Arrangement.spacedBy(SpaceSm)) {
+                Box(modifier = Modifier.weight(1f)) {
+                    HomeCard(
+                        label = strings[StringKeys.PLAY],
+                        icon = TtoIcons.Play,
+                        tag = DASHBOARD_PLAY_TEST_TAG,
+                        accented = true,
+                        onClick = onPlay,
+                    )
+                }
+                Box(modifier = Modifier.weight(1f)) {
+                    HomeCard(
+                        label = strings[StringKeys.MULTIPLAYER],
+                        icon = if (multiplayerOpen) TtoIcons.Person else TtoIcons.Lock,
+                        tag = DASHBOARD_PVP_TEST_TAG,
+                        // Two different reasons to be shut, and the badge says which. Without a
+                        // server there is nobody to play — see `PvpClient`; below the level there
+                        // is, and the answer is "not yet" rather than "not here".
+                        badge = when {
+                            !multiplayerOpen -> strings.format(
+                                StringKeys.LOCKED_LEVEL,
+                                Unlocks.MULTIPLAYER_LEVEL.toString(),
+                            )
+
+                            else -> null
+                        },
+                        enabled = onPvp != null && multiplayerOpen,
+                        onClick = { onPvp?.invoke() },
+                    )
                 }
             }
-            item {
-                HomeCard(
-                    label = strings[StringKeys.QUESTS],
-                    icon = TtoIcons.Quest,
-                    tag = DASHBOARD_QUESTS_TEST_TAG,
-                    badge = "${quests.count { it.isCompleted }} / ${quests.size}",
-                    onClick = onQuests,
-                )
+
+            SectionHeader(strings[StringKeys.LOBBY_MORE], Modifier.padding(top = SpaceSm))
+            Row(horizontalArrangement = Arrangement.spacedBy(SpaceSm)) {
+                Box(modifier = Modifier.weight(1f)) {
+                    HomeCard(
+                        label = strings[StringKeys.CARD_DECKS],
+                        icon = TtoIcons.Collection,
+                        tag = DASHBOARD_DECKS_TEST_TAG,
+                        onClick = onDecks,
+                    )
+                }
+                Box(modifier = Modifier.weight(1f)) {
+                    HomeCard(
+                        label = strings[StringKeys.INVENTORY],
+                        icon = TtoIcons.Shop,
+                        tag = DASHBOARD_INVENTORY_TEST_TAG,
+                        onClick = onInventory,
+                    )
+                }
             }
-            item {
-                HomeCard(
-                    label = strings[StringKeys.HELP],
-                    icon = TtoIcons.Help,
-                    tag = DASHBOARD_HELP_TEST_TAG,
-                    onClick = onHelp,
-                )
+            Row(horizontalArrangement = Arrangement.spacedBy(SpaceSm)) {
+                Box(modifier = Modifier.weight(1f)) {
+                    HomeCard(
+                        label = strings[StringKeys.LESSONS],
+                        icon = TtoIcons.Quest,
+                        tag = DASHBOARD_LESSONS_TEST_TAG,
+                        badge = lessonsBadge,
+                        onClick = onLessons,
+                    )
+                }
+                Box(modifier = Modifier.weight(1f)) {
+                    HomeCard(
+                        label = strings[StringKeys.HELP],
+                        icon = TtoIcons.Help,
+                        tag = DASHBOARD_HELP_TEST_TAG,
+                        onClick = onHelp,
+                    )
+                }
             }
-            // Beside the rule book, which is what the course ends at and what a player who wants
-            // one rule rather than a lesson about it should reach in the same tap. The badge is the
-            // quests card's, for the same reason: a course is a thing you are part-way through, and
-            // the number is what says so without opening it.
-            item {
-                HomeCard(
-                    label = strings[StringKeys.LESSONS],
-                    icon = TtoIcons.Quest,
-                    tag = DASHBOARD_LESSONS_TEST_TAG,
-                    badge = lessonsBadge,
-                    onClick = onLessons,
+
+            SectionHeader(strings[StringKeys.LOBBY_SOON], Modifier.padding(top = SpaceSm))
+            AuctionBanner(open = Unlocks.auction(profile), onClick = onAuction)
+        }
+    }
+}
+
+@Composable
+private fun ResumeCard(resume: LobbyResume) {
+    TtoCard(
+        modifier = Modifier.testTag(DASHBOARD_RESUME_TEST_TAG).fillMaxWidth(),
+        onClick = resume.onOpen,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(SpaceMd),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(SpaceMd),
+        ) {
+            Icon(
+                imageVector = TtoIcons.Person,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.tertiary,
+                modifier = Modifier.size(IconMd),
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = resume.label,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
-            }
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                HomeCard(
-                    label = strings[StringKeys.MULTIPLAYER],
-                    icon = TtoIcons.Person,
-                    tag = DASHBOARD_PVP_TEST_TAG,
-                    // A match still running, or a prize still uncollected. The quests card has
-                    // carried a badge from the start; this one had nothing to say until a PvP
-                    // match could end owing somebody a card on a timer.
-                    badge = pvpBadge,
-                    // Enabled only with a server behind it. Playing another person is the one
-                    // thing in this game that cannot happen offline — see `PvpClient` — so a
-                    // local profile gets the row and an explanation rather than a dead tap.
-                    enabled = onPvp != null,
-                    onClick = { onPvp?.invoke() },
+                Text(
+                    text = resume.note,
+                    color = MaterialTheme.colorScheme.tertiary,
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
-            }
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                LogoutRow(label = strings[StringKeys.LOGOUT], onClick = onLogout)
             }
         }
     }
+}
+
+/**
+ * The day's three quests, with their meters rather than with a count of them.
+ *
+ * The count is still there — `QuestsUiTest` reads it, and it is what a glance wants — but under it
+ * are the three lines that say *which* one is nearly done. A badge saying `0 / 3` is a number a
+ * player has to open a screen to act on.
+ */
+@Composable
+private fun QuestsCard(
+    quests: List<DailyQuestStatus>,
+    opponents: NpcCatalog?,
+    formatId: String,
+    onOpen: () -> Unit,
+) {
+    val strings = LocalStrings.current
+
+    TtoCard(
+        modifier = Modifier.testTag(DASHBOARD_QUESTS_TEST_TAG).fillMaxWidth(),
+        onClick = onOpen,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(SpaceMd),
+            verticalArrangement = Arrangement.spacedBy(SpaceXs),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = strings[StringKeys.QUESTS],
+                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = "${quests.count { it.isCompleted }} / ${quests.size}",
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = SUBDUED),
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier.testTag(DASHBOARD_QUESTS_BADGE_TEST_TAG),
+                )
+            }
+
+            for (status in quests) {
+                QuestLine(status = status, opponents = opponents, formatId = formatId)
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuestLine(
+    status: DailyQuestStatus,
+    opponents: NpcCatalog?,
+    formatId: String,
+) {
+    val strings = LocalStrings.current
+    val done = status.isCompleted
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = SpaceXs),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(SpaceSm),
+    ) {
+        Text(
+            text = status.quest.label(strings, opponents, formatId),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (done) SUBDUED else MUTED),
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Meter(
+            fraction = if (done) 1f else status.progress.fraction,
+            modifier = Modifier.width(MeterWidth),
+            colour = if (done) {
+                MaterialTheme.colorScheme.tertiary
+            } else {
+                MaterialTheme.colorScheme.primary
+            },
+        )
+    }
+}
+
+@Composable
+private fun AuctionBanner(open: Boolean, onClick: () -> Unit) {
+    val strings = LocalStrings.current
+
+    TtoCard(
+        modifier = Modifier.testTag(DASHBOARD_AUCTION_TEST_TAG).fillMaxWidth(),
+        onClick = onClick,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(SpaceMd),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(SpaceMd),
+        ) {
+            Icon(
+                imageVector = TtoIcons.Shop,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary.copy(alpha = SUBDUED),
+                modifier = Modifier.size(IconMd),
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = strings[StringKeys.AUCTION],
+                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = if (open) {
+                        strings[StringKeys.LOBBY_SOON]
+                    } else {
+                        strings.format(
+                            StringKeys.LOCKED_LEVEL,
+                            Unlocks.AUCTION_LEVEL.toString(),
+                        )
+                    },
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Settings, sign out and quit, behind one button.
+ *
+ * They are together because they are the same kind of thing — none of them is a place in the game —
+ * and because the sign-out used to be a text button at the bottom of a scrolling grid, which is a
+ * control that is sometimes off the screen.
+ */
+@Composable
+private fun RowScope.LobbyMenu(
+    onOptions: () -> Unit,
+    onLogout: () -> Unit,
+    onQuit: () -> Unit,
+) {
+    val strings = LocalStrings.current
+    var open by remember { mutableStateOf(false) }
+
+    IconButton(onClick = { open = true }, modifier = Modifier.testTag(DASHBOARD_MENU_TEST_TAG)) {
+        Icon(
+            imageVector = TtoIcons.More,
+            contentDescription = strings[StringKeys.SETTINGS],
+            modifier = Modifier.size(IconMd),
+        )
+    }
+
+    DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+        MenuEntry(
+            label = strings[StringKeys.SETTINGS],
+            icon = TtoIcons.Options,
+            tag = DASHBOARD_OPTIONS_TEST_TAG,
+        ) {
+            open = false
+            onOptions()
+        }
+        MenuEntry(
+            label = strings[StringKeys.LOGOUT],
+            icon = TtoIcons.Logout,
+            tag = DASHBOARD_LOGOUT_TEST_TAG,
+        ) {
+            open = false
+            onLogout()
+        }
+        MenuEntry(
+            label = strings[StringKeys.QUIT],
+            icon = TtoIcons.Logout,
+            tag = DASHBOARD_QUIT_TEST_TAG,
+        ) {
+            open = false
+            onQuit()
+        }
+    }
+}
+
+@Composable
+private fun MenuEntry(
+    label: String,
+    icon: ImageVector,
+    tag: String,
+    onClick: () -> Unit,
+) {
+    val audio = LocalAudio.current
+
+    DropdownMenuItem(
+        text = { Text(text = label, style = MaterialTheme.typography.bodyMedium) },
+        onClick = {
+            audio.play(Sound.UI_CLICK)
+            onClick()
+        },
+        modifier = Modifier.testTag(tag),
+        leadingIcon = {
+            Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(IconSm))
+        },
+    )
 }
 
 @Composable
@@ -256,26 +560,6 @@ internal fun HomeCard(
     }
 }
 
-@Composable
-private fun LogoutRow(label: String, onClick: () -> Unit) {
-    val audio = LocalAudio.current
+private val CARD_MIN_HEIGHT = 68.dp
 
-    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        TextButton(
-            onClick = {
-                audio.play(Sound.UI_CLICK)
-                onClick()
-            },
-            modifier = Modifier.testTag(DASHBOARD_LOGOUT_TEST_TAG),
-        ) {
-            Icon(
-                imageVector = TtoIcons.Logout,
-                contentDescription = null,
-                modifier = Modifier.size(IconMd),
-            )
-            Text(text = label, modifier = Modifier.padding(start = SpaceSm))
-        }
-    }
-}
-
-private val CARD_MIN_HEIGHT = 72.dp
+private val MeterWidth = 56.dp

@@ -150,6 +150,39 @@ internal object TtoIcons {
         }
     }
 
+    /**
+     * The overflow menu, drawn as three dots.
+     *
+     * Each dot is a segment a tenth of a unit long under a round cap, which is what the stroke
+     * turns into a disc — [icon] has no fill, and three of these cost less than a second path
+     * style does.
+     */
+    val More: ImageVector by lazy {
+        icon("More") {
+            moveTo(12f, 5.5f)
+            lineTo(12f, 5.6f)
+            moveTo(12f, 11.95f)
+            lineTo(12f, 12.05f)
+            moveTo(12f, 18.4f)
+            lineTo(12f, 18.5f)
+        }
+    }
+
+    val Lock: ImageVector by lazy {
+        icon("Lock") {
+            moveTo(5.5f, 10.5f)
+            lineTo(18.5f, 10.5f)
+            lineTo(18.5f, 20f)
+            lineTo(5.5f, 20f)
+            close()
+            moveTo(8.5f, 10.5f)
+            lineTo(8.5f, 7.5f)
+            curveTo(8.5f, 5.6f, 10.1f, 4f, 12f, 4f)
+            curveTo(13.9f, 4f, 15.5f, 5.6f, 15.5f, 7.5f)
+            lineTo(15.5f, 10.5f)
+        }
+    }
+
     val Quest: ImageVector by lazy {
         icon("Quest") {
             moveTo(5f, 3f)

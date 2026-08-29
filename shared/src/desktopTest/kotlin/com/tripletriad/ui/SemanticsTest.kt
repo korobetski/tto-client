@@ -55,8 +55,8 @@ class SemanticsTest {
     fun theLanguageChipsReportWhichIsChosen() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
 
-        awaitMenu()
-        onNodeWithTag(MENU_OPTIONS_TEST_TAG).performClick()
+        awaitTitle()
+        onNodeWithTag(TITLE_OPTIONS_TEST_TAG).performClick()
         waitForIdle()
 
         onNodeWithTag(optionsLanguageTestTag(AppLocale.EN_US)).assertIsSelected()
@@ -67,8 +67,8 @@ class SemanticsTest {
     fun theSettingsGroupsAreHeadings() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
 
-        awaitMenu()
-        onNodeWithTag(MENU_OPTIONS_TEST_TAG).performClick()
+        awaitTitle()
+        onNodeWithTag(TITLE_OPTIONS_TEST_TAG).performClick()
         waitForIdle()
 
         val headings = onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading))

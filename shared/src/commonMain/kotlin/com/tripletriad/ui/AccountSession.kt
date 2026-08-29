@@ -18,8 +18,10 @@ import com.tripletriad.net.StoredSession
 import com.tripletriad.net.accountQueueKey
 import com.tripletriad.net.isUnauthenticated
 import com.tripletriad.protocol.AccountError
+import com.tripletriad.protocol.AccountFailure
 import com.tripletriad.protocol.Credentials
 import com.tripletriad.protocol.ItemEffect
+import com.tripletriad.protocol.PasswordReset
 import com.tripletriad.protocol.PlayerState
 import com.tripletriad.protocol.PveRefusal
 import com.tripletriad.protocol.PvpRefusal
@@ -53,6 +55,17 @@ class AccountSession internal constructor(
         private set
 
     val save: GameSave? get() = player?.save
+
+    /**
+     * Whether the address on this account has been confirmed.
+     *
+     * True with no session at all, and true for a `PlayerState` from a server that predates
+     * confirmation — the field defaults to true on the wire, which is the *compatible* answer
+     * rather than the cautious-looking one. Being wrong in that direction costs a banner nobody
+     * sees; being wrong the other way would nag every player on an older deployment to confirm an
+     * address that server has never heard of.
+     */
+    val isVerified: Boolean get() = player?.verified != false
 
     val serverId: String get() = server.server.id
 
@@ -89,8 +102,125 @@ class AccountSession internal constructor(
         isRestored = true
     }
 
-    suspend fun register(username: String, password: String) =
-        authenticate { server.accounts.register(Credentials(username, password)) }
+    suspend fun register(
+        username: String,
+        password: String,
+        email: String,
+        language: String? = null,
+    ) = authenticate {
+        server.accounts.register(Credentials(username, password, email), language)
+    }
+
+    /**
+     * Proving you hold the address on an account, and getting back in when the password is gone.
+     *
+     * ### Why these four are behind a name of their own
+     *
+     * They are one subject, and it is not this class's usual one. Everything else here is about
+     * *the account this device is signed in to* — its profile, its bag, its seeds. Two of these
+     * four are unauthenticated by definition: a player who has forgotten their password cannot
+     * hold a session, so `requestReset` and `reset` name the account rather than assuming one.
+     * Grouping them makes the call sites say which kind of request they are making.
+     *
+     * They still report through the enclosing session's [isBusy] and [failure], because a screen
+     * shows one progress bar and one message however many objects are behind them.
+     */
+    val recovery: Recovery = Recovery()
+
+    inner class Recovery internal constructor() {
+
+        /**
+         * Answers the code that was mailed, and re-reads the profile it confirmed.
+         *
+         * The re-read is the point: `verified` lives on the `PlayerState` this session holds, so
+         * without it the screen that sent the code would still be showing an unconfirmed account.
+         */
+        suspend fun confirmEmail(code: String): Boolean = withToken { token ->
+            server.accounts.confirmEmail(token, code).also { if (it is AccountResult.Ok) refresh() }
+        }
+
+        /**
+         * Asks for another code.
+         *
+         * True means the *request* was taken, never that a mail arrived — see
+         * `AccountClient.resendCode`. The screen says "sent" on the strength of this, which is the
+         * most it can honestly say.
+         */
+        suspend fun resendCode(language: String? = null): Boolean = withToken { token ->
+            server.accounts.resendCode(token, language)
+        }
+
+        /**
+         * Starts a password reset for [username], which need not be this device's account.
+         *
+         * It answers the same way for a name that exists and one that does not — the server
+         * refuses to turn this into a way of asking which usernames are registered — so `true`
+         * here is not evidence the account is real.
+         */
+        suspend fun requestReset(username: String, language: String? = null): Boolean {
+            isBusy = true
+            failure = null
+            val result = server.accounts.forgotPassword(username.trim(), language)
+            isBusy = false
+            if (result !is AccountResult.Ok) failure = result
+            return result is AccountResult.Ok
+        }
+
+        /**
+         * Finishes it: the code, and the password to put in place of the forgotten one.
+         *
+         * Ends every session on the account, this device's included — so whatever was stored here
+         * is cleared rather than left to fail on the next request with an expired-session banner
+         * the player has no way to connect to what they just did.
+         */
+        suspend fun reset(username: String, code: String, password: String): Boolean {
+            isBusy = true
+            failure = null
+            val result = server.accounts.resetPassword(
+                PasswordReset(username.trim(), code, password),
+            )
+            isBusy = false
+
+            if (result is AccountResult.Ok) {
+                player = null
+                server.session.clear(server.server.id)
+                // Kept, unlike a sign-out: the player is about to sign in as exactly this account,
+                // and making them retype the name they just typed twice would be a small insult.
+                lastUsername = username.trim()
+                Log.i(TAG) { "the password was reset; every session on the account has ended" }
+            } else {
+                failure = result
+            }
+            return result is AccountResult.Ok
+        }
+
+        /**
+         * Runs [request] with this device's stored token, or reports there is no session for it.
+         *
+         * The two endpoints that use it are both about the account the player is *signed in to*,
+         * so a missing token is not a refusal from the server — it is a screen having been reached
+         * in a state it cannot be reached in. `UNAUTHENTICATED` is what that is called on the
+         * wire, and reusing it means the message the player sees is already written.
+         */
+        private suspend fun withToken(
+            request: suspend (String) -> AccountResult<Unit>,
+        ): Boolean {
+            val stored = server.session.load(server.server.id, clock.nowMillis())
+            if (stored == null) {
+                failure = AccountResult.Refused(
+                    AccountFailure(AccountError.UNAUTHENTICATED, "no session on this device"),
+                )
+                return false
+            }
+
+            isBusy = true
+            failure = null
+            val result = request(stored.token)
+            isBusy = false
+            if (result !is AccountResult.Ok) failure = result
+            return result is AccountResult.Ok
+        }
+    }
 
     suspend fun signIn(username: String, password: String) =
         authenticate { server.accounts.signIn(Credentials(username, password)) }
@@ -377,9 +507,22 @@ internal fun AccountResult<*>.message(strings: Strings): String = when (this) {
 // the account errors deserve is not the sentence a match refusal deserves.
 private fun AccountError.message(strings: Strings, detail: String): String = when (this) {
     AccountError.USERNAME_TAKEN -> strings[StringKeys.ERROR_NAME_TAKEN]
+    AccountError.EMAIL_TAKEN -> strings[StringKeys.ERROR_EMAIL_TAKEN]
     AccountError.INVALID_CREDENTIALS -> strings[StringKeys.ERROR_BAD_CREDENTIALS]
     AccountError.MALFORMED_CREDENTIALS -> detail
+    AccountError.MALFORMED_EMAIL -> strings[StringKeys.ERROR_BAD_EMAIL]
+    AccountError.EMAIL_UNVERIFIED -> strings[StringKeys.ERROR_UNVERIFIED]
+    AccountError.INVALID_CODE -> strings[StringKeys.ERROR_BAD_CODE]
     AccountError.UNAUTHENTICATED -> strings[StringKeys.ERROR_EXPIRED]
+
+    // The server's own wording, because it names a number this client does not have: the
+    // threshold is that deployment's and travels in `ServerInfo` — see [LocalUnlocks]. A
+    // translated sentence here would either omit the level or state this build's guess at it.
+    AccountError.NOT_UNLOCKED -> detail
+
+    // Reached from the endpoints that send mail, where the server prefers a body to Ktor's bare
+    // 429 — so this is the same thing `AccountResult.Throttled` says, arriving by the other door.
+    AccountError.TOO_MANY_REQUESTS -> strings[StringKeys.ERROR_THROTTLED]
 }
 
 internal fun PvpRefusal.message(strings: Strings): String = when (this) {

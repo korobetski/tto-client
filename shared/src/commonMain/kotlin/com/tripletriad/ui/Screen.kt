@@ -6,6 +6,8 @@ internal enum class Screen {
     PROFILES,
     PROFILE_NEW,
     ACCOUNT,
+    ACCOUNT_CONFIRM,
+    PASSWORD_RESET,
     SERVERS,
     COLLECTION_CHOICE,
     DASHBOARD,
@@ -34,6 +36,10 @@ internal enum class Screen {
         get() = when (this) {
             SPLASH, TITLE -> this
             PROFILES, ACCOUNT, SERVERS -> TITLE
+            // Both are entered from the account form and both are escapable — confirming
+            // an address is optional until a gated door is reached, and a reset is
+            // abandonable at either half. So back out of either lands on the form.
+            ACCOUNT_CONFIRM, PASSWORD_RESET -> ACCOUNT
             PROFILE_NEW -> PROFILES
             DASHBOARD -> PROFILES
             // Back out of the collection step keeps `ff14_`, which is what the account already

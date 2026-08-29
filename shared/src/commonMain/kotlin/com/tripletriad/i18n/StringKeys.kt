@@ -498,6 +498,49 @@ object StringKeys {
     /** Why a door is shut. Takes the level it opens at — see `Unlocks`. */
     const val LOCKED_LEVEL: String = "APP_LOCKED_LEVEL"
 
+    // ---- The address on an account, and getting back in without a password ----
+
+    const val EMAIL: String = "APP_EMAIL"
+
+    /** Why registration asks for one. Says what it is for, and what it is not for. */
+    const val EMAIL_HINT: String = "APP_EMAIL_HINT"
+
+    const val CONFIRM_EMAIL: String = "APP_CONFIRM_EMAIL"
+
+    /** Takes the address the code went to, so the player can see a typo in it. */
+    const val CONFIRM_EMAIL_BLURB: String = "APP_CONFIRM_EMAIL_BLURB"
+
+    const val CONFIRM_LATER: String = "APP_CONFIRM_LATER"
+
+    /** The badge on a door shut for want of a confirmation rather than for want of levels. */
+    const val CONFIRM_NEEDED: String = "APP_CONFIRM_NEEDED"
+
+    const val EMAIL_CONFIRMED: String = "APP_EMAIL_CONFIRMED"
+
+    const val CODE: String = "APP_CODE"
+    const val CODE_SUBMIT: String = "APP_CODE_SUBMIT"
+    const val CODE_RESEND: String = "APP_CODE_RESEND"
+
+    /** Said after a resend. Deliberately about the *request*, not about a mail arriving. */
+    const val CODE_SENT: String = "APP_CODE_SENT"
+
+    const val FORGOT_PASSWORD: String = "APP_FORGOT_PASSWORD"
+    const val RESET_PASSWORD: String = "APP_RESET_PASSWORD"
+    const val RESET_BLURB: String = "APP_RESET_BLURB"
+    const val RESET_SEND: String = "APP_RESET_SEND"
+
+    /** *If that account exists* — the server will not say whether it does, and neither may this. */
+    const val RESET_SENT: String = "APP_RESET_SENT"
+
+    const val NEW_PASSWORD: String = "APP_NEW_PASSWORD"
+    const val RESET_SUBMIT: String = "APP_RESET_SUBMIT"
+    const val RESET_DONE: String = "APP_RESET_DONE"
+
+    const val ERROR_EMAIL_TAKEN: String = "APP_ERROR_EMAIL_TAKEN"
+    const val ERROR_BAD_EMAIL: String = "APP_ERROR_BAD_EMAIL"
+    const val ERROR_UNVERIFIED: String = "APP_ERROR_UNVERIFIED"
+    const val ERROR_BAD_CODE: String = "APP_ERROR_BAD_CODE"
+
     val all: List<String> = listOf(
         NEXT_MATCH, YOU_WIN, YOU_LOSE, DRAW, SUDDEN_DEATH,
         LOADING_CARDS, SIDE_BLUE, SIDE_RED, TURN_PICK_CARD, TURN_PICK_CELL,
@@ -582,6 +625,11 @@ object StringKeys {
         TITLE_CONTINUE, TITLE_CHOOSE,
         LOBBY_RESUME, LOBBY_TODAY, LOBBY_MORE, LOBBY_SOON,
         AUCTION, AUCTION_BLURB, LOCKED_LEVEL,
+        EMAIL, EMAIL_HINT, CONFIRM_EMAIL, CONFIRM_EMAIL_BLURB, CONFIRM_LATER,
+        CONFIRM_NEEDED, EMAIL_CONFIRMED, CODE, CODE_SUBMIT, CODE_RESEND, CODE_SENT,
+        FORGOT_PASSWORD, RESET_PASSWORD, RESET_BLURB, RESET_SEND, RESET_SENT,
+        NEW_PASSWORD, RESET_SUBMIT, RESET_DONE,
+        ERROR_EMAIL_TAKEN, ERROR_BAD_EMAIL, ERROR_UNVERIFIED, ERROR_BAD_CODE,
     )
 
     val appOwned: List<String> = all.filter { it.startsWith("APP_") }

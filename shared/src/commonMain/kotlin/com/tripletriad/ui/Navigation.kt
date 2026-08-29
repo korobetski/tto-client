@@ -49,7 +49,8 @@ internal val Screen.tab: Tab?
         // buying a card from a player and buying one from a shelf are the same errand.
         Screen.SHOP, Screen.INVENTORY, Screen.AUCTION -> Tab.STORE
         Screen.SPLASH, Screen.TITLE, Screen.PROFILES, Screen.PROFILE_NEW,
-        Screen.ACCOUNT, Screen.SERVERS, Screen.COLLECTION_CHOICE,
+        Screen.ACCOUNT, Screen.ACCOUNT_CONFIRM, Screen.PASSWORD_RESET,
+        Screen.SERVERS, Screen.COLLECTION_CHOICE,
         Screen.MATCH, Screen.TUTORIAL, Screen.CAMPAIGN, Screen.CAMPAIGN_MATCH,
         Screen.PVP_MATCH, Screen.PVP_CLAIM,
         -> null

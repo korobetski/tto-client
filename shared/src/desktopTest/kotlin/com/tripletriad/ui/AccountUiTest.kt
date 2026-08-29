@@ -337,6 +337,15 @@ private fun ComposeUiTest.register() {
     waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(ACCOUNT_SCREEN_TEST_TAG) }
     onNodeWithTag(ACCOUNT_NAME_TEST_TAG).performTextInput("kuplu")
     onNodeWithTag(ACCOUNT_PASSWORD_TEST_TAG).performTextInput("not-a-real-password")
+    // Required now, and the submit button stays off without it — see `AccountScreen`, which asks
+    // `Credentials.looksValidToRegister` rather than `looksValid` on this half of the form.
+    onNodeWithTag(ACCOUNT_EMAIL_TEST_TAG).performTextInput("kuplu@example.test")
     onNodeWithTag(ACCOUNT_SUBMIT_TEST_TAG).performClick()
+
+    // And registration now lands on the confirmation screen rather than on the collection step.
+    // Dismissed here rather than answered: this helper's callers are about what happens *after*
+    // signing up, and confirming an address is `ConfirmEmailUiTest`'s subject.
+    waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(CONFIRM_SCREEN_TEST_TAG) }
+    onNodeWithTag(CONFIRM_LATER_TEST_TAG).performClick()
     waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(STARTER_CONFIRM_TEST_TAG) }
 }

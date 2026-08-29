@@ -40,6 +40,7 @@ import com.tripletriad.model.questDayOf
 import com.tripletriad.net.MatchReporter
 import com.tripletriad.net.ServerConnection
 import com.tripletriad.protocol.ANY_DECK
+import com.tripletriad.protocol.Unlocks
 import com.tripletriad.settings.InMemorySettingsStore
 import com.tripletriad.settings.SettingsStore
 import com.tripletriad.settings.UserSettings
@@ -190,6 +191,10 @@ fun App(
                 LocalAudio provides audio,
                 LocalUiArt provides startup.ui,
                 LocalPacing provides pacing,
+                // Here rather than deeper, because the lobby and the auction house are three
+                // layers apart and the door they describe is the same one. Null server means
+                // `:core`'s defaults, which is also what the local `.sav` mode should read.
+                LocalUnlocks provides (connectivity?.unlocks ?: Unlocks()),
             ) {
                 // Only a hairline of padding: the board and ten cards want every dp there is.
                 //
@@ -540,7 +545,9 @@ private fun Destination(
         // The two screens that exist only on a build with a server. Grouped so the routing table
         // has one arm for "the account flow" rather than two that each re-derive whether there is
         // an account to have a flow about.
-        Screen.ACCOUNT, Screen.SERVERS -> AccountDestination(
+        Screen.ACCOUNT, Screen.ACCOUNT_CONFIRM, Screen.PASSWORD_RESET,
+        Screen.SERVERS,
+        -> AccountDestination(
             destination = destination,
             account = account,
             connectivity = connectivity,
@@ -594,6 +601,12 @@ private fun Destination(
                 CharacterDestination(
                     destination = destination,
                     profile = profile,
+                    // Null unless there is something to do about it. A confirmed account, an
+                    // account on a server that predates confirmation, and no server at all all
+                    // answer the same way — nothing to ask for, so no way to ask.
+                    onConfirmEmail = account
+                        ?.takeIf { !it.isVerified }
+                        ?.let { { onNavigate(Screen.ACCOUNT_CONFIRM) } },
                     onOptions = onOptions,
                     onQuit = onQuit,
                     pvp = pvp,
@@ -632,15 +645,36 @@ private fun AccountDestination(
             onBack = { onNavigate(Screen.TITLE) },
         )
 
+        // Straight after registering, and again from the lobby whenever a gated door names
+        // this as the reason it is shut.
+        Screen.ACCOUNT_CONFIRM -> ConfirmEmailScreen(
+            session = session,
+            // The collection step either way. A player who has just confirmed is exactly where a
+            // player who chose *later* is: newly registered, with the one question registration
+            // could not ask still unanswered.
+            onConfirmed = { onNavigate(Screen.COLLECTION_CHOICE) },
+            onLater = { onNavigate(Screen.COLLECTION_CHOICE) },
+        )
+
+        Screen.PASSWORD_RESET -> PasswordResetScreen(
+            session = session,
+            // Back to the form, and signing in is the point: the reset ended every session on the
+            // account, so there is nothing to walk into and the new password has to be used once.
+            onDone = { onNavigate(Screen.ACCOUNT) },
+            onBack = { onNavigate(Screen.ACCOUNT) },
+        )
+
         else -> AccountScreen(
             session = session,
             update = state.update,
             registering = registering,
-            // A new account goes through the collection step first — the one moment it can be
-            // asked, since registration does not carry one and no match has been played yet.
+            // A new account is asked to confirm its address before anything else — while the
+            // mail is arriving and the player is still on the screen that caused it. It is
+            // skippable, and the collection step is what both answers lead to.
             onSignedIn = { isNew ->
-                onNavigate(if (isNew) Screen.COLLECTION_CHOICE else Screen.DASHBOARD)
+                onNavigate(if (isNew) Screen.ACCOUNT_CONFIRM else Screen.DASHBOARD)
             },
+            onForgotPassword = { onNavigate(Screen.PASSWORD_RESET) },
             onBack = { onNavigate(Screen.TITLE) },
         )
     }
@@ -651,6 +685,7 @@ private fun AccountDestination(
 private fun CharacterDestination(
     destination: Screen,
     profile: GameSave,
+    onConfirmEmail: (() -> Unit)?,
     onOptions: () -> Unit,
     onQuit: () -> Unit,
     pvp: PvpSession?,
@@ -677,6 +712,7 @@ private fun CharacterDestination(
         Screen.DASHBOARD, Screen.LESSONS -> ProgressDestination(
             destination = destination,
             profile = profile,
+            onConfirmEmail = onConfirmEmail,
             pvp = pvp,
             onLogout = onLogout,
             choice = choice,
@@ -840,7 +876,7 @@ private fun CharacterDestination(
         // The seven screens ahead of a loaded character. [Destination] routes those itself and
         // never calls this with one; the branch exists because Kotlin requires a complete `when`.
         Screen.SPLASH, Screen.TITLE, Screen.PROFILES, Screen.PROFILE_NEW,
-        Screen.ACCOUNT, Screen.SERVERS,
+        Screen.ACCOUNT, Screen.ACCOUNT_CONFIRM, Screen.PASSWORD_RESET, Screen.SERVERS,
         -> Unit
     }
 }

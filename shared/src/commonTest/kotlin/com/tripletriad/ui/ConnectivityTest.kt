@@ -20,6 +20,7 @@ import com.tripletriad.protocol.AppVersion
 import com.tripletriad.protocol.CURRENT_VERSION
 import com.tripletriad.protocol.ClientRelease
 import com.tripletriad.protocol.ServerInfo
+import com.tripletriad.protocol.Unlocks
 import com.tripletriad.storage.InMemoryDocumentStore
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -260,6 +261,51 @@ class ConnectivityTest {
     }
 
     // ---- Fixtures ----------------------------------------------------------
+
+    // ---- The thresholds this deployment states -----------------------------
+
+    /**
+     * Before any probe, the answer is `:core`'s defaults rather than nothing.
+     *
+     * The lobby reads this on its first frame, long before a probe has come back. Answering null
+     * there would mean either a blank badge or a client-side guess, and the defaults are neither:
+     * they are what a server that states no thresholds actually sends.
+     */
+    @Test
+    fun theUnlocksAreCoresDefaultsUntilAServerSaysOtherwise() {
+        val connectivity = connectivityOver { respondInfo(healthy) }
+
+        assertEquals(Unlocks(), connectivity.unlocks)
+    }
+
+    /**
+     * And once probed, they are the server's.
+     *
+     * This is what makes a threshold configuration rather than a release: the rule is one function
+     * in `:core` that both ends call, and the numbers travel. A client that kept its own copy would
+     * show *Unlocks at level 5* against a server refusing everyone below twelve.
+     */
+    @Test
+    fun aProbedServerSuppliesItsOwnThresholds() = runTest {
+        val connectivity = connectivityOver {
+            respondInfo(healthy.copy(unlocks = Unlocks(multiplayer = 12, auction = 20)))
+        }
+
+        connectivity.refreshSelected()
+
+        assertEquals(12, connectivity.unlocks.multiplayer)
+        assertEquals(20, connectivity.unlocks.auction)
+    }
+
+    /** An unreachable server states nothing, so the defaults stand rather than the last reading. */
+    @Test
+    fun anUnreachableServerFallsBackToTheDefaults() = runTest {
+        val connectivity = connectivityOver { throw IOException("no route to host") }
+
+        connectivity.refreshSelected()
+
+        assertEquals(Unlocks(), connectivity.unlocks)
+    }
 
     private fun assertNotNullAdvice(advice: UpdateAdvice?): UpdateAdvice =
         requireNotNull(advice) { "expected advice about this build" }

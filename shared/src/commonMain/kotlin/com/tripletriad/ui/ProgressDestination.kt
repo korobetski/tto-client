@@ -11,6 +11,7 @@ import com.tripletriad.time.Clock
 internal fun ProgressDestination(
     destination: Screen,
     profile: GameSave,
+    onConfirmEmail: (() -> Unit)?,
     pvp: PvpSession?,
     onLogout: () -> Unit,
     choice: Choice,
@@ -52,6 +53,7 @@ internal fun ProgressDestination(
             resume = lobbyResume(pvp, strings, onNavigate),
             onPlay = { onNavigate(Screen.OPPONENTS) },
             onPvp = pvp?.let { { onNavigate(Screen.PVP) } },
+            onConfirmEmail = onConfirmEmail,
             onStats = { onNavigate(Screen.STATS) },
             onQuests = { onNavigate(Screen.QUESTS) },
             // The collection and the shelf are the navigation bar's own two entries; these two open

@@ -9,6 +9,7 @@ import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.XpTable
+import com.tripletriad.protocol.Unlocks
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -18,8 +19,13 @@ import kotlin.test.assertTrue
  *
  * Multiplayer and the auction house are the places where one person holding two accounts stops
  * being their own business: a rigged PvP match moves rating, and a sale to yourself moves cards.
- * The gate is not a fix for that — see the note on [Unlocks] — it is a cost, and the cost is only
- * worth anything if it is charged on both doors rather than on the one that was easier to shut.
+ * The gate is not a fix for that — see the note on [LocalUnlocks] — it is a cost, and the cost
+ * is only worth anything if it is charged on both doors rather than on the one that was easier
+ * to shut.
+ *
+ * These run with **no server**, so the thresholds are `:core`'s own defaults — which is what
+ * [LocalUnlocks] falls back to and what a deployment that states nothing sends. A deployment
+ * that states its own is `PvpUnlockTest`'s subject on the server side.
  */
 @OptIn(ExperimentalTestApi::class)
 class LobbyUnlockUiTest {
@@ -32,7 +38,7 @@ class LobbyUnlockUiTest {
         // The badge, and not merely a dimmed card: "not yet, and here is when" is a different
         // sentence from "not here", and a card that only greys out says the second one.
         assertTrue(
-            isVisible("Unlocks at level ${Unlocks.MULTIPLAYER_LEVEL}"),
+            isVisible("Unlocks at level ${Unlocks.DEFAULT_MULTIPLAYER}"),
             "the lobby refused multiplayer without saying when it opens",
         )
     }
@@ -55,13 +61,13 @@ class LobbyUnlockUiTest {
         // XP, not `level`: `GameSave.sane()` derives the level from it on every load and every
         // write, so a save that names a level it has not earned is a save the repository undoes.
         val documents = seeded(
-            GameSave(username = "kuplu", xp = XpTable.thresholdFor(Unlocks.AUCTION_LEVEL)),
+            GameSave(username = "kuplu", xp = XpTable.thresholdFor(Unlocks.DEFAULT_AUCTION)),
         )
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
 
         assertFalse(
-            isVisible("Unlocks at level ${Unlocks.MULTIPLAYER_LEVEL}"),
+            isVisible("Unlocks at level ${Unlocks.DEFAULT_MULTIPLAYER}"),
             "a character who has cleared the gate was still being told about it",
         )
 

@@ -189,13 +189,20 @@ class StringsBundleTest {
         // all four `app-*` bundles at once, which is the shape that moves every count by the same
         // nine and leaves all four gaps where they were. Measured from a
         // `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted.
-        const val UNION_KEYS = 1677
+        //
+        // +23 to every bundle since: the address on an account, and getting back in without a
+        // password — `APP_EMAIL` and its hint, the four confirmation strings and the code field's
+        // own five, the seven the reset flow needs, and four new `APP_ERROR_*` for the refusals
+        // `AccountError` gained. Authored in all four `app-*` bundles at once, which is the shape
+        // that moves every count by the same 23 and leaves all four gaps where they were.
+        // Measured from a `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted.
+        const val UNION_KEYS = 1700
 
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 1673,
-            AppLocale.FR_FR to 1674,
-            AppLocale.DE_DE to 1634,
-            AppLocale.JA_JA to 1666,
+            AppLocale.EN_US to 1696,
+            AppLocale.FR_FR to 1697,
+            AppLocale.DE_DE to 1657,
+            AppLocale.JA_JA to 1689,
         )
 
         val EXPECTED_GAPS = mapOf(

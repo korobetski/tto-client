@@ -283,7 +283,7 @@ class AccountSessionTest {
     fun registeringIsTheSameThingAgainstADifferentStatus() = runTest {
         val session = sessionOver(answering(HttpStatusCode.Created, encode(signedIn)))
 
-        session.register("kuplu", PASSWORD)
+        session.register("kuplu", PASSWORD, "kuplu@example.test")
 
         assertEquals(player, session.player)
     }

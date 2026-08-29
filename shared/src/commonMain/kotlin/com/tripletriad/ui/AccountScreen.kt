@@ -35,6 +35,8 @@ import kotlinx.coroutines.launch
 const val ACCOUNT_SCREEN_TEST_TAG: String = "account-screen"
 const val ACCOUNT_NAME_TEST_TAG: String = "account-name"
 const val ACCOUNT_PASSWORD_TEST_TAG: String = "account-password"
+const val ACCOUNT_EMAIL_TEST_TAG: String = "account-email"
+const val ACCOUNT_FORGOT_TEST_TAG: String = "account-forgot"
 const val ACCOUNT_SUBMIT_TEST_TAG: String = "account-submit"
 const val ACCOUNT_TOGGLE_TEST_TAG: String = "account-toggle"
 const val ACCOUNT_ERROR_TEST_TAG: String = "account-error"
@@ -52,6 +54,7 @@ internal fun AccountScreen(
     // form and leave them to notice.
     registering: Boolean = false,
     onSignedIn: (isNew: Boolean) -> Unit,
+    onForgotPassword: () -> Unit,
     onBack: () -> Unit,
 ) {
     val strings = LocalStrings.current
@@ -66,11 +69,22 @@ internal fun AccountScreen(
         mutableStateOf(session.lastUsername.orEmpty())
     }
     var password by remember { mutableStateOf("") }
+    // Not keyed on the remembered name: an address is only ever asked for on the way in, so there
+    // is nothing to restore and nothing a previous account's address could be right about.
+    var email by remember { mutableStateOf("") }
 
     // Validated locally so the player learns their password is too short without a round trip. The
     // server checks the same rules and is the only check that counts — `Credentials.looksValid`.
-    val credentials = Credentials(username, password)
-    val canSubmit = credentials.looksValid() && !session.isBusy
+    //
+    // `looksValidToRegister` is the stricter of the two and asks for the address as well, which is
+    // why the field is not merely decorative: the submit button stays off until it is plausible.
+    // Plausible is all it is — see `Credentials.looksLikeEmail`, which deliberately accepts things
+    // that look odd, because the mail either arrives or it does not and that is the real test.
+    val credentials = Credentials(username, password, email.trim().takeIf { it.isNotEmpty() })
+    val canSubmit = !session.isBusy && when {
+        isRegistering -> credentials.looksValidToRegister()
+        else -> credentials.looksValid()
+    }
 
     val title = strings[if (isRegistering) StringKeys.CREATE_ACCOUNT else StringKeys.SIGN_IN]
     val note = rememberNoteHost(ACCOUNT_ERROR_TEST_TAG)
@@ -130,10 +144,34 @@ internal fun AccountScreen(
                 onValueChange = { password = it.take(Credentials.PASSWORD_LENGTH.last) },
                 label = strings[StringKeys.PASSWORD],
                 tag = ACCOUNT_PASSWORD_TEST_TAG,
-                imeAction = ImeAction.Done,
+                // `Next` while registering, because the address is below it and a keyboard that
+                // says "done" over a form with another field left in it is telling a small lie.
+                imeAction = if (isRegistering) ImeAction.Next else ImeAction.Done,
                 isPassword = true,
                 contentType = if (isRegistering) ContentType.NewPassword else ContentType.Password,
             )
+
+            // Registration only. Signing in has never needed it and asking would suggest it were
+            // an alternative to the username, which it is not: the account is named, not addressed.
+            if (isRegistering) {
+                CredentialField(
+                    value = email,
+                    onValueChange = { email = it.take(Credentials.EMAIL_LENGTH.last) },
+                    label = strings[StringKeys.EMAIL],
+                    tag = ACCOUNT_EMAIL_TEST_TAG,
+                    imeAction = ImeAction.Done,
+                    contentType = ContentType.EmailAddress,
+                )
+
+                // Said where it is asked for, not on a page nobody opens. What an address is for
+                // here is narrow, and a player deciding whether to give one deserves to read it
+                // before typing rather than after.
+                Text(
+                    text = strings[StringKeys.EMAIL_HINT],
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
 
             WideButton(
                 label = title,
@@ -142,7 +180,12 @@ internal fun AccountScreen(
                 onClick = {
                     scope.launch {
                         if (isRegistering) {
-                            session.register(username.trim(), password)
+                            session.register(
+                                username = username.trim(),
+                                password = password,
+                                email = email.trim(),
+                                language = strings.locale.tag,
+                            )
                         } else {
                             session.signIn(username.trim(), password)
                         }
@@ -164,6 +207,26 @@ internal fun AccountScreen(
                     }
                 },
             )
+
+            // Only on the sign-in half: a player creating an account cannot have forgotten a
+            // password they have not chosen yet, and the link would be an invitation to a form
+            // that answers "if that account exists" to a name that certainly does not.
+            if (!isRegistering) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                ) {
+                    Text(
+                        text = strings[StringKeys.FORGOT_PASSWORD],
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier
+                            .testTag(ACCOUNT_FORGOT_TEST_TAG)
+                            .clickable { onForgotPassword() }
+                            .padding(8.dp),
+                    )
+                }
+            }
 
             Row(
                 modifier = Modifier.fillMaxWidth(),

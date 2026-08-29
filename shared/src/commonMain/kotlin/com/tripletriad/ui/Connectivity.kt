@@ -18,6 +18,7 @@ import com.tripletriad.net.serverInfo
 import com.tripletriad.protocol.AppVersion
 import com.tripletriad.protocol.ClientRelease
 import com.tripletriad.protocol.ServerInfo
+import com.tripletriad.protocol.Unlocks
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -37,6 +38,16 @@ class Connectivity internal constructor(
     fun statusOf(entry: ServerEntry): ServerStatus = states[entry.id] ?: ServerStatus.Unknown
 
     val status: ServerStatus get() = statusOf(selected)
+
+    /**
+     * What the selected server says the two gated doors open at.
+     *
+     * `:core`'s defaults until a probe has answered, which is the same thing the server
+     * would have said had it been asked — see [LocalUnlocks]. A deployment that has raised
+     * a threshold is therefore shown correctly one probe later rather than never, and a
+     * deployment that has not is shown correctly from the start.
+     */
+    val unlocks: Unlocks get() = status.serverInfo?.unlocks ?: Unlocks()
 
     var release: ClientRelease? by mutableStateOf(null)
         private set

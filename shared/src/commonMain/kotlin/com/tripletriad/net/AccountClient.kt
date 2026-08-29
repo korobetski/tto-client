@@ -2,6 +2,7 @@ package com.tripletriad.net
 
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.Item
+import com.tripletriad.protocol.AccountCode
 import com.tripletriad.protocol.AccountError
 import com.tripletriad.protocol.AccountFailure
 import com.tripletriad.protocol.AppVersion
@@ -13,6 +14,8 @@ import com.tripletriad.protocol.Credentials
 import com.tripletriad.protocol.EnterCampaignRequest
 import com.tripletriad.protocol.Idempotent
 import com.tripletriad.protocol.ItemUsed
+import com.tripletriad.protocol.PasswordReset
+import com.tripletriad.protocol.PasswordResetRequest
 import com.tripletriad.protocol.PlayerState
 import com.tripletriad.protocol.PveRefusal
 import com.tripletriad.protocol.PvpRefusal
@@ -41,11 +44,75 @@ class AccountClient(
     private val version: AppVersion = CURRENT_VERSION,
 ) {
 
-    suspend fun register(credentials: Credentials): AccountResult<Session> =
+    /**
+     * Creates the account, and asks for the confirmation mail in [language].
+     *
+     * The language travels as `Accept-Language` rather than in the body: HTTP already carries it,
+     * and adding a field to `Credentials` would have been a protocol change to say something
+     * twice. It is only ever consulted by the endpoints that *send* a mail — see the server's
+     * `MailTemplates`, which falls back to English for anything it does not recognise, so passing
+     * null costs an English mail and never a refusal.
+     */
+    suspend fun register(
+        credentials: Credentials,
+        language: String? = null,
+    ): AccountResult<Session> =
         call(HTTP_CREATED) {
             client.post("${baseUrl()}/accounts") {
-                protocolHeaders()
+                protocolHeaders(language)
                 setBody(credentials)
+            }
+        }
+
+    /** Answers the code that was mailed. 204 and the account is confirmed. */
+    suspend fun confirmEmail(token: String, code: String): AccountResult<Unit> =
+        accepted(HTTP_NO_CONTENT) {
+            client.post("${baseUrl()}/me/email/verify") {
+                protocolHeaders()
+                bearer(token)
+                setBody(AccountCode(code))
+            }
+        }
+
+    /**
+     * Asks for another one, and invalidates the last.
+     *
+     * 202 whatever the state of the account, including one with no address at all — so `Ok` here
+     * means *the request was taken*, not *a mail was sent*. Nothing on this side can know the
+     * second, and a screen that claimed it would be lying to a player whose provider is down.
+     */
+    suspend fun resendCode(token: String, language: String? = null): AccountResult<Unit> =
+        accepted(HTTP_ACCEPTED) {
+            client.post("${baseUrl()}/me/email/resend") {
+                protocolHeaders(language)
+                bearer(token)
+            }
+        }
+
+    /**
+     * *I have forgotten my password.* Unauthenticated, by definition of the problem.
+     *
+     * Always 202, for an account that exists and one that does not alike — the server refuses to
+     * turn this form into a way of asking which usernames are registered. So this cannot report
+     * "no such player", and no screen above it should try to.
+     */
+    suspend fun forgotPassword(
+        username: String,
+        language: String? = null,
+    ): AccountResult<Unit> =
+        accepted(HTTP_ACCEPTED) {
+            client.post("${baseUrl()}/accounts/password/forgot") {
+                protocolHeaders(language)
+                setBody(PasswordResetRequest(username))
+            }
+        }
+
+    /** The code and the new password. Every session on the account ends with it, this one too. */
+    suspend fun resetPassword(request: PasswordReset): AccountResult<Unit> =
+        accepted(HTTP_NO_CONTENT) {
+            client.post("${baseUrl()}/accounts/password/reset") {
+                protocolHeaders()
+                setBody(request)
             }
         }
 
@@ -184,6 +251,21 @@ class AccountClient(
         }
     }
 
+    /**
+     * For the endpoints whose success has no body: the status *is* the answer.
+     *
+     * Separate from [call] rather than `call<Unit>`, because that would ask the content negotiator
+     * to decode a `Unit` out of an empty body — which works by accident on some configurations and
+     * throws on others, and either way asks a question nobody wanted answered.
+     */
+    private suspend inline fun accepted(
+        expected: Int,
+        crossinline request: suspend () -> HttpResponse,
+    ): AccountResult<Unit> = guard {
+        val response = request()
+        if (response.status.value == expected) AccountResult.Ok(Unit) else response.toFailure()
+    }
+
     private suspend inline fun <reified T> call(
         expected: Int,
         crossinline request: suspend () -> HttpResponse,
@@ -228,14 +310,21 @@ class AccountClient(
         }
     }
 
-    private fun io.ktor.client.request.HttpRequestBuilder.protocolHeaders() {
+    private fun io.ktor.client.request.HttpRequestBuilder.protocolHeaders(
+        language: String? = null,
+    ) {
         contentType(ContentType.Application.Json)
         header(VERSION_HEADER, version.toString())
+        // `en_US` rather than `en-US`, which is what `AppLocale.tag` holds and is not quite the
+        // header's own grammar. Left alone deliberately: the server reads the first two letters
+        // and nothing else, so translating it here would be inventing a shape neither end wants.
+        language?.let { header(HttpHeaders.AcceptLanguage, it) }
     }
 
     private companion object {
         const val HTTP_OK = 200
         const val HTTP_CREATED = 201
+        const val HTTP_ACCEPTED = 202
         const val HTTP_NO_CONTENT = 204
         const val HTTP_UPGRADE_REQUIRED = 426
         const val HTTP_TOO_MANY_REQUESTS = 429

@@ -100,6 +100,9 @@ internal fun DashboardScreen(
     resume: LobbyResume?,
     onPlay: () -> Unit,
     onPvp: (() -> Unit)?,
+    // Null when there is nothing to confirm. See the multiplayer card, which is the one
+    // place an unconfirmed address costs a player anything.
+    onConfirmEmail: (() -> Unit)?,
     onStats: () -> Unit,
     onQuests: () -> Unit,
     onDecks: () -> Unit,
@@ -116,7 +119,9 @@ internal fun DashboardScreen(
     // Read, never written: `statuses` derives the day's draw when the save has not been credited
     // today, so the count is right on a character who has not played yet. See [QuestsScreen].
     val quests = remember(profile, at) { DailyQuestRepository().statuses(profile, at) }
-    val multiplayerOpen = Unlocks.multiplayer(profile)
+    // This deployment's thresholds, not this build's — see [LocalUnlocks].
+    val unlocks = LocalUnlocks.current
+    val multiplayerOpen = unlocks.allowsMultiplayer(profile)
 
     ScreenScaffold(
         title = profile.username,
@@ -177,15 +182,25 @@ internal fun DashboardScreen(
                         // server there is nobody to play — see `PvpClient`; below the level there
                         // is, and the answer is "not yet" rather than "not here".
                         badge = when {
+                            // The level first, deliberately, and it is the *opposite* order to the
+                            // server's refusal. That one names the address first because a player
+                            // who has hit the door can act on it immediately; here the door is
+                            // usually still far away, and telling a level-one player to confirm an
+                            // address would suggest that confirming is what opens it.
                             !multiplayerOpen -> strings.format(
                                 StringKeys.LOCKED_LEVEL,
-                                Unlocks.MULTIPLAYER_LEVEL.toString(),
+                                unlocks.multiplayer.toString(),
                             )
+
+                            // Levelled, and stopped by the one thing left. Without this the card
+                            // would be a dead end: shut, with the remedy on a screen the player
+                            // last saw when they registered and no way back to it.
+                            onConfirmEmail != null -> strings[StringKeys.CONFIRM_NEEDED]
 
                             else -> null
                         },
                         enabled = onPvp != null && multiplayerOpen,
-                        onClick = { onPvp?.invoke() },
+                        onClick = { onConfirmEmail?.invoke() ?: onPvp?.invoke() },
                     )
                 }
             }
@@ -230,7 +245,7 @@ internal fun DashboardScreen(
             }
 
             SectionHeader(strings[StringKeys.LOBBY_SOON], Modifier.padding(top = SpaceSm))
-            AuctionBanner(open = Unlocks.auction(profile), onClick = onAuction)
+            AuctionBanner(open = unlocks.allowsAuction(profile), onClick = onAuction)
         }
     }
 }
@@ -392,7 +407,7 @@ private fun AuctionBanner(open: Boolean, onClick: () -> Unit) {
                     } else {
                         strings.format(
                             StringKeys.LOCKED_LEVEL,
-                            Unlocks.AUCTION_LEVEL.toString(),
+                            LocalUnlocks.current.auction.toString(),
                         )
                     },
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),

@@ -35,7 +35,8 @@ const val AUCTION_LOCK_TEST_TAG: String = "auction-lock"
 @Composable
 internal fun AuctionScreen(profile: GameSave, onBack: () -> Unit) {
     val strings = LocalStrings.current
-    val open = Unlocks.auction(profile)
+    val unlocks = LocalUnlocks.current
+    val open = unlocks.allowsAuction(profile)
 
     CharacterScaffold(
         profile = profile,
@@ -91,7 +92,7 @@ internal fun AuctionScreen(profile: GameSave, onBack: () -> Unit) {
                     Text(
                         text = strings.format(
                             StringKeys.LOCKED_LEVEL,
-                            Unlocks.AUCTION_LEVEL.toString(),
+                            unlocks.auction.toString(),
                         ),
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = SUBDUED),
                         style = MaterialTheme.typography.bodySmall,

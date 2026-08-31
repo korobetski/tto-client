@@ -1002,7 +1002,6 @@
   "APP_LOBBY_RESUME": "未完了",
   "APP_LOBBY_TODAY": "今日",
   "APP_LOBBY_MORE": "その他",
-  "APP_LOBBY_SOON": "近日公開",
   "APP_AUCTION": "オークションハウス",
   "APP_AUCTION_BLURB": "余ったカードを出品し、ほかのプレイヤーの出品に入札できます。すべての取引は公開され、MGPで決済されます（個人間のトレードはありません）。",
   "APP_LOCKED_LEVEL": "レベル{0}で解放",
@@ -1097,5 +1096,6 @@
   "APP_POUCH_ITEM": "売上袋 — {0}",
   "APP_POUCH_OPENED": "{1} の売上 {0} MGP。",
   "APP_POUCH_ITEM_DESC": "{0} の売却代金が入った袋。",
-  "APP_CARD_ITEM_UNSOLD_DESC": "オークションで落札されませんでした。使用するとコレクションに戻ります。"
+  "APP_CARD_ITEM_UNSOLD_DESC": "オークションで落札されませんでした。使用するとコレクションに戻ります。",
+  "APP_AUCTION_CHANGE_CARD": "変更"
 }

@@ -3,8 +3,10 @@ package com.tripletriad.ui
 import com.tripletriad.net.AccountClient
 import com.tripletriad.net.AuctionClient
 import com.tripletriad.net.MatchReporter
+import com.tripletriad.net.PROJECT_REPOSITORY
 import com.tripletriad.net.PveClient
 import com.tripletriad.net.PvpClient
+import com.tripletriad.net.RELEASES_PAGE
 import com.tripletriad.net.ReleaseSource
 import com.tripletriad.net.ServerConnection
 import com.tripletriad.net.ServerDirectory
@@ -19,6 +21,7 @@ import com.tripletriad.net.runningVersion
 import com.tripletriad.net.serverEntries
 import com.tripletriad.protocol.AppVersion
 import com.tripletriad.protocol.CURRENT_VERSION
+import com.tripletriad.protocol.ClientPlatform
 import com.tripletriad.protocol.ClientRelease
 import com.tripletriad.protocol.ServerInfo
 import com.tripletriad.protocol.Unlocks
@@ -259,6 +262,57 @@ class ConnectivityTest {
         repeat(3) { connectivity.checkForRelease() }
 
         assertEquals(1, asked)
+    }
+
+    // ---- Somewhere to go ---------------------------------------------------
+
+    /**
+     * **The blocking notice always carries a link.**
+     *
+     * A server that refuses this build and publishes no [ClientRelease] is the worst case, not an
+     * edge one: the player cannot sign in, is told exactly that, and the screen used to leave them
+     * to find the new build themselves. The releases page is not as good as a deployment's own
+     * link, and it is the difference between an instruction and a dead end — see `RELEASES_PAGE`.
+     */
+    @Test
+    fun aRefusalWithNothingPublishedStillSaysWhereToGo() = runTest {
+        val next = AppVersion(CURRENT_VERSION.major + 1, 0, 0)
+        val connectivity = connectivityOver {
+            respondInfo(healthy.copy(minimumClient = next, release = null))
+        }
+
+        connectivity.refreshSelected()
+
+        val advice = assertNotNullAdvice(connectivity.update)
+        assertTrue(advice.isRequired)
+        assertEquals(RELEASES_PAGE, advice.download)
+    }
+
+    /**
+     * A link published for somebody else's platform is not a link for this one.
+     *
+     * `downloadForThisPlatform` returns null rather than the wrong artifact — offering an APK to a
+     * desktop is its own dead end — so this is the fallback's other way in, and the more likely of
+     * the two now that a deployment can publish per-platform.
+     */
+    @Test
+    fun aDownloadForAnotherPlatformFallsBackToTheReleasesPage() = runTest {
+        val elsewhere = ClientPlatform.entries.first { it != clientPlatform }
+        val newer = AppVersion(99, 0, 0)
+        val connectivity = connectivityOver(
+            releases = releasing(ClientRelease(newer, mapOf(elsewhere to PAGE))),
+        ) { respondInfo(healthy) }
+
+        connectivity.refreshSelected()
+        connectivity.checkForRelease()
+
+        assertEquals(RELEASES_PAGE, assertNotNullAdvice(connectivity.update).download)
+    }
+
+    /** The page names the repository the release workflow publishes to, and reaches its newest. */
+    @Test
+    fun theFallbackPointsAtThisProjectsLatestRelease() {
+        assertEquals("https://github.com/$PROJECT_REPOSITORY/releases/latest", RELEASES_PAGE)
     }
 
     // ---- Fixtures ----------------------------------------------------------

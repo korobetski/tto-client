@@ -16,6 +16,30 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
+/** The repository this client is built from, and the only place its releases are published. */
+const val PROJECT_REPOSITORY: String = "korobetski/tto-client"
+
+/**
+ * Where a player goes for a newer build when nothing more specific is on offer.
+ *
+ * ### Why there is always something
+ *
+ * A deployment fills [ClientRelease.downloads] when it knows the answer, and the answer really is
+ * per-platform — a store listing on the phones, a file on the desktop. But the map can be empty,
+ * the running platform can be missing from it, and `ServerStatus.Outdated` can arrive with no
+ * [ClientRelease] at all. That last one is the case that matters: the notice is *blocking*, the
+ * player is told this build cannot sign in, and the screen used to answer "so go and find it".
+ *
+ * The releases page is worse than a direct link and far better than nothing — it lists every
+ * platform's artifact, and it stays correct without anybody remembering to update it. So
+ * [UpdateAdvice.download] is not nullable: a notice that says a newer build exists always says
+ * where.
+ *
+ * `/releases/latest` and not `/releases`: the page a player wants is the newest one, and GitHub
+ * redirects it to whatever that currently is.
+ */
+val RELEASES_PAGE: String = "https://github.com/$PROJECT_REPOSITORY/releases/latest"
+
 interface ReleaseSource {
     suspend fun latest(): ClientRelease?
 
@@ -26,7 +50,7 @@ interface ReleaseSource {
 
 class GithubReleaseClient(
     private val client: HttpClient,
-    private val repository: String = DEFAULT_REPOSITORY,
+    private val repository: String = PROJECT_REPOSITORY,
 ) : ReleaseSource {
     // TooGenericExceptionCaught: the same contract as `AccountClient.guard`, and the same reasons.
     // What a dead network throws is the platform's business, not Ktor's, and a body that will not
@@ -60,8 +84,6 @@ class GithubReleaseClient(
         const val API_BASE = "https://api.github.com"
         const val API_VERSION_HEADER = "X-GitHub-Api-Version"
         const val API_VERSION = "2022-11-28"
-
-        const val DEFAULT_REPOSITORY = "korobetski/tto-client"
     }
 }
 

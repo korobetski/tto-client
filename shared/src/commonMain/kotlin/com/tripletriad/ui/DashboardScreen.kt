@@ -244,7 +244,9 @@ internal fun DashboardScreen(
                 }
             }
 
-            SectionHeader(strings[StringKeys.LOBBY_SOON], Modifier.padding(top = SpaceSm))
+            // Under "Also", with no heading of its own. It had one — "Coming soon" — from
+            // when the house was a placeholder, and a section that says a working screen is not
+            // here yet is worse than no section at all.
             AuctionBanner(open = unlocks.allowsAuction(profile), onClick = onAuction)
         }
     }
@@ -390,7 +392,9 @@ private fun AuctionBanner(open: Boolean, onClick: () -> Unit) {
             Icon(
                 imageVector = TtoIcons.Shop,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary.copy(alpha = SUBDUED),
+                tint = MaterialTheme.colorScheme.primary.copy(
+                    alpha = if (open) 1f else SUBDUED,
+                ),
                 modifier = Modifier.size(IconMd),
             )
             Column(modifier = Modifier.weight(1f)) {
@@ -401,20 +405,21 @@ private fun AuctionBanner(open: Boolean, onClick: () -> Unit) {
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(
-                    text = if (open) {
-                        strings[StringKeys.LOBBY_SOON]
-                    } else {
-                        strings.format(
+                // Nothing under the name once the house is open. The second line is where a
+                // *reason it is shut* goes, and an open door has none — the card then reads like
+                // the rest of the lobby's, which are their own labels and nothing else.
+                if (!open) {
+                    Text(
+                        text = strings.format(
                             StringKeys.LOCKED_LEVEL,
                             LocalUnlocks.current.auction.toString(),
-                        )
-                    },
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
-                    style = MaterialTheme.typography.labelMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
     }

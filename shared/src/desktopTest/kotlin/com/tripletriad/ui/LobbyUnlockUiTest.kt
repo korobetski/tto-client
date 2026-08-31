@@ -1,7 +1,10 @@
 package com.tripletriad.ui
 
+import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -48,6 +51,15 @@ class LobbyUnlockUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
 
+        // On the card itself, and not merely on the screen behind it. The card is what a player
+        // reads before deciding whether to tap, and it is the only thing under it: the line that
+        // used to be there whatever the level said "Coming soon", which was true of the house
+        // before it was built and false afterwards.
+        assertTrue(
+            auctionCardSays("Unlocks at level ${Unlocks.DEFAULT_AUCTION}"),
+            "the auction card did not say when it opens",
+        )
+
         openFromDashboard(DASHBOARD_AUCTION_TEST_TAG, AUCTION_SCREEN_TEST_TAG)
 
         // The banner is not disabled, which is the point of it: a player below the line can read
@@ -71,8 +83,22 @@ class LobbyUnlockUiTest {
             "a character who has cleared the gate was still being told about it",
         )
 
+        // Nothing under the name once the door is open — no reason it is shut, and no promise
+        // that it is coming. Asserted on the card rather than on the page, which would pass on
+        // the multiplayer badge alone: both gates are at the same level and print the same line.
+        assertFalse(
+            auctionCardSays("Unlocks at level"),
+            "an open auction house was still explaining itself",
+        )
+
         onNodeWithTag(DASHBOARD_AUCTION_TEST_TAG).performScrollTo().performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(AUCTION_SCREEN_TEST_TAG) }
         assertFalse(exists(AUCTION_LOCK_TEST_TAG), "the cleared requirement was still on the page")
     }
+
+    /** What the lobby's auction card itself carries, as opposed to what the lobby carries. */
+    private fun ComposeUiTest.auctionCardSays(text: String): Boolean =
+        onAllNodes(hasTestTag(DASHBOARD_AUCTION_TEST_TAG).and(hasText(text, substring = true)))
+            .fetchSemanticsNodes()
+            .isNotEmpty()
 }

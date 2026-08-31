@@ -186,7 +186,6 @@ internal fun ServerIndicator(connectivity: Connectivity, onClick: () -> Unit) {
 internal fun UpdateNotice(advice: UpdateAdvice) {
     val strings = LocalStrings.current
     val open = rememberUrlOpener()
-    val download = advice.download
     val game = LocalTtoColors.current
 
     Column(
@@ -223,13 +222,15 @@ internal fun UpdateNotice(advice: UpdateAdvice) {
                 style = MaterialTheme.typography.labelSmall,
             )
         }
-        if (download != null) {
-            WideButton(
-                label = strings.format(StringKeys.UPDATE_GET, advice.target.toString()),
-                tag = UPDATE_DOWNLOAD_TEST_TAG,
-                onClick = { open(download) },
-            )
-        }
+        // Unconditional. It used to be drawn only when the deployment named a link, which left
+        // the blocking notice — the one that says this build cannot sign in — as a dead end for
+        // exactly the deployments that had published nothing. `UpdateAdvice.download` now falls
+        // back to the releases page, so there is always somewhere to go.
+        WideButton(
+            label = strings.format(StringKeys.UPDATE_GET, advice.target.toString()),
+            tag = UPDATE_DOWNLOAD_TEST_TAG,
+            onClick = { open(advice.download) },
+        )
     }
 }
 

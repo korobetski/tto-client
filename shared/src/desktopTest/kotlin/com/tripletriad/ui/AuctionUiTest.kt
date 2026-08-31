@@ -193,17 +193,126 @@ class AuctionUiTest {
         assertEquals(0, engine.posts(), "nothing was consigned")
     }
 
+    /**
+     * The refusal is still there — but it now takes a seller who has *stated* a reserve to reach
+     * it.
+     *
+     * This used to be one keystroke away: type a starting price, and the reserve left at the floor
+     * put the lot in a state that cancels itself at a price the seller had already refused. The
+     * reserve follows the start until it is typed into, so the pair only crosses when somebody
+     * means it — which is what this types, in that order.
+     */
     @Test
-    fun aReserveUnderTheStartPriceNeverLeavesTheDevice() {
+    fun aReserveTheSellerSetUnderTheirOwnStartPriceNeverLeavesTheDevice() {
         val engine = sell {
+            // 200 and not the 100 already in the field: replacing text with the same text is
+            // not an edit, and the seller has to have *stated* a reserve for it to stop
+            // following the start price.
+            onNodeWithTag(AUCTION_RESERVE_FIELD_TEST_TAG).performTextReplacement("200")
             onNodeWithTag(AUCTION_START_FIELD_TEST_TAG).performTextReplacement("500")
 
-            // The reserve is still at the floor, so the lot would cancel itself at a price the
-            // seller has already said they will not take.
             onNodeWithTag(AUCTION_LIST_TEST_TAG).assertIsNotEnabled()
             onNodeWithTag("$AUCTION_LIST_TEST_TAG-why").assertExists()
         }
         assertEquals(0, engine.posts(), "nothing was consigned")
+    }
+
+    /** And the ordinary case, which is one number and not two. */
+    @Test
+    fun aStartPriceCarriesTheReserveWithItUntilTheSellerHasOneOfTheirOwn() {
+        sell {
+            onNodeWithTag(AUCTION_START_FIELD_TEST_TAG).performTextReplacement("500")
+
+            // 5% of a reserve that moved with it. Left behind at the floor the fee would read
+            // 5 MGP and the button would be grey.
+            onNodeWithText("25 MGP").assertExists()
+            onNodeWithTag(AUCTION_LIST_TEST_TAG).assertIsEnabled()
+        }
+    }
+
+    @Test
+    fun aReserveTheSellerHasTypedIsNotMovedUnderThem() {
+        sell {
+            onNodeWithTag(AUCTION_RESERVE_FIELD_TEST_TAG).performTextReplacement("1000")
+            onNodeWithTag(AUCTION_START_FIELD_TEST_TAG).performTextReplacement("500")
+
+            // Still 5% of the seller's own thousand, not of the five hundred they just typed.
+            onNodeWithText("50 MGP").assertExists()
+        }
+    }
+
+    /** The shop price, twice it, five times it, the ceiling — and typing for the rest. */
+    @Test
+    fun aPriceChipFillsTheFieldAndTakesTheReserveWithIt() {
+        sell {
+            onNodeWithTag(auctionPriceTestTag(FLOOR * 2)).performClick()
+
+            onNodeWithText("10 MGP").assertExists()
+            onNodeWithTag(AUCTION_LIST_TEST_TAG).assertIsEnabled()
+        }
+    }
+
+    // ---- Finding the card ---------------------------------------------------
+
+    /**
+     * The desk says which card it is about to sell, by name.
+     *
+     * It used to say it in a strip of 0.6-scale pictures with no names on them, one of which was
+     * outlined. Naming the card is what makes the rest of the form readable: every number under it
+     * — the floor, the ceiling, the fee — is a fact about *that* card.
+     */
+    @Test
+    fun theDeskNamesTheCardItIsAboutToConsign() {
+        sell {
+            onNodeWithText(strings[cheap.nameKey]).assertExists()
+        }
+    }
+
+    @Test
+    fun anotherCardIsChosenFromTheGridAndTheDeskFollowsIt() {
+        sell(held = mapOf(cheap.id to 2, dear.id to 2)) {
+            val other = if (first.id == cheap.id) dear else cheap
+            onNodeWithText(strings[first.nameKey]).assertExists()
+
+            onNodeWithTag(AUCTION_SELL_PICK_TEST_TAG).performClick()
+            onNodeWithTag(AUCTION_SELL_GRID_TEST_TAG).assertExists()
+            onNodeWithTag(auctionSellCardTestTag(other.id)).performClick()
+
+            // Back on the desk, on the other card — and the desk is the desk again, not the grid.
+            onNodeWithTag(AUCTION_SELL_GRID_TEST_TAG).assertDoesNotExist()
+            onNodeWithText(strings[other.nameKey]).assertExists()
+        }
+    }
+
+    @Test
+    fun thePickerCanBeLeftWithoutChangingWhatIsOnTheDesk() {
+        sell(held = mapOf(cheap.id to 2, dear.id to 2)) {
+            onNodeWithTag(AUCTION_SELL_PICK_TEST_TAG).performClick()
+            onNodeWithTag(AUCTION_SELL_BACK_TEST_TAG).performClick()
+
+            onNodeWithTag(AUCTION_SELL_GRID_TEST_TAG).assertDoesNotExist()
+            onNodeWithText(strings[first.nameKey]).assertExists()
+        }
+    }
+
+    /**
+     * The collection's own filters, over the seller's own spares.
+     *
+     * The point of the picker is that a card can be *found*, and 565 pictures in id order is not
+     * finding. One rarity chip is enough to prove the row is wired to the grid; the chips
+     * themselves are the card list's, and `CardListUiTest` is where they are read.
+     */
+    @Test
+    fun theFiltersNarrowWhatThePickerOffers() {
+        sell(held = mapOf(cheap.id to 2, dear.id to 2)) {
+            onNodeWithTag(AUCTION_SELL_PICK_TEST_TAG).performClick()
+            onNodeWithTag(auctionSellCardTestTag(dear.id)).assertExists()
+
+            onNodeWithTag(rarityFilterTestTag(cheap.rarity)).performClick()
+
+            onNodeWithTag(auctionSellCardTestTag(cheap.id)).assertExists()
+            onNodeWithTag(auctionSellCardTestTag(dear.id)).assertDoesNotExist()
+        }
     }
 
     @Test
@@ -346,6 +455,7 @@ class AuctionUiTest {
                             ),
                             session = session,
                             cards = catalog,
+                            sets = pvpCards.sets,
                             clock = FixedClock(NOW),
                             onBack = {},
                         )
@@ -360,8 +470,17 @@ class AuctionUiTest {
         }
     }
 
-    /** The consignment desk, with one card the player may part with and money for the fee. */
-    private fun sell(block: ComposeUiTest.() -> Unit): MockEngine {
+    /**
+     * The consignment desk, with cards the player may part with and money for the fee.
+     *
+     * @param held how many copies of what. Two of one card by default — enough that one is spare,
+     *   which is the only condition the desk cares about. Pass more to reach the picker, which is
+     *   a control for a collection rather than for a card.
+     */
+    private fun sell(
+        held: Map<Int, Int> = mapOf(cheap.id to 2),
+        block: ComposeUiTest.() -> Unit,
+    ): MockEngine {
         val engine = pageEngine(emptyList())
         runComposeUiTest {
             val session = sessionOn(engine)
@@ -372,13 +491,14 @@ class AuctionUiTest {
                         Column {
                             AuctionSellBody(
                                 session = session,
-                                // Two copies and no decks, so one of them is spare. A card a
-                                // saved deck is built on is not offered here at all.
+                                // No decks, so every copy is spare. A card a saved deck is built
+                                // on is not offered here at all.
                                 profile = purse(PURSE).copy(
-                                    cards = mapOf(cheap.id to 2),
+                                    cards = held,
                                     decks = emptyList(),
                                 ),
                                 cards = catalog,
+                                sets = pvpCards.sets,
                                 openLots = 0,
                             )
                         }
@@ -442,6 +562,16 @@ class AuctionUiTest {
 
     /** Rank 1, so the shop pays 100 for it and every number in this file is derived from that. */
     private val cheap: Card by lazy { pvpCards.all.first { it.rarity == 1 } }
+
+    /** A second card, of another rarity, so the picker has something to pick between. */
+    private val dear: Card by lazy { pvpCards.all.first { it.rarity == 3 } }
+
+    /**
+     * The one the desk opens on: the lowest id among the spares, which is what `AuctionSellBody`
+     * chooses so that the form is never a hole. Read rather than assumed — which of the two it is
+     * depends on the catalog, and this file should not have an opinion about that.
+     */
+    private val first: Card by lazy { listOf(cheap, dear).minBy { it.id } }
 
     private companion object {
         const val LOT = "lot-1"

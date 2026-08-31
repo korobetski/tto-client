@@ -1002,7 +1002,6 @@
   "APP_LOBBY_RESUME": "Wartet auf dich",
   "APP_LOBBY_TODAY": "Heute",
   "APP_LOBBY_MORE": "Außerdem",
-  "APP_LOBBY_SOON": "Demnächst",
   "APP_AUCTION": "Auktionshaus",
   "APP_AUCTION_BLURB": "Stelle deine doppelten Karten zum Verkauf und biete auf die anderer Spieler. Jeder Verkauf ist öffentlich und wird in MGP abgerechnet — private Tauschgeschäfte gibt es nicht.",
   "APP_LOCKED_LEVEL": "Ab Stufe {0} verfügbar",
@@ -1097,5 +1096,6 @@
   "APP_POUCH_ITEM": "Beutel — {0}",
   "APP_POUCH_OPENED": "{0} MGP aus dem Verkauf von {1}.",
   "APP_POUCH_ITEM_DESC": "Ein Beutel mit dem Erlös aus dem Verkauf von {0}.",
-  "APP_CARD_ITEM_UNSOLD_DESC": "Bei der Auktion unverkauft. Benutze sie, um sie zurück in die Sammlung zu legen."
+  "APP_CARD_ITEM_UNSOLD_DESC": "Bei der Auktion unverkauft. Benutze sie, um sie zurück in die Sammlung zu legen.",
+  "APP_AUCTION_CHANGE_CARD": "Ändern"
 }

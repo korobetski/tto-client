@@ -113,26 +113,29 @@ class ServersUiTest {
         check(!exists(ACCOUNT_SUBMIT_TEST_TAG)) { "the form that cannot work was left on screen" }
     }
 
+    // `aPublishedDownloadForThisPlatformIsOfferedAsAButton` was here, asserting the button appears
+    // when the deployment names a link. The button is now unconditional, so that test could no
+    // longer fail — and the test below asserts the same thing on the harder fixture. Which URL the
+    // button opens is not observable from here (`rememberUrlOpener` is an `expect` with no seam);
+    // `ConnectivityTest` holds that, and holds that a deployment's own link beats the fallback.
+
+    /**
+     * **A deployment that published nothing still sends the player somewhere.**
+     *
+     * This used to assert the opposite — no link, on the grounds that the client should not invent
+     * one. But the notice under test here is the *blocking* one: the build cannot sign in, and the
+     * screen said so and then stopped. A dead end is not a more honest answer than the releases
+     * page, it is the same answer with the useful half removed. See `RELEASES_PAGE`.
+     */
     @Test
-    fun aPublishedDownloadForThisPlatformIsOfferedAsAButton() = runComposeUiTest {
-        setContent { TestApp(store = english(), server = connection(info = tooNewForThisBuild)) }
-
-        awaitTitleChoice("signin")
-        onNodeWithTag(titleChoiceTestTag("signin")).performClick()
-
-        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(UPDATE_DOWNLOAD_TEST_TAG) }
-    }
-
-    @Test
-    fun aDeploymentThatPublishesNothingOffersNoButton() = runComposeUiTest {
+    fun aDeploymentThatPublishesNothingStillOffersTheReleasesPage() = runComposeUiTest {
         val bare = tooNewForThisBuild.copy(release = null)
         setContent { TestApp(store = english(), server = connection(info = bare)) }
 
         awaitTitleChoice("signin")
         onNodeWithTag(titleChoiceTestTag("signin")).performClick()
 
-        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(UPDATE_NOTICE_TEST_TAG) }
-        check(!exists(UPDATE_DOWNLOAD_TEST_TAG)) { "a download was offered with none published" }
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(UPDATE_DOWNLOAD_TEST_TAG) }
     }
 
     // ---- Fixtures ------------------------------------------------------------

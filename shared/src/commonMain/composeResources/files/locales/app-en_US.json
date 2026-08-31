@@ -1002,7 +1002,6 @@
   "APP_LOBBY_RESUME": "Waiting for you",
   "APP_LOBBY_TODAY": "Today",
   "APP_LOBBY_MORE": "Also",
-  "APP_LOBBY_SOON": "Coming soon",
   "APP_AUCTION": "Auction house",
   "APP_AUCTION_BLURB": "Put your spare cards up for sale and bid on other players’. Every sale is public and settled in MGP — there are no private trades.",
   "APP_LOCKED_LEVEL": "Unlocks at level {0}",
@@ -1097,5 +1096,6 @@
   "APP_POUCH_ITEM": "Pouch — {0}",
   "APP_POUCH_OPENED": "{0} MGP, from selling {1}.",
   "APP_POUCH_ITEM_DESC": "A pouch holding the takings from the sale of {0}.",
-  "APP_CARD_ITEM_UNSOLD_DESC": "Unsold at auction. Use it to put it back in your collection."
+  "APP_CARD_ITEM_UNSOLD_DESC": "Unsold at auction. Use it to put it back in your collection.",
+  "APP_AUCTION_CHANGE_CARD": "Change"
 }

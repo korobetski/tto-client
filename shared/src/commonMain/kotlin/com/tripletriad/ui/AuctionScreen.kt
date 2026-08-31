@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.tripletriad.data.CardSet
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.Card
@@ -69,6 +70,7 @@ internal fun AuctionScreen(
     profile: GameSave,
     session: AuctionSession?,
     cards: Map<Int, Card>,
+    sets: List<CardSet>,
     clock: Clock,
     onBack: () -> Unit,
 ) {
@@ -93,7 +95,7 @@ internal fun AuctionScreen(
                     AuctionClosed(strings.format(StringKeys.LOCKED_LEVEL, "${unlocks.auction}"))
 
                 session == null -> AuctionUnserved()
-                else -> AuctionRoom(session, profile, cards, clock)
+                else -> AuctionRoom(session, profile, cards, sets, clock)
             }
         }
     }
@@ -104,6 +106,7 @@ private fun ColumnScope.AuctionRoom(
     session: AuctionSession,
     profile: GameSave,
     cards: Map<Int, Card>,
+    sets: List<CardSet>,
     clock: Clock,
 ) {
     val strings = LocalStrings.current
@@ -163,6 +166,9 @@ private fun ColumnScope.AuctionRoom(
                 session = session,
                 profile = profile,
                 cards = cards,
+                // The blocks a card's set spans, which the picker's set filter folds through.
+                // Only this tab needs them; the board and the lots draw cards they were handed.
+                sets = sets,
                 openLots = session.mine.count { it.yours && !it.status.isFinished },
             )
         }

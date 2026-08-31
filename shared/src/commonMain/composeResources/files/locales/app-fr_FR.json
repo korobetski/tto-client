@@ -1002,7 +1002,6 @@
   "APP_LOBBY_RESUME": "En attente",
   "APP_LOBBY_TODAY": "Aujourd'hui",
   "APP_LOBBY_MORE": "Aussi",
-  "APP_LOBBY_SOON": "Bientôt",
   "APP_AUCTION": "Hôtel des ventes",
   "APP_AUCTION_BLURB": "Mettez vos doubles en vente et enchérissez sur ceux des autres joueurs. Chaque vente est publique et réglée en MGP — aucun échange privé.",
   "APP_LOCKED_LEVEL": "Débloqué au niveau {0}",
@@ -1097,5 +1096,6 @@
   "APP_POUCH_ITEM": "Bourse — {0}",
   "APP_POUCH_OPENED": "{0} MGP, produit de la vente de {1}.",
   "APP_POUCH_ITEM_DESC": "Bourse contenant les recettes de la vente de {0}.",
-  "APP_CARD_ITEM_UNSOLD_DESC": "Invendue aux enchères. Utilisez-la pour la remettre dans votre collection."
+  "APP_CARD_ITEM_UNSOLD_DESC": "Invendue aux enchères. Utilisez-la pour la remettre dans votre collection.",
+  "APP_AUCTION_CHANGE_CARD": "Changer"
 }

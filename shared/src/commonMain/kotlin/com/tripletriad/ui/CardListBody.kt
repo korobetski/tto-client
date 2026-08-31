@@ -439,8 +439,15 @@ private fun ColumnScope.SellButton(card: Card, profile: GameSave, onSell: (Card)
     }
 }
 
+/**
+ * The three questions a card list is filtered by: which set, which element, how good.
+ *
+ * `internal` because the auction's consignment picker asks them too, of a shorter list — see
+ * `AuctionSellBody`'s `SellPicker` for why the two rooms share one control rather than growing
+ * two of them.
+ */
 @Composable
-private fun CardFilters(
+internal fun CardFilters(
     sets: List<Int>,
     types: List<CardType>,
     rarities: List<Int>,

@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.tripletriad.log.Log
+import com.tripletriad.net.RELEASES_PAGE
 import com.tripletriad.net.ServerConnection
 import com.tripletriad.net.ServerEntry
 import com.tripletriad.net.ServerStatus
@@ -123,23 +124,30 @@ class Connectivity internal constructor(
     }
 }
 
+/**
+ * A newer build exists, and this is what to tell the player about it.
+ *
+ * @property download never null. A deployment's own link when it published one for this platform,
+ *   and [RELEASES_PAGE] otherwise — telling somebody their build is too old and leaving them to
+ *   find the new one is the one thing this notice must not do. See [RELEASES_PAGE].
+ */
 data class UpdateAdvice(
     val target: AppVersion,
-    val download: String?,
+    val download: String,
     val notes: String?,
     val isRequired: Boolean,
 ) {
     companion object {
         fun fromServer(info: ServerInfo, isRequired: Boolean): UpdateAdvice = UpdateAdvice(
             target = info.release?.version ?: info.minimumClient,
-            download = info.downloadForThisPlatform(),
+            download = info.downloadForThisPlatform() ?: RELEASES_PAGE,
             notes = info.release?.notes,
             isRequired = isRequired,
         )
 
         fun fromRelease(release: ClientRelease): UpdateAdvice = UpdateAdvice(
             target = release.version,
-            download = release.downloads[clientPlatform],
+            download = release.downloads[clientPlatform] ?: RELEASES_PAGE,
             notes = release.notes,
             isRequired = false,
         )

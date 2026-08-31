@@ -7,14 +7,16 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,11 +27,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tripletriad.data.AuctionRules
+import com.tripletriad.data.CardSet
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.Card
+import com.tripletriad.model.CardType
 import com.tripletriad.model.GameSave
 import com.tripletriad.protocol.AuctionDuration
 import com.tripletriad.protocol.AuctionPolicy
@@ -39,6 +44,14 @@ const val AUCTION_SELL_TEST_TAG: String = "auction-sell"
 
 const val AUCTION_SELL_EMPTY_TEST_TAG: String = "auction-sell-empty"
 
+/** The chosen card, which is also the control that opens the picker. */
+const val AUCTION_SELL_PICK_TEST_TAG: String = "auction-sell-pick"
+
+/** Leaving the picker without changing anything. */
+const val AUCTION_SELL_BACK_TEST_TAG: String = "auction-sell-back"
+
+const val AUCTION_SELL_GRID_TEST_TAG: String = "auction-sell-grid"
+
 const val AUCTION_START_FIELD_TEST_TAG: String = "auction-start-field"
 
 const val AUCTION_RESERVE_FIELD_TEST_TAG: String = "auction-reserve-field"
@@ -47,11 +60,25 @@ const val AUCTION_LIST_TEST_TAG: String = "auction-list"
 
 fun auctionSellCardTestTag(cardId: Int): String = "auction-sell-card-$cardId"
 
+fun auctionPriceTestTag(price: Int): String = "auction-price-$price"
+
 fun auctionDurationTestTag(duration: AuctionDuration): String =
     "auction-duration-${duration.name.lowercase()}"
 
 /**
  * The consignment desk: pick a card, name two prices, say how long.
+ *
+ * ### The card is chosen on its own screen, not off a strip
+ *
+ * This used to be a `LazyRow` of every spare copy, sorted by card id, at 0.6 of a card face. That
+ * is a control for a handful of cards, and the collection holds 565: finding the one you meant to
+ * sell was a horizontal drag through several hundred unlabelled pictures, past cards whose names
+ * were nowhere on screen. Now the desk shows the *one* card being consigned — its name, its
+ * rarity, how many copies are spare — and changing it opens [SellPicker], which is the same grid,
+ * the same cells and the same filters as the collection, in a screen with room for them.
+ *
+ * A card is still chosen for the seller on arrival, so the desk is never a form with a hole in it,
+ * and the picker is one tap away rather than the toll on every listing.
  *
  * ### Only spare copies are offered
  *
@@ -59,6 +86,16 @@ fun auctionDurationTestTag(duration: AuctionDuration): String =
  * follows: a card a saved deck is built on is not spare, and listing it would leave the player
  * with a deck they cannot field — discovered later, from the deck screen, with no way back. The
  * card is *held* by the server the moment the lot opens, so this is not advice.
+ *
+ * ### The reserve follows the starting price until the seller has an opinion about it
+ *
+ * Both start at the floor. Typing a starting price above the reserve used to grey the button out
+ * and explain, correctly, that the lot would cancel itself at a price the seller had already
+ * refused — a true sentence about a form the player had no reason to think was two numbers. So the
+ * reserve tracks the start until it is typed into, and stops the moment it is: a seller who has
+ * stated a reserve owns it, and one who has not is not asked to restate the number they just
+ * entered. `AuctionRules.validateListing` still refuses the crossed pair, and `AuctionUiTest`
+ * still proves it does.
  *
  * ### The fee is shown before the button, and it is not refundable
  *
@@ -72,17 +109,18 @@ internal fun ColumnScope.AuctionSellBody(
     session: AuctionSession,
     profile: GameSave,
     cards: Map<Int, Card>,
+    sets: List<CardSet>,
     openLots: Int,
 ) {
     val strings = LocalStrings.current
     val scope = rememberCoroutineScope()
 
-    // Recomputed only when the collection moves. A listing takes a copy out of it, so the row a
+    // Recomputed only when the collection moves. A listing takes a copy out of it, so the cell a
     // seller just listed from disappears on the next profile — which is the correct behaviour and
     // the reason this is keyed on the map rather than remembered once.
-    // Card *ids*, not `ownedCardIds()`, which is one entry per copy — a shelf built from that
-    // offers the same card twice to anybody who owns two of it, and `LazyRow`'s key would collide
-    // on the second. One row per card; how many are spare is what the row is filtered on.
+    // Card *ids*, not `ownedCardIds()`, which is one entry per copy — a grid built from that
+    // offers the same card twice to anybody who owns two of it, and the key would collide on the
+    // second. One cell per card; how many are spare is what the cell is filtered on.
     val sellable = remember(profile.cards, cards) {
         profile.cards.keys
             .sorted()
@@ -96,7 +134,24 @@ internal fun ColumnScope.AuctionSellBody(
     }
 
     var chosenId by remember(sellable) { mutableStateOf(sellable.first().id) }
+    var picking by remember(sellable) { mutableStateOf(false) }
     val chosen = sellable.firstOrNull { it.id == chosenId } ?: sellable.first()
+
+    if (picking) {
+        SellPicker(
+            sellable = sellable,
+            profile = profile,
+            sets = sets,
+            chosen = chosen,
+            onPick = {
+                chosenId = it
+                picking = false
+            },
+            onBack = { picking = false },
+        )
+        return
+    }
+
     val floor = AuctionRules.floorPriceOf(chosen.id, cards)
     val ceiling = AuctionRules.ceilingPriceOf(chosen.id, cards, AuctionPolicy())
 
@@ -105,7 +160,13 @@ internal fun ColumnScope.AuctionSellBody(
     // screen a guess at what is allowed.
     var start by remember(chosen.id) { mutableStateOf("$floor") }
     var reserve by remember(chosen.id) { mutableStateOf("$floor") }
+    var reserveOwned by remember(chosen.id) { mutableStateOf(false) }
     var duration by remember { mutableStateOf(AuctionDuration.MEDIUM) }
+
+    val setStart: (String) -> Unit = { typed ->
+        start = typed
+        if (!reserveOwned) reserve = typed
+    }
 
     val refusal = AuctionRules.validateListing(
         cardId = chosen.id,
@@ -127,39 +188,31 @@ internal fun ColumnScope.AuctionSellBody(
         verticalArrangement = Arrangement.spacedBy(SpaceMd),
     ) {
         SectionHeader(strings[StringKeys.AUCTION_SELL_CARD])
-        LazyRow(
-            modifier = Modifier.fillMaxWidth().height(SellShelfHeight),
-            horizontalArrangement = Arrangement.spacedBy(SpaceXs),
-        ) {
-            items(sellable, key = { it.id }) { card ->
-                Column(
-                    modifier = Modifier
-                        .testTag(auctionSellCardTestTag(card.id))
-                        .rowSurface(selected = card.id == chosen.id)
-                        .ttoClickable(
-                            selected = card.id == chosen.id,
-                            onClick = { chosenId = card.id },
-                        )
-                        .padding(SpaceXs),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    CardFace(card = card, scale = SHELF_CARD_SCALE)
-                }
-            }
-        }
+        ChosenCard(
+            card = chosen,
+            spares = profile.spareCopiesOf(chosen.id),
+            onChange = { picking = true },
+        )
 
         AmountField(
             value = start,
-            onValueChange = { start = it },
+            onValueChange = setStart,
             label = strings[StringKeys.AUCTION_START_PRICE],
             tag = AUCTION_START_FIELD_TEST_TAG,
             supporting = strings.format(StringKeys.AUCTION_FLOOR_HINT, "$floor"),
             isError = start.digits < floor,
         )
 
+        // Four numbers a seller might actually mean, rather than four positions on a scale. Typing
+        // is still there for everything in between — see [AmountField] on why this is not a slider.
+        PriceRungs(rungs = priceRungs(floor, ceiling), chosen = start.digits, onPick = setStart)
+
         AmountField(
             value = reserve,
-            onValueChange = { reserve = it },
+            onValueChange = {
+                reserve = it
+                reserveOwned = true
+            },
             label = strings[StringKeys.AUCTION_RESERVE],
             tag = AUCTION_RESERVE_FIELD_TEST_TAG,
             supporting = strings.format(StringKeys.AUCTION_RESERVE_HINT, "$ceiling"),
@@ -243,6 +296,179 @@ internal fun ColumnScope.AuctionSellBody(
     }
 }
 
-private const val SHELF_CARD_SCALE = 0.6f
+/**
+ * The card on the desk: what is about to be consigned, and the way to consign another.
+ *
+ * The whole row is the control, not the word at the end of it. A seller who wants a different card
+ * reaches for the card, which is the biggest thing on the line; the label beside it is there to
+ * say that reaching for it does something, for anyone who does not try.
+ */
+@Composable
+private fun ChosenCard(card: Card, spares: Int, onChange: () -> Unit) {
+    val strings = LocalStrings.current
 
-private val SellShelfHeight = 92.dp
+    Row(
+        modifier = Modifier
+            .testTag(AUCTION_SELL_PICK_TEST_TAG)
+            .fillMaxWidth()
+            .rowSurface()
+            .ttoClickable(onClick = onChange)
+            .padding(SpaceSm),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(SpaceMd),
+    ) {
+        CardTile(
+            card = card,
+            count = spares,
+            modifier = Modifier.size(FramedThumbSide),
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = strings[card.nameKey],
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.titleSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = STAR.repeat(card.rarity),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+            )
+        }
+        Text(
+            text = strings[StringKeys.AUCTION_CHANGE_CARD],
+            color = MaterialTheme.colorScheme.primary,
+            style = MaterialTheme.typography.labelLarge,
+            maxLines = 1,
+        )
+    }
+}
+
+/**
+ * Every spare copy, as a grid with the collection's own filters over it.
+ *
+ * The same cell the card list draws ([CardTile]) and the same filter row ([CardFilters]), because
+ * this is the same question asked in a different room — *which of my cards* — and a player who has
+ * learned to find a card once should not have to learn it again. What differs is the count in the
+ * corner: here it is how many copies are **spare**, which is how many could be listed, rather than
+ * how many are owned.
+ *
+ * The grid takes the screen rather than sharing it with the form. A bounded grid inside the desk's
+ * own scroll would be two scrolling surfaces one inside the other, which on a phone is a drag that
+ * moves whichever one guesses first.
+ */
+@Composable
+private fun ColumnScope.SellPicker(
+    sellable: List<Card>,
+    profile: GameSave,
+    sets: List<CardSet>,
+    chosen: Card,
+    onPick: (Int) -> Unit,
+    onBack: () -> Unit,
+) {
+    val strings = LocalStrings.current
+    var set by remember { mutableStateOf<Int?>(null) }
+    var type by remember { mutableStateOf<CardType?>(null) }
+    var rarity by remember { mutableStateOf<Int?>(null) }
+
+    // A card's block folds down to the block that speaks for its whole *set* before it is
+    // compared, so FFXIV — which spans two — is one chip and not two. See `representativeBlocks`.
+    val blockGroups = remember(sets) { representativeBlocks(sets) }
+    val shown = remember(sellable, set, type, rarity, blockGroups) {
+        sellable.filter {
+            (set == null || blockGroups[it.block] == set) &&
+                (type == null || it.type == type) &&
+                (rarity == null || it.rarity == rarity)
+        }
+    }
+
+    Column(modifier = Modifier.testTag(AUCTION_SELL_TEST_TAG).fillMaxWidth().weight(1f)) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            SectionHeader(strings[StringKeys.AUCTION_SELL_CARD], Modifier.weight(1f))
+            TextButton(onClick = onBack, modifier = Modifier.testTag(AUCTION_SELL_BACK_TEST_TAG)) {
+                Text(text = strings[StringKeys.BACK], style = MaterialTheme.typography.labelLarge)
+            }
+        }
+
+        CardFilters(
+            sets = remember(sellable, blockGroups) {
+                sellable.mapNotNull { blockGroups[it.block] }.distinct().sorted()
+            },
+            types = remember(sellable) {
+                CardType.entries.filter { candidate -> sellable.any { it.type == candidate } }
+            },
+            rarities = remember(sellable) { sellable.map { it.rarity }.distinct().sorted() },
+            set = set,
+            type = type,
+            rarity = rarity,
+            onSet = { set = it },
+            onType = { type = it },
+            onRarity = { rarity = it },
+        )
+
+        LazyVerticalGrid(
+            // The card list's own arrangement, for the reasons written there: cells the size of
+            // the art, no spacing between frames that already carry their own margin, and the
+            // width the columns do not use split between the two edges.
+            columns = GridCells.FixedSize(FramedThumbSide),
+            horizontalArrangement = Arrangement.spacedBy(0.dp, Alignment.CenterHorizontally),
+            modifier = Modifier.testTag(AUCTION_SELL_GRID_TEST_TAG).fillMaxWidth().weight(1f),
+        ) {
+            items(shown, key = { it.id }) { card ->
+                CardTile(
+                    card = card,
+                    selected = card.id == chosen.id,
+                    count = profile.spareCopiesOf(card.id),
+                    modifier = Modifier
+                        .testTag(auctionSellCardTestTag(card.id))
+                        .size(FramedThumbSide)
+                        .ttoClickable(
+                            selected = card.id == chosen.id,
+                            onClick = { onPick(card.id) },
+                        ),
+                )
+            }
+        }
+    }
+}
+
+/** The prices, as chips. Absent when there is nothing to choose between. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PriceRungs(rungs: List<Int>, chosen: Int, onPick: (String) -> Unit) {
+    if (rungs.size < 2) return
+
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(SpaceXs)) {
+        rungs.forEach { price ->
+            TtoFilterChip(
+                label = "$price",
+                selected = price == chosen,
+                tag = auctionPriceTestTag(price),
+                onClick = { onPick("$price") },
+            )
+        }
+    }
+}
+
+/**
+ * The prices offered as chips: the shop price, twice it, five times it, and the house's ceiling.
+ *
+ * Multiples of the floor rather than fractions of the ceiling, because the floor is the number the
+ * seller can check — it is what the counter next door pays — while the ceiling is an
+ * anti-laundering limit with nothing to say about what a card is worth. Anything already past the
+ * ceiling falls out, and a card whose ceiling *is* its floor offers one rung, which [PriceRungs]
+ * draws as none.
+ */
+internal fun priceRungs(floor: Int, ceiling: Int): List<Int> =
+    listOf(floor, floor * PRICE_DOUBLE, floor * PRICE_QUINTUPLE, ceiling)
+        .filter { it in floor..ceiling }
+        .distinct()
+        .sorted()
+
+private const val PRICE_DOUBLE = 2
+
+private const val PRICE_QUINTUPLE = 5
+
+private const val STAR = "★"

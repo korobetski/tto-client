@@ -753,7 +753,10 @@ private fun CharacterDestination(
         Screen.AUCTION -> AuctionScreen(
             profile = profile,
             session = auctions,
-            cards = startup.catalog?.all?.associateBy { it.id }.orEmpty(),
+            // `byId`, which the catalog builds once, and not a fresh 565-entry map on every
+            // recomposition of the lobby.
+            cards = startup.catalog?.byId.orEmpty(),
+            sets = startup.catalog?.sets.orEmpty(),
             clock = clock,
             onBack = toDashboard,
         )

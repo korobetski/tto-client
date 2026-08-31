@@ -69,6 +69,8 @@ fun tableRowTestTag(id: String): String = "pvp-table-$id"
 
 fun tableJoinTestTag(id: String): String = "pvp-join-$id"
 
+fun tableCautionTestTag(id: String): String = "pvp-caution-$id"
+
 internal enum class LobbyTab { TABLES, CHALLENGES }
 
 /**
@@ -252,6 +254,7 @@ internal fun PvpScreen(
 
         when (tab) {
             LobbyTab.TABLES -> TablesBody(
+                profile = profile,
                 session = session,
                 now = now,
                 scope = scope,
@@ -339,6 +342,7 @@ private fun ClaimBanner(count: Int, onClaim: () -> Unit) {
 
 @Composable
 private fun ColumnScope.TablesBody(
+    profile: GameSave,
     session: PvpSession,
     now: Long,
     scope: CoroutineScope,
@@ -394,6 +398,9 @@ private fun ColumnScope.TablesBody(
                     mine = table.id == mine?.id,
                     now = now,
                     enabled = !session.isBusy,
+                    // The reader's own profile, because what a wager *is* depends on who is
+                    // looking at it — see the row's own note.
+                    profile = profile,
                     // Names the seat rather than joining. The deck question comes first now —
                     // see [PvpSeat] — and it is the answer to it that sends the request.
                     onJoin = { onSit(PvpSeat.at(table)) },
@@ -409,9 +416,23 @@ private fun TableRow(
     mine: Boolean,
     now: Long,
     enabled: Boolean,
+    profile: GameSave,
     onJoin: () -> Unit,
 ) {
     val strings = LocalStrings.current
+    val stakes = LocalStakes.current
+    val ceiling = stakes.ceilingFor(profile)
+    // Above what this player's level allows. The server refuses it — on the *joiner's* ceiling,
+    // not the host's, which is what stops a levelled account opening a wager a fresh one can be
+    // talked into — so the seat is not offered rather than offered and then denied.
+    val overLimit = table.stake.mgp > ceiling
+    // Legal, and a large share of what this player holds. Whether a wager is large is a question
+    // about the reader and not about the table, which is why the house cannot answer it once for
+    // everybody and why this is the one part of the policy the server does not enforce.
+    val heavy = stakes.isHeavy(table.stake.mgp, profile.mgp)
+    // Two presses on a heavy table, one on any other. Keyed on the table so a row scrolled off
+    // and back is not a row half-way through agreeing to something.
+    var confirming by remember(table.id) { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -449,10 +470,14 @@ private fun TableRow(
             // refuses — so the button is absent rather than offered and then denied.
             if (!mine) {
                 RowButton(
-                    label = strings[StringKeys.PVP_JOIN],
+                    label = strings[
+                        if (confirming) StringKeys.PVP_JOIN_CONFIRM else StringKeys.PVP_JOIN,
+                    ],
                     tag = tableJoinTestTag(table.id),
-                    enabled = enabled,
-                    onClick = onJoin,
+                    enabled = enabled && !overLimit,
+                    onClick = {
+                        if (heavy && !confirming) confirming = true else onJoin()
+                    },
                 )
             }
         }
@@ -463,6 +488,22 @@ private fun TableRow(
             color = MaterialTheme.colorScheme.onSurface,
             style = MaterialTheme.typography.labelMedium,
         )
+        // Under the figure it is about, in the error colour, and only when there is something to
+        // say. A line every row carried would be a line nobody reads — the same argument the row
+        // above makes about the tint it used to have.
+        val caution = when {
+            overLimit -> strings.format(StringKeys.PVP_TABLE_OVER_LIMIT, "$ceiling")
+            heavy && !mine -> strings[StringKeys.PVP_TABLE_HEAVY]
+            else -> null
+        }
+        if (caution != null) {
+            Text(
+                text = caution,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.testTag(tableCautionTestTag(table.id)),
+            )
+        }
         RulesStrip(rules = table.rules, roulette = table.roulette)
     }
 }

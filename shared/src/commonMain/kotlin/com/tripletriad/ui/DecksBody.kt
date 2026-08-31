@@ -38,6 +38,7 @@ import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.Strings
 import com.tripletriad.model.Card
 import com.tripletriad.model.Deck
+import com.tripletriad.model.DeckLimits
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.HAND_SIZE
 import kotlinx.coroutines.launch
@@ -52,6 +53,11 @@ const val DECK_PICK_GRID_TEST_TAG: String = "deck-pick-grid"
 
 const val DECK_MISSING_TEST_TAG: String = "deck-missing"
 
+/** The editor's live per-rank counters — `★5 1 / 1  ·  ★4 0 / 2`. */
+const val DECK_LIMITS_TEST_TAG: String = "deck-limits"
+
+const val DECK_OVER_LIMIT_TEST_TAG: String = "deck-over-limit"
+
 fun deckMissingTestTag(index: Int): String = "deck-missing-$index"
 
 fun deckSlotTestTag(index: Int): String = "deck-slot-$index"
@@ -61,6 +67,8 @@ fun deckPositionTestTag(index: Int): String = "deck-position-$index"
 fun deckPickTestTag(cardId: Int): String = "deck-pick-$cardId"
 
 fun deckRemainingTestTag(cardId: Int): String = "deck-remaining-$cardId"
+
+fun deckOverLimitTestTag(index: Int): String = "deck-over-limit-$index"
 
 @Composable
 internal fun ColumnScope.DecksBody(
@@ -101,6 +109,7 @@ private fun DeckSlots(profile: GameSave, cards: Map<Int, Card>, onEdit: (Int) ->
                 deck = deck,
                 cards = cards,
                 unowned = unownedPositions(deck, profile.cards),
+                overLimit = DeckLimits.overLimit(deck.cards, cards),
                 onClick = { onEdit(index) },
             )
         }
@@ -113,6 +122,7 @@ private fun DeckSlotRow(
     deck: Deck,
     cards: Map<Int, Card>,
     unowned: Set<Int>,
+    overLimit: Map<Int, Int>,
     onClick: () -> Unit,
 ) {
     val strings = LocalStrings.current
@@ -160,6 +170,19 @@ private fun DeckSlotRow(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.testTag(deckMissingTestTag(index)),
+                )
+            }
+            // Said for the same reason the line above is, and in the same tone: a deck that never
+            // appears in the selector because it holds two five-stars is otherwise a screen
+            // refusing to explain itself, and this one is repairable in two taps.
+            if (overLimit.isNotEmpty()) {
+                Text(
+                    text = overLimitText(strings, overLimit),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.testTag(deckOverLimitTestTag(index)),
                 )
             }
         }
@@ -251,13 +274,42 @@ private fun DeckEditor(
             )
         }
 
+        // The rule, stated as a live count rather than as a sentence to read once. It is drawn
+        // whatever the draft holds — `0 / 1` before a five-star is picked as much as `1 / 1`
+        // after — because a cap the player only meets when they hit it is a cap they meet as a
+        // refusal. The numbers come from `DeckLimits`, so the screen and the server cannot drift.
+        val overLimit = DeckLimits.overLimit(draft.cards, cards)
+
+        Text(
+            text = "${strings[StringKeys.DECK_LIMITS]} ${limitsText(draft, cards)}",
+            color = if (overLimit.isEmpty()) {
+                MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT)
+            } else {
+                MaterialTheme.colorScheme.error
+            },
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.testTag(DECK_LIMITS_TEST_TAG),
+        )
+
+        // Only for a deck that is *already* over a cap — one built before the caps existed, or one
+        // a set's re-rank moved. The picker cannot produce one, so this is a repair prompt and not
+        // a running validation message.
+        if (overLimit.isNotEmpty()) {
+            Text(
+                text = overLimitText(strings, overLimit),
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.testTag(DECK_OVER_LIMIT_TEST_TAG),
+            )
+        }
+
         Text(
             text = "${strings[StringKeys.DECK_POWER]} ${deckPower(draft, cards)}" +
                 "$DOT_SEPARATOR${draft.cards.size} / $HAND_SIZE",
             // Affordable as well as complete. `5 / 5` in the affirmative tone on a deck that
             // cannot be dealt is the screen agreeing the deck is finished while every other place
             // refuses it.
-            color = if (draft.isComplete && unowned.isEmpty()) {
+            color = if (draft.isComplete && unowned.isEmpty() && overLimit.isEmpty()) {
                 MaterialTheme.colorScheme.tertiary
             } else {
                 MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT)
@@ -301,6 +353,12 @@ private fun DeckEditor(
                 // rejection they cannot act on is worse than one they can see coming.
                 val remaining = profile.copiesOf(card.id) - draft.copiesUsed(card.id)
 
+                // And whether the deck may hold another of this rank. Dimmed and inert exactly as
+                // a spent copy is, because to the player the two are the same fact — this card
+                // cannot go in — and a rule met as a rejection the server issues later is worse
+                // than one met as a tile that will not depress. See `DeckLimits.admits`.
+                val admitted = DeckLimits.admits(draft.cards, cards, card)
+
                 // Centred in its cell, and the frame sized to the card rather than to the
                 // cell. `GridCells.Adaptive` hands an item a **fixed** cross-axis width — whatever
                 // is left over once the columns divide the row — so a border taken straight off
@@ -320,7 +378,7 @@ private fun DeckEditor(
                             .ttoClickable(
                                 role = Role.Checkbox,
                                 selected = card.id in draft.cards,
-                                enabled = !draft.isComplete && remaining > 0,
+                                enabled = !draft.isComplete && remaining > 0 && admitted,
                             ) {
                                 draft = draft.plusCard(card.id)
                             },
@@ -330,7 +388,7 @@ private fun DeckEditor(
                         // `remaining`.
                         CardTile(
                             card = card,
-                            dim = remaining <= 0,
+                            dim = remaining <= 0 || !admitted,
                             selected = card.id in draft.cards,
                             count = remaining.takeIf { profile.copiesOf(card.id) > 1 },
                             countTag = deckRemainingTestTag(card.id),
@@ -376,6 +434,34 @@ internal fun unownedPositions(deck: Deck, owned: Map<Int, Int>): Set<Int> {
 
 internal fun deckLabel(strings: Strings, deck: Deck, index: Int): String =
     deck.name.ifBlank { "${strings[StringKeys.DECK]} ${index + 1}" }
+
+/**
+ * The caps as counters, highest rank first — `★5 1 / 1  ·  ★4 0 / 2`.
+ *
+ * Built out of [DeckLimits.MAX_BY_RARITY] rather than written out, so a cap that changes changes
+ * here too. Stars rather than the word "rank" because the tiles the player is choosing between are
+ * already labelled with stars, and a screen that names the same thing two ways is a screen that has
+ * to be read twice.
+ */
+internal fun limitsText(deck: Deck, cards: Map<Int, Card>): String {
+    val tally = DeckLimits.tally(deck.cards, cards)
+    return DeckLimits.MAX_BY_RARITY.entries
+        .sortedByDescending { it.key }
+        .joinToString(DOT_SEPARATOR) { (rarity, limit) ->
+            "★$rarity ${tally[rarity] ?: 0} / $limit"
+        }
+}
+
+/** Every broken cap, in the tone of a repair: what the deck holds, and what it may. */
+internal fun overLimitText(strings: Strings, overLimit: Map<Int, Int>): String =
+    overLimit.entries.sortedByDescending { it.key }.joinToString(DOT_SEPARATOR) { (rarity, used) ->
+        strings.format(
+            StringKeys.DECK_OVER_LIMIT,
+            "$used",
+            "$rarity",
+            "${DeckLimits.limitOf(rarity)}",
+        )
+    }
 
 internal fun deckPower(deck: Deck, cards: Map<Int, Card>): Int =
     deck.cards.sumOf { cards[it]?.rarity ?: 0 }

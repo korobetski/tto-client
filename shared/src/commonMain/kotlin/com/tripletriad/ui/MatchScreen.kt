@@ -101,6 +101,15 @@ fun handCardTestTag(owner: CardColor, slot: Int): String =
     "hand-${owner.name.lowercase()}-$slot"
 
 /**
+ * The Bonus/Malus badge on a card still in hand.
+ *
+ * Separate from [tileModifierTestTag] rather than one tag over both, because the two answer
+ * different questions: a cell's badge may be the Elemental one, and a hand card's never is.
+ */
+fun handModifierTestTag(owner: CardColor, slot: Int): String =
+    "hand-modifier-${owner.name.lowercase()}-$slot"
+
+/**
  * Whose turn it is, as a test tag — or none, while nobody may move.
  *
  * "It is your turn" is not quite [MatchView.isMyTurn], and the gap is a second long. In a refereed
@@ -192,7 +201,7 @@ internal fun MatchScreen(
     // its opening so the two cannot disagree about what the player is holding. The fallback is for
     // a script that named none, and lands on the profile's own deck rather than on nothing.
     val deck = remember(seed, npc.iconId, rules) {
-        script.deckFor(rules, profile) ?: PveMatches.playerDeck(profile)
+        script.deckFor(rules, profile, catalog.byId) ?: PveMatches.playerDeck(profile, catalog.byId)
     }
 
     val match = remember(seed, npc.iconId, deck) {

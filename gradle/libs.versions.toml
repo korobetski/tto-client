@@ -11,7 +11,7 @@ kotlin = "2.4.10"
 # `tto-server`'s. A local `publishToMavenLocal` is how a change is tried before any of that — see
 # `settings.gradle.kts` for why the local copy wins over the published one.
 
-core = "0.7.15"
+core = "0.7.18"
 
 compose = "1.12.0"
 composeMaterial3 = "1.9.0"

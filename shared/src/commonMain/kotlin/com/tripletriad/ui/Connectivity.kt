@@ -17,6 +17,7 @@ import com.tripletriad.net.isUsable
 import com.tripletriad.net.serverInfo
 import com.tripletriad.protocol.AppVersion
 import com.tripletriad.protocol.ClientRelease
+import com.tripletriad.protocol.PvpStakePolicy
 import com.tripletriad.protocol.ServerInfo
 import com.tripletriad.protocol.Unlocks
 import kotlinx.coroutines.async
@@ -48,6 +49,9 @@ class Connectivity internal constructor(
      * deployment that has not is shown correctly from the start.
      */
     val unlocks: Unlocks get() = status.serverInfo?.unlocks ?: Unlocks()
+
+    /** How large a wager it allows, on the same terms as [unlocks] and for the same reason. */
+    val stakes: PvpStakePolicy get() = status.serverInfo?.stakes ?: PvpStakePolicy()
 
     var release: ClientRelease? by mutableStateOf(null)
         private set

@@ -220,7 +220,14 @@ class DeckSelectorUiTest {
     private companion object {
         val STARTER = starterFor(FF14_BLOCK).deck
 
-        val EXTRA = listOf(44, 45, 51, 63, 74).map { Card.idFor(block = 1, number = it) }
+        /**
+         * A second complete deck, heavy enough to be told apart from the starter one by name.
+         *
+         * One five-star and two four-stars, which is `DeckLimits` to the card: a fixture over the
+         * caps is dropped by `PveMatches.playableDecks` and the row this file counts on stops
+         * existing. `74` — a second five-star — is what it used to hold.
+         */
+        val EXTRA = listOf(44, 45, 51, 52, 63).map { Card.idFor(block = 1, number = it) }
 
         const val RANDOM_OPPONENT = "ma-dincht"
 

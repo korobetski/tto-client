@@ -196,13 +196,41 @@ class StringsBundleTest {
         // `AccountError` gained. Authored in all four `app-*` bundles at once, which is the shape
         // that moves every count by the same 23 and leaves all four gaps where they were.
         // Measured from a `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted.
-        const val UNION_KEYS = 1700
+        // +2 to every bundle since: the deck-building caps — `APP_DECK_LIMITS`, the label in
+        // front of the editor's per-rank counters, and `APP_DECK_OVER_LIMIT`, the sentence a deck
+        // already over a cap is warned with. Authored in all four `app-*` bundles at once, which
+        // is the shape that moves every count by the same two and leaves all four gaps where they
+        // were. Measured from a `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted.
+        //
+        // +69 to every bundle since: the auction house. 67 of them are [StringKeys] constants —
+        // the room, the desk's terms, the consignment form and the thirteen sentences the house
+        // refuses with. The other two are *derived* keys, reached through `descriptionKey` rather
+        // than through [StringKeys], the same way an achievement's label is reached through
+        // `AchievementCatalog`: `APP_POUCH_ITEM_DESC` for a settled lot's takings and
+        // `APP_CARD_ITEM_UNSOLD_DESC` for a card nobody bid enough for. `DerivedKeysTest` is what
+        // holds those two to the bundles; this count is what holds all 69. Authored in all four
+        // `app-*` bundles at once — the house moves real money between real players and a screen
+        // that falls back to English for one of them is a screen somebody agrees to without
+        // reading — which is the shape that moves every count by the same 69 and leaves all four
+        // gaps where they were. Measured from a
+        // `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted.
+        //
+        // +9 to every bundle since: the PvP wager — the five the stake field needs
+        // (`APP_PVP_STAKE_LIMIT`, `_OVER_LIMIT`, `_OVER_PURSE`, `_MAX`, `_HEAVY`), the three the
+        // lobby puts on a table somebody is about to sit at (`APP_PVP_TABLE_HEAVY`,
+        // `APP_PVP_TABLE_OVER_LIMIT`, `APP_PVP_JOIN_CONFIRM`) and `APP_PVP_ERROR_STAKE` for the
+        // refusal `PvpRefusal.STAKE_TOO_HIGH` now answers with. Authored in all four `app-*`
+        // bundles at once — a player is being warned about their own money, and a warning that
+        // falls back to English is a warning somebody scrolls past — which is the shape that moves
+        // every count by the same nine and leaves all four gaps where they were. Measured from a
+        // `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted.
+        const val UNION_KEYS = 1780
 
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 1696,
-            AppLocale.FR_FR to 1697,
-            AppLocale.DE_DE to 1657,
-            AppLocale.JA_JA to 1689,
+            AppLocale.EN_US to 1776,
+            AppLocale.FR_FR to 1777,
+            AppLocale.DE_DE to 1737,
+            AppLocale.JA_JA to 1769,
         )
 
         val EXPECTED_GAPS = mapOf(

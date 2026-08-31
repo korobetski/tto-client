@@ -225,7 +225,7 @@ private fun ItemRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = strings[item.descriptionKey],
+                text = itemDescription(strings, item, cards),
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
                 style = MaterialTheme.typography.labelSmall,
                 // Same two-line allowance as the shop's own offer row — see `ShopBody.OfferRow` —
@@ -327,6 +327,15 @@ private fun useNote(strings: Strings, effect: ItemEffect, cards: Map<Int, Card>)
         is ItemEffect.BoonRaised -> null
 
         is ItemEffect.NotUseable -> strings[StringKeys.ITEM_REFUSED]
+
+        // The one effect here whose *number* is the point. Everything else the bag does is
+        // visible on the row it changed; a payout is visible only as a purse that is larger
+        // than it was, and nobody remembers what it was.
+        is ItemEffect.PouchOpened -> strings.format(
+            StringKeys.POUCH_OPENED,
+            effect.mgp.toString(),
+            cardName(strings, effect.cardId, cards),
+        )
     }
 
 private fun itemFacts(

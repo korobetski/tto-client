@@ -527,6 +527,7 @@ private fun AccountError.message(strings: Strings, detail: String): String = whe
 
 internal fun PvpRefusal.message(strings: Strings): String = when (this) {
     PvpRefusal.CANNOT_AFFORD -> strings[StringKeys.PVP_ERROR_AFFORD]
+    PvpRefusal.STAKE_TOO_HIGH -> strings[StringKeys.PVP_ERROR_STAKE]
     PvpRefusal.TABLE_GONE -> strings[StringKeys.PVP_ERROR_TABLE_GONE]
     PvpRefusal.RULES_NOT_ALLOWED -> strings[StringKeys.PVP_ERROR_RULES]
     PvpRefusal.ALREADY_WAITING -> strings[StringKeys.PVP_ERROR_OWN_TABLE]

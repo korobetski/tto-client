@@ -18,6 +18,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.input.ImeAction
 import com.tripletriad.data.CardCatalog
 import com.tripletriad.data.Format
 import com.tripletriad.data.FormatCatalog
@@ -28,13 +29,15 @@ import com.tripletriad.model.GameSave
 import com.tripletriad.model.TradeRule
 import com.tripletriad.protocol.ANY_DECK
 import com.tripletriad.protocol.PvpStake
+import com.tripletriad.protocol.PvpStakePolicy
 import com.tripletriad.protocol.PvpTableRequest
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 
 const val PVP_TABLE_OPEN_TEST_TAG: String = "pvp-table-open"
 const val PVP_TABLE_MGP_TEST_TAG: String = "pvp-table-mgp"
 const val PVP_TABLE_ROULETTE_TEST_TAG: String = "pvp-table-roulette"
+
+fun stakeChipTestTag(mgp: Int): String = "pvp-stake-$mgp"
 
 fun ruleToggleTestTag(key: String): String = "pvp-rule-$key"
 
@@ -53,12 +56,14 @@ internal fun PvpTableScreen(
     onBack: () -> Unit,
 ) {
     val strings = LocalStrings.current
+    val stakes = LocalStakes.current
     val scope = rememberCoroutineScope()
     var format by remember(formats) { mutableStateOf(formats.default ?: formats.formats.first()) }
     var rules by remember { mutableStateOf(GameRules()) }
     var roulette by remember { mutableStateOf(false) }
     var trade by remember { mutableStateOf(TradeRule.NONE) }
-    var mgp by remember { mutableStateOf(0) }
+    // A string and not an `Int`, because a half-typed number is not a number — see [AmountField].
+    var wager by remember { mutableStateOf("") }
     // The terms as filled in, waiting only on which deck the host brings. See [HostDeck].
     var proposed by remember { mutableStateOf<PvpTableRequest?>(null) }
 
@@ -178,19 +183,10 @@ internal fun PvpTableScreen(
         }
 
         SectionLabel(strings[StringKeys.PVP_STAKE])
-        Text(
-            text = strings.format(StringKeys.PVP_STAKE_MGP, "$mgp"),
-            color = MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.bodySmall,
-        )
-        // Bounded by the purse, because the server refuses a wager the host cannot cover — and a
-        // slider that can be dragged into a refusal is a slider that lies about what it offers.
-        TtoSlider(
-            value = mgp.toFloat(),
-            onValueChange = { mgp = (it / STEP).roundToInt() * STEP },
-            tag = PVP_TABLE_MGP_TEST_TAG,
-            modifier = Modifier.fillMaxWidth(),
-            valueRange = 0f..profile.mgp.toFloat().coerceAtLeast(0f),
+        StakeField(
+            value = wager,
+            onValueChange = { wager = it },
+            profile = profile,
         )
 
         SectionLabel(strings[StringKeys.PVP_TRADE])
@@ -216,13 +212,15 @@ internal fun PvpTableScreen(
                 if (invitee == null) StringKeys.PVP_HOST_OPEN else StringKeys.PVP_INVITE,
             ],
             tag = PVP_TABLE_OPEN_TEST_TAG,
-            enabled = !session.isBusy,
+            // A wager the server will refuse is not one this screen offers. Both halves of the
+            // limit are checked, because they are two different refusals — see [StakeField].
+            enabled = !session.isBusy && wager.digits <= stakeLimit(profile, stakes),
             onClick = {
                 val terms = PvpTableRequest(
                     formatId = format.id,
                     rules = rules,
                     roulette = roulette,
-                    stake = PvpStake(mgp = mgp, trade = trade),
+                    stake = PvpStake(mgp = wager.digits, trade = trade),
                 )
                 // Nothing to ask under **Random**: the referee splices the hand from the whole
                 // collection and the deck the host would choose is ignored. The same decision
@@ -306,4 +304,108 @@ private fun SectionLabel(text: String) {
     SectionHeader(text = text, modifier = Modifier.padding(top = SpaceMd))
 }
 
-private const val STEP = 10
+/**
+ * What is being wagered: typed, with the limit written under it and the usual sums one tap away.
+ *
+ * ### Why the slider went
+ *
+ * It was `TtoSlider`, running from nothing to whatever the purse held. Three things were wrong with
+ * it and only the first was cosmetic. A thumb eight dp wide across a purse of forty thousand puts
+ * the wager on 3,290 when the player meant three thousand, and rounding to a step of ten only
+ * narrows that. It offered the *whole* purse, which is a table nobody should be able to open by
+ * accident. And it could not express the limit at all: a slider whose track ends at the ceiling
+ * says the ceiling is the purse, and one that runs past it lies about what will be accepted.
+ *
+ * A field states the number the player has in mind. [AmountField] argues the same point from the
+ * auction house's side, where it landed first.
+ *
+ * ### Two limits, named separately
+ *
+ * A wager is refused for being above the level's ceiling or for being above the purse, and the two
+ * are fixed by opposite things — one waits for a level, the other for money. `PvpReferee` answers
+ * `STAKE_TOO_HIGH` and `CANNOT_AFFORD` for exactly that reason, and a field that said only "too
+ * much" would leave the player to guess which one they were waiting on.
+ *
+ * ### What this is not
+ *
+ * Not the rule. The ceiling is `PvpStakePolicy`, the numbers come from this deployment in
+ * `ServerInfo`, and the server checks its own copy on every way into a match — see [LocalStakes].
+ * A bounded field is a courtesy, exactly as [LocalUnlocks] is.
+ */
+@Composable
+private fun StakeField(value: String, onValueChange: (String) -> Unit, profile: GameSave) {
+    val strings = LocalStrings.current
+    val stakes = LocalStakes.current
+    val ceiling = stakes.ceilingFor(profile)
+    val limit = stakeLimit(profile, stakes)
+    val wager = value.digits
+
+    AmountField(
+        value = value,
+        onValueChange = onValueChange,
+        label = strings[StringKeys.MGP],
+        tag = PVP_TABLE_MGP_TEST_TAG,
+        supporting = when {
+            wager > ceiling ->
+                strings.format(StringKeys.PVP_STAKE_OVER_LIMIT, "${profile.level}", "$ceiling")
+
+            wager > profile.mgp ->
+                strings.format(StringKeys.PVP_STAKE_OVER_PURSE, "${profile.mgp}")
+
+            // Legal, and still worth saying out loud on the way in. The same sentence the lobby
+            // puts on a table for whoever is reading it — see `PvpScreen.TableRow`.
+            stakes.isHeavy(wager, profile.mgp) -> strings[StringKeys.PVP_STAKE_HEAVY]
+
+            else -> strings.format(StringKeys.PVP_STAKE_LIMIT, "$limit")
+        },
+        isError = wager > limit,
+        // Nothing follows it on the form but the trade chips and the button, and neither is
+        // reachable from a keyboard's Next.
+        imeAction = ImeAction.Done,
+    )
+
+    // The rungs. Not a replacement for the field — the point of the field is the number nobody
+    // anticipated — but every wager anybody types twice is on this row, and the last one is
+    // whatever this player is actually allowed, which is the one figure they cannot work out.
+    FlowRow(
+        modifier = Modifier.fillMaxWidth().padding(top = SpaceXs),
+        horizontalArrangement = Arrangement.spacedBy(SpaceSm),
+        verticalArrangement = Arrangement.spacedBy(SpaceXs),
+    ) {
+        val rungs = stakeRungs(limit)
+        for (rung in rungs) {
+            TtoFilterChip(
+                label = when {
+                    rung == 0 -> strings[StringKeys.PVP_TABLE_FREE]
+                    rung == rungs.last() -> strings[StringKeys.PVP_STAKE_MAX]
+                    else -> "$rung"
+                },
+                tag = stakeChipTestTag(rung),
+                selected = wager == rung,
+                onClick = { onValueChange(if (rung == 0) "" else "$rung") },
+            )
+        }
+    }
+}
+
+/**
+ * The most this player may put up: the lower of what their level allows and what they hold.
+ *
+ * Both, because either one alone is a lie in one direction. Level without purse offers a wager the
+ * purse cannot cover; purse without level offers one the server refuses.
+ */
+internal fun stakeLimit(profile: GameSave, stakes: PvpStakePolicy): Int =
+    minOf(stakes.ceilingFor(profile), profile.mgp).coerceAtLeast(0)
+
+/**
+ * The sums on the chip row, ending at [limit].
+ *
+ * Round numbers up to the limit and then the limit itself, so the top chip is always the largest
+ * legal wager rather than the largest round one — that is the figure a player would otherwise have
+ * to derive from their level. Nothing but zero when there is nothing to wager.
+ */
+internal fun stakeRungs(limit: Int): List<Int> =
+    if (limit <= 0) listOf(0) else STAKE_RUNGS.filter { it < limit } + limit
+
+/** A hundred is one win, `MatchRewards.PVP_WIN_MGP`; the rest are the round numbers around it. */
+private val STAKE_RUNGS = listOf(0, 50, 100, 250, 500, 1_000, 2_000, 5_000)

@@ -10,6 +10,7 @@ import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.CardItem
 import com.tripletriad.model.GameSave
 import com.tripletriad.net.AccountClient
+import com.tripletriad.net.AuctionClient
 import com.tripletriad.net.MatchReporter
 import com.tripletriad.net.PveClient
 import com.tripletriad.net.PvpClient
@@ -156,6 +157,7 @@ class AccountSettlementTest {
             accounts = AccountClient(http, baseUrl = { directory.selected.baseUrl }),
             pvp = PvpClient(http, baseUrl = { directory.selected.baseUrl }),
             pve = PveClient(http, baseUrl = { directory.selected.baseUrl }),
+            auctions = AuctionClient(http, baseUrl = { directory.selected.baseUrl }),
             session = SessionStore(sessions),
             tickets = TicketStore(InMemoryDocumentStore()),
             probe = ServerProbe(http) { 0L },

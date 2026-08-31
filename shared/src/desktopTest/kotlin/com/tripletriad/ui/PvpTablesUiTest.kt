@@ -308,10 +308,18 @@ class PvpTablesUiTest {
          "stake":{"mgp":0,"trade":"NONE"},"openedAt":0,"expiresAt":1}
     """.trimIndent()
 
+    /**
+     * An ordinary table: wagered, and not for enough to be worth a warning.
+     *
+     * Ten and not the fifty this used to be, because these tests are about joining and the profile
+     * they join with holds `GameSave.STARTING_MGP`. Half a starting purse is a *heavy* table, and a
+     * heavy one takes two presses — see `PvpStakeUiTest.aHeavyTableTakesTwoPressesToJoin`. Leaving
+     * it at fifty would have made every test in this file exercise that confirmation instead.
+     */
     private fun tableJson(host: String = "Kuplu") = """
         {"id":"$TABLE_ID","hostName":"$host","formatId":"free-play",
          "rules":{},"roulette":true,
-         "stake":{"mgp":50,"trade":"ONE"},"openedAt":0,"expiresAt":1}
+         "stake":{"mgp":10,"trade":"ONE"},"openedAt":0,"expiresAt":1}
     """.trimIndent()
 
     private fun claimJson() = """

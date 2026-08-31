@@ -117,6 +117,12 @@ internal fun PlayArea(
             own = own,
             active = view.currentPlayer == (if (own) view.side else view.opponent),
             selected = selected,
+            // The same two the board is given, and for the same reason: under Bonus or Malus a
+            // card in hand is already worth the board's tally, so it says so before it is played
+            // rather than after. No element travels with them — a hand card stands on no cell, so
+            // `powerModifier` returns 0 under Elemental and the badge stays a board-only mark.
+            rules = view.rules,
+            tally = view.tally,
             layout = layout,
             playableSlots = if (own) view.playableHandIndices else emptyList(),
             revealed = revealed,
@@ -394,10 +400,9 @@ private fun TileCell(
         }
         if (modifierValue != 0) {
             PowerModifierBadge(
-                position = position,
                 value = modifierValue,
                 scale = scale,
-                modifier = Modifier.align(Alignment.BottomEnd),
+                tag = tileModifierTestTag(position),
             )
         }
     }
@@ -428,29 +433,48 @@ private fun ElementBadge(position: Int, element: CardType, scale: Float) {
     }
 }
 
+/**
+ * The single signed number a card is fighting with, drawn **over the middle of it**.
+ *
+ * ### Why the centre, and why on both sides of the table
+ *
+ * It used to sit in a bottom corner of the cell, where it read as a decoration of the *tile*. It
+ * is not: it belongs to the card, it is the same on all four sides ([powerModifier]), and it is the
+ * one number that decides a comparison the printed digits are about to lose. Over the artwork it is
+ * unmissable and it is unambiguously *this card's*, which is what lets the same badge go on a card
+ * in hand — where there is no tile to decorate at all.
+ *
+ * Blue up and red down rather than the scheme's cyan/red pair: the two are read at a glance and at
+ * a tenth of the size of everything else on screen, so they get the two colours a player already
+ * associates with gaining and losing. The text takes the matching `on` role, which the old badge
+ * did not — light-on-light on a `+3` was the display half of the defect this pass fixed.
+ */
 @Composable
-private fun PowerModifierBadge(position: Int, value: Int, scale: Float, modifier: Modifier) {
+private fun PowerModifierBadge(value: Int, scale: Float, tag: String) {
     val positive = value > 0
 
     Text(
         text = if (positive) "+$value" else "−${-value}",
-        color = MaterialTheme.colorScheme.onSurface,
+        color = if (positive) {
+            MaterialTheme.colorScheme.onSecondary
+        } else {
+            MaterialTheme.colorScheme.onError
+        },
         fontSize = ModifierFontSize * scale,
         fontWeight = FontWeight.Bold,
         maxLines = 1,
         softWrap = false,
-        modifier = modifier
-            .testTag(tileModifierTestTag(position))
-            .padding(ModifierInset * scale)
+        modifier = Modifier
+            .testTag(tag)
             .clip(ModifierShape)
             .background(
                 if (positive) {
-                    MaterialTheme.colorScheme.tertiary
+                    MaterialTheme.colorScheme.secondary
                 } else {
                     MaterialTheme.colorScheme.error
                 },
             )
-            .padding(horizontal = ModifierPadding * scale),
+            .padding(horizontal = ModifierPadding * scale, vertical = ModifierInset * scale),
     )
 }
 
@@ -524,6 +548,8 @@ private fun HandArea(
     own: Boolean,
     active: Boolean,
     selected: Card?,
+    rules: GameRules,
+    tally: AscensionTally,
     layout: MatchLayout,
     playableSlots: List<Int>,
     revealed: Boolean,
@@ -588,6 +614,9 @@ private fun HandArea(
                                     card = card,
                                     owner = owner,
                                     slot = slot,
+                                    // Zero under every rule but the two cumulative ones, which is
+                                    // what keeps Elemental off a hand it could not be true of.
+                                    modifierValue = powerModifier(card, rules, tally = tally),
                                     isSelected = active && selected?.id == card.id,
                                     active = active,
                                     // Forbidden by Order or Chaos, and said so rather than merely
@@ -630,6 +659,7 @@ private fun HandCard(
     card: Card,
     owner: CardColor,
     slot: Int,
+    modifierValue: Int,
     isSelected: Boolean,
     active: Boolean,
     allowed: Boolean,
@@ -697,6 +727,23 @@ private fun HandCard(
             },
         ) {
             RevealingCardFace(card = card, scale = scale, revealed = revealed, slot = slot)
+        }
+        // Outside the dimming box above rather than inside it, so it keeps full weight while the
+        // card it belongs to greys out: "you cannot play this now" and "this is what it is worth"
+        // are different sentences, and the second is the one a player is reading the hand for.
+        // Withheld until the card is shown, though — an opponent hand turning over for Open must
+        // not leak the type of a card that is still face down.
+        if (modifierValue != 0 && revealed) {
+            Box(
+                modifier = Modifier.size(CardSpriteWidth * scale, CardSpriteHeight * scale),
+                contentAlignment = Alignment.Center,
+            ) {
+                PowerModifierBadge(
+                    value = modifierValue,
+                    scale = scale,
+                    tag = handModifierTestTag(owner, slot),
+                )
+            }
         }
         // Never both: a chosen card that has been picked up is simply the selected one, and two
         // rings on one card at two weights would read as a rendering fault.

@@ -40,6 +40,7 @@ import com.tripletriad.model.questDayOf
 import com.tripletriad.net.MatchReporter
 import com.tripletriad.net.ServerConnection
 import com.tripletriad.protocol.ANY_DECK
+import com.tripletriad.protocol.PvpStakePolicy
 import com.tripletriad.protocol.Unlocks
 import com.tripletriad.settings.InMemorySettingsStore
 import com.tripletriad.settings.SettingsStore
@@ -126,6 +127,23 @@ fun App(
                     connection.session.load(connection.server.id, clock.nowMillis())?.token
                 }
             }
+            /*
+             * The house. Null without a server for the same reason the lobby is: an auction is two
+             * players and a ledger, and a local `.sav` has neither of the other two. See
+             * [AuctionScreen] for what that renders as — a stated fact, not a dimmed screen.
+             */
+            val auctions = server?.let { connection ->
+                rememberAuctionSession(
+                    client = connection.auctions,
+                    clock = clock,
+                    // The purse and the collection both move on every write here — a bid takes
+                    // money, a listing takes a card — and the server computes both. Adopted
+                    // wholesale, the way `PveSession` adopts a credited profile.
+                    onProfile = { account?.adopt(it) },
+                ) {
+                    connection.session.load(connection.server.id, clock.nowMillis())?.token
+                }
+            }
             val connectivity = server?.let { rememberConnectivity(it) }
             var screen by remember { mutableStateOf(Screen.SPLASH) }
             // A sheet rather than a destination — see [OptionsSheet]. The state is here
@@ -195,6 +213,9 @@ fun App(
                 // layers apart and the door they describe is the same one. Null server means
                 // `:core`'s defaults, which is also what the local `.sav` mode should read.
                 LocalUnlocks provides (connectivity?.unlocks ?: Unlocks()),
+                // The wager ceiling, on the same terms: the screen that offers a stake and the
+                // screen that lists them are as far apart as those two are.
+                LocalStakes provides (connectivity?.stakes ?: PvpStakePolicy()),
             ) {
                 // Only a hairline of padding: the board and ten cards want every dp there is.
                 //
@@ -235,6 +256,7 @@ fun App(
                         CompositionLocalProvider(LocalWideLayout provides isWide) {
                             Destination(
                                 destination = destination,
+                                auctions = auctions,
                                 pvp = pvp,
                                 pve = pve,
                                 startup = startup,
@@ -466,6 +488,7 @@ private fun titleEntry(
 @Suppress("LongParameterList")
 private fun Destination(
     destination: Screen,
+    auctions: AuctionSession?,
     startup: StartupState,
     settings: SettingsHolder?,
     session: ProfileSession,
@@ -601,6 +624,7 @@ private fun Destination(
                 CharacterDestination(
                     destination = destination,
                     profile = profile,
+                    auctions = auctions,
                     // Null unless there is something to do about it. A confirmed account, an
                     // account on a server that predates confirmation, and no server at all all
                     // answer the same way — nothing to ask for, so no way to ask.
@@ -685,6 +709,7 @@ private fun AccountDestination(
 private fun CharacterDestination(
     destination: Screen,
     profile: GameSave,
+    auctions: AuctionSession?,
     onConfirmEmail: (() -> Unit)?,
     onOptions: () -> Unit,
     onQuit: () -> Unit,
@@ -725,7 +750,13 @@ private fun CharacterDestination(
         )
 
         // Not a shop tab yet, and deliberately not a dimmed card either — see [AuctionScreen].
-        Screen.AUCTION -> AuctionScreen(profile = profile, onBack = toDashboard)
+        Screen.AUCTION -> AuctionScreen(
+            profile = profile,
+            session = auctions,
+            cards = startup.catalog?.all?.associateBy { it.id }.orEmpty(),
+            clock = clock,
+            onBack = toDashboard,
+        )
 
         Screen.OPPONENTS -> startup.opponents?.let { opponents ->
             // The format ordinary matches are played in: the widest one, which with `MODE` gone

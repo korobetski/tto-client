@@ -15,6 +15,7 @@ class ServerConnection internal constructor(
     val accounts: AccountClient,
     val pvp: PvpClient,
     val pve: PveClient,
+    val auctions: AuctionClient,
     val session: SessionStore,
     val tickets: TicketStore,
     val probe: ServerProbe,
@@ -54,6 +55,7 @@ fun serverConnection(
         tickets = TicketStore(stores.tickets),
         pvp = PvpClient(http, address),
         pve = PveClient(http, address),
+        auctions = AuctionClient(http, address),
         session = sessions,
         probe = ServerProbe(http, elapsed = clock::nowMillis),
         reporter = QueuedMatchReporter(

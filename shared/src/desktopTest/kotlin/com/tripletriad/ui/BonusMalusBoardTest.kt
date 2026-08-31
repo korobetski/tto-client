@@ -84,14 +84,26 @@ class BonusMalusBoardTest {
         onNodeWithContentDescription("$OTHER_NAME, 5 5 5 5").assertExists()
     }
 
+    /**
+     * A card **in hand** wears the badge too, and no cell wears it on its behalf.
+     *
+     * Both halves matter and they used to be one assertion. The tally is a property of the board,
+     * so it applies to every card of the type wherever it is standing — a player choosing between
+     * five cards is choosing the number each would attack with, and printing the unmodified digits
+     * made the hand tell them something the board was about to contradict. What must *not* happen
+     * is the cell answering for it: an empty cell holds nothing, and a card being carried over one
+     * has not been played onto it.
+     */
     @Test
-    fun holdingACardUnderBonusAnnotatesNothing() = runComposeUiTest {
+    fun aCardHeldUnderBonusWearsTheBadgeAndTheBoardDoesNot() = runComposeUiTest {
         setContent {
             Fixture(tallied(TypeRule.ASCENSION, CardType.BEAST to BONUS, hand = beast()))
         }
 
         onNodeWithTag(handCardTestTag(CardColor.BLUE, 0)).performClick()
 
+        onNodeWithTag(handModifierTestTag(CardColor.BLUE, 0), useUnmergedTree = true)
+            .assertTextEquals("+3")
         for (cell in 0 until Board.SIZE) {
             assertFalse(
                 existsUnmerged(tileModifierTestTag(cell)),
@@ -99,6 +111,54 @@ class BonusMalusBoardTest {
             )
         }
         onNodeWithContentDescription("$BEAST_NAME, 5 5 5 5").assertExists()
+    }
+
+    /** And a malus reaches the hand the same way — the badge is signed, not conditional. */
+    @Test
+    fun aCardHeldUnderMalusWearsANegativeBadge() = runComposeUiTest {
+        setContent {
+            Fixture(tallied(TypeRule.DESCENSION, CardType.BEAST to MALUS, hand = beast()))
+        }
+
+        onNodeWithTag(handModifierTestTag(CardColor.BLUE, 0), useUnmergedTree = true)
+            .assertTextEquals("−2")
+    }
+
+    /**
+     * Elemental never reaches a hand, and that asymmetry is the rule rather than an omission.
+     *
+     * Bonus and Malus are a property of the **board**, so a card carries them wherever it is.
+     * Elemental is a property of a **cell**, and a card in hand is standing on none — there is no
+     * true number to draw. `powerModifier` says so by itself when it is passed no element, which
+     * is why the hand needs no rule test of its own.
+     */
+    @Test
+    fun elementalLeavesTheHandAlone() = runComposeUiTest {
+        setContent { Fixture(tallied(TypeRule.ELEMENTAL, hand = beast())) }
+
+        assertFalse(
+            existsUnmerged(handModifierTestTag(CardColor.BLUE, 0)),
+            "a hand card claimed an element it is not standing on",
+        )
+    }
+
+    /** A card of a type the tally never touched is unbadged in hand as it is on the board. */
+    @Test
+    fun aHeldCardOfAnotherTypeIsUntouched() = runComposeUiTest {
+        setContent {
+            Fixture(
+                tallied(
+                    TypeRule.ASCENSION,
+                    CardType.BEAST to BONUS,
+                    hand = card(OTHER_ID, CardType.SCIONS),
+                ),
+            )
+        }
+
+        assertFalse(
+            existsUnmerged(handModifierTestTag(CardColor.BLUE, 0)),
+            "a scion collected a beast's bonus",
+        )
     }
 
     @Test

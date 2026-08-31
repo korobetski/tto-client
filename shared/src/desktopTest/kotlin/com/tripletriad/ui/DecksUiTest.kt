@@ -191,6 +191,10 @@ class DecksUiTest {
         const val SECOND_DECK = "Second"
 
         val SIXTH_CARD = Card.idFor(block = 1, number = 44)
+
+        /** Two five-stars from the shipped table — Bahamut and Hildibrand. `cards.json`. */
+        val FIVE_STAR = Card.idFor(block = 1, number = 61)
+        val OTHER_FIVE_STAR = Card.idFor(block = 1, number = 62)
     }
 
     @Test
@@ -247,5 +251,88 @@ class DecksUiTest {
         openDecks()
 
         onNodeWithTag(deckMissingTestTag(0), useUnmergedTree = true).assertDoesNotExist()
+        onNodeWithTag(deckOverLimitTestTag(0), useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    // ---- The star-rank caps -------------------------------------------------
+
+    /**
+     * The rule is on screen before it is met, and it counts.
+     *
+     * `DeckLimits` is enforced twice over on the server, so what the editor owes the player is
+     * *foreknowledge*: a deck refused at the moment they tap Play is a rule they cannot act on.
+     */
+    @Test
+    fun theEditorCountsEachCappedRank() = runComposeUiTest {
+        val documents = seeded(withAces(deck = listOf(FIVE_STAR)))
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
+
+        onNodeWithTag(deckSlotTestTag(0)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
+
+        onNodeWithTag(DECK_LIMITS_TEST_TAG).assertTextEquals("Rank limits ★5 1 / 1  ·  ★4 0 / 2")
+    }
+
+    /** A second five-star cannot be picked, exactly as a copy that is already spent cannot. */
+    @Test
+    fun theEditorRefusesASecondFiveStar() = runComposeUiTest {
+        val documents = seeded(withAces(deck = listOf(FIVE_STAR)))
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
+
+        onNodeWithTag(deckSlotTestTag(0)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
+        onNodeWithTag(DECK_PICK_GRID_TEST_TAG)
+            .performScrollToNode(hasTestTag(deckPickTestTag(OTHER_FIVE_STAR)))
+        onNodeWithTag(deckPickTestTag(OTHER_FIVE_STAR)).performClick()
+        onNodeWithTag(DECK_SAVE_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_LIST_TEST_TAG) }
+
+        assertEquals(listOf(FIVE_STAR), storedSave(documents).decks.first().cards)
+    }
+
+    /**
+     * A deck that is *already* over a cap says so, in both places, and is repairable.
+     *
+     * The picker cannot build one — the previous case is why — so the only way to hold one is to
+     * have saved it before the caps existed. That deck no longer appears in the selector, and a
+     * screen that hides it without saying why is the failure this warning exists to prevent.
+     */
+    @Test
+    fun aDeckOverACapSaysSoAndCanBeRepaired() = runComposeUiTest {
+        val fill = HAND_SIZE - 2
+        val over = listOf(FIVE_STAR, OTHER_FIVE_STAR) + STARTER_DECK.take(fill)
+        val documents = seeded(withAces(deck = over))
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
+
+        // Unmerged: the slot row is `ttoClickable`, which absorbs its descendants' semantics.
+        onNodeWithTag(deckOverLimitTestTag(0), useUnmergedTree = true).assertExists()
+
+        onNodeWithTag(deckSlotTestTag(0)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
+        onNodeWithTag(DECK_OVER_LIMIT_TEST_TAG).assertExists()
+
+        // And it clears as the offending position comes out — the editor is where it is fixed.
+        onNodeWithTag(deckPositionTestTag(0)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { !exists(DECK_OVER_LIMIT_TEST_TAG) }
+    }
+
+    /**
+     * A profile holding both of the table's first two five-stars, and a deck of [deck].
+     *
+     * The starter collection is deliberately kept alongside them: the caps are about *which* five
+     * a player may bring, so a fixture that owned nothing else would prove only that a deck of two
+     * cards is short.
+     */
+    private fun withAces(deck: List<Int>): GameSave = freshSave().let { save ->
+        save.copy(
+            cards = save.cards + mapOf(FIVE_STAR to 1, OTHER_FIVE_STAR to 1),
+            decks = listOf(Deck(name = "Aces", cards = deck)),
+        )
     }
 }

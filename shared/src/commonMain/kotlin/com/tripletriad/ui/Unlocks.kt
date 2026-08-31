@@ -1,6 +1,7 @@
 package com.tripletriad.ui
 
 import androidx.compose.runtime.compositionLocalOf
+import com.tripletriad.protocol.PvpStakePolicy
 import com.tripletriad.protocol.Unlocks
 
 /**
@@ -33,3 +34,17 @@ import com.tripletriad.protocol.Unlocks
  * whole of what a level gate can buy — it makes a rigged match expensive rather than impossible.
  */
 internal val LocalUnlocks = compositionLocalOf { Unlocks() }
+
+/**
+ * How large a wager this server lets a player propose, as it states it.
+ *
+ * Here rather than as a parameter for the reason [LocalUnlocks] is: the two screens that need it
+ * are the one that opens a table and the one that lists them, and they are several layers apart.
+ * The same division of labour holds too — the client bounds the field so a player is not offered a
+ * wager that will be refused, and `PvpReferee` refuses on the server's own copy, which is the one
+ * that counts.
+ *
+ * `:core`'s defaults until a probe has answered. With no server at all nothing consults this: the
+ * local `.sav` mode has no lobby.
+ */
+internal val LocalStakes = compositionLocalOf { PvpStakePolicy() }

@@ -23,6 +23,7 @@ import com.tripletriad.model.MatchView
 import com.tripletriad.model.Npc
 import com.tripletriad.model.questDayOf
 import com.tripletriad.net.AccountClient
+import com.tripletriad.net.AuctionClient
 import com.tripletriad.net.MatchReporter
 import com.tripletriad.net.PveClient
 import com.tripletriad.net.PvpClient
@@ -167,6 +168,7 @@ internal class PveStubServer(
             accounts = AccountClient(http, baseUrl = { directory.selected.baseUrl }),
             pvp = PvpClient(http, baseUrl = { directory.selected.baseUrl }),
             pve = PveClient(http, baseUrl = { directory.selected.baseUrl }),
+            auctions = AuctionClient(http, baseUrl = { directory.selected.baseUrl }),
             session = SessionStore(sessions),
             tickets = TicketStore(InMemoryDocumentStore()),
             probe = ServerProbe(http) { 0L },
@@ -271,7 +273,9 @@ internal class PveStubServer(
         val legal = cards.admittedBy(format).mapTo(mutableSetOf()) { it.id }
         return when {
             !npc.gameRules().random &&
-                !legal.containsAll(PveMatches.playerDeck(player.save, request.deck)) ->
+                !legal.containsAll(
+                    PveMatches.playerDeck(player.save, request.deck, cards.byId),
+                ) ->
                 PveRefusal.UNDEALABLE to "you cannot field five cards in that format"
 
             request.campaignKey != null &&
@@ -347,11 +351,15 @@ internal class PveStubServer(
         val legal = cards.admittedBy(format).associateBy { it.id }
         val collection = player.save.ownedCardIds().mapNotNull { legal[it] }
 
-        val blue = if (rules.random && collection.size >= HAND_SIZE) {
+        // Short when the caps cannot be met out of this collection — the same fallback the real
+        // `PveRoutes.deal` takes, and the stub is only worth having while it takes it too.
+        val drawn = if (rules.random && collection.size >= HAND_SIZE) {
             MatchPreparation.randomHand(collection, generator)
         } else {
-            PveMatches.playerDeck(player.save, deck).map { legal.getValue(it) }
+            emptyList()
         }
+        val blue = drawn.takeIf { it.size == HAND_SIZE }
+            ?: PveMatches.playerDeck(player.save, deck, legal).map { legal.getValue(it) }
         val red = npc.randomHand(generator).map { legal.getValue(it) }
         val tossed = if (generator.nextBoolean()) CardColor.BLUE else CardColor.RED
         val opening = MatchPreparation.prepareVersus(blue, red, toss ?: tossed, rules, generator)

@@ -12,6 +12,7 @@ import com.tripletriad.data.PveMatch
 import com.tripletriad.data.PveMatches
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
+import com.tripletriad.model.Card
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.CoinFlip
 import com.tripletriad.model.GameRules
@@ -55,8 +56,11 @@ internal fun interface Lesson {
 
 private const val FIRST_PLACEMENT = 0
 
-internal fun MatchScript?.deckFor(rules: GameRules, profile: GameSave): List<Int>? =
-    this?.deck ?: PveMatches.playerDeck(profile).takeIf { rules.random }
+internal fun MatchScript?.deckFor(
+    rules: GameRules,
+    profile: GameSave,
+    cards: Map<Int, Card>,
+): List<Int>? = this?.deck ?: PveMatches.playerDeck(profile, cards).takeIf { rules.random }
 
 internal fun MatchScript?.flip(): CoinFlip? = this?.firstPlayer?.let(CoinFlip::forced)
 

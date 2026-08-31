@@ -121,6 +121,12 @@ object StringKeys {
 
     const val DECK_MISSING_CARDS: String = "APP_DECK_MISSING_CARDS"
 
+    /** The star-rank caps, as a label in front of the live per-rank counters. `DeckLimits`. */
+    const val DECK_LIMITS: String = "APP_DECK_LIMITS"
+
+    /** One broken cap: how many of the rank the deck names, the rank, and how many are allowed. */
+    const val DECK_OVER_LIMIT: String = "APP_DECK_OVER_LIMIT"
+
     const val CHOOSE_DECK: String = "STR_CHOOSE_DECK"
 
     const val RANDOM_DECK: String = "RULE_RANDOM"
@@ -206,6 +212,15 @@ object StringKeys {
     const val PVP_TABLE_MINE: String = "APP_PVP_TABLE_MINE"
     const val PVP_TABLE_FREE: String = "APP_PVP_TABLE_FREE"
 
+    /** Shown on a table whose wager is a large share of *the reader's* purse. */
+    const val PVP_TABLE_HEAVY: String = "APP_PVP_TABLE_HEAVY"
+
+    /** Shown on one the reader's level does not allow them to sit at. */
+    const val PVP_TABLE_OVER_LIMIT: String = "APP_PVP_TABLE_OVER_LIMIT"
+
+    /** The second press on a heavy table. See `PvpScreen.TableRow`. */
+    const val PVP_JOIN_CONFIRM: String = "APP_PVP_JOIN_CONFIRM"
+
     const val PVP_TABLE_EXPIRES: String = "APP_PVP_TABLE_EXPIRES"
 
     const val PVP_DECK: String = "APP_PVP_DECK"
@@ -213,6 +228,13 @@ object StringKeys {
 
     const val PVP_STAKE: String = "APP_PVP_STAKE"
     const val PVP_STAKE_MGP: String = "APP_PVP_STAKE_MGP"
+
+    /** Under the stake field: the most this player may wager, purse and level considered. */
+    const val PVP_STAKE_LIMIT: String = "APP_PVP_STAKE_LIMIT"
+    const val PVP_STAKE_OVER_LIMIT: String = "APP_PVP_STAKE_OVER_LIMIT"
+    const val PVP_STAKE_OVER_PURSE: String = "APP_PVP_STAKE_OVER_PURSE"
+    const val PVP_STAKE_MAX: String = "APP_PVP_STAKE_MAX"
+    const val PVP_STAKE_HEAVY: String = "APP_PVP_STAKE_HEAVY"
     const val PVP_TRADE: String = "APP_PVP_TRADE"
     const val PVP_TRADE_NONE: String = "APP_PVP_TRADE_NONE"
     const val PVP_TRADE_ONE: String = "APP_PVP_TRADE_ONE"
@@ -232,6 +254,7 @@ object StringKeys {
     const val PVP_LOST_CARDS: String = "APP_PVP_LOST_CARDS"
 
     const val PVP_ERROR_AFFORD: String = "APP_PVP_ERROR_AFFORD"
+    const val PVP_ERROR_STAKE: String = "APP_PVP_ERROR_STAKE"
     const val PVP_ERROR_TABLE_GONE: String = "APP_PVP_ERROR_TABLE_GONE"
     const val PVP_ERROR_RULES: String = "APP_PVP_ERROR_RULES"
     const val PVP_ERROR_OWN_TABLE: String = "APP_PVP_ERROR_OWN_TABLE"
@@ -495,6 +518,140 @@ object StringKeys {
     const val AUCTION: String = "APP_AUCTION"
     const val AUCTION_BLURB: String = "APP_AUCTION_BLURB"
 
+    // ---- The auction house ----
+
+    /*
+     * Every key below is `APP_`-owned and translated in all four bundles, which is what
+     * `StringsBundleTest` enforces: the house moves real money between real players, and a screen
+     * that falls back to English for one of them is a screen somebody agrees to without reading.
+     */
+
+    const val AUCTION_ROOM: String = "APP_AUCTION_ROOM"
+    const val AUCTION_MINE: String = "APP_AUCTION_MINE"
+    const val AUCTION_SELL: String = "APP_AUCTION_SELL"
+
+    const val AUCTION_EMPTY: String = "APP_AUCTION_EMPTY"
+    const val AUCTION_MINE_EMPTY: String = "APP_AUCTION_MINE_EMPTY"
+    const val AUCTION_FAILED: String = "APP_AUCTION_FAILED"
+
+    /** Why the house is shut on a character with no account behind it. */
+    const val AUCTION_NEEDS_SERVER: String = "APP_AUCTION_NEEDS_SERVER"
+
+    /** The desk with nothing on it, on a wide screen where the pane is always there. */
+    const val AUCTION_PICK_LOT: String = "APP_AUCTION_PICK_LOT"
+
+    const val AUCTION_SELLER: String = "APP_AUCTION_SELLER"
+    const val AUCTION_START_PRICE: String = "APP_AUCTION_START_PRICE"
+    const val AUCTION_CURRENT_PRICE: String = "APP_AUCTION_CURRENT_PRICE"
+    const val AUCTION_BID_COUNT: String = "APP_AUCTION_BID_COUNT"
+    const val AUCTION_RESERVE: String = "APP_AUCTION_RESERVE"
+
+    /** Said to a bidder, who is never told the reserve itself — see `AuctionDesk`. */
+    const val AUCTION_RESERVE_MET: String = "APP_AUCTION_RESERVE_MET"
+    const val AUCTION_RESERVE_NOT_MET: String = "APP_AUCTION_RESERVE_NOT_MET"
+
+    const val AUCTION_YOUR_BID: String = "APP_AUCTION_YOUR_BID"
+    const val AUCTION_ENDS: String = "APP_AUCTION_ENDS"
+
+    /** Takes a countdown already formatted by `countdownText`. */
+    const val AUCTION_ENDS_IN: String = "APP_AUCTION_ENDS_IN"
+    const val AUCTION_ENDED: String = "APP_AUCTION_ENDED"
+
+    const val AUCTION_NO_BIDS: String = "APP_AUCTION_NO_BIDS"
+
+    /** Takes how many bids have been placed. */
+    const val AUCTION_BIDS: String = "APP_AUCTION_BIDS"
+
+    const val AUCTION_YOUR_LOT: String = "APP_AUCTION_YOUR_LOT"
+    const val AUCTION_YOU_LEAD: String = "APP_AUCTION_YOU_LEAD"
+    const val AUCTION_OUTBID: String = "APP_AUCTION_OUTBID"
+
+    /** Takes the anti-snipe window in seconds - `AuctionPolicy.antiSnipeSeconds`. */
+    const val AUCTION_ANTI_SNIPE: String = "APP_AUCTION_ANTI_SNIPE"
+
+    /** Takes hours, then the minutes left over. */
+    const val AUCTION_LEFT_HOURS: String = "APP_AUCTION_LEFT_HOURS"
+    const val AUCTION_LEFT_MINUTES: String = "APP_AUCTION_LEFT_MINUTES"
+    const val AUCTION_LEFT_SECONDS: String = "APP_AUCTION_LEFT_SECONDS"
+
+    const val AUCTION_STATUS_AWAITING: String = "APP_AUCTION_STATUS_AWAITING"
+
+    /** Takes what it went for. */
+    const val AUCTION_STATUS_SOLD: String = "APP_AUCTION_STATUS_SOLD"
+    const val AUCTION_STATUS_UNSOLD: String = "APP_AUCTION_STATUS_UNSOLD"
+    const val AUCTION_STATUS_CANCELLED: String = "APP_AUCTION_STATUS_CANCELLED"
+
+    const val AUCTION_BID: String = "APP_AUCTION_BID"
+    const val AUCTION_BID_AMOUNT: String = "APP_AUCTION_BID_AMOUNT"
+
+    /** Takes the least this bid may be. */
+    const val AUCTION_MINIMUM: String = "APP_AUCTION_MINIMUM"
+
+    /** The label on the total-due line. Takes the 3% the buyer pays on top of their bid. */
+    const val AUCTION_BUYER_FEE: String = "APP_AUCTION_BUYER_FEE"
+
+    const val AUCTION_SELL_CARD: String = "APP_AUCTION_SELL_CARD"
+
+    /** Why there is nothing to consign: every copy owned is spoken for by a saved deck. */
+    const val AUCTION_SELL_EMPTY: String = "APP_AUCTION_SELL_EMPTY"
+
+    /** Takes the floor, which is the shop's own price for the card. */
+    const val AUCTION_FLOOR_HINT: String = "APP_AUCTION_FLOOR_HINT"
+
+    /** Takes the ceiling - see `AuctionRules.ceilingPriceOf` for why there is one. */
+    const val AUCTION_RESERVE_HINT: String = "APP_AUCTION_RESERVE_HINT"
+
+    const val AUCTION_DURATION: String = "APP_AUCTION_DURATION"
+
+    /** Takes a number of hours. */
+    const val AUCTION_HOURS: String = "APP_AUCTION_HOURS"
+
+    const val AUCTION_LISTING_FEE: String = "APP_AUCTION_LISTING_FEE"
+    const val AUCTION_LISTING_FEE_NOTE: String = "APP_AUCTION_LISTING_FEE_NOTE"
+    const val AUCTION_OPEN_LOTS: String = "APP_AUCTION_OPEN_LOTS"
+    const val AUCTION_LIST: String = "APP_AUCTION_LIST"
+
+    const val AUCTION_WITHDRAW: String = "APP_AUCTION_WITHDRAW"
+    const val AUCTION_WITHDRAW_LOCKED: String = "APP_AUCTION_WITHDRAW_LOCKED"
+
+    /** The question put to a seller whose reserve was missed. Takes the standing bid. */
+    const val AUCTION_DECIDE: String = "APP_AUCTION_DECIDE"
+    const val AUCTION_ACCEPT: String = "APP_AUCTION_ACCEPT"
+    const val AUCTION_DECLINE: String = "APP_AUCTION_DECLINE"
+
+    /** Where the proceeds of a finished lot actually are: in the bag, as a pouch to open. */
+    const val AUCTION_SETTLED_NOTE: String = "APP_AUCTION_SETTLED_NOTE"
+
+    /*
+     * Why the house said no, one sentence each.
+     *
+     * Thirteen of them rather than one "that did not work", because every one of these is a
+     * different thing for the player to do next - type a bigger number, wait, close a lot, sell
+     * something first. `refusalText` maps them and is exhaustive, so a new refusal on the server
+     * cannot reach a screen without a sentence.
+     */
+
+    const val AUCTION_REFUSED_LOCKED: String = "APP_AUCTION_REFUSED_LOCKED"
+    const val AUCTION_REFUSED_LOT_GONE: String = "APP_AUCTION_REFUSED_LOT_GONE"
+    const val AUCTION_REFUSED_NOT_YOURS: String = "APP_AUCTION_REFUSED_NOT_YOURS"
+    const val AUCTION_REFUSED_TOO_MANY_LOTS: String = "APP_AUCTION_REFUSED_TOO_MANY_LOTS"
+    const val AUCTION_REFUSED_BELOW_FLOOR: String = "APP_AUCTION_REFUSED_BELOW_FLOOR"
+    const val AUCTION_REFUSED_RESERVE_BELOW_START: String =
+        "APP_AUCTION_REFUSED_RESERVE_BELOW_START"
+    const val AUCTION_REFUSED_ABOVE_CEILING: String = "APP_AUCTION_REFUSED_ABOVE_CEILING"
+    const val AUCTION_REFUSED_CANNOT_AFFORD: String = "APP_AUCTION_REFUSED_CANNOT_AFFORD"
+    const val AUCTION_REFUSED_BID_TOO_LOW: String = "APP_AUCTION_REFUSED_BID_TOO_LOW"
+    const val AUCTION_REFUSED_YOUR_OWN_LOT: String = "APP_AUCTION_REFUSED_YOUR_OWN_LOT"
+    const val AUCTION_REFUSED_ALREADY_LEADING: String = "APP_AUCTION_REFUSED_ALREADY_LEADING"
+    const val AUCTION_REFUSED_ALREADY_BID: String = "APP_AUCTION_REFUSED_ALREADY_BID"
+    const val AUCTION_REFUSED_NOT_YOUR_DECISION: String = "APP_AUCTION_REFUSED_NOT_YOUR_DECISION"
+
+    /** A settled lot's takings, in the bag. Takes the card that was sold. */
+    const val POUCH_ITEM: String = "APP_POUCH_ITEM"
+
+    /** What opening one paid out. Takes the sum, then the card. */
+    const val POUCH_OPENED: String = "APP_POUCH_OPENED"
+
     /** Why a door is shut. Takes the level it opens at — see `Unlocks`. */
     const val LOCKED_LEVEL: String = "APP_LOCKED_LEVEL"
 
@@ -556,7 +713,7 @@ object StringKeys {
         MULTIPLAYER, CARD_LIST, CARDS, HOME, CARD_DECKS, INVENTORY, SHOP, HELP, LOGOUT,
         CARD_INFOS, TOTAL, SIDES, RARITY, CARD_TYPE, PICK_CARD, OWNED,
         DECK, DECK_POWER, RESET_DECK, SAVE, CHOOSE_DECK, RANDOM_DECK, NO_FULL_DECK,
-        DECK_MISSING_CARDS,
+        DECK_MISSING_CARDS, DECK_LIMITS, DECK_OVER_LIMIT,
         USE, SELL, DISCARD, BUY, CARD_SHOP, EMPTY_BAG, OBTAINED, ALREADY_OWNED, UNKNOWN_ITEM,
         ITEM_REFUSED, NOTHING_HAPPENED, ACTION_FAILED,
         STARTER_PACK, STARTER_PACK_DESC, FREE, CLAIM, ALL,
@@ -569,14 +726,18 @@ object StringKeys {
         PVP_ACCEPT, PVP_DECLINE, PVP_NO_CHALLENGE,
         PVP_TABLES, PVP_NO_TABLE, PVP_HOST, PVP_HOST_OPEN, PVP_HOST_CANCEL, PVP_JOIN,
         PVP_TABLE_BY, PVP_TABLE_MINE, PVP_TABLE_FREE, PVP_TABLE_EXPIRES,
+        PVP_TABLE_HEAVY, PVP_TABLE_OVER_LIMIT, PVP_JOIN_CONFIRM,
         PVP_DECK, PVP_DECK_ANY,
         PVP_STAKE, PVP_STAKE_MGP, PVP_TRADE,
+        PVP_STAKE_LIMIT, PVP_STAKE_OVER_LIMIT, PVP_STAKE_OVER_PURSE,
+        PVP_STAKE_MAX, PVP_STAKE_HEAVY,
         PVP_TRADE_NONE, PVP_TRADE_ONE, PVP_TRADE_DIFF, PVP_TRADE_DIRECT, PVP_TRADE_ALL,
         PVP_RULES_PICK, PVP_ROULETTE, PVP_ROULETTE_HINT, PVP_FORMAT,
         PVP_STAKE_WON, PVP_STAKE_LOST, PVP_WON_CARDS, PVP_LOST_CARDS,
         PVP_CLAIM, PVP_CLAIM_TITLE, PVP_CLAIM_PROMPT, PVP_CLAIM_CONFIRM,
         PVP_CLAIM_PENDING, PVP_CLAIM_NONE,
-        PVP_ERROR_AFFORD, PVP_ERROR_TABLE_GONE, PVP_ERROR_RULES, PVP_ERROR_OWN_TABLE,
+        PVP_ERROR_AFFORD, PVP_ERROR_STAKE, PVP_ERROR_TABLE_GONE, PVP_ERROR_RULES,
+        PVP_ERROR_OWN_TABLE,
         PVP_ERROR_IN_MATCH, PVP_ERROR_NO_PLAYER, PVP_ERROR_YOURSELF, PVP_ERROR_NOTHING_OWED,
         PVP_FORFEIT, PVP_YOU_LEFT, PVP_THEY_LEFT, PVP_OVER, PVP_NO_MATCH,
         TUTORIAL, TUTORIAL_1, TUTORIAL_2, TUTORIAL_3, TUTORIAL_4, TUTORIAL_5,
@@ -625,6 +786,30 @@ object StringKeys {
         TITLE_CONTINUE, TITLE_CHOOSE,
         LOBBY_RESUME, LOBBY_TODAY, LOBBY_MORE, LOBBY_SOON,
         AUCTION, AUCTION_BLURB, LOCKED_LEVEL,
+        AUCTION_ROOM, AUCTION_MINE, AUCTION_SELL,
+        AUCTION_EMPTY, AUCTION_MINE_EMPTY, AUCTION_FAILED, AUCTION_NEEDS_SERVER,
+        AUCTION_PICK_LOT,
+        AUCTION_SELLER, AUCTION_START_PRICE, AUCTION_CURRENT_PRICE, AUCTION_BID_COUNT,
+        AUCTION_RESERVE, AUCTION_RESERVE_MET, AUCTION_RESERVE_NOT_MET,
+        AUCTION_YOUR_BID, AUCTION_ENDS, AUCTION_ENDS_IN, AUCTION_ENDED,
+        AUCTION_NO_BIDS, AUCTION_BIDS,
+        AUCTION_YOUR_LOT, AUCTION_YOU_LEAD, AUCTION_OUTBID, AUCTION_ANTI_SNIPE,
+        AUCTION_LEFT_HOURS, AUCTION_LEFT_MINUTES, AUCTION_LEFT_SECONDS,
+        AUCTION_STATUS_AWAITING, AUCTION_STATUS_SOLD, AUCTION_STATUS_UNSOLD,
+        AUCTION_STATUS_CANCELLED,
+        AUCTION_BID, AUCTION_BID_AMOUNT, AUCTION_MINIMUM, AUCTION_BUYER_FEE,
+        AUCTION_SELL_CARD, AUCTION_SELL_EMPTY, AUCTION_FLOOR_HINT, AUCTION_RESERVE_HINT,
+        AUCTION_DURATION, AUCTION_HOURS,
+        AUCTION_LISTING_FEE, AUCTION_LISTING_FEE_NOTE, AUCTION_OPEN_LOTS, AUCTION_LIST,
+        AUCTION_WITHDRAW, AUCTION_WITHDRAW_LOCKED,
+        AUCTION_DECIDE, AUCTION_ACCEPT, AUCTION_DECLINE, AUCTION_SETTLED_NOTE,
+        AUCTION_REFUSED_LOCKED, AUCTION_REFUSED_LOT_GONE, AUCTION_REFUSED_NOT_YOURS,
+        AUCTION_REFUSED_TOO_MANY_LOTS, AUCTION_REFUSED_BELOW_FLOOR,
+        AUCTION_REFUSED_RESERVE_BELOW_START, AUCTION_REFUSED_ABOVE_CEILING,
+        AUCTION_REFUSED_CANNOT_AFFORD, AUCTION_REFUSED_BID_TOO_LOW,
+        AUCTION_REFUSED_YOUR_OWN_LOT, AUCTION_REFUSED_ALREADY_LEADING,
+        AUCTION_REFUSED_ALREADY_BID, AUCTION_REFUSED_NOT_YOUR_DECISION,
+        POUCH_ITEM, POUCH_OPENED,
         EMAIL, EMAIL_HINT, CONFIRM_EMAIL, CONFIRM_EMAIL_BLURB, CONFIRM_LATER,
         CONFIRM_NEEDED, EMAIL_CONFIRMED, CODE, CODE_SUBMIT, CODE_RESEND, CODE_SENT,
         FORGOT_PASSWORD, RESET_PASSWORD, RESET_BLURB, RESET_SEND, RESET_SENT,

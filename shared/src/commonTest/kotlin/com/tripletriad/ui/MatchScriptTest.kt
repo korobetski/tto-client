@@ -71,7 +71,7 @@ class MatchScriptTest {
     fun aScriptsOwnDeckWinsOverTheProfiles() {
         val fixed = listOf(1, 2, 3, 4, 5)
 
-        val dealt = script(deck = fixed).deckFor(GameRules(random = true), profile)
+        val dealt = script(deck = fixed).deckFor(GameRules(random = true), profile, noTable)
 
         assertEquals(fixed, dealt, "a lesson deals the hand it was written for")
     }
@@ -85,10 +85,10 @@ class MatchScriptTest {
     @Test
     fun withoutAScriptOnlyRandomNamesTheProfilesDeck() {
         assertEquals(
-            PveMatches.playerDeck(profile),
-            (null as MatchScript?).deckFor(GameRules(random = true), profile),
+            PveMatches.playerDeck(profile, noTable),
+            (null as MatchScript?).deckFor(GameRules(random = true), profile, noTable),
         )
-        assertNull((null as MatchScript?).deckFor(GameRules(), profile))
+        assertNull((null as MatchScript?).deckFor(GameRules(), profile, noTable))
     }
 
     @Test
@@ -229,6 +229,14 @@ class MatchScriptTest {
     )
 
     private val profile = GameSave.new(createdAt = 0L)
+
+    /**
+     * No card table, which is the honest fixture here: these cases are about *which list* is
+     * chosen, and `DeckLimits` reads ranks out of the table to decide whether a deck is legal. An
+     * empty one resolves no card, so no rank is counted and no cap can be broken — the deck-cap
+     * cases are `PveMatchTest`'s, in `:core`, where there is a table to break one with.
+     */
+    private val noTable = emptyMap<Int, Card>()
 
     private companion object {
         const val SPEAKER = "STR_NPC_TT_Master"

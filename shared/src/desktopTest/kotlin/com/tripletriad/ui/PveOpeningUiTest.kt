@@ -11,16 +11,18 @@ import kotlin.test.assertEquals
 /**
  * **A deal the opponent won the toss for still opens with an empty board.**
  *
- * `POST /pve/matches` answers with the position after the toss has been honoured, so half of all
- * deals come back with the opponent's card already on the board — `PveMatchView.plays` announces
- * it. `PveMatchScreen` adopted that answer whole, and the result was a board whose *first frame*
- * had a card on it, its placement sound played, and the announcements that explain that card —
- * the rules in force, the hand turning face up under Open, and the coin flip deciding who moves
- * first — playing afterwards over a decision already taken. The flip in particular was reduced to
- * decoration: it reported a winner the board had acted on three seconds earlier.
+ * `POST /pve/matches` used to answer with the position after the toss had been honoured, so half
+ * of all deals came back with the opponent's card already on the board. `PveMatchScreen` adopted
+ * that answer whole, and the result was a board whose *first frame* had a card on it, its
+ * placement sound played, and the announcements that explain that card — the rules in force, the
+ * hand turning face up under Open, and the coin flip deciding who moves first — playing afterwards
+ * over a decision already taken. The flip in particular was reduced to decoration: it reported a
+ * winner the board had acted on three seconds earlier.
  *
- * So the opening is walked like any other answer, from the position the referee dealt
- * (`MatchView.asDealt`), and lands once the intro has finished.
+ * The deal now answers with the board as dealt and announces nothing. The opening is asked for
+ * once the intro has finished — `PveSession.begin` — and walked onto the board like any other
+ * answer. This test is what says the two halves of that still meet: nothing before, the card
+ * after.
  *
  * ### Why this one runs at the shipped pace
  *

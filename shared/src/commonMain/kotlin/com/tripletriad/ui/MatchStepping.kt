@@ -1,10 +1,7 @@
 package com.tripletriad.ui
 
-import com.tripletriad.model.AscensionTally
 import com.tripletriad.model.Card
-import com.tripletriad.model.HandVisibility
 import com.tripletriad.model.MatchView
-import com.tripletriad.model.OpenRule
 import com.tripletriad.model.PlacedCard
 import com.tripletriad.model.PlayResult
 import com.tripletriad.protocol.Placement
@@ -34,6 +31,21 @@ import com.tripletriad.protocol.Placement
  * equal the board the server sent. `PveMatchScreen` adopts the server's view regardless — a
  * disagreement is a rendering bug, not a reason to show the player a board the referee does not
  * have.
+ *
+ * ### There used to be an inverse, and deleting it is the point
+ *
+ * `asDealt` lived here: a deal whose toss gave the opponent the opening came back with the card
+ * already on the board, so this file took it *back off* — undid the placement, worked out from the
+ * Open rules whether the card had been face up, and put it back in the slot it left — to give the
+ * coin flip something left to announce. It was a second implementation of the deal, and it
+ * disagreed with the first in exactly the way that predicts: the card went back carrying the
+ * catalogue's default owner, so it sat in the opponent's hand in the player's own colour until it
+ * was played again.
+ *
+ * The server no longer sends a position the client has to unwind. `POST /pve/matches` answers with
+ * the board as dealt, and the opening is asked for once the announcements are done — see
+ * `PveSession.begin`. What is left here steps *forwards* only, which is the only direction a
+ * painter should know about.
  */
 internal fun MatchView.after(play: Placement, card: Card): MatchView {
     val played = card.copy(owner = play.player)
@@ -79,75 +91,3 @@ internal fun MatchView.after(play: Placement, card: Card): MatchView {
  */
 private fun <T> List<T>.withoutSlot(index: Int): List<T> =
     if (index !in indices) this else filterIndexed { at, _ -> at != index }
-
-/**
- * The board as the referee **dealt** it, with the opening placement taken back off.
- *
- * ### Why an opening arrives already played
- *
- * `POST /pve/matches` answers with the position after the toss has been honoured, so a deal that
- * gave the opponent the move carries their card in `PveMatchView.plays`. Adopting that answer whole
- * — which is what a fresh board did — put the card down on the first frame: under the rule
- * captions, under the hand turning over for Open, and under the coin flip that was still busy
- * announcing *who held the move*. The animation reported a decision the board had already acted on.
- *
- * So the placement is undone here, the opening plays over the board as it was dealt, and [after]
- * puts the card back when the announcements have finished.
- *
- * ### Null rather than a best effort
- *
- * Every guard asks the same question — *is this an opening this side has not seen yet* — and a no
- * is answered by leaving the caller with the server's view rather than a reconstruction. A resumed
- * match, a board already played on, and a placement that captured (which an empty board cannot
- * produce) are all positions this function has no business inventing.
- */
-internal fun MatchView.asDealt(play: Placement, card: Card): MatchView? {
-    if (placement != 1 || play.player == side || play.captures.isNotEmpty()) return null
-    if (board.cells[play.position] == null) return null
-
-    val cells = board.cells.toMutableList()
-    cells[play.position] = null
-
-    return copy(
-        board = board.copy(cells = cells),
-        opponentHand = opponentHand.withSlot(play.handIndex, card.takeIf { wasFaceUp() }),
-        placement = 0,
-        // The dealt board is the first placement of the match, so whatever the played card
-        // contributed under Ascension or Descension is the whole of the tally.
-        tally = AscensionTally.EMPTY,
-        lastPlay = null,
-        // Read-only for the same reason [after] is: the turn arrives with the server's view, and
-        // it is not this side's turn yet in any case — `order.colorAt(0)` is the toss's winner.
-        playableHandIndices = emptyList(),
-    )
-}
-
-/**
- * Whether the card the opponent has just played was face up in their hand before they played it.
- *
- * Counted rather than remembered, because a [MatchView] carries no `HandVisibility` — only the
- * nulls it produced. The rules say how many of the five are showing; the hand that came back is one
- * short of that number **exactly when** the card that left was one of the ones showing.
- *
- * Under Swap and no Open the one known slot is the swapped card, and the same arithmetic answers
- * it: a hand still holding it shows one, a hand that has played it shows none.
- */
-private fun MatchView.wasFaceUp(): Boolean =
-    opponentHand.count { it != null } < openSlots(opponentHand.size + 1)
-
-/** How many of an opponent hand of [size] the rules in force put face up. */
-private fun MatchView.openSlots(size: Int): Int = when (rules.open) {
-    OpenRule.NONE -> if (rules.swap) 1 else 0
-    OpenRule.THREE_OPEN -> HandVisibility.THREE_OPEN_COUNT
-    OpenRule.ALL_OPEN -> size
-}
-
-/**
- * [value] inserted at [index], or the list unchanged when it names no slot.
- *
- * The inverse of [withoutSlot] and forgiving in the same way and for the same reason: a response
- * naming a slot this side cannot place is a version disagreement, and the frame it would have drawn
- * is about to be replaced by the server's view anyway.
- */
-private fun <T> List<T>.withSlot(index: Int, value: T): List<T> =
-    if (index !in 0..size) this else toMutableList().apply { add(index, value) }

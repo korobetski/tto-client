@@ -261,8 +261,12 @@ internal class PveStubServer(
 
         val match = deal(npc, format, request.deck)
         live = match
+        // The board **as dealt**, announcing nothing — the opponent's opening is owed here and
+        // played by [read], exactly as `PveReferee.open` leaves it owed and `PveReferee.view`
+        // pays it. A stub that honoured the toss at the deal would be a *more eager* referee than
+        // the server, and the screen this fixture exists for is the one that tells them apart.
         return respondJson(
-            matchProtocolJson.encodeToString(match.wire(match.advance(null))),
+            matchProtocolJson.encodeToString(match.wire(emptyList())),
             HttpStatusCode.Created,
         )
     }
@@ -307,10 +311,22 @@ internal class PveStubServer(
         return respondJson(matchProtocolJson.encodeToString(match.wire(emptyList())))
     }
 
+    /**
+     * One match by id — **and the read that starts one the opponent won the toss for.**
+     *
+     * [Live.advance] with no move of the player's is the whole of it: it plays while red is on
+     * move, which on a board nobody has played on is the opening the toss owed and on every other
+     * board is nothing at all. So this is idempotent for the same reason the real
+     * `PveReferee.opening` is — a second read finds blue on move and announces nothing.
+     *
+     * [active] deliberately does not do this, mirroring `PveReferee.current`: resuming a match
+     * replays its announcements from the start, so an opening applied there would be one the
+     * client never saw land.
+     */
     private fun MockRequestHandleScope.read(matchId: String): HttpResponseData {
         val match = live?.takeIf { it.id == matchId }
             ?: return refuse(PveRefusal.NO_SUCH_MATCH, "no such match")
-        return respondJson(matchProtocolJson.encodeToString(match.wire(emptyList())))
+        return respondJson(matchProtocolJson.encodeToString(match.wire(match.advance(null))))
     }
 
     private fun MockRequestHandleScope.played(

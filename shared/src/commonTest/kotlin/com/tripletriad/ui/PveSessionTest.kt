@@ -294,6 +294,116 @@ class PveSessionTest {
         assertNotNull(session.trouble, "and the player is offered the way back")
     }
 
+    // ---- The opening the toss owes -----------------------------------------
+
+    /**
+     * A deal the opponent won the toss for arrives owing a placement.
+     *
+     * `POST /pve/matches` answers with the board as dealt — empty, nothing announced, not the
+     * player's turn — and [PveSession.begin] is what asks for the rest. This is the state that
+     * makes the screen ask, so it is worth naming precisely rather than inferring from a board.
+     */
+    @Test
+    fun aDealTheOpponentWonTheTossForOwesItsOpening() = runTest {
+        val session = sessionAnswering(HttpStatusCode.Created, encode(board.copy(first = RED)))
+        session.open(OPPONENT, FORMAT)
+
+        assertTrue(session.awaitsOpening)
+    }
+
+    /** The other half of the toss owes nothing, and must not send a request saying so. */
+    @Test
+    fun aDealThePlayerWonTheTossForOwesNothing() = runTest {
+        val session = sessionAnswering(HttpStatusCode.Created, encode(board))
+        session.open(OPPONENT, FORMAT)
+
+        assertFalse(session.awaitsOpening)
+    }
+
+    /**
+     * **A Sudden Death rematch is not a deal, however much it looks like one.**
+     *
+     * It is the one position in a match that has every mark of a fresh board: the placement count
+     * goes back to zero because the board really is empty, and `MatchState.suddenDeathRematch`
+     * keeps the turn order, so a match the opponent opened is a rematch the opponent opens too.
+     * Reading *that* as an owed opening would have the screen ask for a placement the server
+     * already made and wrote — `PveReferee.record` appends the player's card and every reply it
+     * owes across the board boundary in one statement, which is why the rematch arrives with the
+     * opponent's card already on it.
+     *
+     * Asserted against the shape a **resume** produces — `plays` empty, because a re-read announces
+     * nothing — since that is the reading in which the three other marks all point the wrong way at
+     * once.
+     */
+    @Test
+    fun aSuddenDeathRematchIsNotMistakenForADealOwingItsOpening() = runTest {
+        val rematch = board.copy(
+            first = RED,
+            rematch = 1,
+            // The opponent's rematch opening, already in: the answer that filled the ninth cell
+            // carried it, so the board this side resumes onto is one placement in.
+            placement = 1,
+            plays = emptyList(),
+        )
+        val session = sessionAnswering(HttpStatusCode.OK, encode(rematch))
+        session.resume()
+
+        assertFalse(session.awaitsOpening, "the rematch's opening was made before this was read")
+    }
+
+    /** Nor is a board the opening has already landed on, which is every board after the first. */
+    @Test
+    fun anOpeningAlreadyPlayedIsNotAskedForTwice() = runTest {
+        val session =
+            sessionAnswering(HttpStatusCode.OK, encode(board.copy(first = RED, placement = 1)))
+        session.resume()
+
+        assertFalse(session.awaitsOpening)
+    }
+
+    /** A settled match owes nothing, whatever the toss was. */
+    @Test
+    fun aFinishedMatchOwesNoOpening() = runTest {
+        val over = board.copy(first = RED, status = PveMatchStatus.FINISHED)
+        val session = sessionAnswering(HttpStatusCode.OK, encode(over))
+        session.resume()
+
+        assertFalse(session.awaitsOpening)
+    }
+
+    /**
+     * [PveSession.begin] costs nothing when nothing is owed.
+     *
+     * The screen fires it whenever its announcements finish — including on a Sudden Death rematch,
+     * which replays them — so "free to call" is a property it relies on rather than a convenience.
+     */
+    @Test
+    fun beginningAMatchThatOwesNothingSendsNoRequest() = runTest {
+        val counted = countingEngine()
+        val session =
+            PveSession(PveClient(httpClient(counted.engine), address), tokenOf = { TOKEN })
+        session.resume()
+        val afterResume = counted.calls
+
+        session.begin()
+
+        assertEquals(afterResume, counted.calls, "a board owing nothing must not be re-read")
+    }
+
+    /** And does re-read when one is owed, which is the request that starts the match. */
+    @Test
+    fun beginningAMatchThatOwesItsOpeningReadsItBack() = runTest {
+        val counted = countingEngine(board.copy(first = RED))
+        val session =
+            PveSession(PveClient(httpClient(counted.engine), address), tokenOf = { TOKEN })
+        session.resume()
+        val afterResume = counted.calls
+
+        session.begin()
+
+        assertEquals(afterResume + 1, counted.calls, "the opening has to be asked for")
+    }
+
     // ---- Settlement -------------------------------------------------------
 
     /**
@@ -414,12 +524,12 @@ class PveSessionTest {
         var calls: Int = 0
     }
 
-    private fun countingEngine(): Counted {
+    private fun countingEngine(answer: PveMatchView = board): Counted {
         lateinit var counted: Counted
         counted = Counted(
             MockEngine {
                 counted.calls++
-                respondJson(encode(board), HttpStatusCode.OK)
+                respondJson(encode(answer), HttpStatusCode.OK)
             },
         )
         return counted
@@ -482,5 +592,8 @@ class PveSessionTest {
         const val OPPONENT = "an-opponent"
         const val FORMAT = "ff14"
         const val BOARD_CELLS = 9
+
+        /** The toss going the opponent's way, which is the half that owes an opening. */
+        val RED = CardColor.RED
     }
 }

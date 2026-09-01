@@ -7,6 +7,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.tripletriad.log.Log
 import com.tripletriad.model.Card
+import com.tripletriad.model.CardColor
 import com.tripletriad.model.MatchView
 import com.tripletriad.net.AccountResult
 import com.tripletriad.net.PveClient
@@ -69,6 +70,29 @@ class PveSession internal constructor(
 
     val isOver: Boolean get() = match?.status?.let { it != PveMatchStatus.PLAYING } == true
 
+    /**
+     * Whether the opponent owes the placement the toss gave it, and has not made it yet.
+     *
+     * True from the deal until [begin] is answered, and only on the half of the tosses the
+     * opponent won. `POST /pve/matches` answers with the board **as dealt** — see
+     * `PveMatchView.plays` — so on those the board is empty, nothing is announced, and it is not
+     * the player's turn. This is that state, named, because the screen has to know when to ask.
+     *
+     * Read off the board rather than remembered: an empty board under `first = RED` is the whole
+     * of it, and a resumed match is in exactly the same state as a freshly dealt one, which is why
+     * `PveReferee.current` deliberately leaves the opening owed too.
+     */
+    val awaitsOpening: Boolean
+        get() = match?.let {
+            // The player is always blue in an environment match — `PveMatchView` carries no `side`
+            // field precisely so nobody branches on it — so a toss that came up red is a toss the
+            // opponent won.
+            it.status == PveMatchStatus.PLAYING &&
+                it.first == CardColor.RED &&
+                it.placement == 0 &&
+                it.plays.isEmpty()
+        } == true
+
     /** The match as the screen renders it, or null when there is nothing to draw. */
     fun view(cards: Map<Int, Card>): MatchView? = match?.toMatchView(cards)
 
@@ -122,6 +146,27 @@ class PveSession internal constructor(
                 refresh()
             }
         }
+    }
+
+    /**
+     * Asks for the opening the toss gave the opponent. **The request that starts a match.**
+     *
+     * One extra round trip per deal, spent while the rules captions, the hand turning over for
+     * Open and the coin flip are still playing — so it costs a player nothing and buys the thing
+     * an animation is for: the card the flip won lands *after* the flip, rather than sitting on
+     * the board while it is still being announced.
+     *
+     * There is no endpoint of its own, because a plain read of the match is honestly what this is:
+     * `PveReferee.view` computes the placement, writes it and announces it in `plays`, and every
+     * later read of the same match announces nothing. Calling it when nothing is owed is free and
+     * the guard says so, so a screen may fire it whenever its announcements finish without first
+     * working out whether this was one of those deals.
+     *
+     * A failure leaves [trouble] set and the board untouched, exactly like any other read — the
+     * retry in `PveReconnect` is [refresh], which is this same request.
+     */
+    suspend fun begin() {
+        if (awaitsOpening) refresh()
     }
 
     /**

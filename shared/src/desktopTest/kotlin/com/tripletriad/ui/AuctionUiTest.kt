@@ -35,6 +35,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -254,6 +255,45 @@ class AuctionUiTest {
     }
 
     /**
+     * A phone opens the room as a list, and the desk arrives when a lot is picked.
+     *
+     * The desk on a narrow screen is a modal sheet, and the board used to arrive with one already
+     * over it: `AuctionSession.refreshBoard` picked the first lot so that a *wide* screen's pane
+     * was never blank, which on a phone threw a lot nobody had chosen over the list — and a modal
+     * sheet takes the input as well as the screen, so the tabs behind it did not answer either.
+     * The choice moved into the wide branch of [AuctionBoardBody], where there is a pane to fill.
+     */
+    @Test
+    fun aPhoneOpensTheRoomAsAListRatherThanAsASheetOverOne() {
+        house(listOf(lot(), lot(id = OTHER)), wide = false) {
+            onNodeWithTag(AUCTION_BOARD_TEST_TAG).assertExists()
+            assertFalse(
+                exists(AUCTION_DESK_SHEET_TEST_TAG),
+                "the room opened on a lot the player had not picked",
+            )
+
+            onNodeWithTag(auctionLotTestTag(OTHER)).performClick()
+            waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(AUCTION_DESK_SHEET_TEST_TAG) }
+        }
+    }
+
+    /**
+     * The lectern reads its card in the panel the collection reads a card in.
+     *
+     * It drew a `CardFace` and a name and stopped there: the powers and the rarity — the two facts
+     * a bidder is putting a price on — were written nowhere on the one screen in the game where
+     * somebody commits four figures to a card. [CardPanel] is that block, and `cardFacts` is the
+     * line it says them in, so this assertion is the collection's own sentence read at the desk.
+     */
+    @Test
+    fun theLecternReadsItsCardInTheCollectionsOwnPanel() {
+        house(listOf(lot())) {
+            onNodeWithTag(AUCTION_DESK_CARD_TEST_TAG).assertExists()
+            onNodeWithText(cardFacts(strings, cheap)).assertExists()
+        }
+    }
+
+    /**
      * A row on the board reads its card the way every other list of cards in the app does.
      *
      * The framed thumbnail and the four powers beside it are `CardTile` and `CardStatsLine` — the
@@ -402,9 +442,11 @@ class AuctionUiTest {
     // ---- Harness ----------------------------------------------------------
 
     /** The room, read once and then left alone: no poll, so no clock to wait out. */
+    @Suppress("LongParameterList")
     private fun house(
         lots: List<AuctionLot>,
         mgp: Int = PURSE,
+        wide: Boolean = true,
         block: ComposeUiTest.() -> Unit,
     ): MockEngine {
         val engine = pageEngine(lots)
@@ -416,9 +458,9 @@ class AuctionUiTest {
                 CompositionLocalProvider(
                     LocalStrings provides strings,
                     // The pane, not the sheet: a `ModalBottomSheet` animates in, and what these
-                    // tests are about is on the desk either way. `AdaptiveUiTest` is where the
-                    // narrow arrangement is checked.
-                    LocalWideLayout provides true,
+                    // tests are about is on the desk either way. The one test that is about the
+                    // sheet passes `wide = false`.
+                    LocalWideLayout provides wide,
                 ) {
                     TripleTriadTheme {
                         Column {

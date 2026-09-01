@@ -16,6 +16,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -94,6 +95,16 @@ internal fun ColumnScope.AuctionBoardBody(
     }
 
     if (LocalWideLayout.current) {
+        // A wide screen opens on the first lot, because the alternative is a blank half of the
+        // window beside a full list. **Only a wide one.** This used to be done in
+        // `AuctionSession.refreshBoard`, which cannot see the layout: on a phone the desk is a
+        // modal sheet, so reading the board threw a lot nobody had picked over the list — and a
+        // modal sheet takes the input as well as the screen, so the tabs behind it were dead
+        // until it was dismissed. The room is a list until the player picks something out of it.
+        LaunchedEffect(lots.firstOrNull()?.id) {
+            if (session.selected == null) session.select(lots.firstOrNull()?.id)
+        }
+
         Row(
             modifier = Modifier.fillMaxWidth().weight(1f),
             horizontalArrangement = Arrangement.spacedBy(SpaceMd),

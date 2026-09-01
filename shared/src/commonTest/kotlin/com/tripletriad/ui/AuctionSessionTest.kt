@@ -80,17 +80,21 @@ class AuctionSessionTest {
     // ---- Reading ----------------------------------------------------------
 
     /**
-     * The desk opens on something rather than on nothing.
+     * A read hands over the lots and nothing else. Which one is open is the screen's business.
      *
-     * A wide screen shows the pane whether or not a lot is picked, and an empty pane beside a full
-     * board is a screen asking the player to do something before it will tell them anything.
+     * It used to pick the first one here, so that a wide screen's desk was never a blank pane
+     * beside a full board — true of a pane, and wrong of a phone, where the desk is a modal sheet:
+     * the room opened with a lot nobody had chosen thrown over the list, and a modal sheet takes
+     * the input as well as the screen, so the tabs behind it were dead until it was dismissed.
+     * `AuctionBoardBody` makes that choice now, in the branch that has a pane to fill, and
+     * `AuctionUiTest` is where both halves of it are asserted.
      */
     @Test
-    fun theFirstReadPicksTheFirstLotAndLaterReadsLeaveThePickAlone() = runTest {
+    fun aReadHandsOverTheLotsWithoutPickingOneAndLeavesAPickAlone() = runTest {
         val session = sessionOn(serving(page(lot(), lot(id = OTHER))))
 
         session.refreshBoard()
-        assertEquals(LOT, session.selectedId)
+        assertNull(session.selectedId, "the house picked a lot the player had not")
 
         session.select(OTHER)
         session.refreshBoard()

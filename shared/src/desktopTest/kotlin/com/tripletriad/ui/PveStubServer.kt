@@ -35,6 +35,8 @@ import com.tripletriad.net.SessionStore
 import com.tripletriad.net.StoredSession
 import com.tripletriad.net.TicketStore
 import com.tripletriad.net.matchProtocolJson
+import com.tripletriad.protocol.AuctionLot
+import com.tripletriad.protocol.AuctionPage
 import com.tripletriad.protocol.CURRENT_VERSION
 import com.tripletriad.protocol.EnterCampaignRequest
 import com.tripletriad.protocol.MatchTranscript
@@ -129,6 +131,17 @@ internal class PveStubServer(
      */
     var toss: CardColor? = null
 
+    /**
+     * What the house is holding, for a screen that has to show a room with something in it.
+     *
+     * Empty by default, which is also a real state of the board — every fixture that does not
+     * care about the auction gets the "nothing is up for sale" note rather than a failed read.
+     * Both `GET /auctions` and `GET /auctions/mine` answer this list; nothing here models a bid,
+     * because everything that *changes* a lot is `AuctionUiTest`'s subject and it drives the
+     * client's own mock engine to say so.
+     */
+    var lots: List<AuctionLot> = emptyList()
+
     val cards = runBlocking { loadCardCatalog() }
     private val npcs = runBlocking { loadNpcCatalog() }
     private val campaigns = runBlocking { loadCampaignCatalog() }
@@ -186,6 +199,9 @@ internal class PveStubServer(
             path == "/me/save" -> saved(body(request))
             path == "/me/campaign/enter" -> entered(body(request))
             path.startsWith("/pve/matches") -> pve(path, request)
+            path.startsWith("/auctions") -> respondJson(
+                matchProtocolJson.encodeToString(AuctionPage(lots = lots, now = at)),
+            )
             else -> respondJson(matchProtocolJson.encodeToString(player))
         }
     }

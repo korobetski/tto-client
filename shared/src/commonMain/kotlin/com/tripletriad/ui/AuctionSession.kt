@@ -121,7 +121,6 @@ class AuctionSession internal constructor(
                 adopt(result.value)
                 board = result.value.lots
                 boardState = ListState.READY
-                if (selectedId == null) selectedId = board.firstOrNull()?.id
             }
 
             else -> {

@@ -200,14 +200,24 @@ fun App(
                 if (playing) audio.play(Sound.MATCH_MUSIC) else audio.stopMusic()
             }
 
-            // `LocalUiArt` is provided for the whole tree rather than per screen, unlike
-            // `LocalCardArt`: avatars, portraits, thumbnails and bag icons are wanted on nearly
-            // every screen behind the dashboard, and threading it through each would be the
-            // parameter list this composition local exists to avoid.
+            // Both art bundles are provided for the whole tree rather than per screen. Avatars,
+            // portraits, thumbnails and bag icons are wanted on nearly every screen behind the
+            // dashboard, and threading either through each would be the parameter list these
+            // composition locals exist to avoid.
+            //
+            // **`LocalCardArt` used to be provided per screen, and the auction house was left
+            // out of the list.** Every `CardFace` there was a bare colour quad — no picture, no
+            // digits, no stars — and every element or rarity chip in the consignment picker fell
+            // back to a letter, because both draw nothing at all when the sheet is missing. That
+            // is the whole class of bug a per-screen provider invites and it bought nothing: the
+            // sheets are decoded once at startup into [StartupState] whatever screen is open, so
+            // narrowing where they are *readable* saved no work. The room that draws cards should
+            // not also have to remember to ask for them.
             CompositionLocalProvider(
                 LocalStrings provides strings,
                 LocalAudio provides audio,
                 LocalUiArt provides startup.ui,
+                LocalCardArt provides startup.art,
                 LocalPacing provides pacing,
                 // Here rather than deeper, because the lobby and the auction house are three
                 // layers apart and the door they describe is the same one. Null server means
@@ -891,20 +901,18 @@ private fun CharacterDestination(
         // is four places for one of them to forget.
         Screen.CARDS, Screen.DECKS, Screen.INVENTORY, Screen.SHOP,
         -> startup.catalog?.let { catalog ->
-            CompositionLocalProvider(LocalCardArt provides startup.art) {
-                CollectionDestination(
-                    destination = destination,
-                    profile = profile,
-                    catalog = catalog,
-                    starters = starters,
-                    startup = startup,
-                    // The whole gate rather than `gate.persist`: the bag needs a second thing from
-                    // it, and threading them one at a time is how a screen ends up knowing which
-                    // source is live — the exact thing `ProfileGate` exists to hide.
-                    gate = gate,
-                    onBack = toDashboard,
-                )
-            }
+            CollectionDestination(
+                destination = destination,
+                profile = profile,
+                catalog = catalog,
+                starters = starters,
+                startup = startup,
+                // The whole gate rather than `gate.persist`: the bag needs a second thing from
+                // it, and threading them one at a time is how a screen ends up knowing which
+                // source is live — the exact thing `ProfileGate` exists to hide.
+                gate = gate,
+                onBack = toDashboard,
+            )
         }
 
         // The seven screens ahead of a loaded character. [Destination] routes those itself and
@@ -995,11 +1003,11 @@ private fun MatchDestinations(
 ) {
     when (destination) {
         // The fourth kind of board, and the only one this client does not run itself. `MatchArt`
-        // wraps it for the same reason it wraps the other three: without `LocalCardArt` every
-        // `CardFace` is a bare colour quad — no picture, no digits, no stars — because a null
-        // bitmap leaves its layer empty by design. See `CardView.Layer`.
+        // wraps it for the same reason it wraps the other three: the banner strip over a board is
+        // read off a sheet of its own, and a null bitmap leaves its layer empty by design. See
+        // `CardView.Layer`.
         Screen.PVP_MATCH -> pvp?.let { session ->
-            MatchArt(startup) {
+            MatchArt {
                 PvpMatchScreen(
                     session = session,
                     // The whole table rather than the mode's: a PvP opponent plays their own
@@ -1021,7 +1029,7 @@ private fun MatchDestinations(
         }
 
         Screen.PVP_CLAIM -> pvp?.let { session ->
-            MatchArt(startup) {
+            MatchArt {
                 PvpClaimScreen(
                     session = session,
                     cards = startup.catalog?.all?.associateBy { it.id }.orEmpty(),
@@ -1200,7 +1208,7 @@ private fun MatchDestination(
         session.open(chosen.iconId, format.id)
     }
 
-    MatchArt(startup) {
+    MatchArt {
         PveMatchScreen(
             session = session,
             catalog = catalog,
@@ -1321,7 +1329,7 @@ private fun CampaignDestination(
         )
     } else {
         if (catalog != null && format != null && pve != null) {
-            MatchArt(startup) {
+            MatchArt {
                 CampaignMatchScreen(
                     campaign = ladder,
                     catalog = catalog,
@@ -1340,10 +1348,15 @@ private fun CampaignDestination(
     }
 }
 
+/**
+ * The banner strip, which is the boards' own and nothing else's.
+ *
+ * It used to carry `LocalCardArt` too; that is provided for the whole tree now — see the note
+ * where it is, and the auction house that went without it for want of a line here.
+ */
 @Composable
-private fun MatchArt(startup: StartupState, content: @Composable () -> Unit) {
+private fun MatchArt(content: @Composable () -> Unit) {
     CompositionLocalProvider(
-        LocalCardArt provides startup.art,
         LocalBannerArt provides rememberBannerArt(LocalStrings.current.locale),
         content = content,
     )
@@ -1383,7 +1396,7 @@ private fun TutorialDestination(
     val format = startup.formats?.default ?: return
     val tutor = startup.opponents?.let { tutorFor(it, format.id) } ?: return
 
-    MatchArt(startup) {
+    MatchArt {
         TutorialScreen(
             catalog = catalog,
             profile = profile,

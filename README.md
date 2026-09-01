@@ -13,18 +13,22 @@ Built with modern Kotlin Multiplatform and Compose technologies.
 
 ## Screenshots
 
+Every picture but the landscape board is a phone, 390 x 844 dp — which is the shape the app is
+mostly used at, and the one that shows the sheets and full-width grids a wide window hides.
+
 | | |
 |---|---|
 | ![Title screen](docs/screenshots/title.png)<br>**Title screen** | ![Dashboard](docs/screenshots/dashboard.png)<br>**Dashboard** — the hub a character lands on |
 | ![Match, landscape](docs/screenshots/match_landscape.png)<br>**Match, landscape** — three cards down, All Open | ![Match, portrait](docs/screenshots/match_portrait.png)<br>**Match, portrait** — the phone layout, not a scaled one |
-| ![Collection](docs/screenshots/collection.png)<br>**Collection** — grid and detail, two panes, 564 cards | ![Deck builder](docs/screenshots/deck_builder.png)<br>**Deck builder** — the starter deck open |
-| ![Card detail](docs/screenshots/card_detail.png)<br>**Card detail** | ![Tutorial](docs/screenshots/tutorial.png)<br>**Tutorial** — the first lesson, mid-sentence |
-| ![Opponents](docs/screenshots/opponents.png)<br>**Opponents** — ladders, then the shelves that say who is worth playing | |
+| ![Collection](docs/screenshots/collection.png)<br>**Collection** — 564 cards, the grid with the screen to itself | ![Deck builder](docs/screenshots/deck_builder.png)<br>**Deck builder** — the starter deck open |
+| ![Card detail](docs/screenshots/card_detail.png)<br>**Card detail** — the panel, as the sheet over the grid carries it | ![Tutorial](docs/screenshots/tutorial.png)<br>**Tutorial** — the first lesson, mid-sentence |
+| ![Auction house](docs/screenshots/auction_room.png)<br>**Auction house** — the sale room, with a lot open at the desk | ![Consignment desk](docs/screenshots/auction_sell.png)<br>**Consignment desk** — a card, two prices and what the house charges |
+| ![Consignment picker](docs/screenshots/auction_picker.png)<br>**Consignment picker** — the collection's own grid and filters, over what is spare | ![Opponents](docs/screenshots/opponents.png)<br>**Opponents** — ladders, then the shelves that say who is worth playing |
 
 ### How these are taken
 
 The app photographs itself. `ScreenshotCapture` (in `shared/src/desktopTest/`) drives the same
-screens the UI tests drive, at a fixed window size and density, and writes the nine files above
+screens the UI tests drive, at a fixed window size and density, and writes the eleven files above
 into `docs/screenshots/`. No device, no emulator, and the same picture every run:
 
 ```bash
@@ -35,13 +39,13 @@ Without `-Ptto.screenshots` every capture is skipped, so an ordinary `./gradlew 
 writes into the repository nor pays for the run. Adding a screenshot means adding a method there —
 the landmark tag it waits on is what pins *which* screen it caught.
 
-Two things to know before adding one. The landmark must be something the screen has actually
+Three things to know before adding one. The landmark must be something the screen has actually
 **composed**: a `LazyColumn` item below the fold never appears, so waiting on it only ever times
-out. And the landscape board capture takes its own window (`BOARD`, 960 x 600 dp) rather than the
-640 x 480 dp `DESKTOP` one, because a match is started through the opponent detail sheet and on a
-480 dp-tall window that sheet's own challenge button falls outside the window — the same reason a
-player cannot start a match on a window that short. The portrait capture is unaffected: a phone is
-844 dp tall.
+out. The landscape board takes its own window (`BOARD`, 960 x 600 dp) because a match is started
+through the opponent detail sheet, whose challenge button falls outside a shorter one — the same
+reason a player cannot start a match on a window that short. And the auction house is the one
+screen here that cannot be photographed off the shipped data: it needs a counterparty and a
+profile past its level gate, so that capture builds a `PveStubServer` and hands it the lots.
 
 ### From a real device
 

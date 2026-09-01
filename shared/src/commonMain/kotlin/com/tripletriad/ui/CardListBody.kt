@@ -2,19 +2,15 @@ package com.tripletriad.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.LocalContentColor
@@ -41,7 +37,6 @@ import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.Strings
 import com.tripletriad.model.Card
 import com.tripletriad.model.GameSave
-import com.tripletriad.model.powerLabel
 import kotlinx.coroutines.launch
 
 const val CARD_GRID_TEST_TAG: String = "card-grid"
@@ -187,7 +182,7 @@ internal fun ColumnScope.CardListBody(
                     onSell = sell,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(DetailHeight)
+                        .height(CardPanelHeight)
                         .padding(horizontal = SpaceMd, vertical = SpaceSm),
                 )
             }
@@ -208,7 +203,7 @@ private fun CardDetail(
     card: Card?,
     profile: GameSave,
     onSell: (Card) -> Unit,
-    modifier: Modifier = Modifier.fillMaxWidth().height(DetailHeight),
+    modifier: Modifier = Modifier.fillMaxWidth().height(CardPanelHeight),
 ) {
     val strings = LocalStrings.current
 
@@ -219,58 +214,10 @@ private fun CardDetail(
         if (card == null) {
             EmptyNote(strings[StringKeys.PICK_CARD], CARD_DETAIL_EMPTY_TEST_TAG)
         } else {
-            Row(
-                modifier = Modifier.testTag(CARD_DETAIL_TEST_TAG).fillMaxSize(),
-                horizontalArrangement = Arrangement.spacedBy(SpaceMd),
-            ) {
-                CardFace(card = card, scale = DETAIL_SCALE)
-                // **`fillMaxHeight` is what makes the rest of this work.** Without it the column
-                // was as tall as its own contents, so `weight(1f)` on the description had no
-                // remainder to take, the column overflowed the panel, and what fell off the bottom
-                // was the Sell button — the one control the panel exists to offer. The description
-                // was cut mid-sentence with nothing to say it could be scrolled.
-                Column(
-                    modifier = Modifier.fillMaxHeight().weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(SpaceXs),
-                ) {
-                    Text(
-                        text = strings[card.nameKey],
-                        color = MaterialTheme.colorScheme.onSurface,
-                        style = MaterialTheme.typography.titleSmall,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = cardFacts(strings, card),
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
-                        style = MaterialTheme.typography.labelSmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    // The `ff8_` bundle has names for all 110 cards and descriptions for none, so
-                    // this really is absent rather than merely untranslated — leaving the key on
-                    // screen would read as a defect in the port.
-                    val description = "${card.nameKey}_DESC"
-                    if (strings.has(description)) {
-                        Text(
-                            // Quoted speech, with emphasis and the odd line break — the prose most
-                            // likely to carry markup. See [markup].
-                            text = markup(strings[description]),
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
-                            // `bodySmall` and not `labelSmall`: this is the only prose in the game
-                            // and it was being drawn at the size the app uses for a stack count.
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f)
-                                .verticalScroll(rememberScrollState()),
-                        )
-                    } else {
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
-
-                    SellButton(card, profile, onSell)
-                }
+            // The panel the auction's lectern reads a card in too — see [CardPanel] for why the
+            // sprite is at full size and why the height has to come from here.
+            CardPanel(card = card, tag = CARD_DETAIL_TEST_TAG) {
+                SellButton(card, profile, onSell)
             }
         }
     }
@@ -311,12 +258,6 @@ private fun ColumnScope.SellButton(card: Card, profile: GameSave, onSell: (Card)
     }
 }
 
-private fun cardFacts(strings: Strings, card: Card): String = listOf(
-    "${strings[StringKeys.SIDES]} " + listOf(card.top, card.right, card.bottom, card.left)
-        .joinToString(" ", transform = ::powerLabel),
-    "${strings[StringKeys.RARITY]} ${starsOf(card.rarity)}",
-).joinToString(DOT_SEPARATOR)
-
 /**
  * Cards this list hides until the profile actually owns one — an easter egg stops being one the
  * moment it is readable off a menu nobody has to earn anything to see. Mooba (`0x086f`) is the one
@@ -327,9 +268,5 @@ private fun cardFacts(strings: Strings, card: Card): String = listOf(
  * trades exactly like any other the moment it is in the profile's collection.
  */
 private val SECRET_CARD_IDS = setOf(0x086f)
-
-private const val DETAIL_SCALE = 1f
-
-private val DetailHeight = 196.dp
 
 private val DetailPaneWidth = 260.dp

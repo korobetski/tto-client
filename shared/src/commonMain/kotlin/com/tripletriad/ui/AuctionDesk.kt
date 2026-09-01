@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -33,6 +34,9 @@ import kotlinx.coroutines.launch
 
 const val AUCTION_DESK_TEST_TAG: String = "auction-desk"
 
+/** The card being bid on, drawn by the panel the collection reads a card in. */
+const val AUCTION_DESK_CARD_TEST_TAG: String = "auction-desk-card"
+
 const val AUCTION_BID_FIELD_TEST_TAG: String = "auction-bid-field"
 
 const val AUCTION_BID_TEST_TAG: String = "auction-bid"
@@ -52,11 +56,12 @@ const val AUCTION_WITHDRAW_LOCKED_TEST_TAG: String = "auction-withdraw-locked"
  *
  * ### The card is drawn at full size, and that is the layout's first constraint
  *
- * The player is deciding what a card is worth. Every other panel in the app can afford to shrink
+ * The player is deciding what a card is worth. Every other surface in the app can afford to shrink
  * its picture; this one cannot, because the numbers around it are meaningless without it — a five
  * at every edge and a five in the corner are the same row in a list and different cards on a desk.
- * So `CardFace` is at scale 1, the desk is [DeskWidth] wide because that is what fits it plus a
- * margin, and everything else here is laid out around that.
+ * [CardPanel] is what draws it — the same block the collection reads a card in, sprite at scale 1
+ * with the powers and the rarity written out beside it — and the desk is [DeskWidth] wide because
+ * that is what fits it plus a margin.
  *
  * ### Why the client checks a bid it is about to send anyway
  *
@@ -101,14 +106,33 @@ internal fun AuctionDesk(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(SpaceSm),
     ) {
-        card?.let { CardFace(card = it, scale = 1f) }
-
-        Text(
-            text = card?.let { strings[it.nameKey] } ?: "#${lot.cardId}",
-            color = MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-        )
+        // The collection's own card panel, which is where a card is read in this app: the sprite
+        // at full size, its name, its powers and its rarity in writing, and whatever the game has
+        // to say about it. The lectern used to draw a face and a name and stop there — the two
+        // facts a bidder is pricing the card on were the two it left out.
+        if (card == null) {
+            // A card this client's catalogue does not have. The lot is still biddable and every
+            // number below is still true, so the id is what it is called and nothing is drawn.
+            Text(
+                text = "#${lot.cardId}",
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
+        } else {
+            CardPanel(
+                card = card,
+                tag = AUCTION_DESK_CARD_TEST_TAG,
+                // The surface the collection's panel wears, for the same reason: this block and
+                // the terms under it are two cards of a lectern that sits on the screen's own
+                // background, and an unbacked one reads as loose text over the list beside it.
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(CardPanelHeight)
+                    .rowSurface()
+                    .padding(SpaceSm),
+            )
+        }
 
         DeskTerms(lot, now, session)
 

@@ -8,10 +8,6 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -27,14 +23,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import com.tripletriad.data.AuctionRules
 import com.tripletriad.data.CardSet
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.Card
-import com.tripletriad.model.CardType
 import com.tripletriad.model.GameSave
 import com.tripletriad.protocol.AuctionDuration
 import com.tripletriad.protocol.AuctionPolicy
@@ -302,6 +295,10 @@ internal fun ColumnScope.AuctionSellBody(
  * The whole row is the control, not the word at the end of it. A seller who wants a different card
  * reaches for the card, which is the biggest thing on the line; the label beside it is there to
  * say that reaching for it does something, for anyone who does not try.
+ *
+ * The card itself is [CardLine], the same row the board reads a lot in — picture, powers, element
+ * — with the one fact this screen adds under it: how good it is, which is what the floor and the
+ * ceiling of its price are computed from.
  */
 @Composable
 private fun ChosenCard(card: Card, spares: Int, onChange: () -> Unit) {
@@ -317,21 +314,14 @@ private fun ChosenCard(card: Card, spares: Int, onChange: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(SpaceMd),
     ) {
-        CardTile(
+        CardLine(
             card = card,
-            count = spares,
-            modifier = Modifier.size(FramedThumbSide),
-        )
-        Column(modifier = Modifier.weight(1f)) {
+            name = strings[card.nameKey],
+            modifier = Modifier.weight(1f),
+            count = spares.takeIf { it > 1 },
+        ) {
             Text(
-                text = strings[card.nameKey],
-                color = MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.titleSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = STAR.repeat(card.rarity),
+                text = starsOf(card.rarity),
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
                 style = MaterialTheme.typography.labelSmall,
                 maxLines = 1,
@@ -349,11 +339,12 @@ private fun ChosenCard(card: Card, spares: Int, onChange: () -> Unit) {
 /**
  * Every spare copy, as a grid with the collection's own filters over it.
  *
- * The same cell the card list draws ([CardTile]) and the same filter row ([CardFilters]), because
- * this is the same question asked in a different room — *which of my cards* — and a player who has
- * learned to find a card once should not have to learn it again. What differs is the count in the
- * corner: here it is how many copies are **spare**, which is how many could be listed, rather than
- * how many are owned.
+ * Not *like* the collection's grid — it is the same one. [rememberCardFilters], [CardFilterChips],
+ * [CardGrid] and [CardCell] are what the card list is built from, because this is the same
+ * question asked in a different room — *which of my cards* — and a player who has learned to find
+ * a card once should not have to learn it again. What differs is the count in the corner: here it
+ * is how many copies are **spare**, which is how many could be listed, rather than how many are
+ * owned.
  *
  * The grid takes the screen rather than sharing it with the form. A bounded grid inside the desk's
  * own scroll would be two scrolling surfaces one inside the other, which on a phone is a drag that
@@ -369,19 +360,9 @@ private fun ColumnScope.SellPicker(
     onBack: () -> Unit,
 ) {
     val strings = LocalStrings.current
-    var set by remember { mutableStateOf<Int?>(null) }
-    var type by remember { mutableStateOf<CardType?>(null) }
-    var rarity by remember { mutableStateOf<Int?>(null) }
-
-    // A card's block folds down to the block that speaks for its whole *set* before it is
-    // compared, so FFXIV — which spans two — is one chip and not two. See `representativeBlocks`.
-    val blockGroups = remember(sets) { representativeBlocks(sets) }
-    val shown = remember(sellable, set, type, rarity, blockGroups) {
-        sellable.filter {
-            (set == null || blockGroups[it.block] == set) &&
-                (type == null || it.type == type) &&
-                (rarity == null || it.rarity == rarity)
-        }
+    val filters = rememberCardFilters(sellable, sets)
+    val shown = remember(sellable, filters.set, filters.type, filters.rarity) {
+        sellable.filter(filters::matches)
     }
 
     Column(modifier = Modifier.testTag(AUCTION_SELL_TEST_TAG).fillMaxWidth().weight(1f)) {
@@ -392,44 +373,20 @@ private fun ColumnScope.SellPicker(
             }
         }
 
-        CardFilters(
-            sets = remember(sellable, blockGroups) {
-                sellable.mapNotNull { blockGroups[it.block] }.distinct().sorted()
-            },
-            types = remember(sellable) {
-                CardType.entries.filter { candidate -> sellable.any { it.type == candidate } }
-            },
-            rarities = remember(sellable) { sellable.map { it.rarity }.distinct().sorted() },
-            set = set,
-            type = type,
-            rarity = rarity,
-            onSet = { set = it },
-            onType = { type = it },
-            onRarity = { rarity = it },
-        )
+        CardFilterChips(filters)
 
-        LazyVerticalGrid(
-            // The card list's own arrangement, for the reasons written there: cells the size of
-            // the art, no spacing between frames that already carry their own margin, and the
-            // width the columns do not use split between the two edges.
-            columns = GridCells.FixedSize(FramedThumbSide),
-            horizontalArrangement = Arrangement.spacedBy(0.dp, Alignment.CenterHorizontally),
-            modifier = Modifier.testTag(AUCTION_SELL_GRID_TEST_TAG).fillMaxWidth().weight(1f),
-        ) {
-            items(shown, key = { it.id }) { card ->
-                CardTile(
-                    card = card,
-                    selected = card.id == chosen.id,
-                    count = profile.spareCopiesOf(card.id),
-                    modifier = Modifier
-                        .testTag(auctionSellCardTestTag(card.id))
-                        .size(FramedThumbSide)
-                        .ttoClickable(
-                            selected = card.id == chosen.id,
-                            onClick = { onPick(card.id) },
-                        ),
-                )
-            }
+        CardGrid(
+            cards = shown,
+            tag = AUCTION_SELL_GRID_TEST_TAG,
+            modifier = Modifier.fillMaxWidth().weight(1f),
+        ) { card ->
+            CardCell(
+                card = card,
+                copies = profile.spareCopiesOf(card.id),
+                selected = card.id == chosen.id,
+                modifier = Modifier.testTag(auctionSellCardTestTag(card.id)),
+                onClick = { onPick(card.id) },
+            )
         }
     }
 }
@@ -470,5 +427,3 @@ internal fun priceRungs(floor: Int, ceiling: Int): List<Int> =
 private const val PRICE_DOUBLE = 2
 
 private const val PRICE_QUINTUPLE = 5
-
-private const val STAR = "★"

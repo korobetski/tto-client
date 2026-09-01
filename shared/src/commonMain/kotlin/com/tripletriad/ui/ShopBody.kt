@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -23,7 +22,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -413,7 +411,7 @@ private fun BoosterTile(
             minLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
-        PriceTag(price = offer.price, isAffordable = isAffordable)
+        OfferPrice(price = offer.price, isAffordable = isAffordable)
     }
 }
 
@@ -457,7 +455,7 @@ private fun BoonTile(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        PriceTag(price = offer.price, isAffordable = isAffordable)
+        OfferPrice(price = offer.price, isAffordable = isAffordable)
     }
 }
 
@@ -508,71 +506,36 @@ private fun CardOffer(
             )
         }
 
-        PriceTag(price = offer.price, isAffordable = isAffordable)
+        OfferPrice(price = offer.price, isAffordable = isAffordable)
     }
 }
 fun shopOwnedTestTag(offer: ShopOffer): String = "shop-owned-${itemSlug(offer.item)}"
 
 /**
- * A price, as money.
- *
- * The coin is the one the purse in the top bar shows, so the number reads as the number this
- * purchase is about to change. Grouped in threes because the shelf runs to seven figures and
- * `1000000` is not a price anybody can read at a glance.
+ * A price on the shelf, and whether the purse can reach it.
  *
  * Out of reach is said on the **price** and nowhere else. Dimming the whole offer, which is what
  * this used to do, hides the name and the description of everything expensive — and three cards
  * on this shelf cost more than a character will hold for a very long time.
+ *
+ * The coin and the grouped number themselves are [PriceTag], which is how every price in the app
+ * is written; what belongs to the shop is only which of two colours it wears.
  */
 @Composable
-private fun PriceTag(price: Int, isAffordable: Boolean) {
-    val strings = LocalStrings.current
-
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
-    ) {
-        Icon(
-            imageVector = TtoIcons.Chip,
-            contentDescription = strings[StringKeys.MGP],
-            tint = if (isAffordable) {
-                LocalTtoColors.current.currency
-            } else {
-                MaterialTheme.colorScheme.error
-            },
-            modifier = Modifier.size(PriceCoinSize),
-        )
-        Text(
-            text = grouped(price),
-            color = if (isAffordable) {
-                MaterialTheme.colorScheme.tertiary
-            } else {
-                MaterialTheme.colorScheme.error
-            },
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            softWrap = false,
-        )
-    }
-}
-
-/**
- * `1000000` as `1 000 000`.
- *
- * A narrow no-break space, not a comma or a dot: those two swap meanings between the app's two
- * languages, and the space is the one grouping both read the same way. Not locale-aware — Kotlin
- * common has no number formatter, and a hand-rolled per-locale one would be a second place for
- * the shop's prices to disagree with the purse's.
- */
-internal fun grouped(value: Int): String {
-    val digits = value.toString()
-    return buildString {
-        for ((index, digit) in digits.withIndex()) {
-            if (index > 0 && (digits.length - index) % GROUP == 0) append(THIN_SPACE)
-            append(digit)
-        }
-    }
+private fun OfferPrice(price: Int, isAffordable: Boolean) {
+    PriceTag(
+        price = price,
+        color = if (isAffordable) {
+            MaterialTheme.colorScheme.tertiary
+        } else {
+            MaterialTheme.colorScheme.error
+        },
+        coin = if (isAffordable) {
+            LocalTtoColors.current.currency
+        } else {
+            MaterialTheme.colorScheme.error
+        },
+    )
 }
 
 @Composable
@@ -683,7 +646,7 @@ private fun OfferRow(
             )
         }
 
-        PriceTag(price = offer.price, isAffordable = isAffordable)
+        OfferPrice(price = offer.price, isAffordable = isAffordable)
     }
 }
 
@@ -819,12 +782,6 @@ private val BoosterArtSize = 44.dp
 /** A card cell holds a 44 dp thumbnail, its four powers and a price. */
 private val CardOfferWidth = 86.dp
 
-private val PriceCoinSize = 13.dp
-
 private val SheetGlyphSize = 56.dp
-
-private const val THIN_SPACE = ' '
-
-private const val GROUP = 3
 
 private const val PERCENT = 100

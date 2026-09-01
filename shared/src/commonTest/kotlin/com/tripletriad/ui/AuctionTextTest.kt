@@ -138,6 +138,19 @@ class AuctionTextTest {
         assertEquals("100 MGP", priceText(strings, 100))
     }
 
+    /**
+     * The desk's numbers are grouped, as the shop's and the board's are.
+     *
+     * The escape rather than the character itself: this assertion is about *which* space, and a
+     * narrow no-break space pasted into a source file is indistinguishable from the ordinary one
+     * that would make it pass for the wrong reason. See `grouped`.
+     */
+    @Test
+    fun aPriceOverAThousandIsGroupedTheWayEveryOtherPriceIs() {
+        assertEquals("1\u202f000 MGP", priceText(strings, 1_000))
+        assertEquals("1\u202f234\u202f567 MGP", priceText(strings, 1_234_567))
+    }
+
     // ---- Fixtures ---------------------------------------------------------
 
     private fun lot(

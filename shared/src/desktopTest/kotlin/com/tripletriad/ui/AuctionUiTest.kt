@@ -35,6 +35,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * The pupitre, and the desk a card is consigned from.
@@ -249,6 +250,25 @@ class AuctionUiTest {
 
             onNodeWithText("10 MGP").assertExists()
             onNodeWithTag(AUCTION_LIST_TEST_TAG).assertIsEnabled()
+        }
+    }
+
+    /**
+     * A row on the board reads its card the way every other list of cards in the app does.
+     *
+     * The framed thumbnail and the four powers beside it are `CardTile` and `CardStatsLine` — the
+     * two composables the collection, the deck builder and the shop draw a card with — rather than
+     * a `CardFace` shrunk to 0.42, which is what this row was until the digits on it stopped being
+     * legible. The desk beside it still draws the full sprite, and neither tag belongs to that:
+     * `CardFace` carries no thumbnail and prints no stats line.
+     *
+     * Unmerged, because both sit inside the row's own `clickable`, which absorbs their semantics.
+     */
+    @Test
+    fun aLotOnTheBoardIsReadWithTheAppsOwnCardRow() {
+        house(listOf(lot())) {
+            assertTrue(existsUnmerged(thumbTestTag(cheap.textureId)), "no thumbnail on the row")
+            assertTrue(existsUnmerged(cardStatsTestTag(cheap.id)), "no powers on the row")
         }
     }
 

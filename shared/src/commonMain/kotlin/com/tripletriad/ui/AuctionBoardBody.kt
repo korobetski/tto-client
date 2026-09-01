@@ -2,18 +2,15 @@ package com.tripletriad.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -24,7 +21,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
@@ -144,6 +140,10 @@ internal fun ColumnScope.AuctionBoardBody(
  * Three lines and no more: what it is, what it costs now, and how long is left. Everything else a
  * bidder needs — the reserve, the seller, the bid count — is a reason to open the desk, and a row
  * that answered all of it would be a desk that nobody opens and a list nobody can scan.
+ *
+ * The card is [CardLine] rather than a `CardFace` shrunk to 0.42, which is what this drew until
+ * the digits on it stopped being legible at any size a list row can afford. The desk still shows
+ * the full sprite — that is where the money is committed. See [CardLine].
  */
 @Composable
 private fun AuctionLotRow(
@@ -154,7 +154,6 @@ private fun AuctionLotRow(
     onClick: () -> Unit,
 ) {
     val strings = LocalStrings.current
-    val colors = LocalTtoColors.current
 
     Row(
         modifier = Modifier
@@ -166,34 +165,22 @@ private fun AuctionLotRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(SpaceSm),
     ) {
-        card?.let { CardFace(card = it, scale = ROW_CARD_SCALE) }
-
-        Column(
+        CardLine(
+            card = card,
+            name = card?.let { strings[it.nameKey] } ?: "#${lot.cardId}",
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(SpaceXs),
         ) {
-            Text(
-                text = card?.let { strings[it.nameKey] } ?: "#${lot.cardId}",
-                color = MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.titleSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(SpaceXs),
             ) {
-                Icon(
-                    imageVector = TtoIcons.Chip,
-                    contentDescription = strings[StringKeys.MGP],
-                    tint = colors.currency,
-                    modifier = Modifier.size(IconSm),
-                )
-                Text(
-                    text = "${lot.currentPrice}",
+                // The shelf's own price tag, in the list's own colour: what a lot costs *now* is
+                // not an offer the house is making, so nothing here says affordable or not — the
+                // desk's Bid button is where a purse that cannot reach it is told so.
+                PriceTag(
+                    price = lot.currentPrice,
                     color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
                 )
                 Text(
                     text = bidCountText(strings, lot),
@@ -259,7 +246,5 @@ internal fun bidCountText(strings: Strings, lot: AuctionLot): String = if (lot.b
 
 /** The window in which the row turns red — [com.tripletriad.data.AuctionRules.extendedEnd]'s. */
 private const val URGENT_MILLIS = 120_000L
-
-private const val ROW_CARD_SCALE = 0.42f
 
 private val BadgeWidth = 72.dp

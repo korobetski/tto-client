@@ -127,6 +127,28 @@ class CollectionUiTest {
         )
     }
 
+    /**
+     * A cell carries the element, because it is the same tile the rest of the app draws.
+     *
+     * The grid used to build its own cell — a thumbnail and a copy badge — while the deck builder,
+     * the shop and the auction's picker each drew `CardTile`, which puts the element in the top
+     * corner. Four arrangements of one object, and the collection was the only room where a card's
+     * element was invisible until it was opened. See [CardCell].
+     */
+    @Test
+    fun aCellCarriesTheElementTheRestOfTheAppPutsOnACard() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        openCards()
+
+        // Read off the table rather than named: the starter deck happens to be elementless, and
+        // an element is a fact about the *catalogue* this assertion should not hard-code a card of.
+        val elemental = catalog.all.first { it.type != null && it.block == FF14_BLOCK }.id
+        onNodeWithTag(CARD_GRID_TEST_TAG)
+            .performScrollToNode(hasTestTag(cardCellTestTag(elemental)))
+
+        assertTrue(existsUnmerged(cardTypeTestTag(elemental)), "no element on the cell")
+    }
+
     @Test
     fun aCellIsExactlyTheFrameAndNeverWiderThanIt() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }

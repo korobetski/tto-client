@@ -87,9 +87,16 @@ internal fun countdownText(strings: Strings, millisLeft: Long): String {
     }
 }
 
-/** A price with the game's own coin after it, the way every other price in the app is written. */
+/**
+ * A price with the game's own coin after it, the way every other price in the app is written.
+ *
+ * Grouped by [grouped], as the shop's prices and the board's rows are: a reserve of `1000000` is
+ * not a number anybody reads at a glance, and the desk was the one place in the app printing one.
+ * In words rather than against the coin because these are table rows — see `TermRow` — where the
+ * unit is what tells a bare number apart from the countdown two lines under it.
+ */
 internal fun priceText(strings: Strings, amount: Int): String =
-    "$amount ${strings[StringKeys.MGP]}"
+    "${grouped(amount)} ${strings[StringKeys.MGP]}"
 
 private const val MILLIS_PER_SECOND = 1_000L
 private const val SECONDS_PER_MINUTE = 60L

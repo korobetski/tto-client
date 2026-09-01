@@ -13,7 +13,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -414,18 +413,13 @@ private fun OpponentRow(
             )
         }
 
-        Icon(
-            imageVector = TtoIcons.Chip,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.tertiary,
-            modifier = Modifier.size(FeeCoinSize),
-        )
-        Text(
-            text = "${npc.matchFee}",
+        // The shelf's own price tag: what a match costs is money out of the same purse a card is
+        // bought with, and it was the last coin in the app still drawn by hand. See [PriceTag].
+        PriceTag(
+            price = npc.matchFee,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
-            style = MaterialTheme.typography.labelMedium,
-            maxLines = 1,
-            softWrap = false,
+            coin = MaterialTheme.colorScheme.tertiary,
+            coinSize = FeeCoinSize,
         )
     }
 }

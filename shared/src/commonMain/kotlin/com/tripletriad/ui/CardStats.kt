@@ -65,6 +65,16 @@ internal fun CardTypeBadge(card: Card, size: Dp = TypeBadgeSize) {
     )
 }
 
+/**
+ * A rarity, as the stars a player counts off the card itself.
+ *
+ * The one place the character is written. Three screens had a `private const val STAR` of their
+ * own, which is three chances to disagree about which glyph a rarity is spelled with.
+ */
+internal fun starsOf(rarity: Int): String = STAR.repeat(rarity)
+
+internal const val STAR: String = "★"
+
 private const val POWER_SEPARATOR = " "
 
 private val TypeBadgeSize = 11.dp

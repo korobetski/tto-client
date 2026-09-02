@@ -82,25 +82,34 @@ class CampaignBundleTest {
     }
 
     /**
-     * Which rungs declare a per-match fee on top of their ladder's entry fee.
+     * A rung's fee, band and payout are the roster's, because both are read off one difficulty.
      *
-     * One of the ladders' thirteen does — `cc/spade`. All four Balamb rungs do as well, and for a
-     * different reason: they are *copies* of catalogue opponents (see `authored_ladder()`), so they
-     * carry the catalogue's own fees rather than the zeroes the other ladders were written with.
+     * They used to be authored per rung and they disagreed: twelve of the seventeen declared a fee
+     * of 0 while the referee — which resolves the opponent from `npcs.json` and charges *that*
+     * record — collected 5 to 25 from the player. The claim on screen was a display-only fiction,
+     * and `cc/spade` alone happened to state a fee at all.
      *
-     * **What actually gets collected is not decided here.** The referee resolves the opponent from
-     * npcs.json and charges that record's fee, whatever this file says — so those rungs' zeroes
-     * are a display-only claim, and Balamb's fees are honest precisely because they are copied.
+     * There is nothing left to disagree. Each rung stores the difficulty its catalogue entry was
+     * measured at and everything else follows from it, so this asserts the one thing that could
+     * still go wrong: a rung copied from an opponent whose rating has since moved.
      */
     @Test
-    fun theRungsDeclaringAPerMatchFeeAreTheKnownOnes() {
-        val charging = catalog.all.flatMap { campaign ->
-            campaign.steps.filter { it.npc.matchFee > 0 }.map { "${campaign.key}/${it.npc.iconId}" }
+    fun everyRungIsBalancedLikeTheRosterEntryItCopies() {
+        val roster = runBlocking { loadNpcCatalog() }
+
+        for (campaign in catalog.all) {
+            for (step in campaign.steps) {
+                val where = "${campaign.key}/${step.npc.iconId}"
+                val entry = assertNotNull(
+                    roster.all.firstOrNull { it.iconId == step.npc.iconId },
+                    "$where is not in the roster",
+                )
+                assertEquals(entry.difficulty, step.npc.difficulty, "$where: difficulty")
+                assertEquals(entry.matchFee, step.npc.matchFee, "$where: fee")
+                assertEquals(entry.level, step.npc.level, "$where: band")
+                assertEquals(entry.mgpReward, step.npc.mgpReward, "$where: payout")
+            }
         }
-        assertEquals(
-            listOf("cc/spade", "balamb/kid", "balamb/trepies", "balamb/ma-dincht", "balamb/jack"),
-            charging,
-        )
     }
 
     @Test

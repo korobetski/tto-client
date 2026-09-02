@@ -1,6 +1,7 @@
 package com.tripletriad.data
 
 import com.tripletriad.FF8_BLOCK
+import com.tripletriad.model.AchievementCatalog
 import com.tripletriad.model.Card
 import com.tripletriad.model.CardType
 import com.tripletriad.ui.loadCardArt
@@ -95,7 +96,30 @@ class CardBundleTest {
         }
     }
 
+    @Test
+    fun theTribeSetsAreExactlyWhatTheTableTypes() {
+        // `AchievementCatalog` hard-codes four lists of card ids because `:core` cannot read a
+        // bundle, and its KDoc promises this test is what keeps them honest. Re-derived from
+        // `cards.json` rather than compared against a second literal, so a card whose `type`
+        // changes — three of them just did — fails here instead of quietly shrinking a badge
+        // nobody can finish any more.
+        val byType = catalog.all.filter { it.type != null }.groupBy { it.type }
+
+        for ((type, expected) in TRIBE_SETS) {
+            val actual = byType[type].orEmpty().map { it.id }.sorted()
+            assertEquals(expected.sorted(), actual, "the $type set")
+        }
+    }
+
     private companion object {
+        /** Each tribe `AchievementCatalog` counts a ladder against, and the ids it counts. */
+        val TRIBE_SETS = mapOf(
+            CardType.BEAST to AchievementCatalog.BEAST_CARDS,
+            CardType.PRIMALS to AchievementCatalog.PRIMAL_CARDS,
+            CardType.GARLEAN to AchievementCatalog.GARLEAN_CARDS,
+            CardType.SCIONS to AchievementCatalog.SCION_CARDS,
+        )
+
         const val FF14_CARDS_BLOCK_1 = 255
         const val FF14_CARDS_BLOCK_2 = 199
 

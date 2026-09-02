@@ -244,7 +244,7 @@
   "APP_PACK_ODDS": "★5-Chance {0}%",
   "APP_MONSTER_BOOSTER_DESC": "Ein Monster aus dem Bestiarium der Stufen 1 und 2, gezogen aus zwölf. Das günstigste verkaufte Päckchen.",
   "APP_FIEND_BOOSTER_DESC": "Ein Boss, gezogen aus den fünfzehn der Stufen 5 bis 7.",
-  "APP_COMPANION_BOOSTER_DESC": "Einer von fünf Begleitern: Chubby Chocobo, Angelo, Gilgamesch, Mini Mog oder Chicobo.",
+  "APP_COMPANION_BOOSTER_DESC": "Einer von vier Begleitern: Chubby Chocobo, Angelo, Mini Mog oder Chicobo.",
   "APP_ALL": "Alle",
   "APP_PVP_TABLES": "Tische",
   "APP_PVP_NO_TABLE": "Gerade bietet niemand eine Partie an.",
@@ -1097,5 +1097,7 @@
   "APP_POUCH_OPENED": "{0} MGP aus dem Verkauf von {1}.",
   "APP_POUCH_ITEM_DESC": "Ein Beutel mit dem Erlös aus dem Verkauf von {0}.",
   "APP_CARD_ITEM_UNSOLD_DESC": "Bei der Auktion unverkauft. Benutze sie, um sie zurück in die Sammlung zu legen.",
-  "APP_AUCTION_CHANGE_CARD": "Ändern"
+  "APP_AUCTION_CHANGE_CARD": "Ändern",
+  "APP_ACHIEVEMENT_REWARD": "Belohnung: {0}",
+  "APP_ACHIEVEMENT_REWARD_MGP": "{0} MGP"
 }

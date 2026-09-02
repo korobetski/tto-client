@@ -224,20 +224,33 @@ class StringsBundleTest {
         // falls back to English is a warning somebody scrolls past — which is the shape that moves
         // every count by the same nine and leaves all four gaps where they were. Measured from a
         // `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted.
-        const val UNION_KEYS = 1780
+        //
+        // +34 to EN and FR, +2 to DE and JA since: the collection ladders and their rewards. The
+        // two that move every bundle are `APP_ACHIEVEMENT_REWARD` and `APP_ACHIEVEMENT_REWARD_MGP`
+        // — a player is told what a badge pays, and a payout that falls back to English is one
+        // that reads as decoration. The other 32 are the ladders' own names and descriptions
+        // (`APP_AC_BEASTS_II`…`_IV`, `APP_AC_PRIMALS_I`…`_IV`, `APP_AC_GARLEANS_*`,
+        // `APP_AC_SCIONS_*`, `APP_AC_COMPANIONS`, each with a `_DESC`), which are EN/FR only and
+        // so widen DE's and JA's gaps by the same 32 rather than their counts. Note the 33rd
+        // authored string that moves **nothing**: `STR_FRIEND_OF_BEASTS_DESC` is an override of an
+        // imported key — `ac-fob` now asks for thirteen of thirty-five rather than thirteen of
+        // thirteen — so it wins the merge without adding to it, the way the `STR_*_BOOSTER`
+        // overrides do. Measured from a `:shared:desktopTest --tests "*StringsBundleTest*"` run
+        // and pasted.
+        const val UNION_KEYS = 1814
 
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 1776,
-            AppLocale.FR_FR to 1777,
-            AppLocale.DE_DE to 1737,
-            AppLocale.JA_JA to 1769,
+            AppLocale.EN_US to 1810,
+            AppLocale.FR_FR to 1811,
+            AppLocale.DE_DE to 1739,
+            AppLocale.JA_JA to 1771,
         )
 
         val EXPECTED_GAPS = mapOf(
             AppLocale.EN_US to 4,
             AppLocale.FR_FR to 3,
-            AppLocale.DE_DE to 43,
-            AppLocale.JA_JA to 11,
+            AppLocale.DE_DE to 75,
+            AppLocale.JA_JA to 43,
         )
     }
 }

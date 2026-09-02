@@ -279,7 +279,7 @@
       "bottom": 3,
       "left": 7,
       "rarity": 1,
-      "type": null
+      "type": "beast"
     },
     {
       "id": 277,
@@ -1514,7 +1514,7 @@
       "bottom": 4,
       "left": 5,
       "rarity": 3,
-      "type": null
+      "type": "beast"
     },
     {
       "id": 372,
@@ -5791,7 +5791,7 @@
       "bottom": 7,
       "left": 9,
       "rarity": 4,
-      "type": "beast"
+      "type": null
     },
     {
       "id": 702,

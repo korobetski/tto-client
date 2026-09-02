@@ -22,6 +22,7 @@ import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.Achievement
 import com.tripletriad.model.AchievementCatalog
+import com.tripletriad.model.Card
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.XpTable
 import com.tripletriad.time.isoDate
@@ -39,8 +40,15 @@ fun achievementRowTestTag(id: String): String = "stats-$id"
 
 fun achievementFamilyTestTag(family: String): String = "stats-family-$family"
 
+fun achievementRewardTestTag(id: String): String = "stats-reward-$id"
+
 @Composable
-internal fun StatsScreen(profile: GameSave, onAvatar: () -> Unit, onBack: () -> Unit) {
+internal fun StatsScreen(
+    profile: GameSave,
+    cards: Map<Int, Card>,
+    onAvatar: () -> Unit,
+    onBack: () -> Unit,
+) {
     val strings = LocalStrings.current
     val families = remember(profile) { rankedFamilies(profile) }
 
@@ -87,7 +95,7 @@ internal fun StatsScreen(profile: GameSave, onAvatar: () -> Unit, onBack: () -> 
                 verticalArrangement = Arrangement.spacedBy(SpaceSm),
             ) {
                 items(families, key = { it.key }) { family ->
-                    AchievementRow(family = family, profile = profile)
+                    AchievementRow(family = family, profile = profile, cards = cards)
                 }
             }
         }
@@ -172,7 +180,11 @@ private fun StatRow(labelKey: String, value: String) {
 }
 
 @Composable
-private fun AchievementRow(family: AchievementFamily, profile: GameSave) {
+private fun AchievementRow(
+    family: AchievementFamily,
+    profile: GameSave,
+    cards: Map<Int, Card>,
+) {
     val strings = LocalStrings.current
     val earned = family.earned
 
@@ -236,9 +248,16 @@ private fun AchievementRow(family: AchievementFamily, profile: GameSave) {
             overflow = TextOverflow.Ellipsis,
         )
 
+        // The reward of whatever the player can still reach — the *next* rung, not the face.
+        // Showing the face's would tell someone who has just earned tier I what they have already
+        // been paid, and leave the 5 000 MGP at the top of the ladder invisible until they are all
+        // but standing on it. Once the family is finished there is no next rung and the face's own
+        // reward is the right thing to show, as a record of what it paid.
+        val next = family.next
+        RewardNote(achievement = next ?: family.face, cards = cards)
+
         // Absent once every tier is earned: there is nothing left to aim at, and a bar at 100%
         // under a completed family says less than the dates above it already do.
-        val next = family.next
         if (next != null) {
             val progress = next.progressFor(profile)
             Row(
@@ -265,6 +284,39 @@ private fun AchievementRow(family: AchievementFamily, profile: GameSave) {
             Meter(fraction = progress.fraction, colour = MaterialTheme.colorScheme.tertiary)
         }
     }
+}
+
+/**
+ * "Reward: Tozol Huatotl", or nothing at all.
+ *
+ * The rewards were invisible until this: the catalogue has always carried them, `credit` has
+ * always paid them, and a player had no way to learn that finishing a tribe was worth anything.
+ * A ladder nobody knows pays is a ladder nobody climbs.
+ *
+ * A card reward is named from the card table, so it reads as the card and not as an id; MGP is
+ * formatted through its own key because the currency's name is translated (PGS in French) and a
+ * bare number would say nothing.
+ */
+@Composable
+private fun RewardNote(achievement: Achievement, cards: Map<Int, Card>) {
+    if (!achievement.hasReward) return
+    val strings = LocalStrings.current
+
+    val parts = buildList {
+        achievement.reward?.let { add(itemName(strings, it, cards)) }
+        if (achievement.mgpReward > 0) {
+            add(strings.format(StringKeys.ACHIEVEMENT_REWARD_MGP, "${achievement.mgpReward}"))
+        }
+    }
+
+    Text(
+        text = strings.format(StringKeys.ACHIEVEMENT_REWARD, parts.joinToString(DOT_SEPARATOR)),
+        color = LocalTtoColors.current.transient,
+        style = MaterialTheme.typography.labelSmall,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.testTag(achievementRewardTestTag(achievement.id)),
+    )
 }
 
 private data class AchievementFamily(

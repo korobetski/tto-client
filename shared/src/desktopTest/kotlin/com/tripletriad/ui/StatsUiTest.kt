@@ -136,7 +136,7 @@ class StatsUiTest {
     }
 
     @Test
-    fun theCatalogueCollapsesIntoSixFamilies() {
+    fun theCatalogueCollapsesIntoTwelveFamilies() {
         val families = AchievementCatalog.all
             .map { it.id.trimEnd { character -> character.isDigit() } }
             .distinct()
@@ -158,12 +158,17 @@ class StatsUiTest {
         const val UNLOCKED_AT = 1_614_816_000_000L
         const val UNLOCKED_ON = "2021-03-04"
 
-        // The 22 ported from `Achievements.as`, plus one per tournament. The originals recorded no
-        // ladder result at all, so the three campaign achievements could only be authored here.
-        const val ACHIEVEMENTS = 25
+        // The 22 ported from `Achievements.as`, plus one per tournament — the originals recorded
+        // no ladder result at all, so the three campaign achievements could only be authored here
+        // — plus the collections: the three rungs added above `ac-fob`, three four-rung tribe
+        // ladders beside it, and FFVIII's single-rung companion badge. 25 + 3 + 12 + 1.
+        const val ACHIEVEMENTS = 41
 
-        // `ac-tt`, `ac-wof`, `ac-td`, `ac-mp`, `ac-fob` — and the three tournaments, which are
-        // families of one apiece: a ladder is won or it is not, so there is no tier to climb.
-        const val FAMILIES = 8
+        // `ac-tt`, `ac-wof`, `ac-td`, `ac-mp`, the four tribe ladders (`ac-fob`, `ac-fop`,
+        // `ac-fog`, `ac-foh`) and `ac-foc` — and the three tournaments, which are families of one
+        // apiece: a ladder is won or it is not, so there is no tier to climb. The tribe ladders
+        // count as one family each because grouping trims the trailing digits, which is also why
+        // `ac-fob` could keep its digitless id and still sit with `ac-fob2`.
+        const val FAMILIES = 12
     }
 }

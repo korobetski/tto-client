@@ -9,6 +9,21 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
+/**
+ * The shipped roster against [NpcRating] — a test about **content**, which is why it is here.
+ *
+ * ### One number, checked; three, derived
+ *
+ * `npcs.json` used to carry `difficulty`, `level`, `matchFee` and `MGPReward`, and this file
+ * checked all four. It carries only the difficulty now: the other three are computed from it in
+ * `:core` (`model/NpcBalance.kt`) and pinned there against literal curves, so asserting them here
+ * would be asserting that a function returns what it returns. What is left is the assertion that
+ * cannot be made anywhere else — that the number in the file is the number four hundred simulated
+ * matches produce.
+ *
+ * [writeRatings] still emits the whole table, derived columns included, because that file is how
+ * the shipped one is regenerated when the rating moves and reading it is how one sees what moved.
+ */
 class NpcRatingBundleTest {
     private val cards = runBlocking { loadCardCatalog() }
     private val npcs = runBlocking { loadNpcCatalog() }
@@ -19,16 +34,12 @@ class NpcRatingBundleTest {
     private val reference: GameSave = NpcRating.referenceProfile(cards, format)
 
     @Test
-    fun everyOpponentCarriesTheRatingTheModelGives() {
+    fun everyOpponentCarriesTheDifficultyTheModelMeasures() {
         val rated = npcs.npcs.map { npc -> npc to NpcRating.rated(npc, winRateOf(npc)) }
         writeRatings(rated)
 
         for ((shipped, expected) in rated) {
-            val where = shipped.iconId
-            assertEquals(expected.difficulty, shipped.difficulty, "$where: difficulty")
-            assertEquals(expected.level, shipped.level, "$where: level")
-            assertEquals(expected.mgpReward, shipped.mgpReward, "$where: MGPReward")
-            assertEquals(expected.matchFee, shipped.matchFee, "$where: matchFee")
+            assertEquals(expected.difficulty, shipped.difficulty, "${shipped.iconId}: difficulty")
         }
     }
 
@@ -38,17 +49,6 @@ class NpcRatingBundleTest {
             assertTrue(
                 npc.difficulty in NpcRating.RANGE,
                 "${npc.iconId} has difficulty ${npc.difficulty}, outside ${NpcRating.RANGE}",
-            )
-        }
-    }
-
-    @Test
-    fun noOpponentIsABadDeal() {
-        for (npc in npcs.npcs) {
-            assertTrue(npc.mgpReward.lose > 0, "${npc.iconId} pays nothing for a loss")
-            assertTrue(
-                npc.matchFee < npc.mgpReward.win,
-                "${npc.iconId} charges ${npc.matchFee} and pays ${npc.mgpReward.win} for a win",
             )
         }
     }

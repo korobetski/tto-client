@@ -187,6 +187,18 @@ object StringKeys {
 
     const val NEXT_TIER: String = "APP_NEXT_TIER"
 
+    /**
+     * What a tier pays, shown under it. `{0}` is the reward's own name.
+     *
+     * A separate key from [ACHIEVEMENT_EARNED], which announces one *after* the fact: this is the
+     * line that tells a player what they are working towards, and it is the whole reason the
+     * ladders have a reward at all.
+     */
+    const val ACHIEVEMENT_REWARD: String = "APP_ACHIEVEMENT_REWARD"
+
+    /** A sum of MGP as a reward's name — the `{0}` of [ACHIEVEMENT_REWARD]. */
+    const val ACHIEVEMENT_REWARD_MGP: String = "APP_ACHIEVEMENT_REWARD_MGP"
+
     // ---- The daily quests, which the original had no equivalent of at all.
     const val QUESTS: String = "APP_QUESTS"
     const val QUESTS_RESET: String = "APP_QUESTS_RESET"
@@ -722,6 +734,7 @@ object StringKeys {
         PACK_SEALED, PACK_BREAK_SEAL, PACK_SPENT, PACK_REVEAL, PACK_TO_COLLECTION,
         PACK_ODDS, BOOSTERS,
         ACHIEVEMENTS_LIST, FORFEITS, MATCHES, WIN_RATE, BOONS, NO_ACHIEVEMENT, NEXT_TIER,
+        ACHIEVEMENT_REWARD, ACHIEVEMENT_REWARD_MGP,
         QUESTS, QUESTS_RESET, QUEST_DONE, NO_QUEST,
         QUEST_PLAY_3, QUEST_WIN_1, QUEST_WIN_3, QUEST_BEAT, QUEST_RULE, QUEST_PVP_1,
         PVP_CHALLENGE, PVP_INVITE, PVP_INVITE_TO, PVP_FROM, PVP_SENT_TO,

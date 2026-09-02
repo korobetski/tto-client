@@ -127,7 +127,7 @@ internal fun OpponentScreen(
     }
     // Grouped rather than flattened, so a sticky header can say which skill band a row belongs to
     // without repeating it on every row. `shown` is already sorted by difficulty (`available()`),
-    // and `NpcLevel` is derived from difficulty by `NpcRating.levelFor` — non-decreasing in it — so
+    // and `Npc.level` is computed from difficulty by `npcLevelFor` — non-decreasing in it — so
     // the groups come out in ascending order for free, the same way `groupBy` preserves the order
     // it first sees a key in.
     val tiers = remember(shown) { shown.groupBy { it.level } }

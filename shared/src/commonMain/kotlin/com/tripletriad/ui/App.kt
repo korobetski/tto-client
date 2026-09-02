@@ -34,6 +34,7 @@ import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.rememberStrings
+import com.tripletriad.model.Card
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.Npc
 import com.tripletriad.model.questDayOf
@@ -862,6 +863,7 @@ private fun CharacterDestination(
             profile = profile,
             starters = starters,
             at = clock.nowMillis(),
+            cards = startup.catalog?.byId.orEmpty(),
             opponents = startup.opponents,
             formatId = startup.formats?.default?.id,
             gate = gate,
@@ -1081,6 +1083,7 @@ private fun RecordDestination(
     profile: GameSave,
     starters: StarterCatalog,
     at: Long,
+    cards: Map<Int, Card>,
     opponents: NpcCatalog?,
     formatId: String?,
     gate: ProfileGate,
@@ -1115,6 +1118,10 @@ private fun RecordDestination(
 
         else -> StatsScreen(
             profile = profile,
+            // The card table, since an achievement's reward is now named rather than left implicit
+            // and a `CardItem` cannot name itself — see `ItemRow.itemName`. Empty before the
+            // catalogue loads, which costs the reward's name and nothing else.
+            cards = cards,
             onAvatar = { onNavigate(Screen.AVATAR) },
             onBack = { onNavigate(Screen.DASHBOARD) },
         )

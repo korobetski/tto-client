@@ -244,7 +244,7 @@
   "APP_PACK_ODDS": "★5の確率 {0}%",
   "APP_MONSTER_BOOSTER_DESC": "レベル1・2のモンスター図鑑、計12種類から1体を引きます。販売パックの中で最も安価です。",
   "APP_FIEND_BOOSTER_DESC": "レベル5〜7のボス、計15種類から1体を引きます。",
-  "APP_COMPANION_BOOSTER_DESC": "チョコボまるまる、アンジェロ、ギルガメッシュ、ミニモグ、チコボの5体から1体。",
+  "APP_COMPANION_BOOSTER_DESC": "チョコボまるまる、アンジェロ、ミニモグ、チコボの4体から1体。",
   "APP_ALL": "すべて",
   "APP_PVP_TABLES": "テーブル",
   "APP_PVP_NO_TABLE": "現在、対戦を募集している人はいません。",
@@ -1097,5 +1097,7 @@
   "APP_POUCH_OPENED": "{1} の売上 {0} MGP。",
   "APP_POUCH_ITEM_DESC": "{0} の売却代金が入った袋。",
   "APP_CARD_ITEM_UNSOLD_DESC": "オークションで落札されませんでした。使用するとコレクションに戻ります。",
-  "APP_AUCTION_CHANGE_CARD": "変更"
+  "APP_AUCTION_CHANGE_CARD": "変更",
+  "APP_ACHIEVEMENT_REWARD": "報酬：{0}",
+  "APP_ACHIEVEMENT_REWARD_MGP": "{0} MGP"
 }

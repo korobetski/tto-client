@@ -26,3 +26,4 @@ __pycache__/
 *.keystore.b64
 *.p12.b64
 *.b64
+/cards_en.html

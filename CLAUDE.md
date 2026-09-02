@@ -135,13 +135,15 @@ checking a real APK; delete them only when the plugin does its own wiring.
    were each declined in favour of less code than the integration would have cost; if you add one,
    say what it does that hand-written code cannot, and if you decline one, say what would change
    your mind.
-4. **Do not hand-edit generated files** — `cards.json`, `npcs.json`, `campaigns.json`, the art under
-   `composeResources/files/art/`, the imported `tto-*.json` locales, `androidApp/src/main/res/`
-   (launcher icon, `raw/` sounds). Change the importer that produced them, re-run it, commit both.
-   `app-*.json` locales are the opposite — authored here, safe to edit.
-5. **Report data defects; do not quietly fix them.** The imported Square Enix locale bundles have
-   duplicate keys and mistranslations; the importer reports them on every run and `app-<tag>.json` is
-   the override mechanism.
+4. **The data files are authored here.** `cards.json`, `npcs.json`, `campaigns.json`, the art under
+   `composeResources/files/art/`, the `tto-*.json` locales, `androidApp/src/main/res/` (launcher
+   icon, `raw/` sounds) were all extracted once from the AS3 original by scripts that are **not in
+   this repository** and cannot be re-run. Edit them in place, and say in the commit what changed
+   and against which source.
+5. **`tto-*.json` is the exception, and `app-<tag>.json` is how it is corrected.** Those bundles are
+   Square Enix's own wording, duplicate keys and mistranslations included. Correcting one in place
+   would make the bundle look trustworthy without making it so; an override in `app-<tag>.json`
+   wins the merge (`Strings.kt`) and keeps their text and ours separable.
 6. `detekt` runs with `maxIssues = 0` and both tools are wired into `check`. Don't add a local
    `@Suppress` — change `detekt/detekt.yml` or `.editorconfig` and record the reason. Any
    suppression that survives must carry its reason inline.

@@ -191,8 +191,8 @@ class NpcBundleTest {
 
         // 25, the count `NPCs.as` declares, and 24 until the FFVIII Queen of Cards was recovered.
         // She was lost flattening the two tables into one keyed by icon: both Queens are authored
-        // as `queen-of-cards`, so one of them overwrote the other. See `tools/extract_npcs.py`,
-        // which now ships the FFVIII one as `ishtar`.
+        // as `queen-of-cards`, so one of them overwrote the other. The FFVIII one ships as
+        // `ishtar`.
         const val FF8_NPCS = 25
 
         // The full FFXIV set, both of its blocks, now that it has grown past 153 — see `CardSet`.

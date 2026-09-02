@@ -47,11 +47,10 @@ compose.desktop {
             // placeholder.
             packageVersion = providers.gradleProperty("clientVersion").get()
 
-            // One icon per platform, in the format each installer insists on. Generated from the
-            // launcher icons already in `androidApp/src/main/res` by `tools/make_desktop_icons.py`,
-            // which checks its own reconstruction against them — so the desktop build and the
-            // phone cannot end up showing different artwork. Without these, jpackage stamps every
-            // build with its own default and the application has no identity on a taskbar.
+            // One icon per platform, in the format each installer insists on. Derived from the
+            // launcher icons already in `androidApp/src/main/res`, so the desktop build and the
+            // phone show the same artwork. Without these, jpackage stamps every build with its own
+            // default and the application has no identity on a taskbar.
             macOS {
                 iconFile.set(project.file("icons/tto.icns"))
                 // A macOS bundle is identified by this, not by its name: it is what the launch

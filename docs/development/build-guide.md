@@ -152,8 +152,8 @@ test counts and the coverage HTML can be read back from a failed run.
 
 `paths-ignore` skips `docs/**`, `sources/**` and `**/*.md`. So a docs-only commit runs no jobs —
 and if you change `sources/` expecting a rebuild, note that nothing in the build reads that tree
-directly: the artwork, strings and sounds are copied out of it by the scripts in `tools/`, and until
-one of those is re-run the build cannot see the change.
+directly. The artwork, strings and sounds under `composeResources/` were copied out of it once and
+are source files in their own right now; changing `sources/` changes nothing the build can see.
 
 ## 8. Build settings worth knowing
 

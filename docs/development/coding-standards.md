@@ -128,14 +128,12 @@ Never edited by hand, never formatted, never committed if it lands in `build/`:
 - Compose resource accessors (`Res`) — excluded from ktlint in
   [`build.gradle.kts`](../../build.gradle.kts)
 - `kotlinx.serialization` serialisers
-- [`cards.json`](../../shared/src/commonMain/composeResources/files/cards.json) —
-  **is** committed, because it is a build input, but it is produced by
-  [`tools/extract_cards.py`](../../tools/extract_cards.py) and must be
-  regenerated rather than edited
-- [`docs/analysis/dependency-matrix.md`](../analysis/dependency-matrix.md) — same, from
-  [`analyse_as3.py`](../analysis/tools/analyse_as3.py)
-
-If you find yourself editing one of these, edit the generator.
+[`cards.json`](../../shared/src/commonMain/composeResources/files/cards.json) is **not** on that
+list, though it reads like it should be. It was extracted from the AS3 original once, by a script
+that is not in this repository; it is a hand-edited source file now, and
+[`CardBundleTest`](../../shared/src/desktopTest/kotlin/com/tripletriad/data/CardBundleTest.kt) is
+what holds it honest — every tribe set an achievement counts is re-derived from its `type` column
+there, so a card whose type moves fails a test rather than quietly shrinking a badge.
 
 ## 8. Related
 

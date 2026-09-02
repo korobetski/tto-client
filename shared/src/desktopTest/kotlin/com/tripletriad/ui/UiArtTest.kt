@@ -109,14 +109,14 @@ class UiArtTest {
         )
 
         /**
-         * Opponents whose portrait has **not been imported yet**. A defect, recorded rather than
-         * repaired here: `npcs.json` and the art under `composeResources/files/art/` are generated,
-         * and CLAUDE.md is explicit that the importer is what changes them.
+         * Opponents whose portrait is **missing**. A defect, recorded rather than repaired here:
+         * the art under `composeResources/files/art/` was extracted from the AS3 original and these
+         * faces were not among what came across.
          *
          * They arrived with the FFXIV expansion, which added 75 opponents and only 38 portraits —
          * 158 opponents are declared against 112 files in `art/npcs/`. Each of these draws with the
-         * fallback plate instead of a face, which is why the count is asserted separately: the
-         * right way to shrink this list is to re-run the importer for the missing art.
+         * fallback plate instead of a face, which is why the count is asserted separately: this
+         * list shrinks by adding the missing files, one name at a time.
          */
         val AWAITING_PORTRAIT = listOf(
             "aiglephine", "bruk-noq", "celia", "cheatingway", "cobleva", "droyn", "gamingway",

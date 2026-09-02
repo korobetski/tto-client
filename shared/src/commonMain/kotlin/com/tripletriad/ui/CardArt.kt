@@ -44,7 +44,7 @@ class CardArt internal constructor(
         val id = card.textureId
         // Card faces live in their own directory now that they are named by id alone: 263 files
         // called `013e.png` beside `back.png` and `digits.png` would be a directory nobody can
-        // read. See `tools/renumber_to_blocks.py`, which is what moved them.
+        // read.
         return faces.getOrPut(id) { loadImage("$CARDS_DIR/$id.png") }
     }
 }

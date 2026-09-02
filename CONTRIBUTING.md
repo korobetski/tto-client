@@ -76,21 +76,21 @@ Each of those is written up with the point at which it should be reconsidered. T
 if you add a dependency, say what it does that hand-written code cannot, and if you decline one, say
 what would change your mind.
 
-### 5. Do not hand-edit generated files
+### 5. The data files are authored here
 
-Five directories are produced by the scripts in `tools/` — `cards.json`, the artwork, the imported
-`tto-*.json` bundles, the launcher icon, `res/raw`. They are committed as generated output because CI
-runs no Python. The list, and which script owns each, is in
-[project-setup.md § 7](docs/development/project-setup.md#7-generated-files-and-the-scripts-that-generate-them).
-Change the script, re-run it, commit both.
+`cards.json`, the artwork, the `tto-*.json` bundles, the launcher icon and `res/raw` were extracted
+once from the AS3 original by scripts that are not in this repository and cannot be re-run. They are
+ordinary source files now: edit them in place, and say in the commit what changed and against which
+source. The provenance of each is in
+[project-setup.md § 7](docs/development/project-setup.md#7-where-the-data-files-came-from).
 
-### 6. Report data defects; do not quietly fix them
+### 6. `tto-*.json` is the exception, and `app-<tag>.json` is how it is corrected
 
 The imported locale bundles contain duplicate keys, unreachable typos and outright mistranslations —
 `STR_PLAY` is untranslated in German and means *playback* in Japanese. None of it is patched inside
-the imported files: the importer reports all of it on every run, and `app-<tag>.json` is the
-documented override mechanism. Editing machine-translated Square Enix wording in place would make the
-bundle look trustworthy without making it so.
+the imported files. An override in `app-<tag>.json` wins the merge and is the documented way to fix
+one; editing machine-translated Square Enix wording in place would make the bundle look trustworthy
+without making it so, and would lose the record of what they actually shipped.
 
 ## Pull requests
 

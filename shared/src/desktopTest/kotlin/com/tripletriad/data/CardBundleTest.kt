@@ -1,6 +1,8 @@
 package com.tripletriad.data
 
 import com.tripletriad.FF8_BLOCK
+import com.tripletriad.i18n.AppLocale
+import com.tripletriad.i18n.loadStrings
 import com.tripletriad.model.AchievementCatalog
 import com.tripletriad.model.Card
 import com.tripletriad.model.CardType
@@ -109,6 +111,30 @@ class CardBundleTest {
             val actual = byType[type].orEmpty().map { it.id }.sorted()
             assertEquals(expected.sorted(), actual, "the $type set")
         }
+    }
+
+    /**
+     * The `name` column and the English bundle agree, card by card.
+     *
+     * Two records of the same fact — `cards.json` carries a `name` for logs and test messages, and
+     * `STR_*_CARD_n` is what the screen actually draws — so nothing stops them drifting apart, and
+     * three of them had: the table said Sahuagin, Rhitahtyna sas Arvina and Good King Moggle Mog
+     * XIII where arrtripletriad.com says Sahagin, Rhitahtyn sas Arvina and Good King Moggle Mog
+     * XII. They were corrected in both places at once; this is what keeps them that way.
+     *
+     * English only. The other three bundles are Square Enix's translations of the same card and are
+     * *supposed* to read differently; the `name` column is English, so English is the one locale it
+     * can be held against.
+     */
+    @Test
+    fun everyCardsNameColumnMatchesWhatTheEnglishBundleDraws() {
+        val strings = runBlocking { loadStrings(AppLocale.EN_US) }
+
+        val disagreeing = catalog.all
+            .filter { strings[it.nameKey] != it.name }
+            .map { "${it.id} ${it.nameKey}: table ${it.name}, bundle ${strings[it.nameKey]}" }
+
+        assertEquals(emptyList(), disagreeing)
     }
 
     private companion object {

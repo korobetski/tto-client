@@ -170,9 +170,9 @@ The client currently implements **7 core systems**:
 │       │       ├── CardView.kt   # Card rendering
 │       │       └── ...
 │       └── commonMain/composeResources/files/
-│           ├── cards.json        # Card catalog (generated)
-│           ├── npcs.json          # PvE opponents (generated)
-│           ├── campaigns.json    # Tournament ladders (generated)
+│           ├── cards.json        # Card catalog
+│           ├── npcs.json          # PvE opponents
+│           ├── campaigns.json    # Tournament ladders
 │           ├── art/               # Card faces, avatars, portraits, icons
 │           └── locales/           # Localization bundles
 ├── androidApp/                  # Android host
@@ -185,14 +185,8 @@ The client currently implements **7 core systems**:
 ├── desktopApp/                  # JVM host
 │   └── src/main/kotlin/
 │       └── Main.kt
-├── iosApp/                      # iOS host (SwiftUI)
-│   └── *.swift
-└── tools/                       # Extraction/import scripts
-    ├── extract_cards.py       # Generates cards.json
-    ├── import_card_art.py      # Imports card artwork
-    ├── import_locales.py       # Normalizes locale bundles
-    ├── import_sounds.py        # Imports sound files
-    └── ...
+└── iosApp/                      # iOS host (SwiftUI)
+    └── *.swift
 ```
 
 ---

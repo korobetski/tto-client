@@ -383,9 +383,9 @@ object StringKeys {
     const val CAMPAIGNS: String = "STR_CAMPAIGNS"
     const val CAMPAIGN_FINAL_REWARD: String = "APP_CAMPAIGN_FINAL_REWARD"
 
-    // `balamb`, unlike `cc`/`gs`, has no name of its own in the imported bundles --
-    // see `authored_ladder()` in tools/extract_campaigns.py. Its *opponents* are the
-    // catalogue's own and keep their imported `STR_NPC_*` names.
+    // `balamb`, unlike `cc`/`gs`, has no name of its own in the imported bundles: the ladder is
+    // authored here, so its name is too. Its *opponents* are the catalogue's own and keep their
+    // imported `STR_NPC_*` names.
     const val CAMPAIGN_BALAMB: String = "APP_CAMPAIGN_BALAMB"
 
     const val CAMPAIGN_STEP: String = "APP_CAMPAIGN_STEP"

@@ -18,8 +18,6 @@ nothing here is repeated there:
 |---|---|---|---|
 | JDK | **17** | everything | Only to *launch* the wrapper. The daemon runs on Temurin 17 regardless — see below |
 | Android SDK | **platform 37** | `:androidApp`, `:shared`'s Android target | Named by `androidCompileSdk` in [`gradle/libs.versions.toml`](../../gradle/libs.versions.toml) |
-| Python | 3 (run with 3.10) | the five scripts in `tools/` only | Not part of the build; nothing in CI runs them |
-| Pillow | any | `tools/make_launcher_icons.py` only | The other four scripts are stdlib-only |
 | Android Studio | 2025.2+ | optional | The command line does not need it — see §4 |
 | adb | with the SDK | running on a phone | [README § Running on a real Android device](../../README.md#running-on-a-real-android-device) |
 
@@ -155,30 +153,28 @@ Every row here was actually hit, by someone, on this repository.
 
 Three deprecation warnings on every build are **expected and not yours** — they come from detekt
 and the Kotlin Multiplatform plugin. They are listed in
-[README § Known issues](../../README.md#known-issues); do not go hunting for them in this
-repository's own scripts.
+[README § Known issues](../../README.md#known-issues).
 
-## 7. Generated files, and the scripts that generate them
+## 7. Where the data files came from
 
-Six paths are **imported or generated, never hand-edited**. Editing them by hand is a change
-that the next script run silently reverts.
+Six paths were **extracted once from the AS3 original**, by Python scripts that are not in this
+repository and cannot be re-run:
 
-| Path | Regenerate with | When |
-|---|---|---|
-| `shared/…/composeResources/files/cards.json` | `python tools/extract_cards.py <dest>` | `sources/src/tto/datas/cards.as` changed |
-| `shared/…/composeResources/files/npcs.json` | `python tools/extract_npcs.py <dest>` | `sources/src/tto/datas/NPCs.as` changed, or `cards.as` (two pools are computed from it) |
-| `shared/…/composeResources/files/art/` | `python tools/import_card_art.py` | the catalog changed |
-| `shared/…/composeResources/files/locales/tto-*.json` | `python tools/import_locales.py` | `sources/bin/datas/locales/` changed |
-| `androidApp/src/main/res/` (icon) | `python tools/make_launcher_icons.py` | the source icon changed — needs Pillow |
-| `androidApp/src/main/res/raw/` (sounds) | `python tools/import_sounds.py` | `Sound` gained or lost a member |
+| Path | Extracted from |
+|---|---|
+| `shared/…/composeResources/files/cards.json` | `sources/src/tto/datas/cards.as` |
+| `shared/…/composeResources/files/npcs.json` | `sources/src/tto/datas/NPCs.as`, plus two card pools computed from `cards.as` |
+| `shared/…/composeResources/files/art/` | the original's texture atlases |
+| `shared/…/composeResources/files/locales/tto-*.json` | `sources/bin/datas/locales/` |
+| `androidApp/src/main/res/` (icon) | the source icon |
+| `androidApp/src/main/res/raw/` (sounds) | the original's sound bank |
 
-Run them from the **repository root**; each resolves its own paths from `__file__` and will tell you
-if a source is missing. They are checked in as generated output on purpose — CI runs no Python, so a
-clone builds without it.
-
-The `app-*.json` locale files next to `tto-*.json` are the opposite case: those are **authored**
-here and safe to edit. The split is provenance, and
-[README § Localisation](../../README.md#localisation) explains it.
+They are ordinary source files now — edit them in place, and say in the commit what changed and
+against which source. Two of them carry rules of their own: `npcs.json` stores each opponent's
+measured `difficulty` and nothing else about its balance (`NpcRatingBundleTest` re-measures it), and
+`tto-*.json` is Square Enix's own wording, corrected through an override in the `app-*.json` file
+beside it rather than in place. [README § Localisation](../../README.md#localisation) explains that
+split.
 
 ## 8. Related
 

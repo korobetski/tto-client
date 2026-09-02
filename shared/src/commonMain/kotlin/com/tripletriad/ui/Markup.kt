@@ -9,9 +9,9 @@ import androidx.compose.ui.text.font.FontStyle
  * The handful of HTML tags the imported locale bundles carry, as styled text.
  *
  * `tto-fr_FR.json` is the only bundle with any: seventeen `<i>` pairs and two line breaks, across
- * the rule help and the card descriptions. They are Square Enix's own markup, arriving through
- * `tools/` unchanged — the importer is not the place to strip them, by this repository's rule about
- * reporting data defects rather than quietly rewriting imported data — and until now they reached
+ * the rule help and the card descriptions. They are Square Enix's own markup, kept verbatim — the
+ * bundle is not the place to strip them, by this repository's rule about correcting imported
+ * wording through `app-<tag>.json` rather than rewriting it in place — and until now they reached
  * the screen as literal angle brackets, tags and all.
  *
  * ### Why this is hand-written

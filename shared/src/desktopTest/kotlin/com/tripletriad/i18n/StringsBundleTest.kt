@@ -237,13 +237,22 @@ class StringsBundleTest {
         // thirteen — so it wins the merge without adding to it, the way the `STR_*_BOOSTER`
         // overrides do. Measured from a `:shared:desktopTest --tests "*StringsBundleTest*"` run
         // and pasted.
-        const val UNION_KEYS = 1814
+        //
+        // +4 to every bundle since: reordering — `APP_MOVE_UP`, `APP_MOVE_DOWN`, `APP_MOVE_LEFT`
+        // and `APP_MOVE_RIGHT`, the descriptions the deck list's and the deck editor's arrows are
+        // read out with. They are content descriptions and nothing else, which is exactly why they
+        // are authored in all four bundles rather than left to fall back: a screen reader is the
+        // one reader who has nothing but the description to go on. Authored in all four `app-*`
+        // bundles at once, which is the shape that moves every count by the same four and leaves
+        // all four gaps where they were. Measured from a
+        // `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted.
+        const val UNION_KEYS = 1818
 
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 1810,
-            AppLocale.FR_FR to 1811,
-            AppLocale.DE_DE to 1739,
-            AppLocale.JA_JA to 1771,
+            AppLocale.EN_US to 1814,
+            AppLocale.FR_FR to 1815,
+            AppLocale.DE_DE to 1743,
+            AppLocale.JA_JA to 1775,
         )
 
         val EXPECTED_GAPS = mapOf(

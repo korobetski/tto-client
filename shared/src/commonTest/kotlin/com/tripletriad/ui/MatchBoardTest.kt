@@ -1,5 +1,7 @@
 package com.tripletriad.ui
 
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.IntOffset
 import com.tripletriad.model.Capture
 import com.tripletriad.model.CaptureKind
 import com.tripletriad.model.Card
@@ -13,6 +15,36 @@ import kotlin.test.assertEquals
  * function's own doc comment for why [waveDelayMillis] alone was not enough.
  */
 class MatchBoardTest {
+
+    @Test
+    fun theGhostSitsCentredOnTheFingerInTheDragLayerSpace() {
+        assertEquals(
+            IntOffset(60, 130),
+            ghostOffset(
+                pointer = Offset(120f, 200f),
+                origin = Offset(20f, 30f),
+                width = 80f,
+                height = 80f,
+            ),
+        )
+    }
+
+    @Test
+    fun aPointerReadAfterTheDragWasCancelledDrawsNothingRatherThanCrashing() {
+        // `Offset.Unspecified` is `(NaN, NaN)`, and it reaches the placement lambda whenever a
+        // relayout falls between `BoardDragState.cancel` and the recomposition that removes the
+        // ghost. Without the guard this is `IllegalArgumentException: Cannot round NaN value.`
+        // thrown out of layout — a crashed match, not a dropped frame.
+        assertEquals(
+            IntOffset.Zero,
+            ghostOffset(
+                pointer = Offset.Unspecified,
+                origin = Offset.Zero,
+                width = 80f,
+                height = 80f,
+            ),
+        )
+    }
 
     @Test
     fun aPlacementWithNoPlayStillGetsTheLandingTime() {

@@ -133,6 +133,17 @@ object StringKeys {
 
     const val NO_FULL_DECK: String = "APP_NO_FULL_DECK"
 
+    /*
+     * The four reordering arrows, as the description a screen reader reads out. Named for the
+     * *direction* and not for what is being moved, because the deck list moves rows and the editor
+     * moves cards in a row — one pair of keys each, and a fifth caller would want the same four.
+     */
+
+    const val MOVE_UP: String = "APP_MOVE_UP"
+    const val MOVE_DOWN: String = "APP_MOVE_DOWN"
+    const val MOVE_LEFT: String = "APP_MOVE_LEFT"
+    const val MOVE_RIGHT: String = "APP_MOVE_RIGHT"
+
     // ---- Inventory and shop.
     const val USE: String = "STR_USE"
     const val SELL: String = "STR_SELL"
@@ -728,6 +739,7 @@ object StringKeys {
         CARD_INFOS, TOTAL, SIDES, RARITY, CARD_TYPE, PICK_CARD, OWNED,
         DECK, DECK_POWER, RESET_DECK, SAVE, CHOOSE_DECK, RANDOM_DECK, NO_FULL_DECK,
         DECK_MISSING_CARDS, DECK_LIMITS, DECK_OVER_LIMIT,
+        MOVE_UP, MOVE_DOWN, MOVE_LEFT, MOVE_RIGHT,
         USE, SELL, DISCARD, BUY, CARD_SHOP, EMPTY_BAG, OBTAINED, ALREADY_OWNED, UNKNOWN_ITEM,
         ITEM_REFUSED, NOTHING_HAPPENED, ACTION_FAILED,
         STARTER_PACK, STARTER_PACK_DESC, FREE, CLAIM, ALL,

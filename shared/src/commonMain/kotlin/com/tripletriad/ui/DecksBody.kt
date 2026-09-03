@@ -8,28 +8,22 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.tripletriad.data.CardCatalog
 import com.tripletriad.data.Format
@@ -44,31 +38,15 @@ import com.tripletriad.model.HAND_SIZE
 import kotlinx.coroutines.launch
 
 const val DECK_LIST_TEST_TAG: String = "deck-list"
-const val DECK_EDITOR_TEST_TAG: String = "deck-editor"
-const val DECK_NAME_TEST_TAG: String = "deck-name"
-const val DECK_SAVE_TEST_TAG: String = "deck-save"
-const val DECK_RESET_TEST_TAG: String = "deck-reset"
-const val DECK_POWER_TEST_TAG: String = "deck-power"
-const val DECK_PICK_GRID_TEST_TAG: String = "deck-pick-grid"
-
-const val DECK_MISSING_TEST_TAG: String = "deck-missing"
-
-/** The editor's live per-rank counters — `★5 1 / 1  ·  ★4 0 / 2`. */
-const val DECK_LIMITS_TEST_TAG: String = "deck-limits"
-
-const val DECK_OVER_LIMIT_TEST_TAG: String = "deck-over-limit"
-
 fun deckMissingTestTag(index: Int): String = "deck-missing-$index"
 
 fun deckSlotTestTag(index: Int): String = "deck-slot-$index"
 
-fun deckPositionTestTag(index: Int): String = "deck-position-$index"
-
-fun deckPickTestTag(cardId: Int): String = "deck-pick-$cardId"
-
-fun deckRemainingTestTag(cardId: Int): String = "deck-remaining-$cardId"
-
 fun deckOverLimitTestTag(index: Int): String = "deck-over-limit-$index"
+
+fun deckMoveUpTestTag(index: Int): String = "deck-move-up-$index"
+
+fun deckMoveDownTestTag(index: Int): String = "deck-move-down-$index"
 
 @Composable
 internal fun ColumnScope.DecksBody(
@@ -84,7 +62,12 @@ internal fun ColumnScope.DecksBody(
     }
 
     if (editing == null) {
-        DeckSlots(profile = profile, cards = cards, onEdit = { onEdit(it) })
+        DeckSlots(
+            profile = profile,
+            cards = cards,
+            onEdit = { onEdit(it) },
+            onPersist = onPersist,
+        )
     } else {
         DeckEditor(
             profile = profile,
@@ -97,7 +80,14 @@ internal fun ColumnScope.DecksBody(
 }
 
 @Composable
-private fun DeckSlots(profile: GameSave, cards: Map<Int, Card>, onEdit: (Int) -> Unit) {
+private fun DeckSlots(
+    profile: GameSave,
+    cards: Map<Int, Card>,
+    onEdit: (Int) -> Unit,
+    onPersist: suspend (GameSave) -> Unit,
+) {
+    val scope = rememberCoroutineScope()
+
     Column(
         modifier = Modifier.testTag(DECK_LIST_TEST_TAG).fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -111,6 +101,10 @@ private fun DeckSlots(profile: GameSave, cards: Map<Int, Card>, onEdit: (Int) ->
                 unowned = unownedPositions(deck, profile.cards),
                 overLimit = DeckLimits.overLimit(deck.cards, cards),
                 onClick = { onEdit(index) },
+                // A swap writes at once, with no Save to press: the list has no draft to hold it
+                // in, and a reordering the player has to confirm is one they can lose by walking
+                // away from the screen. The editor is the place with a draft; this is not it.
+                onMove = { to -> scope.launch { onPersist(profile.withDecksSwapped(index, to)) } },
             )
         }
     }
@@ -124,16 +118,66 @@ private fun DeckSlotRow(
     unowned: Set<Int>,
     overLimit: Map<Int, Int>,
     onClick: () -> Unit,
+    onMove: (Int) -> Unit,
+) {
+    val strings = LocalStrings.current
+
+    // The surface and the two arrows are siblings, and only what is left of them opens the
+    // editor. Nesting the arrows inside the row's own `ttoClickable` would work — a merging node
+    // stays addressable inside another one — but it would put two meanings on one press area, and
+    // a mis-aimed tap on ↑ would open the slot instead of moving it.
+    Row(
+        modifier = Modifier.fillMaxWidth().rowSurface().padding(end = SpaceXs),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // The tag stays on what *opens the deck* rather than on the surface around it: every
+        // caller taps it to reach the editor, and `SemanticsTest` reads a `Role.Button` off it.
+        // The surface is now only a container — the arrows are its other child.
+        DeckSlotFacts(
+            index = index,
+            deck = deck,
+            cards = cards,
+            unowned = unowned,
+            overLimit = overLimit,
+            modifier = Modifier
+                .weight(1f)
+                .testTag(deckSlotTestTag(index))
+                .ttoClickable(onClick = onClick)
+                .padding(SpaceMd),
+        )
+
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            MoveButton(
+                icon = TtoIcons.Collapse,
+                description = strings[StringKeys.MOVE_UP],
+                tag = deckMoveUpTestTag(index),
+                enabled = index > 0,
+                onClick = { onMove(index - 1) },
+            )
+            MoveButton(
+                icon = TtoIcons.Expand,
+                description = strings[StringKeys.MOVE_DOWN],
+                tag = deckMoveDownTestTag(index),
+                enabled = index < GameSave.MAX_DECKS - 1,
+                onClick = { onMove(index + 1) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun DeckSlotFacts(
+    index: Int,
+    deck: Deck,
+    cards: Map<Int, Card>,
+    unowned: Set<Int>,
+    overLimit: Map<Int, Int>,
+    modifier: Modifier,
 ) {
     val strings = LocalStrings.current
 
     Row(
-        modifier = Modifier
-            .testTag(deckSlotTestTag(index))
-            .fillMaxWidth()
-            .rowSurface()
-            .ttoClickable(onClick = onClick)
-            .padding(SpaceMd),
+        modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -197,217 +241,60 @@ private fun DeckSlotRow(
     }
 }
 
+/**
+ * One reordering arrow.
+ *
+ * Not `IconButton`: Material's is a fixed 48 dp, and ten of those under a row of five 40 dp
+ * thumbnails is a control strip twice as wide as the thing it reorders. The size is a parameter
+ * because the two callers are not the same shape — a list row has the height to spare, a deck
+ * position has [DeckThumbSize] and no more.
+ *
+ * A disabled arrow is drawn rather than hidden, so the strip under position 0 is the same width as
+ * the one under position 3 and the thumbnails above them do not shuffle sideways as cards move.
+ */
 @Composable
-private fun DeckEditor(
-    profile: GameSave,
-    slot: Int,
-    cards: Map<Int, Card>,
-    onPersist: suspend (GameSave) -> Unit,
-    onDone: () -> Unit,
+internal fun MoveButton(
+    icon: ImageVector,
+    description: String,
+    tag: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    size: Dp = MoveButtonSize,
 ) {
-    val strings = LocalStrings.current
-    val scope = rememberCoroutineScope()
-    val stored = profile.decks.getOrNull(slot) ?: Deck(name = "", cards = emptyList())
-    // The editor's own copy, keyed on the slot so switching slots restarts it rather than carrying
-    // the previous deck's cards across. Nothing here reaches the profile until Save.
-    var draft by remember(slot) { mutableStateOf(stored) }
-    var name by remember(slot) { mutableStateOf(deckLabel(strings, stored, slot)) }
-    // Distinct cards, ascending — the grid draws one cell per card and says how many copies are
-    // still free on it, rather than one cell per copy. See [remaining].
-    val owned = remember(profile.cards, cards) {
-        profile.cards.keys.sorted().mapNotNull(cards::get)
-    }
-
-    Column(
-        modifier = Modifier.testTag(DECK_EDITOR_TEST_TAG).fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+    Box(
+        modifier = Modifier
+            .size(size)
+            .testTag(tag)
+            .ttoClickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
     ) {
-        OutlinedTextField(
-            value = name,
-            onValueChange = { name = it.take(MAX_DECK_NAME) },
-            label = { Text(strings[StringKeys.DECK]) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            colors = TextFieldDefaults.colors(
-                focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
-            ),
-            modifier = Modifier.testTag(DECK_NAME_TEST_TAG).fillMaxWidth(),
+        Icon(
+            imageVector = icon,
+            contentDescription = description,
+            tint = MaterialTheme.colorScheme.onSurface
+                .copy(alpha = if (enabled) FAINT else DISABLED),
+            modifier = Modifier.size(IconSm),
         )
-
-        // Recomputed against the **draft**, so removing the greyed card clears the warning as the
-        // player watches — which is the whole reason the editor greys them too rather than leaving
-        // it to the list. This is the screen where the deck can actually be repaired.
-        val unowned = unownedPositions(draft, profile.cards)
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            for (position in 0 until HAND_SIZE) {
-                val card = draft.cards.getOrNull(position)?.let(cards::get)
-                // The tag sits on the *clickable* box and not on the frame inside it: a
-                // `clickable` merges its descendants' semantics, so a tag one level down is
-                // absorbed and unreachable from the merged tree a test drives.
-                Box(
-                    modifier = Modifier
-                        .testTag(deckPositionTestTag(position))
-                        .ttoClickable(enabled = card != null) {
-                            draft = draft.minusCardAt(position)
-                        },
-                ) {
-                    DeckPosition(card = card, owned = position !in unowned)
-                }
-            }
-        }
-
-        if (unowned.isNotEmpty()) {
-            Text(
-                text = strings.format(StringKeys.DECK_MISSING_CARDS, "${unowned.size}"),
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.labelSmall,
-                modifier = Modifier.testTag(DECK_MISSING_TEST_TAG),
-            )
-        }
-
-        // The rule, stated as a live count rather than as a sentence to read once. It is drawn
-        // whatever the draft holds — `0 / 1` before a five-star is picked as much as `1 / 1`
-        // after — because a cap the player only meets when they hit it is a cap they meet as a
-        // refusal. The numbers come from `DeckLimits`, so the screen and the server cannot drift.
-        val overLimit = DeckLimits.overLimit(draft.cards, cards)
-
-        Text(
-            text = "${strings[StringKeys.DECK_LIMITS]} ${limitsText(draft, cards)}",
-            color = if (overLimit.isEmpty()) {
-                MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT)
-            } else {
-                MaterialTheme.colorScheme.error
-            },
-            style = MaterialTheme.typography.labelSmall,
-            modifier = Modifier.testTag(DECK_LIMITS_TEST_TAG),
-        )
-
-        // Only for a deck that is *already* over a cap — one built before the caps existed, or one
-        // a set's re-rank moved. The picker cannot produce one, so this is a repair prompt and not
-        // a running validation message.
-        if (overLimit.isNotEmpty()) {
-            Text(
-                text = overLimitText(strings, overLimit),
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.labelSmall,
-                modifier = Modifier.testTag(DECK_OVER_LIMIT_TEST_TAG),
-            )
-        }
-
-        Text(
-            text = "${strings[StringKeys.DECK_POWER]} ${deckPower(draft, cards)}" +
-                "$DOT_SEPARATOR${draft.cards.size} / $HAND_SIZE",
-            // Affordable as well as complete. `5 / 5` in the affirmative tone on a deck that
-            // cannot be dealt is the screen agreeing the deck is finished while every other place
-            // refuses it.
-            color = if (draft.isComplete && unowned.isEmpty() && overLimit.isEmpty()) {
-                MaterialTheme.colorScheme.tertiary
-            } else {
-                MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT)
-            },
-            style = MaterialTheme.typography.labelMedium,
-            modifier = Modifier.testTag(DECK_POWER_TEST_TAG),
-        )
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Box(modifier = Modifier.weight(1f)) {
-                WideButton(strings[StringKeys.RESET_DECK], DECK_RESET_TEST_TAG) {
-                    draft = draft.emptied()
-                }
-            }
-            Box(modifier = Modifier.weight(1f)) {
-                WideButton(strings[StringKeys.SAVE], DECK_SAVE_TEST_TAG) {
-                    scope.launch {
-                        onPersist(profile.withDeck(slot, draft.copy(name = name.trim())))
-                        onDone()
-                    }
-                }
-            }
-        }
-
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = DeckThumbSize + 4.dp),
-            modifier = Modifier
-                .testTag(DECK_PICK_GRID_TEST_TAG)
-                .fillMaxWidth()
-                .weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            items(owned, key = { it.id }) { card ->
-                // How many copies this deck has not spent yet. A card whose copies are all in the
-                // deck is dimmed and refuses the tap, because `Deck.isAffordable` would refuse the
-                // deck and the server would refuse the match — a rule the player meets as a
-                // rejection they cannot act on is worse than one they can see coming.
-                val remaining = profile.copiesOf(card.id) - draft.copiesUsed(card.id)
-
-                // And whether the deck may hold another of this rank. Dimmed and inert exactly as
-                // a spent copy is, because to the player the two are the same fact — this card
-                // cannot go in — and a rule met as a rejection the server issues later is worse
-                // than one met as a tile that will not depress. See `DeckLimits.admits`.
-                val admitted = DeckLimits.admits(draft.cards, cards, card)
-
-                // Centred in its cell, and the frame sized to the card rather than to the
-                // cell. `GridCells.Adaptive` hands an item a **fixed** cross-axis width — whatever
-                // is left over once the columns divide the row — so a border taken straight off
-                // the cell was 51 px of frame around a 44 px thumbnail, and the seven that did
-                // not fit stuck out to the right of every card on the screen. The grid was never
-                // wider than its column; the frame was wider than what it framed. The frame now
-                // belongs to `CardThumb`, which is sized by the art rather than by the cell.
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .testTag(deckPickTestTag(card.id))
-                            // A pick goes in and comes out of the draft, so it toggles rather
-                            // than chooses: `Checkbox` is what a screen reader should hear.
-                            .ttoClickable(
-                                role = Role.Checkbox,
-                                selected = card.id in draft.cards,
-                                enabled = !draft.isComplete && remaining > 0 && admitted,
-                            ) {
-                                draft = draft.plusCard(card.id)
-                            },
-                    ) {
-                        // The same tile the collection and the shop draw. What the badge counts
-                        // here is what the *draft* has left, not what the profile owns — see
-                        // `remaining`.
-                        CardTile(
-                            card = card,
-                            dim = remaining <= 0 || !admitted,
-                            selected = card.id in draft.cards,
-                            count = remaining.takeIf { profile.copiesOf(card.id) > 1 },
-                            countTag = deckRemainingTestTag(card.id),
-                        )
-                    }
-
-                    // Under the thumbnail rather than on it. A 44dp thumbnail already renders the
-                    // powers, at a size nobody reads — which is why building a deck meant tapping
-                    // each card to find out what it was. See [CardStatsLine]. Without the element:
-                    // it is on the thumbnail now, twice its old size.
-                    CardStatsLine(
-                        card = card,
-                        showType = false,
-                        modifier = Modifier.alpha(if (remaining > 0) 1f else SPENT_ALPHA),
-                    )
-                }
-            }
-        }
     }
+}
+
+/**
+ * This profile with deck slots [a] and [b] exchanged.
+ *
+ * Built out of two [GameSave.withDeck] calls rather than a list rewrite, so a swap that reaches
+ * past the end of `decks` pads with empty slots exactly as saving into one does — the list on
+ * screen is [GameSave.MAX_DECKS] long whatever the file holds, and moving the eighth row up must
+ * mean the same thing whether the seven above it exist yet or not.
+ *
+ * **No slot index is stored anywhere**, so this is safe to do behind the player's back: a match
+ * resolves its deck when the selector is opened, not from a remembered number.
+ */
+internal fun GameSave.withDecksSwapped(a: Int, b: Int): GameSave {
+    if (a == b) return this
+    val empty = Deck(name = "", cards = emptyList())
+    val first = decks.getOrNull(a) ?: empty
+    val second = decks.getOrNull(b) ?: empty
+    return withDeck(a, second).withDeck(b, first)
 }
 
 @Composable
@@ -466,8 +353,10 @@ internal fun overLimitText(strings: Strings, overLimit: Map<Int, Int>): String =
 internal fun deckPower(deck: Deck, cards: Map<Int, Card>): Int =
     deck.cards.sumOf { cards[it]?.rarity ?: 0 }
 
-private const val MAX_DECK_NAME = 24
-
 internal val DeckThumbSize = 40.dp
 
-private const val SPENT_ALPHA = 0.3f
+/** The list's arrows: two of them stack inside a slot row without setting its height. */
+private val MoveButtonSize = 28.dp
+
+/** The tone a card the deck cannot spend is drawn in. Shared with the editor. */
+internal const val SPENT_ALPHA = 0.3f

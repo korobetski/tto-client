@@ -150,6 +150,24 @@ internal object TtoIcons {
         }
     }
 
+    /** [Expand] pointing the other way. The pair reorders a list: this one moves a row up. */
+    val Collapse: ImageVector by lazy {
+        icon("Collapse") {
+            moveTo(4.5f, 15f)
+            lineTo(12f, 7.5f)
+            lineTo(19.5f, 15f)
+        }
+    }
+
+    /** [Back] pointing the other way. The pair reorders a row: this one moves a card right. */
+    val Forward: ImageVector by lazy {
+        icon("Forward") {
+            moveTo(9f, 4.5f)
+            lineTo(16.5f, 12f)
+            lineTo(9f, 19.5f)
+        }
+    }
+
     /**
      * The overflow menu, drawn as three dots.
      *

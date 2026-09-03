@@ -2,6 +2,8 @@ package com.tripletriad.ui
 
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithTag
@@ -187,6 +189,16 @@ class DecksUiTest {
         assertEquals(listOf(twin, twin), storedSave(documents).decks.first().cards)
     }
 
+    /**
+     * The starter deck in slot 0 and a named empty one under it.
+     *
+     * Two *named* slots, because a swap is only observable by what the names do — a fixture whose
+     * second slot was the padding `withDeck` invents would let a swap that dropped a deck pass.
+     */
+    private fun twoDecks(): GameSave = freshSave().let { save ->
+        save.copy(decks = save.decks + Deck(name = SECOND_DECK, cards = emptyList()))
+    }
+
     private companion object {
         const val SECOND_DECK = "Second"
 
@@ -218,6 +230,130 @@ class DecksUiTest {
             onNodeWithTag(DECK_PICK_GRID_TEST_TAG)
                 .performScrollToNode(hasTestTag(deckPickTestTag(typed)))
             onNodeWithTag(cardTypeTestTag(typed), useUnmergedTree = true).assertExists()
+        }
+    }
+
+    // ---- Reordering ---------------------------------------------------------
+
+    /**
+     * A slot moved down swaps with the one below it, and the swap is on disk immediately.
+     *
+     * The list has no draft and no Save button — see `DeckSlots` — so "it moved" and "it was
+     * written" are the same claim, and asserting only the first would pass on a screen that
+     * forgets the reordering the moment the player leaves it.
+     */
+    @Test
+    fun movingASlotDownSwapsItWithTheOneBelowAndWritesAtOnce() = runComposeUiTest {
+        val documents = seeded(twoDecks())
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
+
+        onNodeWithTag(deckMoveDownTestTag(0)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
+            storedSave(documents).decks.first().name == SECOND_DECK
+        }
+
+        val decks = storedSave(documents).decks
+        assertEquals(SECOND_DECK, decks[0].name)
+        assertEquals(GameSave.DEFAULT_DECK_NAME, decks[1].name)
+        assertEquals(STARTER_DECK, decks[1].cards, "a moved deck keeps its cards")
+    }
+
+    /** And moving it back up is the same swap in reverse, not a second displacement. */
+    @Test
+    fun movingASlotUpUndoesTheMoveDown() = runComposeUiTest {
+        val documents = seeded(twoDecks())
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
+        val before = storedSave(documents).decks
+
+        onNodeWithTag(deckMoveDownTestTag(0)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
+            storedSave(documents).decks.first().name == SECOND_DECK
+        }
+        onNodeWithTag(deckMoveUpTestTag(1)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
+            storedSave(documents).decks.first().name == GameSave.DEFAULT_DECK_NAME
+        }
+
+        assertEquals(before, storedSave(documents).decks)
+    }
+
+    /** The two arrows a swap would have nothing to swap with are inert rather than absent. */
+    @Test
+    fun theEndsOfTheListCannotBeMovedPastThem() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        openDecks()
+
+        onNodeWithTag(deckMoveUpTestTag(0)).assertIsNotEnabled()
+        onNodeWithTag(deckMoveDownTestTag(0)).assertIsEnabled()
+        val last = GameSave.MAX_DECKS - 1
+        onNodeWithTag(deckMoveUpTestTag(last)).assertIsEnabled()
+        onNodeWithTag(deckMoveDownTestTag(last)).assertIsNotEnabled()
+    }
+
+    /**
+     * A card shifted right inside the editor changes the deck's order and nothing else.
+     *
+     * Order is the play sequence under `RULE_ORDER` — see `Deck.plusCard` — so this is the one
+     * edit the editor could not make before without emptying the slot and rebuilding it.
+     */
+    @Test
+    fun shiftingACardRightReordersTheDeckOnSave() = runComposeUiTest {
+        val documents = seeded(freshSave())
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
+
+        onNodeWithTag(deckSlotTestTag(0)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
+        onNodeWithTag(deckShiftRightTestTag(0)).performClick()
+        onNodeWithTag(DECK_SAVE_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_LIST_TEST_TAG) }
+
+        val expected = listOf(STARTER_DECK[1], STARTER_DECK[0]) + STARTER_DECK.drop(2)
+        assertEquals(expected, storedSave(documents).decks.first().cards)
+        assertEquals(HAND_SIZE, storedSave(documents).decks.first().cards.size, "nothing was lost")
+    }
+
+    /** Shifting left is the same move back, and the ends of the hand refuse it. */
+    @Test
+    fun theEndsOfTheHandCannotBeShiftedPastThem() = runComposeUiTest {
+        val documents = seeded(freshSave())
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
+
+        onNodeWithTag(deckSlotTestTag(0)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
+
+        onNodeWithTag(deckShiftLeftTestTag(0)).assertIsNotEnabled()
+        onNodeWithTag(deckShiftRightTestTag(HAND_SIZE - 1)).assertIsNotEnabled()
+
+        onNodeWithTag(deckShiftRightTestTag(0)).performClick()
+        onNodeWithTag(deckShiftLeftTestTag(1)).performClick()
+        onNodeWithTag(DECK_SAVE_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_LIST_TEST_TAG) }
+
+        assertEquals(STARTER_DECK, storedSave(documents).decks.first().cards, "right then left")
+    }
+
+    /** An empty position has nothing to shift, so both of its arrows are inert. */
+    @Test
+    fun anEmptyPositionOffersNoShift() = runComposeUiTest {
+        val documents = seeded(freshSave())
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
+
+        onNodeWithTag(deckSlotTestTag(1)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
+
+        for (position in 0 until HAND_SIZE) {
+            onNodeWithTag(deckShiftLeftTestTag(position)).assertIsNotEnabled()
+            onNodeWithTag(deckShiftRightTestTag(position)).assertIsNotEnabled()
         }
     }
 

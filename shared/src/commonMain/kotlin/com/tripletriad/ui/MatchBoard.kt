@@ -32,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -217,16 +218,39 @@ internal fun DragGhost(drag: BoardDragState, scale: Float) {
     Box(
         modifier = Modifier
             .offset {
-                val local = drag.pointer - drag.origin
-                IntOffset(
-                    (local.x - (width.toPx() / 2)).roundToInt(),
-                    (local.y - (height.toPx() / 2)).roundToInt(),
+                ghostOffset(
+                    pointer = drag.pointer,
+                    origin = drag.origin,
+                    width = width.toPx(),
+                    height = height.toPx(),
                 )
             }
             .graphicsLayer { alpha = DRAG_GHOST_ALPHA },
     ) {
         CardFace(card = card, scale = scale)
     }
+}
+
+/**
+ * The ghost's top-left, **and the guard above it is not enough on its own**.
+ *
+ * [DragGhost] refuses to compose an unspecified pointer, but `Modifier.offset {}` reads it again in
+ * the *placement* phase — which is the point of the lambda form, and which is also a phase the
+ * runtime re-enters without recomposing. `BoardDragState.cancel` writes [Offset.Unspecified] from a
+ * pointer handler, so a relayout that lands between that write and the recomposition which removes
+ * the node reads `(NaN, NaN)` past a guard that was true when it ran. `roundToInt` throws on NaN —
+ * `IllegalArgumentException: Cannot round NaN value.` — and it throws out of layout, which crashes
+ * the match rather than misdrawing one frame of a ghost that is on its way out anyway.
+ *
+ * [IntOffset.Zero] and not a throw: there is nothing to draw at this point, and the composition
+ * that follows removes the node.
+ */
+internal fun ghostOffset(pointer: Offset, origin: Offset, width: Float, height: Float): IntOffset {
+    val local = pointer - origin
+    val x = local.x - width / 2
+    val y = local.y - height / 2
+    if (x.isNaN() || y.isNaN()) return IntOffset.Zero
+    return IntOffset(x.roundToInt(), y.roundToInt())
 }
 
 internal fun captureHighlights(board: Board, play: PlayResult?): Map<Int, Set<Side>> {

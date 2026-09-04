@@ -3,6 +3,8 @@ package com.tripletriad.ui
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -10,6 +12,7 @@ import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.settings.InMemorySettingsStore
+import com.tripletriad.settings.MatchSpeed
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -105,6 +108,44 @@ class OptionsUiTest {
 
         assertTrue(isVisible("Background Volume"))
         assertTrue(isVisible("Noise Volume"))
+    }
+
+    @Test
+    fun theShippedPaceIsWhatIsSelectedOnAFileThatHasNeverBeenAsked() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        openOptions()
+
+        onNodeWithTag(optionsSpeedTestTag(MatchSpeed.NORMAL)).assertIsSelected()
+        onNodeWithTag(optionsSpeedTestTag(MatchSpeed.INSTANT)).assertIsNotSelected()
+    }
+
+    @Test
+    fun pickingASpeedWritesItAndMovesTheSelection() = runComposeUiTest {
+        val store = InMemorySettingsStore("""{"language":"en_US"}""")
+        setContent { TestApp(store = store) }
+        openOptions()
+
+        onNodeWithTag(optionsSpeedTestTag(MatchSpeed.INSTANT)).performClick()
+        waitForIdle()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { store.writes > 0 }
+
+        onNodeWithTag(optionsSpeedTestTag(MatchSpeed.INSTANT)).assertIsSelected()
+        onNodeWithTag(optionsSpeedTestTag(MatchSpeed.NORMAL)).assertIsNotSelected()
+        assertTrue(
+            store.stored.orEmpty().contains("\"${MatchSpeed.INSTANT.tag}\""),
+            "the store still holds: ${store.stored.orEmpty()}",
+        )
+    }
+
+    @Test
+    fun theCransAreNamedInTheLanguageOnScreen() = runComposeUiTest {
+        // The four labels are reached through `MatchSpeed.labelKey` rather than `StringKeys`, so
+        // this is the only place the *drawn* word is asserted against a real bundle.
+        setContent { TestApp(store = settingsFor(AppLocale.FR_FR)) }
+        openOptions()
+
+        assertTrue(isVisible("Vitesse d'animation"), "the label is not in French")
+        assertTrue(isVisible("Instantanée"), "the crans are not in French")
     }
 
     private fun ComposeUiTest.openOptions() {

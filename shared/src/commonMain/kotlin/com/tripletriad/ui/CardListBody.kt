@@ -51,6 +51,34 @@ const val CARD_SELL_TEST_TAG: String = "card-sell"
 
 const val CARD_OWNED_FILTER_TEST_TAG: String = "card-filter-owned"
 
+const val CARD_MISSING_FILTER_TEST_TAG: String = "card-filter-missing"
+
+const val CARD_NO_MATCH_TEST_TAG: String = "card-no-match"
+
+/**
+ * Whether the grid is showing the collection, what is in it, or what is not.
+ *
+ * Three states and not two booleans: "owned" and "missing" are answers to one question, and holding
+ * them apart would admit a fourth state — both on — that means an empty grid for no reason the
+ * player could see. [MISSING] is the half that was absent, and it is the one a collection is read
+ * for once it is mostly full: 564 tiles with 30 gaps in them is not a list of what is left to find.
+ */
+private enum class Held(val tag: String, val labelKey: String) {
+    ANY("any", StringKeys.ALL),
+    OWNED(CARD_OWNED_FILTER_TEST_TAG, StringKeys.OWNED),
+    MISSING(CARD_MISSING_FILTER_TEST_TAG, StringKeys.MISSING),
+    ;
+
+    fun admits(copies: Int): Boolean = when (this) {
+        ANY -> true
+        OWNED -> copies > 0
+        MISSING -> copies <= 0
+    }
+
+    /** The chip's own state: tapping the one that is on turns it off rather than doing nothing. */
+    fun toggled(to: Held): Held = if (this == to) ANY else to
+}
+
 fun cardCellTestTag(cardId: Int): String = "card-cell-$cardId"
 
 fun cardCopiesTestTag(cardId: Int): String = "card-copies-$cardId"
@@ -69,27 +97,39 @@ internal fun ColumnScope.CardListBody(
     val admitted = remember(catalog, format) { catalog.admittedBy(format) }
     val owned = profile.cards
     var selected by remember(format) { mutableStateOf<Card?>(null) }
-    var ownedOnly by remember(format) { mutableStateOf(false) }
+    var held by remember(format) { mutableStateOf(Held.ANY) }
     val sheet = rememberModalBottomSheetState()
 
-    // Set, element and rarity, asked the way the auction's consignment picker asks them — see
-    // [CardFilters]. What stays here is what only this room admits: a secret card nobody owns,
-    // and the owned-only toggle beside the count.
+    // Set, element, rarity, name and order, asked the way the auction's consignment picker asks
+    // the first three — see [CardFilters]. What stays here is what only this room admits: a secret
+    // card nobody owns, and the owned/missing pair beside the count.
     val filters = rememberCardFilters(admitted, catalog.sets)
-    val cards = remember(admitted, filters.set, filters.type, filters.rarity, ownedOnly, owned) {
-        admitted.filter {
-            (it.id !in SECRET_CARD_IDS || owned.containsKey(it.id)) &&
-                (!ownedOnly || owned.containsKey(it.id)) &&
-                filters.matches(it)
-        }
+    val cards = remember(
+        admitted,
+        filters.set,
+        filters.type,
+        filters.rarity,
+        filters.query,
+        filters.sort,
+        held,
+        owned,
+    ) {
+        filters.sorted(
+            admitted.filter {
+                (it.id !in SECRET_CARD_IDS || owned.containsKey(it.id)) &&
+                    held.admits(owned[it.id] ?: 0) &&
+                    filters.matches(it)
+            },
+        )
     }
 
-    // The count and the toggle that changes it, on one line. "Owned · 33 / 263" and "show only
-    // what I own" are the same sentence twice, so the control belongs beside the fact rather
+    // The count and the toggles that change it, on one line. "Owned · 33 / 263" and "show only
+    // what I own" are the same sentence twice, so the controls belong beside the fact rather
     // than at the end of the elements, where it was the chip the narrow layout cut in half.
     Row(
         modifier = Modifier.fillMaxWidth().padding(bottom = SpaceSm),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(SpaceXs),
     ) {
         Text(
             // Counted over what is **on screen**, so the line answers the question the grid is
@@ -104,13 +144,16 @@ internal fun ColumnScope.CardListBody(
             modifier = Modifier.testTag(CARD_TOTAL_TEST_TAG).weight(1f),
         )
 
-        TtoFilterChip(
-            label = strings[StringKeys.OWNED],
-            tag = CARD_OWNED_FILTER_TEST_TAG,
-            selected = ownedOnly,
-        ) { ownedOnly = !ownedOnly }
+        for (candidate in listOf(Held.OWNED, Held.MISSING)) {
+            TtoFilterChip(
+                label = strings[candidate.labelKey],
+                tag = candidate.tag,
+                selected = held == candidate,
+            ) { held = held.toggled(candidate) }
+        }
     }
 
+    CardSearchRow(filters)
     CardFilterChips(filters)
 
     // Selling takes the copy out of the collection and pays for it. Asked rather than computed:
@@ -139,15 +182,26 @@ internal fun ColumnScope.CardListBody(
     }
 
     val grid: @Composable (Modifier) -> Unit = { modifier ->
-        CardGrid(cards = cards, tag = CARD_GRID_TEST_TAG, modifier = modifier) { card ->
-            CardCell(
-                card = card,
-                copies = owned[card.id] ?: 0,
-                selected = selected?.id == card.id,
-                modifier = Modifier.testTag(cardCellTestTag(card.id)),
-                copiesTag = cardCopiesTestTag(card.id),
-                onClick = { selected = if (selected?.id == card.id) null else card },
-            )
+        // Said rather than left blank. Every way this list empties is now something the player did
+        // — a name that matches nothing, a set filtered to an element it has none of, "missing" on
+        // a tribe that is complete — and an empty grid under five rows of controls looks like a
+        // screen that failed to load. One sentence covers all of them because they are all the
+        // same fact: nothing here answers to what was asked.
+        if (cards.isEmpty()) {
+            Box(modifier = modifier, contentAlignment = Alignment.Center) {
+                EmptyNote(strings[StringKeys.NO_CARD_MATCH], CARD_NO_MATCH_TEST_TAG)
+            }
+        } else {
+            CardGrid(cards = cards, tag = CARD_GRID_TEST_TAG, modifier = modifier) { card ->
+                CardCell(
+                    card = card,
+                    copies = owned[card.id] ?: 0,
+                    selected = selected?.id == card.id,
+                    modifier = Modifier.testTag(cardCellTestTag(card.id)),
+                    copiesTag = cardCopiesTestTag(card.id),
+                    onClick = { selected = if (selected?.id == card.id) null else card },
+                )
+            }
         }
     }
 

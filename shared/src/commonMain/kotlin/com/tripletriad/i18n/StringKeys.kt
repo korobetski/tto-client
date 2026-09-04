@@ -723,6 +723,34 @@ object StringKeys {
     const val ERROR_UNVERIFIED: String = "APP_ERROR_UNVERIFIED"
     const val ERROR_BAD_CODE: String = "APP_ERROR_BAD_CODE"
 
+    // ---- How much of its own pacing the board is allowed. See `MatchSpeed`, which owns the
+    // factor; the four option labels are reached through `MatchSpeed.labelKey` rather than from
+    // here, the way an achievement's label is reached through its catalogue.
+    const val MATCH_SPEED: String = "APP_MATCH_SPEED"
+    const val SPEED_NORMAL: String = "APP_SPEED_NORMAL"
+    const val SPEED_FAST: String = "APP_SPEED_FAST"
+    const val SPEED_FASTER: String = "APP_SPEED_FASTER"
+    const val SPEED_INSTANT: String = "APP_SPEED_INSTANT"
+
+    // ---- Reaching one card out of 565.
+    const val SEARCH_CARDS: String = "APP_SEARCH_CARDS"
+
+    /** The catalogue's own order. The other two sorts borrow `STR_TOTAL` and `STR_RARITY`. */
+    const val SORT_NUMBER: String = "APP_SORT_NUMBER"
+
+    const val MISSING: String = "APP_MISSING"
+    const val NO_CARD_MATCH: String = "APP_NO_CARD_MATCH"
+
+    // ---- Decks.
+    const val DECK_COPY: String = "APP_DECK_COPY"
+    const val DECK_FILL: String = "APP_DECK_FILL"
+
+    // ---- Walking away from a board. The body is per-mode: only the refereed one is kept for
+    // later, so only it can promise to be there when the player comes back.
+    const val LEAVE_MATCH: String = "APP_LEAVE_MATCH"
+    const val LEAVE_MATCH_PVE: String = "APP_LEAVE_MATCH_PVE"
+    const val LEAVE_MATCH_CONFIRM: String = "APP_LEAVE_MATCH_CONFIRM"
+
     val all: List<String> = listOf(
         NEXT_MATCH, YOU_WIN, YOU_LOSE, DRAW, SUDDEN_DEATH,
         LOADING_CARDS, SIDE_BLUE, SIDE_RED, TURN_PICK_CARD, TURN_PICK_CELL,
@@ -843,6 +871,10 @@ object StringKeys {
         FORGOT_PASSWORD, RESET_PASSWORD, RESET_BLURB, RESET_SEND, RESET_SENT,
         NEW_PASSWORD, RESET_SUBMIT, RESET_DONE,
         ERROR_EMAIL_TAKEN, ERROR_BAD_EMAIL, ERROR_UNVERIFIED, ERROR_BAD_CODE,
+        MATCH_SPEED, SPEED_NORMAL, SPEED_FAST, SPEED_FASTER, SPEED_INSTANT,
+        SEARCH_CARDS, SORT_NUMBER, MISSING, NO_CARD_MATCH,
+        DECK_COPY, DECK_FILL,
+        LEAVE_MATCH, LEAVE_MATCH_PVE, LEAVE_MATCH_CONFIRM,
     )
 
     val appOwned: List<String> = all.filter { it.startsWith("APP_") }

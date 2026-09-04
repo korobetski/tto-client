@@ -252,6 +252,24 @@ internal fun ComposeUiTest.startMatch(iconId: String = TEST_OPPONENT) {
     challenge(iconId)
 }
 
+/**
+ * Walks off a board through the exit arrow, answering the confirmation if one is raised.
+ *
+ * A refereed match asks before it lets go — see `LeaveMatchSheet`, and the sentence about the board
+ * being kept. A lesson does not, because a lesson settles nothing. Both go through here so a
+ * fixture that only wants to *be somewhere else* does not have to know which kind of board it is
+ * standing on.
+ */
+@OptIn(ExperimentalTestApi::class)
+internal fun ComposeUiTest.leaveMatch() {
+    onNodeWithTag(MATCH_EXIT_TEST_TAG).performClick()
+    waitForIdle()
+    if (exists(MATCH_LEAVE_CONFIRM_TEST_TAG)) {
+        onNodeWithTag(MATCH_LEAVE_CONFIRM_TEST_TAG).performClick()
+        waitForIdle()
+    }
+}
+
 /** Waits for a refereed board to arrive. There is nothing local to settle first. */
 @OptIn(ExperimentalTestApi::class)
 internal fun ComposeUiTest.awaitBoard() {

@@ -1137,5 +1137,19 @@
   "APP_AC_COMPANIONS": "En bonne compagnie",
   "APP_AC_COMPANIONS_DESC": "Réunissez les cinq cartes Compagnon.",
   "APP_ACHIEVEMENT_REWARD": "Récompense : {0}",
-  "APP_ACHIEVEMENT_REWARD_MGP": "{0} PGS"
+  "APP_ACHIEVEMENT_REWARD_MGP": "{0} PGS",
+  "APP_MATCH_SPEED": "Vitesse d'animation",
+  "APP_SPEED_NORMAL": "Normale",
+  "APP_SPEED_FAST": "Rapide",
+  "APP_SPEED_FASTER": "Très rapide",
+  "APP_SPEED_INSTANT": "Instantanée",
+  "APP_SEARCH_CARDS": "Chercher une carte",
+  "APP_SORT_NUMBER": "Ordre du set",
+  "APP_MISSING": "Manquantes",
+  "APP_NO_CARD_MATCH": "Aucune carte ne correspond.",
+  "APP_DECK_COPY": "Dupliquer ce deck",
+  "APP_DECK_FILL": "Compléter",
+  "APP_LEAVE_MATCH": "Quitter ce match ?",
+  "APP_LEAVE_MATCH_PVE": "La partie est conservée — reprenez-la depuis la liste des adversaires. Tant qu'elle n'est pas terminée, elle compte comme un forfait.",
+  "APP_LEAVE_MATCH_CONFIRM": "Quitter"
 }

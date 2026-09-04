@@ -28,6 +28,7 @@ import androidx.compose.ui.text.input.ImeAction
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
+import com.tripletriad.settings.MatchSpeed
 import com.tripletriad.settings.UserSettings
 import kotlinx.coroutines.launch
 
@@ -44,6 +45,8 @@ const val OPTIONS_DELETE_CONFIRM_TEST_TAG: String = "options-delete-confirm"
 const val OPTIONS_DELETE_NOTE_TEST_TAG: String = "options-delete-note"
 
 fun optionsLanguageTestTag(locale: AppLocale): String = "options-language-${locale.tag}"
+
+fun optionsSpeedTestTag(speed: MatchSpeed): String = "options-speed-${speed.tag}"
 
 /**
  * The settings, as a sheet over whatever asked for them.
@@ -118,6 +121,14 @@ internal fun OptionsBody(
             Label(strings[StringKeys.LANGUAGE])
             LanguageChoice(current) { locale ->
                 settings.update { it.copy(language = locale.tag) }
+            }
+
+            // Under the language rather than in a group of its own. Both are answers to "how do I
+            // want to be shown this", both are chosen once and left alone, and a heading over a
+            // single row of four chips would be a heading for its own sake.
+            Label(strings[StringKeys.MATCH_SPEED])
+            SpeedChoice(current) { speed ->
+                settings.update { it.copy(matchSpeed = speed.tag) }
             }
         }
 
@@ -260,6 +271,29 @@ private fun LanguageChoice(settings: UserSettings, onPick: (AppLocale) -> Unit) 
                 tag = optionsLanguageTestTag(locale),
                 selected = locale == selected,
                 onClick = { onPick(locale) },
+            )
+        }
+    }
+}
+
+/**
+ * The four crans, in the order they slow down to — fastest last is the wrong way round for a
+ * control whose default is the slowest one.
+ *
+ * A chip row and not a slider, unlike the volumes below: there are exactly four values, each has a
+ * name, and the thing being chosen is not a quantity the player wants to nudge.
+ */
+@Composable
+private fun SpeedChoice(settings: UserSettings, onPick: (MatchSpeed) -> Unit) {
+    val strings = LocalStrings.current
+    val selected = settings.speed
+    Row(horizontalArrangement = Arrangement.spacedBy(SpaceSm)) {
+        for (speed in MatchSpeed.entries) {
+            TtoFilterChip(
+                label = strings[speed.labelKey],
+                tag = optionsSpeedTestTag(speed),
+                selected = speed == selected,
+                onClick = { onPick(speed) },
             )
         }
     }

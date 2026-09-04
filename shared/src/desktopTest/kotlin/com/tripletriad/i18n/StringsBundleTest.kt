@@ -246,13 +246,29 @@ class StringsBundleTest {
         // bundles at once, which is the shape that moves every count by the same four and leaves
         // all four gaps where they were. Measured from a
         // `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted.
-        const val UNION_KEYS = 1818
+        // +14 to every bundle since: the animation-speed setting and what four screens gained
+        // with it. `APP_MATCH_SPEED` and the four crans `APP_SPEED_*` reached through
+        // `MatchSpeed.labelKey`; `APP_SEARCH_CARDS`, `APP_SORT_NUMBER`, `APP_MISSING` and
+        // `APP_NO_CARD_MATCH` for the collection's search, order and holding filters;
+        // `APP_DECK_COPY` and `APP_DECK_FILL` for the two deck controls; and the three the exit
+        // arrow's question needs, `APP_LEAVE_MATCH`, `_PVE` and `_CONFIRM`. Authored in all four
+        // `app-*` bundles at once, which is the shape that moves every count by the same 14 and
+        // leaves all four gaps where they were.
+        //
+        // The two card sorts that are *not* here are the point of the number being 14 and not 16:
+        // `CardSort.POWER` and `CardSort.RARITY` name themselves with `STR_TOTAL` and
+        // `STR_RARITY`, which every bundle already carries and the card panel already draws.
+        //
+        // Measured from a `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted, as
+        // the correction above asks — not added up from what the change ought to have done.
+
+        const val UNION_KEYS = 1832
 
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 1814,
-            AppLocale.FR_FR to 1815,
-            AppLocale.DE_DE to 1743,
-            AppLocale.JA_JA to 1775,
+            AppLocale.EN_US to 1828,
+            AppLocale.FR_FR to 1829,
+            AppLocale.DE_DE to 1757,
+            AppLocale.JA_JA to 1789,
         )
 
         val EXPECTED_GAPS = mapOf(

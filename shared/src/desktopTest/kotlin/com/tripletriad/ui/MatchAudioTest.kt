@@ -42,7 +42,7 @@ class MatchAudioTest {
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { Sound.MATCH_MUSIC in audio }
         val stopsDuringMatch = audio.musicStops
 
-        onNodeWithTag(MATCH_EXIT_TEST_TAG).performClick()
+        leaveMatch()
         waitForIdle()
 
         assertTrue(audio.musicStops > stopsDuringMatch, "leaving the match left the music running")

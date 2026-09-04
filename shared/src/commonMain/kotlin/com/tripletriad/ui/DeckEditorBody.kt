@@ -3,12 +3,14 @@ package com.tripletriad.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -48,6 +50,9 @@ const val DECK_MISSING_TEST_TAG: String = "deck-missing"
 const val DECK_LIMITS_TEST_TAG: String = "deck-limits"
 
 const val DECK_OVER_LIMIT_TEST_TAG: String = "deck-over-limit"
+
+/** Tops the draft up from the collection — see [Deck.completedFrom]. */
+const val DECK_FILL_TEST_TAG: String = "deck-fill"
 
 fun deckPositionTestTag(index: Int): String = "deck-position-$index"
 
@@ -132,7 +137,7 @@ internal fun DeckEditor(
                     // "removes and re-adds". These two arrows are that, without emptying the slot
                     // and rebuilding it around the one card that had to move.
                     Row {
-                        MoveButton(
+                        StripButton(
                             icon = TtoIcons.Back,
                             description = strings[StringKeys.MOVE_LEFT],
                             tag = deckShiftLeftTestTag(position),
@@ -140,7 +145,7 @@ internal fun DeckEditor(
                             size = ShiftButtonSize,
                             onClick = { draft = draft.withCardMoved(position, position - 1) },
                         )
-                        MoveButton(
+                        StripButton(
                             icon = TtoIcons.Forward,
                             description = strings[StringKeys.MOVE_RIGHT],
                             tag = deckShiftRightTestTag(position),
@@ -191,20 +196,50 @@ internal fun DeckEditor(
             )
         }
 
-        Text(
-            text = "${strings[StringKeys.DECK_POWER]} ${deckPower(draft, cards)}" +
-                "$DOT_SEPARATOR${draft.cards.size} / $HAND_SIZE",
-            // Affordable as well as complete. `5 / 5` in the affirmative tone on a deck that
-            // cannot be dealt is the screen agreeing the deck is finished while every other place
-            // refuses it.
-            color = if (draft.isComplete && unowned.isEmpty() && overLimit.isEmpty()) {
-                MaterialTheme.colorScheme.tertiary
-            } else {
-                MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT)
-            },
-            style = MaterialTheme.typography.labelMedium,
-            modifier = Modifier.testTag(DECK_POWER_TEST_TAG),
-        )
+        // The power line and the one control that changes it without a trip through the grid.
+        // On this row rather than in the button pair below, because three 56 dp buttons across a
+        // phone is one ellipsis each in French — "Réinitialiser", "Compléter", "Sauvegarder" — and
+        // because this button is *about* the number beside it.
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(SpaceSm),
+        ) {
+            Text(
+                text = "${strings[StringKeys.DECK_POWER]} ${deckPower(draft, cards)}" +
+                    "$DOT_SEPARATOR${draft.cards.size} / $HAND_SIZE",
+                // Affordable as well as complete. `5 / 5` in the affirmative tone on a deck that
+                // cannot be dealt is the screen agreeing the deck is finished while every other
+                // place refuses it.
+                color = if (draft.isComplete && unowned.isEmpty() && overLimit.isEmpty()) {
+                    MaterialTheme.colorScheme.tertiary
+                } else {
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT)
+                },
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.testTag(DECK_POWER_TEST_TAG).weight(1f),
+            )
+
+            // Disabled once it would change nothing — a full deck, or an empty collection. A
+            // control that is lit and inert is worse than one that is plainly not available.
+            val completed = remember(draft, owned, cards, profile.cards) {
+                draft.completedFrom(owned, cards, profile::copiesOf)
+            }
+            FilledTonalButton(
+                onClick = { draft = completed },
+                enabled = completed != draft,
+                modifier = Modifier.testTag(DECK_FILL_TEST_TAG),
+                shape = MaterialTheme.shapes.large,
+                contentPadding = PaddingValues(horizontal = SpaceLg, vertical = SpaceXs),
+            ) {
+                Text(
+                    text = strings[StringKeys.DECK_FILL],
+                    style = MaterialTheme.typography.labelLarge,
+                    maxLines = 1,
+                    softWrap = false,
+                )
+            }
+        }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -296,6 +331,55 @@ internal fun DeckEditor(
             }
         }
     }
+}
+
+/**
+ * This deck topped up from [pool] until it is full, legal and paid for.
+ *
+ * ### Completes rather than replaces
+ *
+ * What is already picked stays picked, and only the empty positions are filled. Emptying the slot
+ * is what Reset is for, and a "fill" that silently threw away four deliberate choices to reach the
+ * fifth would be the one control on this screen a player could not undo.
+ *
+ * ### "Best" means [Card.total], and that is a claim worth stating
+ *
+ * [pool] arrives in whatever order the caller sorted it, and the caller sorts by the sum of the
+ * four edges. `Card.total`'s own KDoc says why that is deliberately unweighted: which edge matters
+ * depends on where a card is played and on whether Reverse or Fallen Ace is up, so any weighting
+ * would be a claim about a board that has not been dealt. So this produces *a good legal deck*, not
+ * an optimal one, and it is a starting point the player is expected to edit.
+ *
+ * ### Duplicates count, which is why the inner loop is there
+ *
+ * [pool] holds one entry per *card*, not per copy — it is the picker grid's own list, which draws a
+ * card once and badges how many are spare. So a pass that took each entry at most once would build
+ * a two-card deck for a collection of two cards owned four times each, and refuse to fill positions
+ * the player can fill by hand. Each card is therefore taken as many times as it is owned and
+ * allowed, before the walk moves on to the next.
+ *
+ * ### Three refusals, in the order they cost least to check
+ *
+ * A full hand ends it. Copies already spent in this deck are not spent twice — the same rule the
+ * picker grid greys a tile for. A rank the deck has no room for is skipped, by [DeckLimits.admits],
+ * which is the rule the server would refuse the match over.
+ */
+internal fun Deck.completedFrom(
+    pool: List<Card>,
+    table: Map<Int, Card>,
+    copiesOwned: (Int) -> Int,
+): Deck {
+    var picked = cards
+    for (card in pool.sortedByDescending { it.total }) {
+        if (picked.size >= HAND_SIZE) break
+        while (picked.size < HAND_SIZE &&
+            picked.count { it == card.id } < copiesOwned(card.id) &&
+            DeckLimits.admits(picked, table, card)
+        ) {
+            picked = picked + card.id
+        }
+    }
+    return if (picked == cards) this else copy(cards = picked)
 }
 
 /**

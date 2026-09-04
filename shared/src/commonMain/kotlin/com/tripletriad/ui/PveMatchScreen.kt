@@ -271,6 +271,15 @@ internal fun PveMatchScreen(
             showOpponent = !panelShown,
             outcomeTitle = script?.outcomeTitle,
             onExit = onExit,
+            // Only while the match is still live. Once the result panel is up the match is
+            // settled, `endedMatches` has moved, and the arrow is plain navigation again — asking
+            // then would be asking about nothing.
+            //
+            // The sentence says the thing a player cannot see: the board is a row on the server
+            // and walking off it does not throw it away — `PveSession.resume` picks it up, and the
+            // roster offers it back by name. What it costs meanwhile is the forfeit count, which
+            // is the gap between a match begun and a match finished.
+            exitWarning = strings[StringKeys.LEAVE_MATCH_PVE].takeIf { reward == null },
         )
         BoardRules(view.rules, panelShown)
 

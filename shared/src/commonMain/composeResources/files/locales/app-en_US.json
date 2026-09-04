@@ -1139,5 +1139,19 @@
   "APP_AC_COMPANIONS": "Good Company",
   "APP_AC_COMPANIONS_DESC": "Obtain all five companion cards.",
   "APP_ACHIEVEMENT_REWARD": "Reward: {0}",
-  "APP_ACHIEVEMENT_REWARD_MGP": "{0} MGP"
+  "APP_ACHIEVEMENT_REWARD_MGP": "{0} MGP",
+  "APP_MATCH_SPEED": "Animation speed",
+  "APP_SPEED_NORMAL": "Normal",
+  "APP_SPEED_FAST": "Fast",
+  "APP_SPEED_FASTER": "Faster",
+  "APP_SPEED_INSTANT": "Instant",
+  "APP_SEARCH_CARDS": "Search a card",
+  "APP_SORT_NUMBER": "Set order",
+  "APP_MISSING": "Missing",
+  "APP_NO_CARD_MATCH": "No card answers to that.",
+  "APP_DECK_COPY": "Duplicate this deck",
+  "APP_DECK_FILL": "Fill",
+  "APP_LEAVE_MATCH": "Leave this match?",
+  "APP_LEAVE_MATCH_PVE": "The board is kept — pick it up again from the opponent list. Until it is finished it counts as a forfeit.",
+  "APP_LEAVE_MATCH_CONFIRM": "Leave"
 }

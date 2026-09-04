@@ -12,12 +12,29 @@ data class UserSettings(
     @SerialName("background_volume") val backgroundVolume: Float = FULL_VOLUME,
     @SerialName("noise_volume") val noiseVolume: Float = FULL_VOLUME,
     @SerialName("lessons_done") val lessonsDone: Int = 0,
+    /**
+     * How fast the board plays what it announces — see [MatchSpeed], which owns the factor.
+     *
+     * A tag rather than the number, for the reason [language] is one: a scale written into the file
+     * is a value nothing can name back, and a build that changed the crans would have no way to
+     * tell a stored 0.5 apart from a 0.5 the player never chose.
+     */
+    @SerialName("match_speed") val matchSpeed: String = MatchSpeed.Default.tag,
 ) {
     val locale: AppLocale get() = AppLocale.forTag(language) ?: AppLocale.match(language)
+
+    /**
+     * The stored [matchSpeed], or the default where the file names a cran this build has not got.
+     */
+    val speed: MatchSpeed get() = MatchSpeed.forTag(matchSpeed) ?: MatchSpeed.Default
 
     fun sane(): UserSettings = copy(
         backgroundVolume = backgroundVolume.coerceIn(0f, FULL_VOLUME),
         noiseVolume = noiseVolume.coerceIn(0f, FULL_VOLUME),
+        // Normalised, unlike [language], because there is no fuzzy match to fall back on: an
+        // unknown tag reads as the default every time it is asked for, and leaving it in the file
+        // would mean the settings screen and the file disagree about what is selected.
+        matchSpeed = speed.tag,
         // Only the floor is enforced. A count above the course length is what a *downgrade* looks
         // like — a file written by a build with more lessons in it — and clamping it here would
         // quietly reopen lessons the player has finished if they went back to that build.

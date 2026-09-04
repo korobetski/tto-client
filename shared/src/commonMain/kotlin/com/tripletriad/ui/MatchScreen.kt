@@ -391,6 +391,11 @@ internal fun MatchScreen(
             // A lesson names itself here as well as on the panel — see [TurnLine].
             outcomeTitle = script.outcomeTitle,
             onExit = onExit,
+            // No warning, because there is nothing to warn about: this screen is the tutorial and
+            // `MatchScript.counted` is false for every lesson, so leaving one moves no counter and
+            // pays nothing back. A counted local match would want the sentence the refereed board
+            // uses, less the half about resuming — nothing here survives being walked away from.
+            exitWarning = null,
         )
         BoardRules(match.rules, panelShown)
 
@@ -466,6 +471,13 @@ internal fun playMatchSounds(
     }
 }
 
+/**
+ * @param exitWarning what leaving costs, or null where it costs nothing and the arrow is plain
+ *   navigation. Given a sentence, the arrow asks before it acts — see [LeaveMatchSheet], and the
+ *   three callers, which do not agree about this and should not: a lesson settles nothing, a
+ *   refereed match is left open on the server, and a wagered one has a labelled Forfeit of its own
+ *   that the arrow deliberately is not.
+ */
 @Composable
 @Suppress("LongParameterList")
 internal fun StatusBar(
@@ -477,7 +489,10 @@ internal fun StatusBar(
     showOpponent: Boolean,
     outcomeTitle: String?,
     onExit: () -> Unit,
+    exitWarning: String? = null,
 ) {
+    var asking by remember { mutableStateOf(false) }
+
     Column(modifier = Modifier.fillMaxWidth().padding(top = MatchHeaderTopInset)) {
         StatusRow(
             view = view,
@@ -486,9 +501,20 @@ internal fun StatusBar(
             opponentName = opponentName,
             showOpponent = showOpponent,
             outcomeTitle = outcomeTitle,
-            onExit = onExit,
+            onExit = { if (exitWarning == null) onExit() else asking = true },
         )
         TurnTimerBar(fraction = turnFraction)
+    }
+
+    if (asking && exitWarning != null) {
+        LeaveMatchSheet(
+            body = exitWarning,
+            onDismiss = { asking = false },
+            onConfirm = {
+                asking = false
+                onExit()
+            },
+        )
     }
 }
 

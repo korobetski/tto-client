@@ -48,6 +48,8 @@ fun deckMoveUpTestTag(index: Int): String = "deck-move-up-$index"
 
 fun deckMoveDownTestTag(index: Int): String = "deck-move-down-$index"
 
+fun deckCopyTestTag(index: Int): String = "deck-copy-$index"
+
 @Composable
 internal fun ColumnScope.DecksBody(
     profile: GameSave,
@@ -88,6 +90,11 @@ private fun DeckSlots(
 ) {
     val scope = rememberCoroutineScope()
 
+    // The slot a duplicate would land in, or null when all eight are spoken for. Computed once for
+    // the whole list rather than per row: every row's copy button is about the same free slot, and
+    // eight rows each scanning the list would be eight answers to one question.
+    val free = remember(profile.decks) { firstEmptySlot(profile) }
+
     Column(
         modifier = Modifier.testTag(DECK_LIST_TEST_TAG).fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -105,12 +112,36 @@ private fun DeckSlots(
                 // in, and a reordering the player has to confirm is one they can lose by walking
                 // away from the screen. The editor is the place with a draft; this is not it.
                 onMove = { to -> scope.launch { onPersist(profile.withDecksSwapped(index, to)) } },
+                // Null on an empty slot and on every row once the eight are full, which is what
+                // disables the button rather than hiding it — see [StripButton].
+                onCopy = (free to deck.cards.isNotEmpty()).let { (slot, filled) ->
+                    if (slot == null || !filled) {
+                        null
+                    } else {
+                        { scope.launch { onPersist(profile.withDeck(slot, deck)) } }
+                    }
+                },
             )
         }
     }
 }
 
+/**
+ * The first of the eight slots holding no cards, or null when none is.
+ *
+ * A slot the profile has never written is empty too — `decks` is as short as it has ever needed to
+ * be, and the list on screen is always [GameSave.MAX_DECKS] long. So this counts past the end of
+ * the stored list rather than over it, the way [GameSave.withDecksSwapped] pads past it.
+ *
+ * A *named* deck with no cards counts as empty: a name is not something a player would mind losing
+ * on a slot they never filled, and treating it as occupied would wedge the copy button on a profile
+ * that had renamed all eight.
+ */
+internal fun firstEmptySlot(profile: GameSave): Int? =
+    (0 until GameSave.MAX_DECKS).firstOrNull { profile.decks.getOrNull(it)?.cards.isNullOrEmpty() }
+
 @Composable
+@Suppress("LongParameterList")
 private fun DeckSlotRow(
     index: Int,
     deck: Deck,
@@ -119,6 +150,7 @@ private fun DeckSlotRow(
     overLimit: Map<Int, Int>,
     onClick: () -> Unit,
     onMove: (Int) -> Unit,
+    onCopy: (() -> Unit)?,
 ) {
     val strings = LocalStrings.current
 
@@ -146,15 +178,26 @@ private fun DeckSlotRow(
                 .padding(SpaceMd),
         )
 
+        // Its own column beside the arrows rather than a third button under them. The strip's
+        // height is what sets this row's, and a third 28 dp button would make every one of the
+        // eight rows taller for a control most of them are not about.
+        StripButton(
+            icon = TtoIcons.Copy,
+            description = strings[StringKeys.DECK_COPY],
+            tag = deckCopyTestTag(index),
+            enabled = onCopy != null,
+            onClick = { onCopy?.invoke() },
+        )
+
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            MoveButton(
+            StripButton(
                 icon = TtoIcons.Collapse,
                 description = strings[StringKeys.MOVE_UP],
                 tag = deckMoveUpTestTag(index),
                 enabled = index > 0,
                 onClick = { onMove(index - 1) },
             )
-            MoveButton(
+            StripButton(
                 icon = TtoIcons.Expand,
                 description = strings[StringKeys.MOVE_DOWN],
                 tag = deckMoveDownTestTag(index),
@@ -242,24 +285,26 @@ private fun DeckSlotFacts(
 }
 
 /**
- * One reordering arrow.
+ * One small control in a strip beside something — a reordering arrow, or the duplicate beside a
+ * deck slot.
  *
  * Not `IconButton`: Material's is a fixed 48 dp, and ten of those under a row of five 40 dp
  * thumbnails is a control strip twice as wide as the thing it reorders. The size is a parameter
- * because the two callers are not the same shape — a list row has the height to spare, a deck
- * position has [DeckThumbSize] and no more.
+ * because the callers are not the same shape — a list row has the height to spare, a deck position
+ * has [DeckThumbSize] and no more.
  *
- * A disabled arrow is drawn rather than hidden, so the strip under position 0 is the same width as
- * the one under position 3 and the thumbnails above them do not shuffle sideways as cards move.
+ * A disabled control is drawn rather than hidden, so the strip under position 0 is the same width
+ * as the one under position 3 and the thumbnails above them do not shuffle sideways as cards move.
+ * The same reason keeps the duplicate drawn on a slot that has nowhere to copy to.
  */
 @Composable
-internal fun MoveButton(
+internal fun StripButton(
     icon: ImageVector,
     description: String,
     tag: String,
     enabled: Boolean,
     onClick: () -> Unit,
-    size: Dp = MoveButtonSize,
+    size: Dp = StripButtonSize,
 ) {
     Box(
         modifier = Modifier
@@ -356,7 +401,7 @@ internal fun deckPower(deck: Deck, cards: Map<Int, Card>): Int =
 internal val DeckThumbSize = 40.dp
 
 /** The list's arrows: two of them stack inside a slot row without setting its height. */
-private val MoveButtonSize = 28.dp
+private val StripButtonSize = 28.dp
 
 /** The tone a card the deck cannot spend is drawn in. Shared with the editor. */
 internal const val SPENT_ALPHA = 0.3f

@@ -33,7 +33,7 @@ class ResumeMatchUiTest {
         val handWhenLeft = handSize(CardColor.BLUE)
         assertTrue(handWhenLeft < HAND_SIZE, "the fixture should leave a card on the board")
 
-        onNodeWithTag(MATCH_EXIT_TEST_TAG).performClick()
+        leaveMatch()
         awaitOpponents()
 
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(OPPONENT_RESUME_TEST_TAG) }
@@ -55,7 +55,7 @@ class ResumeMatchUiTest {
         startMatch()
         playOneCard()
 
-        onNodeWithTag(MATCH_EXIT_TEST_TAG).performClick()
+        leaveMatch()
         awaitOpponents()
 
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(OPPONENT_RESUME_TEST_TAG) }
@@ -115,5 +115,54 @@ class ResumeMatchUiTest {
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(RANDOM_OPPONENT_TEST_TAG) }
         waitForIdle()
         assertFalse(exists(OPPONENT_RESUME_TEST_TAG), "there is no server holding a match")
+    }
+
+    @Test
+    fun theExitArrowAsksBeforeItLetsGoOfALiveBoard() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        startMatch()
+
+        onNodeWithTag(MATCH_EXIT_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(MATCH_LEAVE_TEST_TAG) }
+
+        // The sentence is the point of the sheet: a match begun is counted, and this is the only
+        // place the player is told that walking off it is not the same as finishing it.
+        assertTrue(isVisible("counts as a forfeit"), "the sheet does not say what leaving costs")
+        assertTrue(isVisible("opponent list"), "the sheet does not say where the board went")
+        assertTrue(exists(BOARD_TEST_TAG), "the board should still be there behind the question")
+    }
+
+    @Test
+    fun answeringNoKeepsThePlayerOnTheBoard() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        startMatch()
+        playOneCard()
+        val handWhenAsked = handSize(CardColor.BLUE)
+
+        onNodeWithTag(MATCH_EXIT_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(MATCH_LEAVE_CANCEL_TEST_TAG) }
+        onNodeWithTag(MATCH_LEAVE_CANCEL_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { !exists(MATCH_LEAVE_TEST_TAG) }
+
+        awaitPlayer()
+        assertEquals(
+            handWhenAsked,
+            handSize(CardColor.BLUE),
+            "cancelling the question should change nothing at all",
+        )
+    }
+
+    @Test
+    fun theQuestionIsNotAskedOnceTheMatchIsOver() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        startMatch()
+        playOut()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(MATCH_RESULT_TEST_TAG) }
+
+        // `endedMatches` has moved and the result is paid, so the arrow is plain navigation again.
+        onNodeWithTag(MATCH_EXIT_TEST_TAG).performClick()
+        awaitOpponents()
+
+        assertFalse(exists(MATCH_LEAVE_TEST_TAG), "a settled match has nothing to warn about")
     }
 }

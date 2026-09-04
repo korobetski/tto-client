@@ -18,9 +18,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -31,6 +34,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -57,6 +62,12 @@ import com.tripletriad.ui.theme.LocalTtoColors
  * along the seam that was already there — nothing here reads a [com.tripletriad.model.MatchState]
  * or can affect one. `MatchScreen` runs the match; this draws around it.
  */
+
+/** The sheet the exit arrow raises where leaving costs something. Absent where it does not. */
+const val MATCH_LEAVE_TEST_TAG: String = "match-leave"
+
+const val MATCH_LEAVE_CONFIRM_TEST_TAG: String = "match-leave-confirm"
+const val MATCH_LEAVE_CANCEL_TEST_TAG: String = "match-leave-cancel"
 
 const val MATCH_SIDE_TEST_TAG: String = "match-side"
 
@@ -532,3 +543,61 @@ private const val COMBO_MARK = "✦ combo"
 private val SidePanelWidth = 200.dp
 
 private const val BOARD_COLUMNS = 3
+
+/**
+ * The one question the back arrow was never asking.
+ *
+ * A match begun is a match counted — the server bumps `startedMatches` when it deals, and
+ * `endedMatches` only when a result is credited, so their difference is what the profile screen
+ * reports as forfeits. Leaving is therefore never free, and until now it was never announced
+ * either: the arrow was the same 34 dp control as every other back on every other screen.
+ *
+ * A sheet rather than a second tap on the arrow. What has to be said is a *sentence* — the match is
+ * kept, here is where to find it, here is what it costs meanwhile — and there is nowhere on a full
+ * board to put one. It is also the pattern the rest of the app already uses for a decision that
+ * covers what is underneath it: see the shop's offer sheet and the collection's card sheet.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun LeaveMatchSheet(body: String, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    val strings = LocalStrings.current
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        modifier = Modifier.testTag(MATCH_LEAVE_TEST_TAG),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = SpaceLg, vertical = SpaceSm),
+            verticalArrangement = Arrangement.spacedBy(SpaceMd),
+        ) {
+            Text(
+                text = strings[StringKeys.LEAVE_MATCH],
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.semantics { heading() },
+            )
+            Text(
+                text = body,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            // Staying is the unfilled one and it is second, which is the way round this pair goes
+            // everywhere else in the app. The filled button is the one that answers the question
+            // the sheet asked; the player who opened it by mistake taps outside it, and that is
+            // what `onDismissRequest` is for.
+            WideButton(
+                label = strings[StringKeys.LEAVE_MATCH_CONFIRM],
+                tag = MATCH_LEAVE_CONFIRM_TEST_TAG,
+                onClick = onConfirm,
+            )
+            WideButton(
+                label = strings[StringKeys.CANCEL],
+                tag = MATCH_LEAVE_CANCEL_TEST_TAG,
+                filled = false,
+                onClick = onDismiss,
+            )
+        }
+    }
+}

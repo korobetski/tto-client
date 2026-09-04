@@ -222,7 +222,7 @@ class OpponentUiTest {
         startMatch()
         val before = stub.player.save
 
-        onNodeWithTag(MATCH_EXIT_TEST_TAG).performClick()
+        leaveMatch()
         awaitOpponents()
 
         val save = stub.player.save

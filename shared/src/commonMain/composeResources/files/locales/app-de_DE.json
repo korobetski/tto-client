@@ -1106,5 +1106,19 @@
   "APP_CARD_ITEM_UNSOLD_DESC": "Bei der Auktion unverkauft. Benutze sie, um sie zurück in die Sammlung zu legen.",
   "APP_AUCTION_CHANGE_CARD": "Ändern",
   "APP_ACHIEVEMENT_REWARD": "Belohnung: {0}",
-  "APP_ACHIEVEMENT_REWARD_MGP": "{0} MGP"
+  "APP_ACHIEVEMENT_REWARD_MGP": "{0} MGP",
+  "APP_MATCH_SPEED": "Animationstempo",
+  "APP_SPEED_NORMAL": "Normal",
+  "APP_SPEED_FAST": "Schnell",
+  "APP_SPEED_FASTER": "Sehr schnell",
+  "APP_SPEED_INSTANT": "Sofort",
+  "APP_SEARCH_CARDS": "Karte suchen",
+  "APP_SORT_NUMBER": "Set-Reihenfolge",
+  "APP_MISSING": "Fehlende",
+  "APP_NO_CARD_MATCH": "Keine Karte passt dazu.",
+  "APP_DECK_COPY": "Dieses Deck duplizieren",
+  "APP_DECK_FILL": "Auffüllen",
+  "APP_LEAVE_MATCH": "Dieses Match verlassen?",
+  "APP_LEAVE_MATCH_PVE": "Die Partie bleibt erhalten — nimm sie über die Gegnerliste wieder auf. Bis sie beendet ist, zählt sie als Aufgabe.",
+  "APP_LEAVE_MATCH_CONFIRM": "Verlassen"
 }

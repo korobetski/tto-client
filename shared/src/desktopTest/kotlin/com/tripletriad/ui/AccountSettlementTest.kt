@@ -101,7 +101,7 @@ class AccountSettlementTest {
         challenge()
         assertEquals(1, reporter.drained.size, "a board is not the place to drain from")
 
-        onNodeWithTag(MATCH_EXIT_TEST_TAG).performClick()
+        leaveMatch()
         awaitOpponents()
 
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { reporter.drained.size == 2 }

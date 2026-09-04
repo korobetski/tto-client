@@ -7,6 +7,7 @@ import com.tripletriad.model.CardOrigin
 import com.tripletriad.model.NpcLevel
 import com.tripletriad.model.PotionType
 import com.tripletriad.model.PouchItem
+import com.tripletriad.settings.MatchSpeed
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -41,6 +42,18 @@ class DerivedKeysTest {
             strings.has(PouchItem(mgp = 1, cardId = 1, lotId = "lot").descriptionKey),
             "no text for a pouch",
         )
+    }
+
+    /**
+     * The four crans are reached through `MatchSpeed.labelKey`, so [StringKeys.all] never sees
+     * them and `StringsBundleTest` cannot hold them to anything. A cran added without its word
+     * would render as its own key on the settings sheet — this is what catches that.
+     */
+    @Test
+    fun everyMatchSpeedNamesItself() {
+        for (speed in MatchSpeed.entries) {
+            assertTrue(strings.has(speed.labelKey), "no label for ${speed.labelKey}")
+        }
     }
 
     @Test

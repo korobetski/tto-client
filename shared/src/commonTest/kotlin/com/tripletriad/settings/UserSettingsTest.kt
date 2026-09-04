@@ -118,6 +118,41 @@ class UserSettingsTest {
     }
 
     @Test
+    fun aFileWithNoMatchSpeedPlaysAtTheShippedPace() = runTest {
+        // Every profile written before the setting existed is this file, so the fallback is not an
+        // edge case: it is what every upgrading player gets.
+        val store = InMemorySettingsStore("""{"language":"en_US"}""")
+
+        assertEquals(MatchSpeed.Default, UserSettingsRepository(store).load(AppLocale.EN_US).speed)
+    }
+
+    @Test
+    fun aChosenSpeedIsWrittenUnderItsOwnKeyAndComesBack() = runTest {
+        val store = InMemorySettingsStore()
+        UserSettingsRepository(store).save(UserSettings(matchSpeed = MatchSpeed.INSTANT.tag))
+
+        val written = store.read().orEmpty()
+        assertTrue(written.contains("\"match_speed\""), "no match_speed in: $written")
+        assertEquals(
+            MatchSpeed.INSTANT,
+            UserSettingsRepository(store).load(AppLocale.EN_US).speed,
+        )
+    }
+
+    @Test
+    fun aSpeedThisBuildDoesNotHaveIsRepairedRatherThanKept() = runTest {
+        // A cran a later build added and this one has not. Unlike `language`, there is no fuzzy
+        // match to fall back on, so `sane()` rewrites the field — otherwise the settings sheet
+        // would show "Normal" selected while the file said something else.
+        val store = InMemorySettingsStore("""{"language":"en_US","match_speed":"blistering"}""")
+
+        val settings = UserSettingsRepository(store).load(AppLocale.EN_US)
+
+        assertEquals(MatchSpeed.Default, settings.speed)
+        assertEquals(MatchSpeed.Default.tag, settings.sane().matchSpeed, "the field was kept")
+    }
+
+    @Test
     fun aRepairedFileSaysSoInTheLog() = runTest {
         val sink = RecordingSink()
         Log.install(sink)

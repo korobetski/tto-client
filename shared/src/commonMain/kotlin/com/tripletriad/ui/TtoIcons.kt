@@ -186,6 +186,45 @@ internal object TtoIcons {
         }
     }
 
+    /** One sheet behind another, offset — the shape of a thing there are now two of. */
+    val Copy: ImageVector by lazy {
+        icon("Copy") {
+            moveTo(9f, 3.5f)
+            lineTo(20f, 3.5f)
+            lineTo(20f, 14.5f)
+            lineTo(9f, 14.5f)
+            close()
+            moveTo(15f, 20.5f)
+            lineTo(4f, 20.5f)
+            lineTo(4f, 9.5f)
+            lineTo(9f, 9.5f)
+        }
+    }
+
+    /** Three rules, longest first — the shape a list takes when it has been put in an order. */
+    val Sort: ImageVector by lazy {
+        icon("Sort") {
+            moveTo(4f, 7f)
+            lineTo(20f, 7f)
+            moveTo(4f, 12f)
+            lineTo(15f, 12f)
+            moveTo(4f, 17f)
+            lineTo(10f, 17f)
+        }
+    }
+
+    /** A lens and its handle. */
+    val Search: ImageVector by lazy {
+        icon("Search") {
+            moveTo(16f, 10.5f)
+            arcTo(5.5f, 5.5f, 0f, true, true, 5f, 10.5f)
+            arcTo(5.5f, 5.5f, 0f, true, true, 16f, 10.5f)
+            close()
+            moveTo(14.6f, 14.6f)
+            lineTo(20f, 20f)
+        }
+    }
+
     val Lock: ImageVector by lazy {
         icon("Lock") {
             moveTo(5.5f, 10.5f)

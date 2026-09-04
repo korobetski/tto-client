@@ -75,7 +75,7 @@ class NavigationTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         startMatch()
 
-        onNodeWithTag(MATCH_EXIT_TEST_TAG).performClick()
+        leaveMatch()
         awaitOpponents()
 
         backToDashboard()

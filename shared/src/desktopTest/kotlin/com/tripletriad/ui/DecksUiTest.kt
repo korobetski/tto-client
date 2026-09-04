@@ -470,4 +470,62 @@ class DecksUiTest {
             decks = listOf(Deck(name = "Aces", cards = deck)),
         )
     }
+
+    @Test
+    fun fillingAnEmptyDraftProducesAFullLegalDeck() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        openDecks()
+
+        // Slot 1 is empty on a fresh character; slot 0 holds the starter deck.
+        onNodeWithTag(deckSlotTestTag(1)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
+        for (position in 0 until HAND_SIZE) {
+            onNodeWithTag(deckPositionTestTag(position)).assertExists()
+        }
+
+        onNodeWithTag(DECK_FILL_TEST_TAG).performClick()
+        waitForIdle()
+
+        // The count on the power line is the screen's own statement that the deck is complete.
+        assertTrue(isVisible("$HAND_SIZE / $HAND_SIZE"), "the draft was not filled")
+        assertFalse(exists(DECK_OVER_LIMIT_TEST_TAG), "the fill broke a rank cap")
+        assertFalse(exists(DECK_MISSING_TEST_TAG), "the fill used cards the profile does not own")
+    }
+
+    @Test
+    fun fillingIsRefusedOnceThereIsNothingLeftToAdd() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        openDecks()
+
+        // The starter slot is already five cards, so the control has nothing to do on it.
+        onNodeWithTag(deckSlotTestTag(0)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
+
+        onNodeWithTag(DECK_FILL_TEST_TAG).assertIsNotEnabled()
+    }
+
+    @Test
+    fun duplicatingASlotCopiesItsCardsIntoTheFirstEmptyOne() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        openDecks()
+
+        onNodeWithTag(deckCopyTestTag(0)).performClick()
+        waitForIdle()
+
+        // The copy landed in slot 1, and it holds the same five cards — which the slot row states
+        // as its own count.
+        onNodeWithTag(deckSlotTestTag(1)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
+        assertTrue(isVisible("$HAND_SIZE / $HAND_SIZE"), "the copy is not a full deck")
+        assertFalse(exists(DECK_MISSING_TEST_TAG), "the copy claims cards the profile lacks")
+    }
+
+    @Test
+    fun anEmptySlotHasNothingToDuplicate() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        openDecks()
+
+        // Drawn rather than hidden, so the eight rows stay the same width — see `StripButton`.
+        onNodeWithTag(deckCopyTestTag(1)).assertExists().assertIsNotEnabled()
+    }
 }

@@ -2,25 +2,36 @@ package com.tripletriad.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.FlowRowScope
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.tripletriad.data.CardSet
 import com.tripletriad.i18n.LocalStrings
@@ -29,6 +40,56 @@ import com.tripletriad.model.Card
 import com.tripletriad.model.CardType
 
 const val CARD_FILTERS_TEST_TAG: String = "card-filters"
+
+const val CARD_SEARCH_TEST_TAG: String = "card-search"
+const val CARD_SEARCH_CLEAR_TEST_TAG: String = "card-search-clear"
+const val CARD_SORT_TEST_TAG: String = "card-sort"
+
+// `internal`, unlike every other tag helper here, because [CardSort] is: a public function may not
+// name an internal type, and the enum has no business being public to buy this one its `public`.
+internal fun cardSortTestTag(sort: CardSort): String = "card-sort-${sort.slug}"
+
+/**
+ * The orders 565 cards can be read in.
+ *
+ * Three, and each answers a different question a player actually has. [NUMBER] is the catalogue's
+ * own order and therefore the one the gaps are visible in — a collection read for what is *missing*
+ * has to be read in the order the set was printed. [POWER] and [RARITY] are the two ways of asking
+ * "what is my best", and they are not the same question: rarity is what a card cost and what the
+ * deck caps count, [Card.total] is what it does on a board.
+ *
+ * No alphabetical order. It is what the search field is for, and a name is the one property of a
+ * card that changes with the language the app is in — an ordering that rearranges itself when the
+ * player switches locale is an ordering nobody can learn.
+ */
+internal enum class CardSort(val slug: String, val labelKey: String) {
+    NUMBER("number", StringKeys.SORT_NUMBER),
+
+    // Named `Total` and not "power", because [Card.total] is exactly the number the card detail
+    // panel already labels `STR_TOTAL` — two words for one figure would be two things to learn.
+    POWER("power", StringKeys.TOTAL),
+
+    // Likewise the word the rarity chips and the card panel already use.
+    RARITY("rarity", StringKeys.RARITY),
+    ;
+
+    /**
+     * Ties broken by the catalogue order in every case, so the grid is stable: two cards of equal
+     * total that swapped places between recompositions would be two cards that flicker.
+     */
+    internal val comparator: Comparator<Card>
+        get() = when (this) {
+            NUMBER -> CATALOGUE
+            POWER -> compareByDescending<Card> { it.total }.then(CATALOGUE)
+            RARITY -> compareByDescending<Card> { it.rarity }
+                .thenByDescending { it.total }
+                .then(CATALOGUE)
+        }
+
+    private companion object {
+        val CATALOGUE: Comparator<Card> = compareBy({ it.block }, { it.number })
+    }
+}
 
 fun setFilterTestTag(block: Int?): String = "card-filter-set-${block ?: "all"}"
 
@@ -67,6 +128,12 @@ internal class CardFilters(
     val sets: List<Int>,
     val types: List<CardType>,
     val rarities: List<Int>,
+    /**
+     * A card's name as this locale writes it. A lambda rather than a `Strings`, so the only thing
+     * this knows about the i18n layer is that a card has a name — and so a test can build one
+     * without a bundle.
+     */
+    private val nameOf: (Card) -> String = { it.name },
 ) {
     var set: Int? by mutableStateOf(null)
 
@@ -74,10 +141,43 @@ internal class CardFilters(
 
     var rarity: Int? by mutableStateOf(null)
 
+    /** What the player has typed, verbatim. Trimmed and folded only at the point of comparison. */
+    var query: String by mutableStateOf("")
+
+    var sort: CardSort by mutableStateOf(CardSort.NUMBER)
+
+    /** True while any of the five is narrowing the list — what a "clear" control would undo. */
+    val isNarrowed: Boolean
+        get() = set != null || type != null || rarity != null || query.isNotBlank()
+
     fun matches(card: Card): Boolean =
         (set == null || blockGroups[card.block] == set) &&
             (type == null || card.type == type) &&
-            (rarity == null || card.rarity == rarity)
+            (rarity == null || card.rarity == rarity) &&
+            matchesQuery(card)
+
+    /** [cards] in the order [sort] asks for. */
+    fun sorted(cards: List<Card>): List<Card> = cards.sortedWith(sort.comparator)
+
+    /**
+     * Whether a card answers to what has been typed.
+     *
+     * Matched against the **displayed** name and against [Card.name], which is the `en_US` one the
+     * card table carries. Two names rather than one because the card table is the only place some
+     * of these are written down in a language a search engine would have indexed: a player who
+     * knows a card as "Ifrit" finds it in the German build, and one who knows it as "Bahamut Zéro"
+     * finds it in that one. Neither is ever the wrong answer — a query that matches nothing still
+     * matches nothing.
+     *
+     * Case-folded and no more. Accents are **not** folded: doing it properly needs a table this
+     * does not have, and a half-done job that folds é and not ö would be worse than none.
+     */
+    private fun matchesQuery(card: Card): Boolean {
+        val needle = query.trim()
+        if (needle.isEmpty()) return true
+        return nameOf(card).contains(needle, ignoreCase = true) ||
+            card.name.contains(needle, ignoreCase = true)
+    }
 }
 
 /**
@@ -89,8 +189,12 @@ internal class CardFilters(
  * both callers already do.
  */
 @Composable
-internal fun rememberCardFilters(cards: List<Card>, sets: List<CardSet>): CardFilters =
-    remember(cards, sets) {
+internal fun rememberCardFilters(cards: List<Card>, sets: List<CardSet>): CardFilters {
+    val strings = LocalStrings.current
+    // Keyed on the bundle as well as on the cards, so a card searched for by name is searched for
+    // in the language on screen. It resets the chips when the language changes, which is the right
+    // trade: the alternative is a filter object holding a resolver for a locale nobody is reading.
+    return remember(cards, sets, strings) {
         // A card's block folds down to the block that speaks for its whole *set* before it is
         // grouped or compared — FFXIV spans two blocks and a filter should still offer one
         // "FFXIV" chip, not one per block it happens to occupy. See `representativeBlocks`.
@@ -100,8 +204,127 @@ internal fun rememberCardFilters(cards: List<Card>, sets: List<CardSet>): CardFi
             sets = cards.mapNotNull { blockGroups[it.block] }.distinct().sorted(),
             types = CardType.entries.filter { candidate -> cards.any { it.type == candidate } },
             rarities = cards.map { it.rarity }.distinct().sorted(),
+            nameOf = { strings[it.nameKey] },
         )
     }
+}
+
+/**
+ * The search field, and the order beside it.
+ *
+ * ### Why these two share a line
+ *
+ * The collection is 565 cards and the header above the grid was already five rows of chips deep on
+ * a phone. Search earns a row of its own; an order does not, and a menu behind one icon costs
+ * nothing when it is not open. They belong together anyway — both are about *reaching* a card
+ * rather than about which cards are admitted, which is what every chip below them decides.
+ *
+ * ### Not drawn in the consignment picker
+ *
+ * That list is the spare copies of one collection, which is a handful of cards, and [CardFilters]
+ * carries the state whether or not this is rendered — an unsearched query matches everything and
+ * the default order is the catalogue's. So the picker is unchanged and can adopt this by adding one
+ * line, rather than by growing a second copy of the rule.
+ */
+@Composable
+internal fun CardSearchRow(filters: CardFilters) {
+    val strings = LocalStrings.current
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(bottom = SpaceXs),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(SpaceXs),
+    ) {
+        OutlinedTextField(
+            value = filters.query,
+            onValueChange = { filters.query = it.take(MAX_QUERY) },
+            placeholder = { Text(strings[StringKeys.SEARCH_CARDS]) },
+            singleLine = true,
+            leadingIcon = {
+                Icon(
+                    imageVector = TtoIcons.Search,
+                    contentDescription = null,
+                    modifier = Modifier.size(IconSm),
+                )
+            },
+            trailingIcon = {
+                // Only once there is something to clear. A permanently lit × on an empty field is
+                // a control that does nothing, next to the one place on this screen a tap is
+                // expensive — the keyboard is open and the grid is behind it.
+                if (filters.query.isNotEmpty()) {
+                    IconButton(
+                        onClick = { filters.query = "" },
+                        modifier = Modifier.testTag(CARD_SEARCH_CLEAR_TEST_TAG),
+                    ) {
+                        Icon(
+                            imageVector = TtoIcons.Back,
+                            contentDescription = strings[StringKeys.CANCEL],
+                            modifier = Modifier.size(IconSm),
+                        )
+                    }
+                }
+            },
+            textStyle = MaterialTheme.typography.bodyMedium,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            colors = TextFieldDefaults.colors(
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
+            ),
+            modifier = Modifier.testTag(CARD_SEARCH_TEST_TAG).weight(1f),
+        )
+
+        SortMenu(filters)
+    }
+}
+
+@Composable
+private fun SortMenu(filters: CardFilters) {
+    val strings = LocalStrings.current
+    var open by remember { mutableStateOf(false) }
+
+    Box {
+        IconButton(
+            onClick = { open = true },
+            modifier = Modifier.testTag(CARD_SORT_TEST_TAG),
+        ) {
+            Icon(
+                imageVector = TtoIcons.Sort,
+                // Names the order in force rather than the word "sort", so a screen reader — and
+                // a long-press tooltip — say which one it is without opening the menu.
+                contentDescription = strings[filters.sort.labelKey],
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
+            )
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            for (candidate in CardSort.entries) {
+                DropdownMenuItem(
+                    text = { Text(strings[candidate.labelKey]) },
+                    onClick = {
+                        filters.sort = candidate
+                        open = false
+                    },
+                    trailingIcon = {
+                        if (candidate == filters.sort) {
+                            Icon(
+                                imageVector = TtoIcons.Done,
+                                contentDescription = null,
+                                modifier = Modifier.size(IconSm),
+                            )
+                        }
+                    },
+                    modifier = Modifier.testTag(cardSortTestTag(candidate)),
+                )
+            }
+        }
+    }
+}
+
+/** Longer than the longest card name in any of the four bundles, and short of a paste bomb. */
+private const val MAX_QUERY = 40
 
 /** The chips those three questions are answered with. */
 @Composable

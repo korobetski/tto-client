@@ -44,6 +44,7 @@ import com.tripletriad.protocol.ANY_DECK
 import com.tripletriad.protocol.PvpStakePolicy
 import com.tripletriad.protocol.Unlocks
 import com.tripletriad.settings.InMemorySettingsStore
+import com.tripletriad.settings.MatchSpeed
 import com.tripletriad.settings.SettingsStore
 import com.tripletriad.settings.UserSettings
 import com.tripletriad.settings.UserSettingsRepository
@@ -91,6 +92,9 @@ fun App(
             LaunchedEffect(audio, settingsValue?.backgroundVolume, settingsValue?.noiseVolume) {
                 settingsValue?.let { audio.volumes(it.backgroundVolume, it.noiseVolume) }
             }
+            // Before the settings file has been read there is nothing to slow down yet — the
+            // splash is the only screen up — so the default stands until it has been.
+            val playerSpeed = settingsValue?.speed ?: MatchSpeed.Default
 
             val session = rememberProfileSession(documents, clock)
             val account = server?.let { rememberAccountSession(it, clock) }
@@ -219,7 +223,11 @@ fun App(
                 LocalAudio provides audio,
                 LocalUiArt provides startup.ui,
                 LocalCardArt provides startup.art,
-                LocalPacing provides pacing,
+                // The test's factor and the player's, multiplied rather than one overriding the
+                // other. At the shipped defaults both are 1.0 and the product is the identity, so
+                // this is exactly what it was; a test that sets neither is unaffected, and a
+                // player who asks for Instant gets zero whatever a test asked for.
+                LocalPacing provides pacing.scaledBy(playerSpeed.scale),
                 // Here rather than deeper, because the lobby and the auction house are three
                 // layers apart and the door they describe is the same one. Null server means
                 // `:core`'s defaults, which is also what the local `.sav` mode should read.

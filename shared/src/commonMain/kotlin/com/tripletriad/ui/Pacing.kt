@@ -30,6 +30,16 @@ data class Pacing(val scale: Double) {
 
     operator fun times(duration: Duration): Duration = duration * scale
 
+    /**
+     * This factor with the player's own applied on top — see `MatchSpeed`.
+     *
+     * Multiplied rather than replaced, so the two dials compose: the test parameter says how fast
+     * this *process* runs, the setting says how much of the game's own pacing the player wants, and
+     * neither has any business overriding the other.
+     */
+    fun scaledBy(factor: Double): Pacing =
+        if (factor == 1.0) this else Pacing(scale * factor)
+
     companion object {
         /** The pace the game ships at. */
         val Default: Pacing = Pacing(1.0)

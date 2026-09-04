@@ -1,5 +1,6 @@
 package com.tripletriad.ui
 
+import com.tripletriad.settings.MatchSpeed
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -37,6 +38,29 @@ class PacingTest {
     fun aSlowerFactorIsAStrictSlowdownAndAFasterOneAStrictSpeedup() {
         assertEquals(2_800L, Pacing(2.0) * 1_400L, "twice the pace is twice the wait")
         assertEquals(500, Pacing(0.1) * 5_000, "a tenth of five seconds is half of one")
+    }
+
+    @Test
+    fun theTwoDialsCompose() {
+        // The test parameter and the player's setting, multiplied — see `App`, which is the only
+        // caller. At the shipped setting the product must be the identity on the test's own factor,
+        // or every fixture's timing would move the day a player-facing dial was added.
+        assertEquals(Pacing(0.1), Pacing(0.1).scaledBy(MatchSpeed.NORMAL.scale))
+        assertEquals(Pacing.Default, Pacing.Default.scaledBy(MatchSpeed.NORMAL.scale))
+
+        assertEquals(0.5, Pacing.Default.scaledBy(MatchSpeed.FAST.scale).scale)
+        assertEquals(0.05, Pacing(0.1).scaledBy(MatchSpeed.FAST.scale).scale, 1e-9)
+    }
+
+    @Test
+    fun theInstantCranFloorsEveryPauseWhateverElseIsSet() {
+        // The one cran that is allowed to reach zero, and the point of it: nothing waits. Asserted
+        // against a *test* factor as well, because that is the combination a fixture would hit.
+        for (base in listOf(Pacing.Default, Pacing(0.1), Pacing(2.0))) {
+            val instant = base.scaledBy(MatchSpeed.INSTANT.scale)
+            assertEquals(0, instant * MATCH_OPENING_MILLIS, "$base ms did not floor")
+            assertEquals(0L, instant * 5_000L)
+        }
     }
 
     /**

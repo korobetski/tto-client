@@ -11,6 +11,7 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import com.tripletriad.FF14_BLOCK
@@ -161,6 +162,103 @@ class CollectionUiTest {
             .assertWidthIsEqualTo(CELL_SIDE)
             .assertHeightIsEqualTo(CELL_SIDE)
     }
+
+    @Test
+    fun typingANameNarrowsTheGridToTheCardsThatAnswerToIt() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        openCards()
+
+        onNodeWithTag(CARD_SEARCH_TEST_TAG).performTextInput("dodo")
+        waitForIdle()
+
+        // Dodo is `STR_FF14_CARD_1` and the starter deck holds it, so the count is a fact about
+        // one card rather than about how many the table happens to contain.
+        onNodeWithTag(cardCellTestTag(DODO)).assertExists()
+        assertFalse(exists(cardCellTestTag(FF14_ONLY_CARD)), "the grid was not narrowed")
+    }
+
+    @Test
+    fun clearingTheFieldPutsTheWholeTableBack() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        openCards()
+
+        onNodeWithTag(CARD_SEARCH_TEST_TAG).performTextInput("dodo")
+        waitForIdle()
+        onNodeWithTag(CARD_SEARCH_CLEAR_TEST_TAG).performClick()
+        waitForIdle()
+
+        onNodeWithTag(CARD_TOTAL_TEST_TAG).assertTextEquals(
+            "Owned$DOT_SEPARATOR${STARTER_CARDS.size} / $ALL_CARDS",
+        )
+    }
+
+    @Test
+    fun aNameNothingAnswersToSaysSoRatherThanShowingAnEmptyGrid() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        openCards()
+
+        onNodeWithTag(CARD_SEARCH_TEST_TAG).performTextInput("zzzzzz")
+        waitForIdle()
+
+        onNodeWithTag(CARD_NO_MATCH_TEST_TAG).assertExists()
+        assertFalse(exists(CARD_GRID_TEST_TAG), "the grid should give way to the note")
+    }
+
+    @Test
+    fun theMissingChipIsTheExactComplementOfTheOwnedOne() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        openCards()
+
+        onNodeWithTag(CARD_OWNED_FILTER_TEST_TAG).performClick()
+        waitForIdle()
+        onNodeWithTag(CARD_TOTAL_TEST_TAG).assertTextEquals(
+            "Owned$DOT_SEPARATOR${STARTER_CARDS.size} / ${STARTER_CARDS.size}",
+        )
+
+        onNodeWithTag(CARD_MISSING_FILTER_TEST_TAG).performClick()
+        waitForIdle()
+        // Nothing on screen is owned, and the two chips are exclusive: picking one drops the other.
+        onNodeWithTag(CARD_TOTAL_TEST_TAG).assertTextEquals(
+            "Owned$DOT_SEPARATOR" + "0 / ${ALL_CARDS - STARTER_CARDS.size}",
+        )
+    }
+
+    @Test
+    fun tappingTheChosenHoldingChipAgainClearsIt() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        openCards()
+
+        onNodeWithTag(CARD_MISSING_FILTER_TEST_TAG).performClick()
+        waitForIdle()
+        onNodeWithTag(CARD_MISSING_FILTER_TEST_TAG).performClick()
+        waitForIdle()
+
+        onNodeWithTag(CARD_TOTAL_TEST_TAG).assertTextEquals(
+            "Owned$DOT_SEPARATOR${STARTER_CARDS.size} / $ALL_CARDS",
+        )
+    }
+
+    @Test
+    fun theOrderIsChosenFromTheMenuAndTheGridFollowsIt() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        openCards()
+
+        // Narrowed to what is owned first, so the assertion is about five cards whose order can be
+        // computed here rather than about 564 whose first row depends on the whole table.
+        onNodeWithTag(CARD_OWNED_FILTER_TEST_TAG).performClick()
+        waitForIdle()
+
+        onNodeWithTag(CARD_SORT_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(cardSortTestTag(CardSort.POWER)) }
+        onNodeWithTag(cardSortTestTag(CardSort.POWER)).performClick()
+        waitForIdle()
+
+        val strongest = STARTER_CARDS.maxBy { catalog.byId.getValue(it).total }
+        onNodeWithTag(cardCellTestTag(strongest)).assertExists()
+        // The menu closes on a choice, and the choice is the one that is ticked next time.
+        assertFalse(exists(cardSortTestTag(CardSort.POWER)), "the menu stayed open")
+    }
+
     private companion object {
         // 153 FF14 + 110 FF8 before the FF14 set completed to its full 454 across two blocks.
         // Still 564, not 565, now that FF8 carries a 111th card: Mooba is secret, and a secret
@@ -175,6 +273,9 @@ class CollectionUiTest {
         val UNOWNED_CARD = Card.idFor(block = 1, number = 44)
 
         val FF14_ONLY_CARD = Card.idFor(block = 1, number = 138)
+
+        /** `STR_FF14_CARD_1`, and the one card in the starter deck named "Dodo". */
+        val DODO = Card.idFor(block = 1, number = 1)
     }
 
     // ---- Filters -----------------------------------------------------------

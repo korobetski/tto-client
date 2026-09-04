@@ -5,6 +5,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
+import com.tripletriad.data.MatchHistoryRepository
 import com.tripletriad.data.SaveRepository
 import com.tripletriad.log.CrashLog
 import com.tripletriad.log.Log
@@ -27,6 +28,8 @@ fun main() {
     // `SaveRepository.COLLECTION` rather than the literal "saves": the shared module owns the
     // directory name, so the two hosts cannot drift apart on where a profile lives.
     val documents = DesktopDocumentStore(SaveRepository.COLLECTION)
+    // Its own directory, for the reason the shared module gives on `App`'s parameter.
+    val history = DesktopDocumentStore(MatchHistoryRepository.COLLECTION)
     val server = buildServerConnection()
     application {
         Window(
@@ -37,6 +40,7 @@ fun main() {
             App(
                 store = settings,
                 documents = documents,
+                history = history,
                 clock = JvmClock,
                 onQuit = ::exitApplication,
                 server = server,

@@ -32,6 +32,9 @@ import kotlin.math.roundToInt
 const val STATS_TABLE_TEST_TAG: String = "stats-table"
 const val STATS_LEVEL_TEST_TAG: String = "stats-level"
 const val STATS_ACHIEVEMENTS_TEST_TAG: String = "stats-achievements"
+
+/** The way into what the counters above it are a summary of. */
+const val STATS_HISTORY_TEST_TAG: String = "stats-history"
 const val STATS_NO_ACHIEVEMENT_TEST_TAG: String = "stats-no-achievement"
 
 fun statsRowTestTag(labelKey: String): String = "stats-$labelKey"
@@ -47,6 +50,7 @@ internal fun StatsScreen(
     profile: GameSave,
     cards: Map<Int, Card>,
     onAvatar: () -> Unit,
+    onHistory: () -> Unit,
     onBack: () -> Unit,
 ) {
     val strings = LocalStrings.current
@@ -76,6 +80,15 @@ internal fun StatsScreen(
                     "${strings[StringKeys.XP]} ×${profile.boons.xp}",
             )
         }
+
+        // Under the counters and above the achievements, which is where it belongs in the
+        // sentence this screen is: here is the tally, here is what it is made of, here is what it
+        // has earned. The counters are the summary of a list that until now had nowhere to live.
+        RowButton(
+            label = strings[StringKeys.HISTORY],
+            tag = STATS_HISTORY_TEST_TAG,
+            onClick = onHistory,
+        )
 
         SectionHeader(
             text = strings[StringKeys.ACHIEVEMENTS_LIST],

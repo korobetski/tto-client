@@ -64,6 +64,17 @@ import kotlinx.coroutines.launch
 fun App(
     store: SettingsStore = InMemorySettingsStore(),
     documents: DocumentStore = InMemoryDocumentStore(),
+    /*
+     * Where this device keeps what it has played, separate from where it keeps characters.
+     *
+     * Its own store rather than a prefix inside [documents], because a `DocumentStore` is a flat
+     * namespace a host scopes by collection — `SaveRepository.COLLECTION` against
+     * `MatchHistoryRepository.COLLECTION` — and `SaveRepository.list` enumerates *everything* in
+     * the one it is given. Sharing would put history documents in front of the character picker
+     * and rely on them failing to parse as a save. Inert by default, like every other capability
+     * here: a test that never opens the history keeps it in memory and writes nothing.
+     */
+    history: DocumentStore = InMemoryDocumentStore(),
     clock: Clock = FixedClock(),
     audio: AudioPlayer = SilentAudioPlayer,
     onQuit: () -> Unit = {},
@@ -177,6 +188,17 @@ fun App(
                 screen = screen,
             )
 
+            // Beside the settlement and for the same reason: both are about a match that is over,
+            // and neither belongs to the board that was showing it. See [MatchJournal].
+            val journal = rememberMatchJournal(history)
+            MatchJournalWriter(
+                journal = journal,
+                profileKey = gate.queueKey,
+                clock = clock,
+                pve = pve,
+                pvp = pvp,
+            )
+
             // Android's system back gesture, which would otherwise finish the activity mid-match
             // — the app would appear to quit from the middle of a game. `BackHandler` is
             // multiplatform (`androidx.compose.ui.backhandler`), so this needs no Android-only
@@ -275,6 +297,7 @@ fun App(
                         CompositionLocalProvider(LocalWideLayout provides isWide) {
                             Destination(
                                 destination = destination,
+                                journal = journal,
                                 auctions = auctions,
                                 pvp = pvp,
                                 pve = pve,
@@ -507,6 +530,7 @@ private fun titleEntry(
 @Suppress("LongParameterList")
 private fun Destination(
     destination: Screen,
+    journal: MatchJournal,
     auctions: AuctionSession?,
     startup: StartupState,
     settings: SettingsHolder?,
@@ -630,7 +654,7 @@ private fun Destination(
         Screen.QUESTS, Screen.PVP, Screen.PVP_MATCH, Screen.PVP_TABLE, Screen.PVP_CLAIM,
         Screen.CAMPAIGN, Screen.CAMPAIGN_MATCH, Screen.AVATAR, Screen.COLLECTION_CHOICE,
         Screen.CARDS, Screen.DECKS, Screen.INVENTORY, Screen.SHOP, Screen.HELP,
-        Screen.LESSONS, Screen.AUCTION,
+        Screen.LESSONS, Screen.AUCTION, Screen.HISTORY,
         -> gate.profile?.let { profile ->
             // The navigation bar, for the screens that have one. Provided here rather than passed
             // down because eleven screens would otherwise carry two parameters that four of them
@@ -645,6 +669,7 @@ private fun Destination(
                 CharacterDestination(
                     destination = destination,
                     profile = profile,
+                    journal = journal,
                     auctions = auctions,
                     // Null unless there is something to do about it. A confirmed account, an
                     // account on a server that predates confirmation, and no server at all all
@@ -730,6 +755,7 @@ private fun AccountDestination(
 private fun CharacterDestination(
     destination: Screen,
     profile: GameSave,
+    journal: MatchJournal,
     auctions: AuctionSession?,
     onConfirmEmail: (() -> Unit)?,
     onOptions: () -> Unit,
@@ -868,9 +894,12 @@ private fun CharacterDestination(
             onNavigate = onNavigate,
         )
 
-        Screen.STATS, Screen.QUESTS, Screen.AVATAR, Screen.COLLECTION_CHOICE -> RecordDestination(
+        Screen.STATS, Screen.QUESTS, Screen.AVATAR, Screen.HISTORY,
+        Screen.COLLECTION_CHOICE,
+        -> RecordDestination(
             destination = destination,
             profile = profile,
+            journal = journal,
             starters = starters,
             at = clock.nowMillis(),
             cards = startup.catalog?.byId.orEmpty(),
@@ -1091,6 +1120,7 @@ private fun MatchDestinations(
 private fun RecordDestination(
     destination: Screen,
     profile: GameSave,
+    journal: MatchJournal,
     starters: StarterCatalog,
     at: Long,
     cards: Map<Int, Card>,
@@ -1103,6 +1133,15 @@ private fun RecordDestination(
         Screen.AVATAR -> AvatarScreen(
             profile = profile,
             onChoose = gate.persist,
+            onBack = { onNavigate(Screen.STATS) },
+        )
+
+        Screen.HISTORY -> HistoryScreen(
+            profile = profile,
+            records = journal.records,
+            isLoading = journal.isLoading,
+            // To name an opponent a row stored by `iconID` — see `MatchRecord.opponentLabel`.
+            opponents = opponents,
             onBack = { onNavigate(Screen.STATS) },
         )
 
@@ -1143,6 +1182,7 @@ private fun RecordDestination(
             // catalogue loads, which costs the reward's name and nothing else.
             cards = cards,
             onAvatar = { onNavigate(Screen.AVATAR) },
+            onHistory = { onNavigate(Screen.HISTORY) },
             onBack = { onNavigate(Screen.DASHBOARD) },
         )
     }
@@ -1467,6 +1507,7 @@ private fun CollectionDestination(
             profile = profile,
             catalog = catalog,
             format = format,
+            opponents = startup.opponents,
             initial = if (destination == Screen.DECKS) {
                 CollectionTab.DECKS
             } else {

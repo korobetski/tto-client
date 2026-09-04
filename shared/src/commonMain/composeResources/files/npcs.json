@@ -1646,7 +1646,8 @@
           "rate": 0.063
         }
       ],
-      "difficulty": 10
+      "difficulty": 10,
+      "requiresAchievement": "ac-tt2"
     },
     {
       "id": 35,
@@ -2854,7 +2855,7 @@
           "rate": 0.082
         }
       ],
-      "difficulty": 7
+      "difficulty": 8
     },
     {
       "id": 59,
@@ -5573,7 +5574,8 @@
           "rate": 0.255
         }
       ],
-      "difficulty": 10
+      "difficulty": 10,
+      "requiresAchievement": "ac-tt2"
     },
     {
       "id": 65,
@@ -5932,7 +5934,8 @@
           "rate": 0.237
         }
       ],
-      "difficulty": 9
+      "difficulty": 10,
+      "requiresAchievement": "ac-tt2"
     },
     {
       "id": 74,
@@ -6045,7 +6048,7 @@
           "rate": 0.178
         }
       ],
-      "difficulty": 7
+      "difficulty": 5
     },
     {
       "id": 77,
@@ -7664,7 +7667,8 @@
           "rate": 0.129
         }
       ],
-      "difficulty": 10
+      "difficulty": 10,
+      "requiresAchievement": "ac-tt2"
     },
     {
       "id": 114,
@@ -8335,7 +8339,7 @@
           "rate": 0.144
         }
       ],
-      "difficulty": 8
+      "difficulty": 9
     },
     {
       "id": 129,
@@ -8560,7 +8564,7 @@
           "rate": 0.186
         }
       ],
-      "difficulty": 4
+      "difficulty": 8
     }
   ]
 }

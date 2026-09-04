@@ -18,6 +18,7 @@ internal enum class Screen {
     CAMPAIGN,
     CAMPAIGN_MATCH,
     STATS,
+    HISTORY,
     QUESTS,
     PVP,
     PVP_MATCH,
@@ -52,7 +53,7 @@ internal enum class Screen {
             // The course sits beside the rule book it ends at, and is reached from one place —
             // see `LessonsScreen`, which explains why it left the opponent list.
             LESSONS -> DASHBOARD
-            AVATAR -> STATS
+            AVATAR, HISTORY -> STATS
             MATCH, CAMPAIGN -> OPPONENTS
             TUTORIAL -> LESSONS
             PVP_MATCH, PVP_TABLE, PVP_CLAIM -> PVP

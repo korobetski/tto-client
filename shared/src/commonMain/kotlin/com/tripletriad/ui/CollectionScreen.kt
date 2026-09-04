@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import com.tripletriad.data.CardCatalog
 import com.tripletriad.data.Format
+import com.tripletriad.data.NpcCatalog
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.GameSave
@@ -28,6 +29,9 @@ internal fun CollectionScreen(
     profile: GameSave,
     catalog: CardCatalog,
     format: Format,
+    // Only so a card can say who drops it — see [cardSources]. Null before the roster has loaded,
+    // which costs the drop lines and nothing else.
+    opponents: NpcCatalog?,
     initial: CollectionTab,
     onPersist: suspend (GameSave) -> Unit,
     onIntent: suspend (Intent) -> IntentOutcome,
@@ -62,6 +66,7 @@ internal fun CollectionScreen(
                 profile = profile,
                 catalog = catalog,
                 format = format,
+                opponents = opponents,
                 // The browser writes now: a spare copy can be sold from it. Not through
                 // `onPersist`, which the deck editor still uses — a sale moves **money**, so it
                 // is an intent the server carries out rather than a profile the client hands in.

@@ -57,7 +57,7 @@ in the **rules engine's combinatorics** and in the **board interaction**.
 
 `datas/tripleTriadRules.as:9-30` declares **20 rules**. `utils/TTOCore.as` resolves them in
 four methods, one of which (`comboRule`) recurses. Rules interact: Same and Plus both feed
-Combo; Reverse inverts comparison; Fallen Ace changes what a 10 means; Elemental applies a
+Combo; Reverse inverts comparison; Fallen Ace turns over the 1-against-A pair; Elemental applies a
 ±1 modifier before any comparison. This is where a migration silently changes behaviour,
 and where property-based testing earns its keep:
 

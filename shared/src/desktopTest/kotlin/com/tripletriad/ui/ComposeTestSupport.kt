@@ -50,6 +50,9 @@ import kotlinx.coroutines.runBlocking
 internal fun TestApp(
     store: SettingsStore = InMemorySettingsStore(),
     documents: DocumentStore = InMemoryDocumentStore(),
+    // Its own store, as the hosts give it — a fixture that wants to read back what was recorded
+    // passes one it kept a handle on.
+    history: DocumentStore = InMemoryDocumentStore(),
     clock: Clock = FixedClock(),
     audio: AudioPlayer = SilentAudioPlayer,
     onQuit: () -> Unit = {},
@@ -58,6 +61,7 @@ internal fun TestApp(
 ) = App(
     store = store,
     documents = documents,
+    history = history,
     clock = clock,
     audio = audio,
     onQuit = onQuit,
@@ -267,6 +271,16 @@ internal fun ComposeUiTest.leaveMatch() {
     if (exists(MATCH_LEAVE_CONFIRM_TEST_TAG)) {
         onNodeWithTag(MATCH_LEAVE_CONFIRM_TEST_TAG).performClick()
         waitForIdle()
+    }
+}
+
+/** The profile screen, and then the list its counters are a summary of. */
+@OptIn(ExperimentalTestApi::class)
+internal fun ComposeUiTest.openHistory() {
+    openFromDashboard(DASHBOARD_STATS_TEST_TAG, STATS_TABLE_TEST_TAG)
+    onNodeWithTag(STATS_HISTORY_TEST_TAG).performClick()
+    waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
+        exists(HISTORY_LIST_TEST_TAG) || exists(HISTORY_EMPTY_TEST_TAG)
     }
 }
 

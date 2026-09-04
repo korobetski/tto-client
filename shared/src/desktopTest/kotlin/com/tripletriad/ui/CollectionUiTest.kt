@@ -37,6 +37,23 @@ class CollectionUiTest {
     private val formats = kotlinx.coroutines.runBlocking { loadFormatCatalog() }
     private val strings = kotlinx.coroutines.runBlocking { loadStrings(AppLocale.EN_US) }
 
+    /** The shipped roster, so a card's drop lines are the real ones. See [cardSources]. */
+    private val opponents = kotlinx.coroutines.runBlocking { com.tripletriad.data.loadNpcCatalog() }
+
+    /**
+     * An admitted card no shelf, pack, haut fait or opponent offers.
+     *
+     * Chosen from the shipped tables rather than written down, because which cards have no source
+     * is exactly what this port is still filling in — a hard-coded id would be a test that fails
+     * the day somebody authors a drop for it, which is the day it should start passing differently.
+     */
+    private val unobtainable = catalog.all.first { card ->
+        cardSources(
+            card.id,
+            opponents,
+        ).isEmpty()
+    }
+
     private fun ComposeUiTest.openCards(block: Int = FF14_BLOCK) {
         newCharacter(block)
         openFromBar("cards", CARD_GRID_TEST_TAG)
@@ -259,6 +276,46 @@ class CollectionUiTest {
         assertFalse(exists(cardSortTestTag(CardSort.POWER)), "the menu stayed open")
     }
 
+    @Test
+    fun aCardSaysWhereItComesFrom() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        openCards()
+
+        onNodeWithTag(cardCellTestTag(CHOCOBO)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(CARD_DETAIL_TEST_TAG) }
+
+        onNodeWithTag(CARD_SOURCES_TEST_TAG).assertExists()
+        // Chocobo is on the shelf *and* in two drop tables — the certain source leads, and the
+        // two opponents follow it. Both facts were in `cards.json` and `npcs.json` all along.
+        onNodeWithTag(cardSourceTestTag("shop")).assertExists()
+        onNodeWithTag(cardSourceTestTag("npc-guhtwint")).assertExists()
+        assertTrue(isVisible("20%"), "the drop rate is not on screen")
+    }
+
+    @Test
+    fun aCardNothingOffersSaysThatInsteadOfShowingABlank() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        openCards()
+
+        onNodeWithTag(CARD_SEARCH_TEST_TAG).performTextInput(strings[unobtainable.nameKey])
+        waitForIdle()
+        onNodeWithTag(cardCellTestTag(unobtainable.id)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(CARD_DETAIL_TEST_TAG) }
+
+        onNodeWithTag(CARD_SOURCES_NONE_TEST_TAG).assertExists()
+    }
+
+    @Test
+    fun theSourcesAreNamedInTheLanguageOnScreen() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.FR_FR)) }
+        openCards()
+
+        onNodeWithTag(cardCellTestTag(CHOCOBO)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(CARD_DETAIL_TEST_TAG) }
+
+        assertTrue(isVisible("Où la trouver"), "the heading is not in French")
+    }
+
     private companion object {
         // 153 FF14 + 110 FF8 before the FF14 set completed to its full 454 across two blocks.
         // Still 564, not 565, now that FF8 carries a 111th card: Mooba is secret, and a secret
@@ -276,6 +333,14 @@ class CollectionUiTest {
 
         /** `STR_FF14_CARD_1`, and the one card in the starter deck named "Dodo". */
         val DODO = Card.idFor(block = 1, number = 1)
+
+        /**
+         * `STR_FF14_CARD_13`, on the shop's shelf at 150 MGP and in two opponents' drop tables at
+         * 20 % — the one card in the shipped data that exercises both halves of the index at once.
+         * Authored data, so this moves with `cards.json` and `npcs.json`; when it does, pick
+         * another card that is both bought and dropped.
+         */
+        const val CHOCOBO = 269
     }
 
     // ---- Filters -----------------------------------------------------------
@@ -390,6 +455,7 @@ class CollectionUiTest {
                     profile = profile,
                     catalog = catalog,
                     format = formats.default!!,
+                    opponents = opponents,
                     initial = CollectionTab.CARDS,
                     onPersist = {},
                     onIntent = onIntent,

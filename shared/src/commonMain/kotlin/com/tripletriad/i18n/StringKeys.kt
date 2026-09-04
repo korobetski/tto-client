@@ -217,8 +217,10 @@ object StringKeys {
     const val NO_QUEST: String = "APP_NO_QUEST"
 
     const val QUEST_PLAY_3: String = "APP_QUEST_PLAY_3"
+    const val QUEST_PLAY_5: String = "APP_QUEST_PLAY_5"
     const val QUEST_WIN_1: String = "APP_QUEST_WIN_1"
     const val QUEST_WIN_3: String = "APP_QUEST_WIN_3"
+    const val QUEST_WIN_5: String = "APP_QUEST_WIN_5"
     const val QUEST_BEAT: String = "APP_QUEST_BEAT"
     const val QUEST_RULE: String = "APP_QUEST_RULE"
     const val QUEST_PVP_1: String = "APP_QUEST_PVP_1"
@@ -745,6 +747,25 @@ object StringKeys {
     const val DECK_COPY: String = "APP_DECK_COPY"
     const val DECK_FILL: String = "APP_DECK_FILL"
 
+    /**
+     * Where a card comes from — the four tables that were shipped and unreadable. See
+     * `CardSources`; the rows name themselves out of `STR_CARD_SHOP`, `STR_REWARDS` and the
+     * booster and opponent name keys, so only the heading and the two notes are new.
+     */
+    const val CARD_SOURCES: String = "APP_CARD_SOURCES"
+    const val CARD_SOURCES_MORE: String = "APP_CARD_SOURCES_MORE"
+    const val NO_CARD_SOURCE: String = "APP_NO_CARD_SOURCE"
+
+    // ---- What this character has played. `STR_*` is not reused for the tally words: the profile
+    // screen's `WINS`/`DEFEATS`/`DRAWS` are column headings and read as counts, which is exactly
+    // what a history row is not.
+    const val HISTORY: String = "APP_HISTORY"
+    const val NO_HISTORY: String = "APP_NO_HISTORY"
+    const val HISTORY_FORM: String = "APP_HISTORY_FORM"
+
+    /** "{0} matches kept on this device" — said because it is not the profile's own total. */
+    const val HISTORY_KEPT: String = "APP_HISTORY_KEPT"
+
     // ---- Walking away from a board. The body is per-mode: only the refereed one is kept for
     // later, so only it can promise to be there when the player comes back.
     const val LEAVE_MATCH: String = "APP_LEAVE_MATCH"
@@ -776,7 +797,8 @@ object StringKeys {
         ACHIEVEMENTS_LIST, FORFEITS, MATCHES, WIN_RATE, BOONS, NO_ACHIEVEMENT, NEXT_TIER,
         ACHIEVEMENT_REWARD, ACHIEVEMENT_REWARD_MGP,
         QUESTS, QUESTS_RESET, QUEST_DONE, NO_QUEST,
-        QUEST_PLAY_3, QUEST_WIN_1, QUEST_WIN_3, QUEST_BEAT, QUEST_RULE, QUEST_PVP_1,
+        QUEST_PLAY_3, QUEST_PLAY_5, QUEST_WIN_1, QUEST_WIN_3, QUEST_WIN_5,
+        QUEST_BEAT, QUEST_RULE, QUEST_PVP_1,
         PVP_CHALLENGE, PVP_INVITE, PVP_INVITE_TO, PVP_FROM, PVP_SENT_TO,
         PVP_ACCEPT, PVP_DECLINE, PVP_NO_CHALLENGE,
         PVP_TABLES, PVP_NO_TABLE, PVP_HOST, PVP_HOST_OPEN, PVP_HOST_CANCEL, PVP_JOIN,
@@ -875,6 +897,8 @@ object StringKeys {
         SEARCH_CARDS, SORT_NUMBER, MISSING, NO_CARD_MATCH,
         DECK_COPY, DECK_FILL,
         LEAVE_MATCH, LEAVE_MATCH_PVE, LEAVE_MATCH_CONFIRM,
+        HISTORY, NO_HISTORY, HISTORY_FORM, HISTORY_KEPT,
+        CARD_SOURCES, CARD_SOURCES_MORE, NO_CARD_SOURCE,
     )
 
     val appOwned: List<String> = all.filter { it.startsWith("APP_") }

@@ -7,6 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.tripletriad.data.MatchHistoryRepository
 import com.tripletriad.data.SaveRepository
 import com.tripletriad.log.Log
 import androidx.lifecycle.lifecycleScope
@@ -38,12 +39,20 @@ class MainActivity : ComponentActivity() {
         // `SaveRepository.COLLECTION` rather than the literal "saves": the shared module owns the
         // directory name, so the two hosts cannot drift apart on where a profile lives.
         val documents = AndroidDocumentStore(applicationContext, SaveRepository.COLLECTION)
+        // Its own directory, for the reason the shared module gives on `App`'s parameter: a store
+        // is a flat namespace and the character picker enumerates the whole of the one it is
+        // handed.
+        val history = AndroidDocumentStore(
+            applicationContext,
+            MatchHistoryRepository.COLLECTION,
+        )
         audio = AndroidAudioPlayer(applicationContext)
         val server = buildServerConnection()
         setContent {
             App(
                 store = settings,
                 documents = documents,
+                history = history,
                 clock = AndroidClock,
                 audio = audio,
                 onQuit = ::quit,

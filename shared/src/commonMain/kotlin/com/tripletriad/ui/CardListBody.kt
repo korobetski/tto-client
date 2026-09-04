@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import com.tripletriad.data.CardCatalog
 import com.tripletriad.data.CardValue
 import com.tripletriad.data.Format
+import com.tripletriad.data.NpcCatalog
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.Strings
@@ -89,6 +90,7 @@ internal fun ColumnScope.CardListBody(
     profile: GameSave,
     catalog: CardCatalog,
     format: Format,
+    opponents: NpcCatalog?,
     onIntent: suspend (Intent) -> IntentOutcome,
     note: NoteHost,
 ) {
@@ -214,7 +216,13 @@ internal fun ColumnScope.CardListBody(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             grid(Modifier.weight(1f).fillMaxHeight())
-            CardDetail(selected, profile, sell, Modifier.width(DetailPaneWidth).fillMaxHeight())
+            CardDetail(
+                card = selected,
+                profile = profile,
+                opponents = opponents,
+                onSell = sell,
+                modifier = Modifier.width(DetailPaneWidth).fillMaxHeight(),
+            )
         }
     } else {
         // The grid keeps the screen and the card arrives over it. The panel used to sit above the
@@ -233,6 +241,7 @@ internal fun ColumnScope.CardListBody(
                 CardDetail(
                     card = card,
                     profile = profile,
+                    opponents = opponents,
                     onSell = sell,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -256,10 +265,17 @@ private fun sellCardNote(strings: Strings, outcome: IntentOutcome): String? = wh
 private fun CardDetail(
     card: Card?,
     profile: GameSave,
+    opponents: NpcCatalog?,
     onSell: (Card) -> Unit,
     modifier: Modifier = Modifier.fillMaxWidth().height(CardPanelHeight),
 ) {
     val strings = LocalStrings.current
+    // Recomputed only when the card or the roster does, which is once per selection: the walk is
+    // over 158 opponents, 15 booster pools and two catalogues, and the panel recomposes on every
+    // scroll frame behind it.
+    val sources = remember(card, opponents) {
+        card?.let { cardSources(it.id, opponents) }.orEmpty()
+    }
 
     Box(
         modifier = modifier.rowSurface().padding(8.dp),
@@ -270,7 +286,7 @@ private fun CardDetail(
         } else {
             // The panel the auction's lectern reads a card in too — see [CardPanel] for why the
             // sprite is at full size and why the height has to come from here.
-            CardPanel(card = card, tag = CARD_DETAIL_TEST_TAG) {
+            CardPanel(card = card, tag = CARD_DETAIL_TEST_TAG, sources = sources) {
                 SellButton(card, profile, onSell)
             }
         }

@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -54,12 +53,19 @@ import com.tripletriad.model.powerLabel
  *   landmarks in two different screens' tests.
  * @param actions the room's own verbs, under the prose: Sell in the collection, nothing at all at
  *   the desk, where the money is committed further down the lectern.
+ * @param sources where the card can be come by, or **null** where the room does not ask. The
+ *   distinction is load-bearing: an empty list means *asked, and there is nowhere* — which
+ *   [CardSources] says in words, because most of the 565 cards are still without a source and a
+ *   blank there reads as a panel that failed to load. Null means the question was never put, which
+ *   is the auction's lectern: a card at the desk is one somebody is already selling, and the answer
+ *   would be the room it is being asked in.
  */
 @Composable
 internal fun CardPanel(
     card: Card,
     tag: String,
     modifier: Modifier = Modifier,
+    sources: List<CardSource>? = null,
     actions: @Composable ColumnScope.() -> Unit = {},
 ) {
     val strings = LocalStrings.current
@@ -92,22 +98,33 @@ internal fun CardPanel(
             // really is absent rather than merely untranslated — leaving the key on screen would
             // read as a defect in the port.
             val description = "${card.nameKey}_DESC"
-            if (strings.has(description)) {
-                Text(
-                    // Quoted speech, with emphasis and the odd line break — the prose most likely
-                    // to carry markup. See [markup].
-                    text = markup(strings[description]),
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
-                    // `bodySmall` and not `labelSmall`: this is the only prose in the game and it
-                    // was being drawn at the size the app uses for a stack count.
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .verticalScroll(rememberScrollState()),
-                )
-            } else {
-                Spacer(modifier = Modifier.weight(1f))
+            // The prose and the sources share one scrolling region, and it is the region that
+            // takes the weight. Giving each its own would put two scrollbars in a 196 dp panel;
+            // giving the sources a fixed height below the prose would push [actions] off the
+            // bottom, which is the failure this column's `fillMaxHeight` exists to prevent.
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(SpaceXs),
+            ) {
+                // **Before the prose, not after it.** Both sit in the same scrolling region and
+                // only about four lines of it are above the fold on a phone; whichever goes first
+                // is the one the player is shown. A card they do not own is a card they opened to
+                // ask *where do I get this*, and the flavour text is the part they can scroll for.
+                sources?.let { CardSources(it) }
+                if (strings.has(description)) {
+                    Text(
+                        // Quoted speech, with emphasis and the odd line break — the prose most
+                        // likely to carry markup. See [markup].
+                        text = markup(strings[description]),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+                        // `bodySmall` and not `labelSmall`: this is the only prose in the game and
+                        // it was being drawn at the size the app uses for a stack count.
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
             }
 
             actions()

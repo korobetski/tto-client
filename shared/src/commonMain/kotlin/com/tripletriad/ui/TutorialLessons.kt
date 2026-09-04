@@ -259,16 +259,21 @@ internal val TUTORIAL_COURSE: List<TutorialLesson> = listOf(
         ),
     ),
     // The interaction, and the one lesson whose baselines are not "no rules at all": Hildibrand's
-    // bottom 10 beats Dodo's top 4 on raw power, so that question says nothing here. Under Reverse
-    // alone the ace is worthless — 4 is not greater than 10. Under Fallen Ace alone it is worth 0
-    // and 4 is not lower than 0. Under both, 0 is the lowest number on the board and unbeatable.
+    // bottom 10 beats Amalj'aa's top 1 on raw power, so that question says nothing here.
+    //
+    // The pair is what each rule turns over, and turning it twice puts it back. Under Reverse alone
+    // the ace beats nothing — no side of a card is higher than ten, so it can never be the lower
+    // number. Under Fallen Ace alone the pair runs the other way and the 1 takes the ace, so the
+    // ace still does not capture. Under both, the two inversions cancel and the ace takes the 1 —
+    // which is the whole of what `RULE_FALLEN_ACE_HELP` has said all along.
     TutorialLesson(
         titleKey = StringKeys.LESSON_TITLE_REVERSE_FALLEN_ACE,
         ruleKeys = listOf("RULE_REVERSE", "RULE_FALLEN_ACE"),
         puzzle = TutorialPuzzle(
             rules = GameRules(reverse = true, fallenAce = true),
             board = listOf(
-                PuzzlePiece(7, DODO, CardColor.RED),
+                // A top of 1, which is the only side an ace can reach under both rules.
+                PuzzlePiece(7, AMALJAA, CardColor.RED),
                 PuzzlePiece(0, MORBOL, CardColor.BLUE),
                 PuzzlePiece(1, COEURL, CardColor.BLUE),
                 PuzzlePiece(2, AHRIMAN, CardColor.BLUE),

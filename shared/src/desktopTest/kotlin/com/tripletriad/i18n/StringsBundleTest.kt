@@ -262,13 +262,33 @@ class StringsBundleTest {
         // Measured from a `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted, as
         // the correction above asks — not added up from what the change ought to have done.
 
-        const val UNION_KEYS = 1832
+        // +7 to every bundle since: the match history that was written, tested and reachable by
+        // nobody, and the card-source index. `APP_HISTORY`, `APP_NO_HISTORY`, `APP_HISTORY_FORM`
+        // and `APP_HISTORY_KEPT`; `APP_CARD_SOURCES`, `APP_CARD_SOURCES_MORE` and
+        // `APP_NO_CARD_SOURCE`. Authored in all four `app-*` bundles at once, so every count moves
+        // by the same seven and the four gaps stay where they were.
+        //
+        // The index's *rows* add none: an opponent, a booster and a haut fait each name themselves
+        // through a key their own catalogue already carries, and the shop row and the reward note
+        // borrow `STR_CARD_SHOP` and `STR_REWARDS`.
+        //
+        // Measured from a `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted.
+
+        // +2 to every bundle since: `APP_QUEST_PLAY_5` and `APP_QUEST_WIN_5`, the two new daily
+        // quests that needed a sentence of their own. The other eight added to the pool did not:
+        // a `WinWithRule` names its rule through `RULE_*`, which every bundle carries, and a
+        // `BeatOpponent` names its opponent through the roster. Authored in all four `app-*`
+        // bundles at once, so every count moves by two and the four gaps stay where they were.
+        //
+        // Measured from a `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted.
+
+        const val UNION_KEYS = 1841
 
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 1828,
-            AppLocale.FR_FR to 1829,
-            AppLocale.DE_DE to 1757,
-            AppLocale.JA_JA to 1789,
+            AppLocale.EN_US to 1837,
+            AppLocale.FR_FR to 1838,
+            AppLocale.DE_DE to 1766,
+            AppLocale.JA_JA to 1798,
         )
 
         val EXPECTED_GAPS = mapOf(

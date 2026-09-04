@@ -16,6 +16,7 @@ import com.tripletriad.model.XpTable
 import com.tripletriad.protocol.AuctionLot
 import com.tripletriad.protocol.AuctionStatus
 import com.tripletriad.protocol.Unlocks
+import com.tripletriad.storage.InMemoryDocumentStore
 import com.tripletriad.time.FixedClock
 import kotlinx.coroutines.runBlocking
 import org.junit.Assume.assumeTrue
@@ -84,6 +85,33 @@ class ScreenshotCapture {
         // window it is never composed and the wait only ever times out.
         openOpponents()
         waitForIdle()
+    }
+
+    /**
+     * The record, with matches in it — so a referee, and three of them played out.
+     *
+     * Three rather than one because the form strip is what distinguishes this screen from the
+     * counters above it, and it stays away below [FORM_MINIMUM]. A capture of the empty state
+     * would be a picture of a sentence.
+     */
+    @Test
+    fun history() = shoot("history", PHONE) {
+        setContent {
+            App(store = settingsFor(AppLocale.EN_US), history = shots, server = stub.connection)
+        }
+        startMatch()
+        repeat(HISTORY_SHOTS) {
+            playOut()
+            waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(MATCH_RESULT_TEST_TAG) }
+            onNodeWithTag(NEW_MATCH_TEST_TAG).performClick()
+            settleDeck()
+            awaitPlayer()
+        }
+        onNodeWithTag(MATCH_EXIT_TEST_TAG).performClick()
+        onNodeWithTag(MATCH_LEAVE_CONFIRM_TEST_TAG).performClick()
+        awaitOpponents()
+        backToDashboard()
+        openHistory()
     }
 
     @Test
@@ -199,6 +227,9 @@ class ScreenshotCapture {
      * taken as sent rather than put back through `GameSave.sane()`, which is what derives one from
      * the other on the way in and out of a local save.
      */
+    /** The history the capture above fills, kept so the three matches land somewhere readable. */
+    private val shots = InMemoryDocumentStore()
+
     private fun house(): PveStubServer {
         val catalog = runBlocking { loadCardCatalog() }
         val sold = catalog.all.first { it.id == SOLD_CARD }
@@ -256,6 +287,9 @@ class ScreenshotCapture {
 
     private companion object {
         const val FLAG = "tto.screenshots"
+
+        /** Enough matches for the form strip to have a form — see `FormStrip`'s own floor. */
+        const val HISTORY_SHOTS = 3
 
         const val DENSITY = 2f
 

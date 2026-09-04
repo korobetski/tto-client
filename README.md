@@ -24,11 +24,12 @@ mostly used at, and the one that shows the sheets and full-width grids a wide wi
 | ![Card detail](docs/screenshots/card_detail.png)<br>**Card detail** — the panel, as the sheet over the grid carries it | ![Tutorial](docs/screenshots/tutorial.png)<br>**Tutorial** — the first lesson, mid-sentence |
 | ![Auction house](docs/screenshots/auction_room.png)<br>**Auction house** — the sale room, with a lot open at the desk | ![Consignment desk](docs/screenshots/auction_sell.png)<br>**Consignment desk** — a card, two prices and what the house charges |
 | ![Consignment picker](docs/screenshots/auction_picker.png)<br>**Consignment picker** — the collection's own grid and filters, over what is spare | ![Opponents](docs/screenshots/opponents.png)<br>**Opponents** — ladders, then the shelves that say who is worth playing |
+| ![Match history](docs/screenshots/history.png)<br>**Match history** — the tally, the recent form, and what each match paid | |
 
 ### How these are taken
 
 The app photographs itself. `ScreenshotCapture` (in `shared/src/desktopTest/`) drives the same
-screens the UI tests drive, at a fixed window size and density, and writes the eleven files above
+screens the UI tests drive, at a fixed window size and density, and writes the twelve files above
 into `docs/screenshots/`. No device, no emulator, and the same picture every run:
 
 ```bash
@@ -277,7 +278,7 @@ Each card has:
 - **Rarity** (1-5 stars)
 - **Collection** (FF14 or FF8)
 
-The **effective power range is 0-10** (Fallen Ace produces 0, Descension can reduce to 0).
+The **effective power range is 0-10** (the Elemental penalty and Descension can reduce a 1 to 0).
 
 ### Rules Engine
 
@@ -287,7 +288,7 @@ All original rules are implemented and tested against a 35-case specification ma
 |------|-------------|
 | **Basic Capture** | Higher adjacent power captures opponent's card |
 | **Reverse** | Lower adjacent power captures (inverts comparison) |
-| **Fallen Ace** | Ace (A) counts as 0 instead of 10 |
+| **Fallen Ace** | A 1 captures an A; the A keeps its 10 against everything else. Under Reverse the pair turns over and the A captures the 1 |
 | **Same** | Equal adjacent powers capture |
 | **Same Wall** | Card can capture using board edge as "wall" |
 | **Plus** | Sum of adjacent powers captures when equal |

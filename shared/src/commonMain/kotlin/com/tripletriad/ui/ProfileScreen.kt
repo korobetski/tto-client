@@ -30,9 +30,9 @@ import androidx.compose.ui.unit.dp
 import com.tripletriad.data.SaveSlot
 import com.tripletriad.data.Starter
 import com.tripletriad.data.StarterCatalog
-import com.tripletriad.data.StarterPack
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
+import com.tripletriad.model.Card
 import com.tripletriad.model.GameSave
 import kotlinx.coroutines.launch
 
@@ -44,6 +44,7 @@ const val PROFILE_EMPTY_TEST_TAG: String = "profile-empty"
 
 const val PROFILE_LOCAL_NOTE_TEST_TAG: String = "profile-local-note"
 const val STARTER_CONFIRM_TEST_TAG: String = "starter-confirm"
+const val STARTER_NOTE_TEST_TAG: String = "starter-note"
 
 fun profileRowTestTag(key: String): String = "profile-row-$key"
 
@@ -212,6 +213,7 @@ private fun ProfileRow(
 internal fun ProfileCreateScreen(
     session: ProfileSession,
     starters: StarterCatalog,
+    cards: Map<Int, Card>,
     onCreated: (GameSave) -> Unit,
     onBack: () -> Unit,
 ) {
@@ -253,9 +255,10 @@ internal fun ProfileCreateScreen(
             enabled = !session.isBusy,
             onClick = {
                 scope.launch {
-                    // The authored box, not `GameSave.new`'s five. Both creation paths go through
-                    // the catalogue now; see [StarterPack.opened] for why that had to be one place.
-                    session.create(name, chosen)
+                    // The authored box, and there is nothing else: `GameSave.new` deals no cards
+                    // at all now. Both creation paths go through the catalogue; see
+                    // [StarterPack.opened] for why that had to be one place.
+                    session.create(name, chosen, cards)
                     session.active?.let(onCreated)
                 }
             },
@@ -263,15 +266,26 @@ internal fun ProfileCreateScreen(
     }
 }
 
+/**
+ * Choosing the box, on a character that has not been dealt one.
+ *
+ * It hands back the [Starter] and not a profile. It used to hand back
+ * `StarterPack.opened(profile, starter)` — the whole grant, applied here — and on an account that
+ * was thrown away: `GameSave.withServerOwnedFrom` takes `cards` from the stored document, so the
+ * push that followed changed the decks and nothing else, and the player walked into their first
+ * match holding the five cards registration had made. The choice travels as an id now, and the
+ * cards are dealt by whoever owns the profile.
+ */
 @Composable
 internal fun StarterChoiceScreen(
     profile: GameSave,
     starters: StarterCatalog,
-    onChosen: suspend (GameSave) -> Unit,
+    onChosen: suspend (Starter) -> IntentOutcome,
     onBack: () -> Unit,
 ) {
     val strings = LocalStrings.current
     val scope = rememberCoroutineScope()
+    val note = rememberNoteHost(STARTER_NOTE_TEST_TAG)
     // The starter is the choice now, not a collection. `MODE` used to make picking a set the
     // decision — it gated the shop, the opponents and the campaign — so the starter followed from
     // it. With `MODE` gone the box a player opens is the whole of what they are choosing, which is
@@ -279,7 +293,7 @@ internal fun StarterChoiceScreen(
     val offered = remember(starters) { starters.starters }
     var chosen by remember(offered) { mutableStateOf(offered.firstOrNull()) }
 
-    ScreenScaffold(title = strings[StringKeys.COLLECTION], onBack = onBack) {
+    ScreenScaffold(title = strings[StringKeys.COLLECTION], onBack = onBack, snackbar = note) {
         Text(
             text = profile.username,
             color = MaterialTheme.colorScheme.onSurface,
@@ -300,7 +314,14 @@ internal fun StarterChoiceScreen(
             tag = STARTER_CONFIRM_TEST_TAG,
             onClick = {
                 val starter = chosen ?: return@WideButton
-                scope.launch { onChosen(StarterPack.opened(profile, starter)) }
+                scope.launch {
+                    // The grant is a round trip on an account, so it can fail, and the caller
+                    // stays on this screen when it does. Saying so is the whole of this note: a
+                    // button that appears to do nothing is the worst reading of a dead server.
+                    if (onChosen(starter) != IntentOutcome.APPLIED) {
+                        note.show(strings[StringKeys.ACTION_FAILED])
+                    }
+                }
             },
         )
     }

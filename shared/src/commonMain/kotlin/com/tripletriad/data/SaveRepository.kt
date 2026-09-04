@@ -1,6 +1,7 @@
 package com.tripletriad.data
 
 import com.tripletriad.log.Log
+import com.tripletriad.model.Card
 import com.tripletriad.model.GameSave
 import com.tripletriad.storage.DocumentStore
 import com.tripletriad.storage.SaveCodec
@@ -85,13 +86,23 @@ class SaveRepository(
 
     suspend fun isEmpty(): Boolean = keys().isEmpty()
 
+    /**
+     * A character on disk, holding the box it was created with.
+     *
+     * A null [starter] writes a character that owns **nothing** — `GameSave.new` seeds no cards —
+     * so it is a profile that cannot field a deck until the shop grants it one. That is what the
+     * only caller passing null is testing, and what `StarterPack.isOwedBy` is for.
+     */
     suspend fun create(
         username: String = GameSave.DEFAULT_USERNAME,
         createdAt: Long,
         starter: Starter? = null,
+        cards: Map<Int, Card> = emptyMap(),
+        random: Random = Random.Default,
     ): GameSave {
         val fresh = GameSave.new(username = username, createdAt = createdAt)
-        return save(starter?.let { StarterPack.opened(fresh, it) } ?: fresh, createdAt)
+        val opened = starter?.let { StarterPack.opened(fresh, it, cards, random) } ?: fresh
+        return save(opened, createdAt)
     }
 
     companion object {

@@ -15,6 +15,7 @@ import com.tripletriad.FF14_BLOCK
 import com.tripletriad.data.Inventory
 import com.tripletriad.data.ShopCatalog
 import com.tripletriad.data.ShopOffer
+import com.tripletriad.data.StarterCatalog
 import com.tripletriad.data.StarterPack
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.BoosterItem
@@ -31,7 +32,8 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
 class ShopUiTest {
-    private fun profile(mgp: Int) = GameSave.new(createdAt = 0L).copy(mgp = mgp)
+    /** A character with a box already opened — `GameSave.new` on its own owns nothing. */
+    private fun profile(mgp: Int) = freshSave().copy(mgp = mgp)
 
     private fun ComposeUiTest.openShop(documents: com.tripletriad.storage.InMemoryDocumentStore) {
         loadCharacter(documents)
@@ -148,7 +150,10 @@ class ShopUiTest {
     @Test
     fun aBoughtCardDoesNotEnterTheCollectionByItself() = runComposeUiTest {
         val offer = ShopCatalog.ff14.first { it.item == CardItem(CHEAP_CARD) }
-        val documents = seeded(profile(mgp = offer.price))
+        // Not already owned: the box draws four of the block's commons, and this is one of them
+        // under some seeds. What is being asserted is that buying does not add a card, which needs
+        // a profile that does not have it to begin with.
+        val documents = seeded(profile(mgp = offer.price).withoutCard(CHEAP_CARD))
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openShop(documents)
 
@@ -176,9 +181,14 @@ class ShopUiTest {
         }
 
         val save = storedSave(documents)
-        for (id in starterFor(FF14_BLOCK).cards) {
+        for (id in starterFor(FF14_BLOCK).deck) {
             assertTrue(save.ownsCard(id), "starter card $id was not granted")
         }
+        assertEquals(
+            StarterCatalog.SIZE,
+            save.cards.size,
+            "the repair deals the whole box: the authored five and the four it draws",
+        )
         assertTrue(save.decks.first().isComplete, "and a deck was left ready to play")
         // The offer is gone the moment it is taken: it is read off the profile, not off a flag.
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { !exists(SHOP_STARTER_TEST_TAG) }

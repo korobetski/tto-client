@@ -7,6 +7,7 @@ import com.tripletriad.data.Inventory
 import com.tripletriad.data.SaveRepository
 import com.tripletriad.data.ShopCatalog
 import com.tripletriad.data.ShopOffer
+import com.tripletriad.data.Starter
 import com.tripletriad.data.StarterCatalog
 import com.tripletriad.data.StarterPack
 import com.tripletriad.model.Card
@@ -47,7 +48,18 @@ sealed interface Intent {
 
     data class EnterCampaign(val campaignKey: String, val fee: Int) : Intent
 
-    data class ClaimStarter(val catalog: StarterCatalog) : Intent
+    /**
+     * Opening a starter box: the one the player chose, or the one the shop is offering back.
+     *
+     * [catalog] is only the *local* path's — an account resolves [starter] against the server's own
+     * copy and is sent nothing else. A null [starter] is the shop's repair, which asks for no
+     * choice; naming one is the collection screen, and is what stops a player who chose FFVIII
+     * from being dealt FFXIV. See `ClaimStarterRequest`.
+     */
+    data class ClaimStarter(
+        val catalog: StarterCatalog,
+        val starter: Starter? = null,
+    ) : Intent
 }
 
 @Composable
@@ -79,7 +91,7 @@ internal fun rememberLocalGate(
                 // `Intent.SellCard`, which is the one that most visibly does — so comparing is how
                 // the local path knows the same thing a status code tells the account path. It is
                 // a data class, so this is the field-by-field comparison it looks like.
-                val updated = current.applying(intent, cards)
+                val updated = current.applying(intent, cards, random)
                 if (updated == current) {
                     IntentOutcome.REFUSED
                 } else {
@@ -95,7 +107,11 @@ internal fun rememberLocalGate(
     }
 }
 
-private fun GameSave.applying(intent: Intent, cards: Map<Int, Card>): GameSave = when (intent) {
+private fun GameSave.applying(
+    intent: Intent,
+    cards: Map<Int, Card>,
+    random: Random,
+): GameSave = when (intent) {
     is Intent.Buy -> ShopCatalog.buy(this, intent.offer)
     is Intent.SellItem -> Inventory.sell(this, intent.item, cards)
 
@@ -126,7 +142,11 @@ private fun GameSave.applying(intent: Intent, cards: Map<Int, Card>): GameSave =
     // zero, so without it being broke is the cheapest way into a ladder.
     is Intent.EnterCampaign -> if (mgp < intent.fee) this else withMgp(-intent.fee)
 
-    is Intent.ClaimStarter -> StarterPack.grantedTo(this, intent.catalog)
+    // The draw is the client's here, and correct: a local save is the player's own file, and four
+    // cards they could have edited in anyway are not worth a round trip to a server they chose not
+    // to use. On an account the same four are the server's — see `AccountSession.perform`.
+    is Intent.ClaimStarter ->
+        StarterPack.grantedTo(this, intent.catalog, cards, random, intent.starter)
 }
 
 @Composable

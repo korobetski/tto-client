@@ -10,6 +10,7 @@ import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.FF14_BLOCK
 import com.tripletriad.FF8_BLOCK
 import com.tripletriad.data.SaveRepository
+import com.tripletriad.data.StarterCatalog
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.GameSave
 import com.tripletriad.storage.InMemoryDocumentStore
@@ -33,11 +34,28 @@ class ProfileUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         newCharacter(FF8_BLOCK)
 
-        val save = stored(documents).single()
-        val starter = starterFor(FF8_BLOCK)
+        assertOpenedWith(stored(documents).single(), FF8_BLOCK)
+    }
 
-        assertEquals(starter.cards.associateWith { 1 }, save.cards)
-        assertEquals(listOf(starter.deck), save.decks.map { it.cards })
+    /**
+     * [save] holds the box authored for [block], and nothing else.
+     *
+     * Only five of the nine are authored — the other four are drawn from the block's commons by
+     * `StarterPack.drawn`, with the app's own generator — so what can be asserted is the shape: the
+     * count, the deck, and that every card came out of the right block. Pinning the four would mean
+     * pinning a seed the UI does not take.
+     */
+    private fun assertOpenedWith(save: GameSave, block: Int) {
+        val starter = starterFor(block)
+
+        assertEquals(listOf(starter.deck), save.decks.map { it.cards }, "the authored deck")
+        assertEquals(StarterCatalog.SIZE, save.cards.size, "the box is ${StarterCatalog.SIZE}")
+        assertEquals(setOf(1), save.cards.values.toSet(), "one copy of each")
+        assertTrue(save.cards.keys.containsAll(starter.deck), "the deck is owned")
+        assertTrue(
+            save.cards.keys.all { pvpCards.byId.getValue(it).block == block },
+            "a card from another block was dealt: ${save.cards.keys}",
+        )
     }
 
     @Test
@@ -85,7 +103,7 @@ class ProfileUiTest {
         assertEquals(1, documents.writes, "creating should have written exactly one profile")
         val saved = stored(documents).single()
         assertEquals(GameSave.DEFAULT_USERNAME, saved.username)
-        assertEquals(starterFor(FF14_BLOCK).cards.associateWith { 1 }, saved.cards)
+        assertOpenedWith(saved, FF14_BLOCK)
     }
 
     @Test
@@ -116,8 +134,7 @@ class ProfileUiTest {
         newCharacter(FF8_BLOCK)
         openOpponents()
 
-        val saved = stored(documents).single()
-        assertEquals(starterFor(FF8_BLOCK).cards.associateWith { 1 }, saved.cards)
+        assertOpenedWith(stored(documents).single(), FF8_BLOCK)
         // `chocoboy` shipped as ff8-only and `tt-master` as ff14-only. Both are on the list.
         scrollToOpponent("chocoboy")
         onNodeWithTag(opponentRowTestTag("chocoboy")).assertExists()
@@ -206,10 +223,14 @@ class ProfileUiTest {
         val saved = stored(documents)
         assertEquals(2, saved.size, "both characters should be on disk")
         assertEquals(
-            setOf(starterFor(FF14_BLOCK).cards.toSet(), starterFor(FF8_BLOCK).cards.toSet()),
-            saved.map { it.cards.keys.toSet() }.toSet(),
+            setOf(listOf(starterFor(FF14_BLOCK).deck), listOf(starterFor(FF8_BLOCK).deck)),
+            saved.map { profile -> profile.decks.map { it.cards } }.toSet(),
             "the two should keep the boxes they were opened with",
         )
+        for (profile in saved) {
+            val first = profile.decks.first().cards.first()
+            assertOpenedWith(profile, pvpCards.byId.getValue(first).block)
+        }
     }
 
     @Test

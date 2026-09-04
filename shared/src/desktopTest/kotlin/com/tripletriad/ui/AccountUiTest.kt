@@ -224,14 +224,37 @@ class AccountUiTest {
         check(!asked) { "the form sent credentials it had already judged invalid" }
     }
 
+    /**
+     * The choice reaches the server, as an **id**, on the endpoint that grants cards.
+     *
+     * It used to reach it as a profile on `PUT /me/save` — and did not arrive: that endpoint takes
+     * `cards` from the stored document (`GameSave.withServerOwnedFrom`), so the box was discarded
+     * and the character kept whatever registration had made it. This asserts the request that
+     * replaced it, and asserts that no attempt is made to push the cards, because a client that
+     * pushed them would look like it worked and would not.
+     */
     @Test
-    fun registeringAsksForAStarterAndSendsIt() = runComposeUiTest {
+    fun registeringAsksForAStarterAndSendsItsId() = runComposeUiTest {
+        val claimed = mutableListOf<String>()
         val saved = mutableListOf<String>()
         val engine = MockEngine { request ->
-            if (request.url.encodedPath == "/me/save") {
-                saved += request.body.toByteArray().decodeToString()
+            when (request.url.encodedPath) {
+                "/me/starter" -> {
+                    claimed += request.body.toByteArray().decodeToString()
+                    // A profile that differs from the one registration answered with, because that
+                    // is what "the box landed" looks like to the client — `AccountSession.perform`
+                    // reads an unchanged profile as a refusal, which is the server's way of saying
+                    // nothing was owed.
+                    respondJson(HttpStatusCode.OK, encode(dealt))
+                }
+
+                "/me/save" -> {
+                    saved += request.body.toByteArray().decodeToString()
+                    respondJson(HttpStatusCode.Created, encode(session))
+                }
+
+                else -> respondJson(HttpStatusCode.Created, encode(session))
             }
-            respondJson(HttpStatusCode.Created, encode(session))
         }
         setContent { TestApp(store = english(), server = connection(engine = engine)) }
 
@@ -240,13 +263,43 @@ class AccountUiTest {
         onNodeWithTag(STARTER_CONFIRM_TEST_TAG).performClick()
         awaitDashboard()
 
-        val ff8 = starterFor(FF8_BLOCK).cards
-        val body = saved.lastOrNull { body -> ff8.all { body.contains("\"$it\"") } }
-        check(body != null) { "the chosen box never reached the server: $saved" }
-        // And only that box: opening one is a replacement, not a top-up. See `StarterPack.opened`.
-        for (id in starterFor(FF14_BLOCK).cards) {
-            check(!body.contains("\"$id\"")) { "an FFXIV card survived the choice: $body" }
+        val ff8 = starterFor(FF8_BLOCK)
+        val body = claimed.lastOrNull { it.contains("\"starterId\":\"${ff8.id}\"") }
+        check(body != null) { "the chosen box never reached the server: $claimed" }
+        for (id in ff8.deck + starterFor(FF14_BLOCK).deck) {
+            check(claimed.none { it.contains("\"$id\"") }) {
+                "the client named a card id: $claimed"
+            }
+            check(saved.none { it.contains("\"$id\":") }) {
+                "the client pushed cards the server would have discarded: $saved"
+            }
         }
+    }
+
+    /**
+     * A refused claim keeps the player on the choice screen, and says so.
+     *
+     * The grant is a round trip now, so it can fail where a local write could not. Walking on to a
+     * dashboard would leave a character owning nothing and no way back to the box they picked — the
+     * shop's repair offers the catalogue's first rather than a choice — so the screen stays put.
+     */
+    @Test
+    fun aStarterTheServerRefusesLeavesThePlayerOnTheChoice() = runComposeUiTest {
+        val engine = MockEngine { request ->
+            if (request.url.encodedPath == "/me/starter") {
+                respondJson(HttpStatusCode.ServiceUnavailable, "{}")
+            } else {
+                respondJson(HttpStatusCode.Created, encode(session))
+            }
+        }
+        setContent { TestApp(store = english(), server = connection(engine = engine)) }
+
+        register()
+        onNodeWithTag(starterChoiceTestTag(starterFor(FF8_BLOCK).id)).performClick()
+        onNodeWithTag(STARTER_CONFIRM_TEST_TAG).performClick()
+
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(STARTER_NOTE_TEST_TAG) }
+        onNodeWithTag(STARTER_CONFIRM_TEST_TAG).assertExists()
     }
 
     // ---- Fixtures ---------------------------------------------------------
@@ -327,6 +380,11 @@ class AccountUiTest {
 
         val player = PlayerState(save = GameSave(username = "kuplu", mgp = 4200))
         val session = Session(token = TOKEN, expiresAt = LATER, player = player)
+
+        /** The profile a granted box comes back as: the same character, now holding one. */
+        val dealt = player.copy(
+            save = player.save.copy(cards = starterFor(FF8_BLOCK).deck.associateWith { 1 }),
+        )
     }
 }
 

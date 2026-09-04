@@ -13,7 +13,6 @@ import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.loadStrings
 import com.tripletriad.model.CardColor
-import com.tripletriad.model.GameSave
 import com.tripletriad.model.HAND_SIZE
 import com.tripletriad.time.FixedClock
 import com.tripletriad.ui.theme.TripleTriadTheme
@@ -45,7 +44,7 @@ class TurnTimerTest {
                 CompositionLocalProvider(LocalStrings provides english) {
                     MatchScreen(
                         catalog = cards,
-                        profile = GameSave.new(createdAt = 0L),
+                        profile = freshSave(),
                         npc = opponent,
                         format = format,
                         // The bare script a local match now needs. Every field is a default but

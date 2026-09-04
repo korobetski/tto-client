@@ -201,8 +201,12 @@ class AccountClient(
             }
         }
 
-    suspend fun claimStarter(token: String, operationId: String): AccountResult<PlayerState> =
-        intent(token, "/me/starter", ClaimStarterRequest(operationId))
+    suspend fun claimStarter(
+        token: String,
+        operationId: String,
+        starterId: String? = null,
+    ): AccountResult<PlayerState> =
+        intent(token, "/me/starter", ClaimStarterRequest(operationId, starterId))
 
     suspend fun enterCampaign(
         token: String,

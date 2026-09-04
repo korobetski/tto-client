@@ -81,7 +81,7 @@ class DecksUiTest {
 
     @Test
     fun leavingTheEditorWithoutSavingChangesNothing() = runComposeUiTest {
-        val documents = seeded(GameSave.new(createdAt = 0L))
+        val documents = seeded(freshSave())
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
         openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
@@ -106,8 +106,8 @@ class DecksUiTest {
 
         onNodeWithTag(deckSlotTestTag(1)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
-        // The deck's five, not the collection's ten: a slot takes `HAND_SIZE` and `plusCard`
-        // ignores the rest, so clicking all ten would build the same deck and prove less.
+        // The deck's five, not the collection's nine: a slot takes `HAND_SIZE` and `plusCard`
+        // ignores the rest, so clicking all nine would build the same deck and prove less.
         for (cardId in STARTER_DECK) {
             onNodeWithTag(deckPickTestTag(cardId)).performClick()
         }
@@ -124,8 +124,7 @@ class DecksUiTest {
 
     @Test
     fun aDeckCannotGrowPastFive() = runComposeUiTest {
-        val extra = GameSave.new(createdAt = 0L)
-            .copy(cards = (STARTER_CARDS + SIXTH_CARD).associateWith { 1 })
+        val extra = freshSave().copy(cards = (STARTER_CARDS + SIXTH_CARD).associateWith { 1 })
         val documents = seeded(extra)
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)

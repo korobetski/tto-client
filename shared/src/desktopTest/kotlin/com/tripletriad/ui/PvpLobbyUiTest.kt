@@ -10,7 +10,6 @@ import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.loadStrings
-import com.tripletriad.model.GameSave
 import com.tripletriad.net.PvpClient
 import com.tripletriad.protocol.PvpTableRequest
 import com.tripletriad.ui.theme.TripleTriadTheme
@@ -134,7 +133,7 @@ class PvpLobbyUiTest {
             CompositionLocalProvider(LocalStrings provides strings) {
                 TripleTriadTheme {
                     PvpScreen(
-                        profile = GameSave.new(username = ME, createdAt = 0L),
+                        profile = freshSave().copy(username = ME),
                         session = session,
                         catalog = pvpCards,
                         formats = pvpFormats,

@@ -30,7 +30,7 @@ class InventoryUiTest {
             .associateBy { it.id }
 
     private fun withBag(): GameSave = Inventory.addAll(
-        GameSave.new(createdAt = 0L),
+        freshSave(),
         listOf(
             // Not one of the starter five, so Use is offered.
             CardItem(SELLABLE_CARD, stack = 2),

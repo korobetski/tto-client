@@ -9,9 +9,11 @@ import com.tripletriad.data.SaveRepository
 import com.tripletriad.data.SaveSlot
 import com.tripletriad.data.Starter
 import com.tripletriad.log.Log
+import com.tripletriad.model.Card
 import com.tripletriad.model.GameSave
 import com.tripletriad.storage.DocumentStore
 import com.tripletriad.time.Clock
+import kotlin.random.Random
 
 class ProfileSession internal constructor(
     private val repository: SaveRepository,
@@ -48,10 +50,22 @@ class ProfileSession internal constructor(
         active = null
     }
 
-    suspend fun create(username: String, starter: Starter? = null) {
+    /**
+     * Makes a character and opens its box.
+     *
+     * @param cards the card table the four unauthored cards are drawn from — see
+     *   `StarterPack.drawn`. Empty before startup has read it, which deals the authored five and
+     *   nothing else; the screen behind this one is only reachable once it has.
+     */
+    suspend fun create(
+        username: String,
+        starter: Starter? = null,
+        cards: Map<Int, Card> = emptyMap(),
+        random: Random = Random.Default,
+    ) {
         val name = username.trim().ifEmpty { GameSave.DEFAULT_USERNAME }
         guard("create '$name'") {
-            active = repository.create(name, clock.nowMillis(), starter)
+            active = repository.create(name, clock.nowMillis(), starter, cards, random)
         }
     }
 

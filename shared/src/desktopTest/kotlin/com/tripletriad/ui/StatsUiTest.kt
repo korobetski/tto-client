@@ -69,8 +69,17 @@ class StatsUiTest {
         )
     }
 
+    /**
+     * The collector's first tier is **one card short** on arrival, and used to be met by it.
+     *
+     * A starter box is nine cards and `ac-td1` wants ten. It was ten until the box's four
+     * unauthored cards replaced its five authored spares — see `StarterCatalog` — so this row went
+     * from "collected" to one card away. The threshold is the AS3's own (`STR_Triple_decker_I`) and
+     * is not ours to move; the tier is a first goal rather than a welcome gift, which is the better
+     * of the two anyway.
+     */
     @Test
-    fun theCollectorsFirstTierIsMetOnArrival() = runComposeUiTest {
+    fun theCollectorsFirstTierIsOneCardShortOnArrival() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
         openStats()
@@ -78,7 +87,7 @@ class StatsUiTest {
         onNodeWithTag(STATS_ACHIEVEMENTS_TEST_TAG)
             .performScrollToNode(hasTestTag(achievementRowTestTag(COLLECTOR_I)))
         onNodeWithTag(achievementRowTestTag(COLLECTOR_I))
-            .assertTextEquals("${STARTER_CARDS.size} / ${STARTER_CARDS.size}")
+            .assertTextEquals("${STARTER_CARDS.size} / $COLLECTOR_I_TARGET")
     }
 
     @Test
@@ -145,6 +154,9 @@ class StatsUiTest {
 
     private companion object {
         const val COLLECTOR_I = "ac-td1"
+
+        /** What `ac-td1` asks for — `Achievement.collector("ac-td1", …, 10, …)`. */
+        const val COLLECTOR_I_TARGET = 10
 
         const val HOARDER_I = "ac-mp1"
         const val MGP_POT_I = 1_000

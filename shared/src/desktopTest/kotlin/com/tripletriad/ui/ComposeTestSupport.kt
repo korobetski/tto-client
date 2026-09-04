@@ -309,4 +309,10 @@ internal val pvpFormats: FormatCatalog by lazy { runBlocking { loadFormatCatalog
 
 internal const val ANY_LEVEL: Int = 99
 
-internal val STARTER_CARDS: List<Int> = starterFor(FF14_BLOCK).cards
+/**
+ * The nine cards [freshSave] holds: the authored five, then the four its seed drew.
+ *
+ * Read off the fixture rather than off the catalogue, because only five of a box are authored —
+ * see [STARTER_SEED].
+ */
+internal val STARTER_CARDS: List<Int> = freshSave().cards.keys.toList()

@@ -12,7 +12,6 @@ import com.tripletriad.FF8_BLOCK
 import com.tripletriad.data.loadCampaignCatalog
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.loadStrings
-import com.tripletriad.model.GameSave
 import com.tripletriad.model.MatchResult
 import com.tripletriad.model.questDayOf
 import com.tripletriad.storage.InMemoryDocumentStore
@@ -30,7 +29,7 @@ class CampaignUiTest {
     private val english = runBlocking { loadStrings(AppLocale.EN_US) }
 
     private fun withFee(): InMemoryDocumentStore =
-        seeded(GameSave.new(createdAt = 0L).copy(mgp = goldSaucer.fee + POCKET_CHANGE))
+        seeded(freshSave().copy(mgp = goldSaucer.fee + POCKET_CHANGE))
 
     /**
      * A referee holding a profile that can just afford the ladder.
@@ -128,7 +127,7 @@ class CampaignUiTest {
     @Test
     fun aGatedLadderNamesItsGateAndStaysShut() = runComposeUiTest {
         val cardClub = campaigns.byKey(CARD_CLUB) ?: error("no $CARD_CLUB campaign")
-        val documents = seeded(GameSave.new(createdAt = 0L).copy(mgp = cardClub.fee * 2))
+        val documents = seeded(freshSave().copy(mgp = cardClub.fee * 2))
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openLadder(documents, CARD_CLUB)
 
@@ -147,7 +146,7 @@ class CampaignUiTest {
     fun aLadderEnteredTodayIsShutUntilTomorrow() = runComposeUiTest {
         val today = questDayOf(FixedClock().nowMillis())
         val documents = seeded(
-            GameSave.new(createdAt = 0L).copy(
+            freshSave().copy(
                 mgp = goldSaucer.fee * 2,
                 campaignEntries = mapOf(GOLD_SAUCER to today),
             ),
@@ -163,7 +162,7 @@ class CampaignUiTest {
     @Test
     fun anEntrySpentOnAnotherDayDoesNotShutTheLadder() = runComposeUiTest {
         val documents = seeded(
-            GameSave.new(createdAt = 0L).copy(
+            freshSave().copy(
                 mgp = goldSaucer.fee * 2,
                 campaignEntries = mapOf(GOLD_SAUCER to YESTERDAY),
             ),

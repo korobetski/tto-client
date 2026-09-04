@@ -605,6 +605,8 @@ private fun Destination(
             session = session,
             // Behind the splash, so the empty fallback is unreachable — see `CharacterDestination`.
             starters = startup.starters ?: StarterCatalog(emptyList()),
+            // The pool the box's four unauthored cards are drawn from — `StarterPack.drawn`.
+            cards = startup.catalog?.byId.orEmpty(),
             onCreated = { onNavigate(Screen.DASHBOARD) },
             onBack = { onNavigate(Screen.PROFILES) },
         )
@@ -1109,9 +1111,19 @@ private fun RecordDestination(
         Screen.COLLECTION_CHOICE -> StarterChoiceScreen(
             profile = profile,
             starters = starters,
+            // An intent and not a `persist`: the box grants **cards**, and `cards` is not a field
+            // this client may write — a pushed profile has it taken straight back off by
+            // `GameSave.withServerOwnedFrom`. Which is what used to happen here, silently, and is
+            // why choosing the FFVIII box dealt an FFXIV collection.
             onChosen = { chosen ->
-                gate.persist(chosen)
-                onNavigate(Screen.DASHBOARD)
+                // Only once it has landed. A `persist` could not fail in a way worth staying for;
+                // an intent can — a dead server is an ordinary state of the world here — and
+                // walking a player to a dashboard with an empty collection would leave them with
+                // no way back to the box they picked, since the shop's repair offers the first
+                // one rather than a choice.
+                val outcome = gate.perform(Intent.ClaimStarter(starters, chosen))
+                if (outcome == IntentOutcome.APPLIED) onNavigate(Screen.DASHBOARD)
+                outcome
             },
             onBack = { onNavigate(Screen.DASHBOARD) },
         )

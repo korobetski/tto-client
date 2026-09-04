@@ -149,8 +149,10 @@ class DeckSelectorUiTest {
 
     @Test
     fun withNoCompleteDeckTheListSaysSoAndRandomStillPlays() = runComposeUiTest {
-        val profile = GameSave.new(createdAt = 0L)
-            .copy(decks = listOf(Deck(name = "Half", cards = STARTER.take(HALF_A_DECK))))
+        val profile = GameSave.new(createdAt = 0L).copy(
+            cards = STARTER.associateWith { 1 },
+            decks = listOf(Deck(name = "Half", cards = STARTER.take(HALF_A_DECK))),
+        )
         setContent {
             TestApp(store = settingsFor(AppLocale.EN_US), server = serving(profile).connection)
         }

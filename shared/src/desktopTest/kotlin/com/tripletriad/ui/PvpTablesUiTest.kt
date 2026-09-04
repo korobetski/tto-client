@@ -222,7 +222,7 @@ class PvpTablesUiTest {
     // ---- Harness ----------------------------------------------------------
 
     private fun twoDecks(): GameSave {
-        val profile = GameSave.new(username = ME, createdAt = 0L)
+        val profile = freshSave().copy(username = ME)
         val first = profile.decks.first()
         return profile.copy(decks = listOf(first, first.copy(name = "Second")))
     }
@@ -234,7 +234,7 @@ class PvpTablesUiTest {
         refuse: Boolean = false,
         record: (String) -> Unit = {},
         body: (String) -> Unit = {},
-        profile: GameSave = GameSave.new(username = ME, createdAt = 0L),
+        profile: GameSave = freshSave().copy(username = ME),
         block: androidx.compose.ui.test.ComposeUiTest.() -> Unit,
     ) = runComposeUiTest {
         val engine = MockEngine { request ->

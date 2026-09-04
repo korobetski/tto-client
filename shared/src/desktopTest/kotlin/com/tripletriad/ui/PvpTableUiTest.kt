@@ -14,7 +14,6 @@ import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.loadStrings
-import com.tripletriad.model.GameSave
 import com.tripletriad.model.TradeRule
 import com.tripletriad.net.PvpClient
 import com.tripletriad.ui.theme.TripleTriadTheme
@@ -318,7 +317,7 @@ class PvpTableUiTest {
             CompositionLocalProvider(LocalStrings provides strings) {
                 TripleTriadTheme {
                     PvpTableScreen(
-                        profile = GameSave.new(username = "Sigfrid", createdAt = 0L),
+                        profile = freshSave().copy(username = "Sigfrid"),
                         catalog = pvpCards,
                         formats = FormatCatalog(listOf(format, other)),
                         session = session,

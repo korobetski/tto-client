@@ -17,6 +17,9 @@ class StarterBundleTest {
     private companion object {
         val FF14_COMMONS = listOf(257, 258, 259)
 
+        /** Chimera — the one rarity-2 the FFXIV box ships. */
+        val FF14_RARE = listOf(281)
+
         /** One FFVIII card, whose whole job here is to be from a *different* block. */
         val FF8_COMMON = listOf(Card.idFor(block = FF8_BLOCK, number = 1))
 
@@ -33,7 +36,7 @@ class StarterBundleTest {
     @Test
     fun everyReleasedSetHasAStarterAndNothingElseDoes() {
         // One starter per released *set*, not per block. A set spanning two blocks is still one
-        // collection to the player and opens with one box, whose ten cards all sit in whichever of
+        // collection to the player and opens with one box, whose cards all sit in whichever of
         // its blocks holds the commons — see `CardSet`.
         val released = cards.releasedSets
 
@@ -51,21 +54,49 @@ class StarterBundleTest {
         )
     }
 
+    /**
+     * Five authored cards, at least one of them a rarity 2, and a block that can fill the draw.
+     *
+     * The size the *player* is dealt is nine — five plus `StarterPack.DRAWN` — and this is the half
+     * of that which is authored. The other half is asserted on the pool rather than on a draw,
+     * because a test that shuffled would be pinning a seed and not a rule.
+     */
     @Test
-    fun everyStarterIsTenCardsWithItsRareInTheDeck() {
+    fun everyStarterIsFiveAuthoredCardsWithARareAmongThem() {
         for (starter in starters.starters) {
-            val held = starter.cards.mapNotNull { cards[it] }
-            val rare = held.single { it.rarity == StarterCatalog.RARE_RARITY }
+            val held = starter.deck.mapNotNull { cards[it] }
 
-            assertEquals(StarterCatalog.SIZE, held.size, starter.id)
-            assertEquals(
-                StarterCatalog.COMMONS,
-                held.count { it.rarity == StarterCatalog.COMMON_RARITY },
-                starter.id,
+            assertEquals(HAND_SIZE, held.size, starter.id)
+            assertTrue(
+                held.any { it.rarity == StarterCatalog.RARE_RARITY },
+                "${starter.id} has no rarity-${StarterCatalog.RARE_RARITY} card",
             )
-            assertEquals(HAND_SIZE, starter.deck.size, starter.id)
-            assertTrue(rare.id in starter.deck, "${starter.id} leaves ${rare.name} out of its deck")
-            assertTrue(starter.cards.containsAll(starter.deck), starter.id)
+            assertTrue(
+                held.none { it.rarity > StarterCatalog.RARE_RARITY },
+                "${starter.id} holds a card above rarity ${StarterCatalog.RARE_RARITY}",
+            )
+            assertTrue(
+                held.all { it.block == starter.block },
+                "${starter.id} holds a card from another block",
+            )
+        }
+    }
+
+    /** The four unauthored cards have somewhere to come from, in the shipped card table. */
+    @Test
+    fun everyStarterBlockCanFillTheDraw() {
+        for (starter in starters.starters) {
+            val pool = StarterPack.pool(starter, cards.byId)
+
+            assertTrue(
+                pool.size >= StarterPack.DRAWN,
+                "${starter.id} draws ${StarterPack.DRAWN} from a pool of ${pool.size}",
+            )
+            assertEquals(
+                StarterCatalog.SIZE,
+                HAND_SIZE + StarterPack.DRAWN,
+                "the box is the deck plus the draw",
+            )
         }
     }
 
@@ -93,9 +124,7 @@ class StarterBundleTest {
                     block = 1,
                     nameKey = "APP_NOWHERE",
                     // Four cards, one of them from the other block, and no rarity-2 at all.
-                    cards = FF14_COMMONS + FF8_COMMON,
-                    // Two long, and naming a card the starter does not hold.
-                    deck = listOf(FF14_COMMONS.first(), GHOST),
+                    deck = FF14_COMMONS + FF8_COMMON,
                 ),
             ),
         )
@@ -103,11 +132,29 @@ class StarterBundleTest {
         val problems = broken.violations(cards, cards.sets)
 
         assertTrue(problems.any { "another block" in it }, problems.toString())
-        assertTrue(problems.any { "rarity" in it }, problems.toString())
-        assertTrue(problems.any { "subset" in it }, problems.toString())
+        assertTrue(problems.any { "no rarity-" in it }, problems.toString())
         assertTrue(problems.any { "deck of" in it }, problems.toString())
-        // Block 2 is released and this catalogue opens only block 1.
+        // Block 8 is released and this catalogue opens only block 1.
         assertTrue(problems.any { "released and has no starter" in it }, problems.toString())
+    }
+
+    /** A starter whose deck names the same card twice is a four-card deck wearing five. */
+    @Test
+    fun aStarterNamingACardTwiceIsRefused() {
+        val doubled = StarterCatalog(
+            listOf(
+                Starter(
+                    id = "doubled",
+                    block = 1,
+                    nameKey = "APP_NOWHERE",
+                    deck = FF14_COMMONS + FF14_COMMONS.first() + FF14_RARE,
+                ),
+            ),
+        )
+
+        val problems = doubled.violations(cards, cards.sets)
+
+        assertTrue(problems.any { "names a card twice" in it }, problems.toString())
     }
 
     @Test
@@ -118,8 +165,7 @@ class StarterBundleTest {
                     id = "ghost",
                     block = 1,
                     nameKey = "APP_NOWHERE",
-                    cards = listOf(GHOST, GHOST + 1),
-                    deck = listOf(GHOST),
+                    deck = listOf(GHOST, GHOST + 1),
                 ),
             ),
         )

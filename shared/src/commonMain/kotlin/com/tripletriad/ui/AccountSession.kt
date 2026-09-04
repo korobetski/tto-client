@@ -400,9 +400,15 @@ class AccountSession internal constructor(
                 is Intent.EnterCampaign ->
                     server.accounts.enterCampaign(stored.token, intent.campaignKey, operationId)
 
-                // The catalogue the intent carries is the *local* path's; this one sends nothing,
-                // because which box is owed is the server's own catalogue to say.
-                is Intent.ClaimStarter -> server.accounts.claimStarter(stored.token, operationId)
+                // The catalogue the intent carries is the *local* path's. What crosses is the
+                // chosen starter's **id** and nothing else: what is in that box, and which four
+                // cards are drawn into it, is the server's own catalogue to say. Null is the shop's
+                // repair, which names no box because it is not a choice.
+                is Intent.ClaimStarter -> server.accounts.claimStarter(
+                    stored.token,
+                    operationId,
+                    intent.starter?.id,
+                )
             }
         } finally {
             isBusy = false

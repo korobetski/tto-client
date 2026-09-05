@@ -142,6 +142,7 @@ class PvpLobbyUiTest {
                         onHost = {},
                         onInvite = { invited += it },
                         onClaim = {},
+                        onTab = {},
                         onBack = {},
                     )
                 }

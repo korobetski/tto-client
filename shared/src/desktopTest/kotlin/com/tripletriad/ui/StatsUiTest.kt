@@ -20,7 +20,7 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalTestApi::class)
 class StatsUiTest {
     private fun ComposeUiTest.openStats() {
-        openFromDashboard(DASHBOARD_STATS_TEST_TAG, STATS_TABLE_TEST_TAG)
+        openProfile()
     }
 
     @Test
@@ -31,8 +31,8 @@ class StatsUiTest {
 
         onNodeWithTag(statsRowTestTag(StringKeys.MATCHES)).assertTextEquals("0")
         onNodeWithTag(statsRowTestTag(StringKeys.WIN_RATE)).assertTextEquals("0%")
-        onNodeWithTag(statsRowTestTag(StringKeys.MGP))
-            .assertTextEquals("${GameSave.STARTING_MGP}")
+        onNodeWithTag(statsRowTestTag(StringKeys.WINS)).assertTextEquals("0")
+        onNodeWithTag(statsRowTestTag(StringKeys.DRAWS)).assertTextEquals("0")
     }
 
     @Test
@@ -59,7 +59,7 @@ class StatsUiTest {
     fun unearnedAchievementsAreListedWithTheirProgress() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
-        openStats()
+        openAchievements()
 
         onNodeWithTag(STATS_ACHIEVEMENTS_TEST_TAG)
             .performScrollToNode(hasTestTag(achievementRowTestTag(HOARDER_I)))
@@ -82,7 +82,7 @@ class StatsUiTest {
     fun theCollectorsFirstTierIsOneCardShortOnArrival() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
-        openStats()
+        openAchievements()
 
         onNodeWithTag(STATS_ACHIEVEMENTS_TEST_TAG)
             .performScrollToNode(hasTestTag(achievementRowTestTag(COLLECTOR_I)))
@@ -98,7 +98,7 @@ class StatsUiTest {
         val documents = seeded(decorated)
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
-        openStats()
+        openAchievements()
 
         assertTrue(
             exists(achievementRowTestTag(FIRST_WIN)),
@@ -115,7 +115,7 @@ class StatsUiTest {
         )
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
-        openStats()
+        openAchievements()
 
         onNodeWithTag(achievementRowTestTag(FIRST_WIN)).assertTextEquals(UNLOCKED_ON)
     }
@@ -129,7 +129,7 @@ class StatsUiTest {
         )
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
-        openStats()
+        openAchievements()
 
         assertTrue(exists(achievementFamilyTestTag(TRIPLE_TEAM)), "the family has a row")
         // The four tiers above the one earned are not rows of their own any more; only the next

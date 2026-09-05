@@ -24,6 +24,25 @@ internal class BoardDragState {
 
     val isDragging: Boolean get() = card != null
 
+    /**
+     * The cell a mouse is resting on, or null on a device that has no pointer to rest.
+     *
+     * Separate from the drag, because they are two ways of aiming at the same cell and only one of
+     * them exists on a phone. A drag is how a finger aims; hovering is how a mouse does, and a
+     * desktop player who taps a card and then reads the board is aiming with neither until they
+     * move the pointer over a cell.
+     */
+    var hover: Int? by mutableStateOf(null)
+        private set
+
+    fun enter(position: Int) {
+        hover = position
+    }
+
+    fun leave(position: Int) {
+        if (hover == position) hover = null
+    }
+
     fun registerCell(position: Int, bounds: Rect) {
         cells[position] = bounds
     }
@@ -45,6 +64,15 @@ internal class BoardDragState {
         if (!isDragging || !pointer.isSpecified) return null
         return cells.entries.firstOrNull { it.value.contains(pointer) }?.key
     }
+
+    /**
+     * The cell being aimed at by whichever gesture is in play — the drag first.
+     *
+     * A drag wins over a hover because a dragged card is under the pointer: the mouse is over the
+     * cell it is carrying the card to, and answering with the hover would be answering with the
+     * same cell by the longer route. On a phone there is never a hover to fall back to.
+     */
+    fun aimed(): Int? = hovered() ?: hover
 
     fun drop(): Pair<Card, Int>? {
         val dropped = card

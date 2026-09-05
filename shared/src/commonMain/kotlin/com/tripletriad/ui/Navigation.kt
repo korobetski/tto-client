@@ -29,29 +29,47 @@ fun navTestTag(tab: String): String = "nav-$tab"
 const val NAV_BAR_TEST_TAG: String = "nav-bar"
 const val NAV_RAIL_TEST_TAG: String = "nav-rail"
 
+/**
+ * The five places the application can be, and the one screen each of them opens on.
+ *
+ * Five rather than four because the fourth left three screens with no tab at all — the character
+ * sheet, the quest list and the match history hung off an avatar in the lobby, and the lobby had to
+ * redraw the bar as a grid of cards to make them reachable. Every destination now answers [tab],
+ * and each root holds its siblings as tabs of its own (`CollectionTab`, `StoreTab`, `PlayTab`,
+ * `ProfileTab`) rather than as further entries here: a bar of nine would be the same problem again.
+ */
 internal enum class Tab(val root: Screen, val labelKey: String, val icon: ImageVector) {
     HOME(Screen.DASHBOARD, StringKeys.HOME, TtoIcons.Home),
     PLAY(Screen.OPPONENTS, StringKeys.PLAY, TtoIcons.Play),
     CARDS(Screen.CARDS, StringKeys.CARDS, TtoIcons.Collection),
     STORE(Screen.SHOP, StringKeys.SHOP, TtoIcons.Shop),
+
+    // `STR_PROFILE` is the original's word for the character sheet — "Character" in en_US.
+    PROFILE(Screen.STATS, StringKeys.PROFILE, TtoIcons.Person),
 }
 
 internal val Screen.tab: Tab?
     get() = when (this) {
         // The course keeps the bar, like the rule book it sits beside: it is a list to read and
         // leave, not a board. Its *lessons* are matches and answer null below.
-        Screen.DASHBOARD, Screen.STATS, Screen.QUESTS, Screen.HELP, Screen.AVATAR,
-        Screen.LESSONS, Screen.HISTORY,
-        -> Tab.HOME
-        Screen.OPPONENTS, Screen.PVP, Screen.PVP_TABLE -> Tab.PLAY
+        // The quest list keeps Home too: its door is the lobby's own "today" card, so the lit
+        // tab and the chevron have to name the same place.
+        Screen.DASHBOARD, Screen.HELP, Screen.LESSONS, Screen.QUESTS -> Tab.HOME
+        // Solo, multiplayer and campaigns are three tabs of one root, so all three light Play —
+        // and pressing Play from a table no longer lands on the solo roster.
+        Screen.OPPONENTS, Screen.PVP, Screen.PVP_TABLE,
+        Screen.CAMPAIGNS, Screen.CAMPAIGN,
+        -> Tab.PLAY
         Screen.CARDS, Screen.DECKS -> Tab.CARDS
         // The auction house keeps the shop's tab lit, because that is what it is an extension of —
-        // buying a card from a player and buying one from a shelf are the same errand.
+        // buying a card from a player and buying one from a shelf are the same errand. It is a
+        // tab of the store root now, so the chevron agrees with the bar for the first time.
         Screen.SHOP, Screen.INVENTORY, Screen.AUCTION -> Tab.STORE
+        Screen.STATS, Screen.AVATAR, Screen.HISTORY -> Tab.PROFILE
         Screen.SPLASH, Screen.TITLE, Screen.PROFILES, Screen.PROFILE_NEW,
         Screen.ACCOUNT, Screen.ACCOUNT_CONFIRM, Screen.PASSWORD_RESET,
         Screen.SERVERS, Screen.COLLECTION_CHOICE,
-        Screen.MATCH, Screen.TUTORIAL, Screen.CAMPAIGN, Screen.CAMPAIGN_MATCH,
+        Screen.MATCH, Screen.TUTORIAL, Screen.CAMPAIGN_MATCH,
         Screen.PVP_MATCH, Screen.PVP_CLAIM,
         -> null
     }

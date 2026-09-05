@@ -88,8 +88,8 @@ class HistoryUiTest {
         // Out to the lobby and back in. The list is read from the document rather than held by the
         // screen, which is the whole reason it is worth writing one.
         onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
-        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(STATS_TABLE_TEST_TAG) }
-        onNodeWithTag(STATS_HISTORY_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DASHBOARD_PROGRESS_TEST_TAG) }
+        openHistory()
 
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(HISTORY_LIST_TEST_TAG) }
         assertTrue(history.writes > 0, "nothing was written to the history store")

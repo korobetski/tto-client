@@ -125,7 +125,7 @@ class AccountBagAppTest {
 
     private fun ComposeUiTest.openTheBag() {
         openDashboard()
-        openFromDashboard(DASHBOARD_INVENTORY_TEST_TAG, INVENTORY_LIST_TEST_TAG)
+        openInventory()
     }
 
     private fun signedInStore(): InMemoryDocumentStore {

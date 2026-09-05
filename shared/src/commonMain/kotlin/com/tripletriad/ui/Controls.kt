@@ -500,10 +500,18 @@ private fun BoonMarker(icon: ImageVector, label: String, matches: Int) {
 }
 
 @Composable
+@Suppress("LongParameterList")
 internal fun CharacterScaffold(
     profile: GameSave,
     title: String,
     onBack: (() -> Unit)?,
+    /**
+     * What this screen puts in the bar *before* the purse.
+     *
+     * Before, because the purse is the character's and these are the screen's: an action that
+     * moved every time a screen added one would stop being findable. See the play root's die.
+     */
+    actions: @Composable RowScope.() -> Unit = {},
     snackbar: NoteHost? = null,
     bottomBar: (@Composable () -> Unit)? = null,
     wide: Boolean = false,
@@ -512,7 +520,10 @@ internal fun CharacterScaffold(
     ScreenScaffold(
         title = title,
         onBack = onBack,
-        actions = { CharacterActions(profile) },
+        actions = {
+            actions()
+            CharacterActions(profile)
+        },
         snackbar = snackbar,
         bottomBar = bottomBar,
         wide = wide,

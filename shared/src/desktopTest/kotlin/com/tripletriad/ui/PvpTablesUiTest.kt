@@ -293,6 +293,7 @@ class PvpTablesUiTest {
                         onHost = {},
                         onInvite = {},
                         onClaim = {},
+                        onTab = {},
                         onBack = {},
                     )
                 }

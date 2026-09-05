@@ -282,13 +282,50 @@ class StringsBundleTest {
         //
         // Measured from a `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted.
 
-        const val UNION_KEYS = 1841
+        // +3 to every bundle since: the board's own aid — see `LocalCaptureHints`.
+        // `APP_CAPTURE_HINTS` and `APP_CAPTURE_HINTS_NOTE` are the setting, two keys for one row
+        // because the label alone is ambiguous: it reads as either every capturing cell or the one
+        // being aimed at, and the note is where that is settled and where the wager exception is
+        // stated. `APP_CAPTURE_HINT_CELL` is the third, and it is not a label at all — it is what
+        // a ringed cell says to a screen reader, since the ring's only other channel is a colour.
+        // Authored in all four `app-*` bundles at once, so every count moves by the same three and
+        // the four gaps stay where they were.
+        //
+        // Measured from a `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted.
+
+        // +7 to every bundle since: the week's own quest. `APP_QUESTS_WEEK` heads it on the quest
+        // screen and `APP_QUEST_WEEK_DONE` announces it on the result panel; the other five are the
+        // catalogue's labels, reached through `WeeklyQuestCatalog` the way a daily's are reached
+        // through `DailyQuestCatalog` — so `StringKeys` carries them only to keep the bundles
+        // honest, not because a screen names them from there.
+        //
+        // Authored in all four `app-*` bundles at once, so every count moves by the same seven and
+        // the four gaps stay where they were. Measured from a run and pasted.
+
+        // +3 to every bundle since: the five-tab navigation and the profile's own tabs.
+        // `APP_LOBBY_PROGRESS` names the lobby card that replaced the grid of doors, and
+        // `APP_SUMMARY` / `APP_HISTORY_TAB` are two of the profile root's three tabs — the third
+        // is `STR_ACHIEVEMENTS`, which the imported bundles already carry and which therefore
+        // moves nothing. Authored in all four `app-*` bundles at once, so every count moves by
+        // the same three and the four gaps stay where they were. Measured from a
+        // `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted.
+
+        // +2 to every bundle since: the play root's three tabs and the roster's rule filter.
+        // `APP_SOLO` names the first tab — `STR_OPPONENTS` is the screen's own title and would
+        // have read as though the other two kept no company — and `APP_ANY_RULE` is the rule
+        // menu's resting label. The other two tabs name themselves with `STR_MULTIPLAYER` and
+        // `STR_CAMPAIGNS`, which every bundle already carries, and the three reason chips reuse
+        // the shelves' own `APP_OPPONENTS_*`. Authored in all four `app-*` bundles at once, so
+        // every count moves by the same two and the four gaps stay where they were. Measured from
+        // a `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted.
+
+        const val UNION_KEYS = 1856
 
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 1837,
-            AppLocale.FR_FR to 1838,
-            AppLocale.DE_DE to 1766,
-            AppLocale.JA_JA to 1798,
+            AppLocale.EN_US to 1852,
+            AppLocale.FR_FR to 1853,
+            AppLocale.DE_DE to 1781,
+            AppLocale.JA_JA to 1813,
         )
 
         val EXPECTED_GAPS = mapOf(

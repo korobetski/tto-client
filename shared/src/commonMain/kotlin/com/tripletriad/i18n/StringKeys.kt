@@ -185,6 +185,25 @@ object StringKeys {
 
     // ---- Character statistics.
     const val ACHIEVEMENTS_LIST: String = "STR_ACHIEVEMENTS_LIST"
+
+    /**
+     * The achievements tab's own label — the original's shorter word for the same list.
+     *
+     * [ACHIEVEMENTS_LIST] is "Liste des Succès", a heading over a list. A tab shares its row with
+     * two others and is named after the place it opens, not after what that place contains.
+     */
+    const val ACHIEVEMENTS: String = "STR_ACHIEVEMENTS"
+
+    /** The first of the profile's three tabs: the record, before what it is made of. */
+    const val SUMMARY: String = "APP_SUMMARY"
+
+    /**
+     * The history tab's label.
+     *
+     * [HISTORY] is a screen title — "Match history" — and the profile's tab row cannot afford it
+     * beside two others on a phone. Same destination, the width of a tab.
+     */
+    const val HISTORY_TAB: String = "APP_HISTORY_TAB"
     const val FORFEITS: String = "STR_FORFEITS"
 
     const val MATCHES: String = "APP_MATCHES"
@@ -224,6 +243,16 @@ object StringKeys {
     const val QUEST_BEAT: String = "APP_QUEST_BEAT"
     const val QUEST_RULE: String = "APP_QUEST_RULE"
     const val QUEST_PVP_1: String = "APP_QUEST_PVP_1"
+
+    // ---- The week's own quest. `WeeklyQuestCatalog` reaches its five labels the way the daily
+    // catalogue reaches its own; only the two the *screen* says are here.
+    const val QUESTS_WEEK: String = "APP_QUESTS_WEEK"
+    const val QUEST_WEEK_DONE: String = "APP_QUEST_WEEK_DONE"
+    const val QUEST_WEEK_WIN: String = "APP_QUEST_WEEK_WIN"
+    const val QUEST_WEEK_PLAY: String = "APP_QUEST_WEEK_PLAY"
+    const val QUEST_WEEK_RULE: String = "APP_QUEST_WEEK_RULE"
+    const val QUEST_WEEK_BEAT: String = "APP_QUEST_WEEK_BEAT"
+    const val QUEST_WEEK_PVP: String = "APP_QUEST_WEEK_PVP"
 
     // ---- Playing another person. All `APP_`: the legacy bundles have no key for any of this.
     const val PVP_TABLES: String = "APP_PVP_TABLES"
@@ -492,10 +521,28 @@ object StringKeys {
 
     const val OPPONENTS_UNEARNED: String = "APP_OPPONENTS_UNEARNED"
 
-    /** The three shelves above the roster — see `OpponentShelves`. */
+    /**
+     * The three questions the roster can be narrowed by.
+     *
+     * They were three shelves above the list and are now three chips over one grid — the same
+     * three predicates, asked once each instead of drawing the same face three times. See
+     * `OpponentReason`.
+     */
     const val OPPONENTS_NEW: String = "APP_OPPONENTS_NEW"
     const val OPPONENTS_WANTED: String = "APP_OPPONENTS_WANTED"
     const val OPPONENTS_TIMED: String = "APP_OPPONENTS_TIMED"
+
+    /**
+     * The first of the play root's three tabs.
+     *
+     * `STR_OPPONENTS` is the screen's own title and would name the tab "Opponents" beside
+     * "Multiplayer", which reads as though the other two had none. The tab names the *company*
+     * being kept, not what is being listed.
+     */
+    const val SOLO: String = "APP_SOLO"
+
+    /** The rule filter's resting label — "any rule", not "no rule". */
+    const val ANY_RULE: String = "APP_ANY_RULE"
 
     // ---- The server list, which had no translated string on it at all.
     const val SERVERS_BLURB: String = "APP_SERVERS_BLURB"
@@ -538,6 +585,9 @@ object StringKeys {
     const val LOBBY_RESUME: String = "APP_LOBBY_RESUME"
     const val LOBBY_TODAY: String = "APP_LOBBY_TODAY"
     const val LOBBY_MORE: String = "APP_LOBBY_MORE"
+
+    /** The lobby's third section: collection, level and purse, in one card. */
+    const val LOBBY_PROGRESS: String = "APP_LOBBY_PROGRESS"
 
     const val AUCTION: String = "APP_AUCTION"
     const val AUCTION_BLURB: String = "APP_AUCTION_BLURB"
@@ -734,6 +784,18 @@ object StringKeys {
     const val SPEED_FASTER: String = "APP_SPEED_FASTER"
     const val SPEED_INSTANT: String = "APP_SPEED_INSTANT"
 
+    /**
+     * The board's own aid: ring what an aimed card would take. See `LocalCaptureHints`.
+     *
+     * Two keys because the label alone is ambiguous — "show what a card would take" reads as either
+     * every capturing cell or the one being aimed at, and the note is where that is settled.
+     */
+    const val CAPTURE_HINTS: String = "APP_CAPTURE_HINTS"
+    const val CAPTURE_HINTS_NOTE: String = "APP_CAPTURE_HINTS_NOTE"
+
+    /** What a ringed cell is, read out. The ring's only other channel is its colour. */
+    const val CAPTURE_HINT_CELL: String = "APP_CAPTURE_HINT_CELL"
+
     // ---- Reaching one card out of 565.
     const val SEARCH_CARDS: String = "APP_SEARCH_CARDS"
 
@@ -794,11 +856,14 @@ object StringKeys {
         STARTER_PACK, STARTER_PACK_DESC, FREE, CLAIM, ALL,
         PACK_SEALED, PACK_BREAK_SEAL, PACK_SPENT, PACK_REVEAL, PACK_TO_COLLECTION,
         PACK_ODDS, BOOSTERS,
-        ACHIEVEMENTS_LIST, FORFEITS, MATCHES, WIN_RATE, BOONS, NO_ACHIEVEMENT, NEXT_TIER,
+        ACHIEVEMENTS_LIST, ACHIEVEMENTS, SUMMARY, HISTORY_TAB,
+        FORFEITS, MATCHES, WIN_RATE, BOONS, NO_ACHIEVEMENT, NEXT_TIER,
         ACHIEVEMENT_REWARD, ACHIEVEMENT_REWARD_MGP,
         QUESTS, QUESTS_RESET, QUEST_DONE, NO_QUEST,
         QUEST_PLAY_3, QUEST_PLAY_5, QUEST_WIN_1, QUEST_WIN_3, QUEST_WIN_5,
         QUEST_BEAT, QUEST_RULE, QUEST_PVP_1,
+        QUESTS_WEEK, QUEST_WEEK_DONE, QUEST_WEEK_WIN, QUEST_WEEK_PLAY, QUEST_WEEK_RULE,
+        QUEST_WEEK_BEAT, QUEST_WEEK_PVP,
         PVP_CHALLENGE, PVP_INVITE, PVP_INVITE_TO, PVP_FROM, PVP_SENT_TO,
         PVP_ACCEPT, PVP_DECLINE, PVP_NO_CHALLENGE,
         PVP_TABLES, PVP_NO_TABLE, PVP_HOST, PVP_HOST_OPEN, PVP_HOST_CANCEL, PVP_JOIN,
@@ -851,7 +916,7 @@ object StringKeys {
         NO_SEEDS, LOADING, RETRY, CARD_FACE_DOWN, PROFILE_LOCAL_NOTE,
         ERROR_NAME_TAKEN, ERROR_BAD_CREDENTIALS, ERROR_EXPIRED,
         OPPONENTS_LOCKED, OPPONENTS_UNEARNED, REWARD_CARDS,
-        OPPONENTS_NEW, OPPONENTS_WANTED, OPPONENTS_TIMED,
+        OPPONENTS_NEW, OPPONENTS_WANTED, OPPONENTS_TIMED, SOLO, ANY_RULE,
         HELP_FAMILY_SIGHT, HELP_FAMILY_PLAY, HELP_FAMILY_CAPTURE, HELP_FAMILY_ELEMENTS,
         SERVERS_BLURB, SERVERS_CHECK, SERVERS_CHECKING,
         SERVER_UNKNOWN, SERVER_CHECKING, SERVER_ONLINE, SERVER_DEGRADED,
@@ -861,7 +926,7 @@ object StringKeys {
         ACCOUNT_SETTINGS, DELETE_ACCOUNT, DELETE_ACCOUNT_BODY, DELETE_ACCOUNT_CONFIRM,
         MATCH_RESUME,
         TITLE_CONTINUE, TITLE_CHOOSE,
-        LOBBY_RESUME, LOBBY_TODAY, LOBBY_MORE,
+        LOBBY_RESUME, LOBBY_TODAY, LOBBY_MORE, LOBBY_PROGRESS,
         AUCTION, AUCTION_BLURB, LOCKED_LEVEL,
         AUCTION_ROOM, AUCTION_MINE, AUCTION_SELL,
         AUCTION_EMPTY, AUCTION_MINE_EMPTY, AUCTION_FAILED, AUCTION_NEEDS_SERVER,
@@ -894,6 +959,7 @@ object StringKeys {
         NEW_PASSWORD, RESET_SUBMIT, RESET_DONE,
         ERROR_EMAIL_TAKEN, ERROR_BAD_EMAIL, ERROR_UNVERIFIED, ERROR_BAD_CODE,
         MATCH_SPEED, SPEED_NORMAL, SPEED_FAST, SPEED_FASTER, SPEED_INSTANT,
+        CAPTURE_HINTS, CAPTURE_HINTS_NOTE, CAPTURE_HINT_CELL,
         SEARCH_CARDS, SORT_NUMBER, MISSING, NO_CARD_MATCH,
         DECK_COPY, DECK_FILL,
         LEAVE_MATCH, LEAVE_MATCH_PVE, LEAVE_MATCH_CONFIRM,

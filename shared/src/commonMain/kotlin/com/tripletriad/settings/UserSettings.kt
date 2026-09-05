@@ -20,6 +20,15 @@ data class UserSettings(
      * tell a stored 0.5 apart from a 0.5 the player never chose.
      */
     @SerialName("match_speed") val matchSpeed: String = MatchSpeed.Default.tag,
+    /**
+     * Whether the board rings what an aimed card would take — see `LocalCaptureHints`.
+     *
+     * On by default. The four digits are already on screen and the rule that combines them is the
+     * one a new player has to hold in their head while also learning Same, Plus and Combo; the
+     * setting is here for the player who has stopped needing it, not to keep it from the one who
+     * has not found it yet.
+     */
+    @SerialName("capture_hints") val captureHints: Boolean = true,
 ) {
     val locale: AppLocale get() = AppLocale.forTag(language) ?: AppLocale.match(language)
 

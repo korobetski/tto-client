@@ -34,7 +34,6 @@ import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.rememberStrings
-import com.tripletriad.model.Card
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.Npc
 import com.tripletriad.model.questDayOf
@@ -100,8 +99,20 @@ fun App(
             // nothing under `AudioPlayer` knows what a `UserSettings` is. Keyed on the values so a
             // slider drag reaches the running music immediately.
             val settingsValue = settings?.value
-            LaunchedEffect(audio, settingsValue?.backgroundVolume, settingsValue?.noiseVolume) {
-                settingsValue?.let { audio.volumes(it.backgroundVolume, it.noiseVolume) }
+            // What the board is asking of the music — see [MatchMix]. Held here because `App` is
+            // the only thing that calls `volumes`, and two callers is one slider quietly undoing
+            // the other.
+            val mix = rememberMatchMix()
+            LaunchedEffect(
+                audio,
+                settingsValue?.backgroundVolume,
+                settingsValue?.noiseVolume,
+                mix.ducked,
+                mix.silenced,
+            ) {
+                settingsValue?.let {
+                    audio.volumes(mix.background(it.backgroundVolume), it.noiseVolume)
+                }
             }
             // Before the settings file has been read there is nothing to slow down yet — the
             // splash is the only screen up — so the default stands until it has been.
@@ -250,6 +261,12 @@ fun App(
                 // this is exactly what it was; a test that sets neither is unaffected, and a
                 // player who asks for Instant gets zero whatever a test asked for.
                 LocalPacing provides pacing.scaledBy(playerSpeed.scale),
+                // The player's own answer, which a wagered board overrides on its way down — see
+                // `PvpMatchScreen`. Provided here rather than threaded because the settings sheet
+                // and the board are the whole depth of the app apart, which is the case
+                // `LocalUnlocks` below was added for.
+                LocalCaptureHints provides (settingsValue?.captureHints ?: false),
+                LocalMatchMix provides mix,
                 // Here rather than deeper, because the lobby and the auction house are three
                 // layers apart and the door they describe is the same one. Null server means
                 // `:core`'s defaults, which is also what the local `.sav` mode should read.
@@ -652,7 +669,8 @@ private fun Destination(
         // compile error here instead of a destination that silently renders blank.
         Screen.DASHBOARD, Screen.OPPONENTS, Screen.MATCH, Screen.TUTORIAL, Screen.STATS,
         Screen.QUESTS, Screen.PVP, Screen.PVP_MATCH, Screen.PVP_TABLE, Screen.PVP_CLAIM,
-        Screen.CAMPAIGN, Screen.CAMPAIGN_MATCH, Screen.AVATAR, Screen.COLLECTION_CHOICE,
+        Screen.CAMPAIGNS, Screen.CAMPAIGN, Screen.CAMPAIGN_MATCH, Screen.AVATAR,
+        Screen.COLLECTION_CHOICE,
         Screen.CARDS, Screen.DECKS, Screen.INVENTORY, Screen.SHOP, Screen.HELP,
         Screen.LESSONS, Screen.AUCTION, Screen.HISTORY,
         -> gate.profile?.let { profile ->
@@ -771,6 +789,12 @@ private fun CharacterDestination(
     onNavigate: (Screen) -> Unit,
 ) {
     val toDashboard = { onNavigate(Screen.DASHBOARD) }
+    // Switching tab at the play root is a navigation, not a state change — see [PlayTab] for why
+    // the three cannot be three bodies of one screen.
+    val toPlayTab = { tab: PlayTab -> onNavigate(tab.screen) }
+    // What the multiplayer tab has to say from the other two. Zero without a server, which is the
+    // truth there rather than a fallback: nothing can be waiting when nothing can arrive.
+    val waiting = (pvp?.claims?.size ?: 0) + (pvp?.challenges?.size ?: 0)
     // Loaded in the same startup phase as the card table, and this whole function is behind the
     // splash — so the empty fallback is unreachable rather than a degraded mode. It is here so the
     // two destinations that need it are not each a null check, which is what took this `when` past
@@ -849,20 +873,12 @@ private fun CharacterDestination(
                 cards = startup.catalog?.all?.associateBy { it.id }.orEmpty(),
                 sets = startup.catalog?.sets.orEmpty(),
                 hour = clock.localHour(),
+                waiting = waiting,
                 onChallenge = {
                     choice.opponent = it
                     onNavigate(Screen.MATCH)
                 },
-                // **Every** ladder, not the ones playing this format. A ladder *is* a format plus
-                // a list of opponents — the FFXIV Cup is played with FFXIV cards under the FFXIV
-                // pool — so filtering them by the format the free matches use would hide all of
-                // them, which is exactly what happened when that format became the union. Entering
-                // a ladder switches to the ladder's own format; see [CampaignDestination].
-                campaigns = startup.campaigns?.all.orEmpty(),
-                onCampaign = {
-                    choice.campaign = it
-                    onNavigate(Screen.CAMPAIGN)
-                },
+                onTab = toPlayTab,
                 onBack = toDashboard,
                 resumable = resumable,
                 // The same door a challenge goes through, and that is the point: the board it
@@ -874,6 +890,23 @@ private fun CharacterDestination(
                 },
             )
         }
+
+        // **Every** ladder, not the ones playing the format free matches use. A ladder *is* a
+        // format plus a list of opponents — the FFXIV Cup is played with FFXIV cards under the
+        // FFXIV pool — so filtering them by that format would hide all of them, which is exactly
+        // what happened when it became the union. Entering a ladder switches to the ladder's own
+        // format; see [CampaignDestination].
+        Screen.CAMPAIGNS -> CampaignsScreen(
+            profile = profile,
+            campaigns = startup.campaigns?.all.orEmpty(),
+            waiting = waiting,
+            onCampaign = {
+                choice.campaign = it
+                onNavigate(Screen.CAMPAIGN)
+            },
+            onTab = toPlayTab,
+            onBack = toDashboard,
+        )
 
         // Everything that *is* a match: the ordinary one, the tutorial, and a ladder step. Grouped
         // because they are one subject — a board with a scripted or chosen opponent behind it — and
@@ -902,7 +935,7 @@ private fun CharacterDestination(
             journal = journal,
             starters = starters,
             at = clock.nowMillis(),
-            cards = startup.catalog?.byId.orEmpty(),
+            catalog = startup.catalog,
             opponents = startup.opponents,
             formatId = startup.formats?.default?.id,
             gate = gate,
@@ -929,6 +962,7 @@ private fun CharacterDestination(
                 onNavigate(Screen.PVP_TABLE)
             },
             onClaim = { onNavigate(Screen.PVP_CLAIM) },
+            onTab = toPlayTab,
             // `up` rather than the dashboard, which is the difference between two of these three:
             // the lobby and the rule book sit under the dashboard, the table editor sits under the
             // *lobby*. It was `toDashboard` for all three, so opening a table — `onOpened` is this
@@ -952,6 +986,7 @@ private fun CharacterDestination(
                 // it, and threading them one at a time is how a screen ends up knowing which
                 // source is live — the exact thing `ProfileGate` exists to hide.
                 gate = gate,
+                onAuction = { onNavigate(Screen.AUCTION) },
                 onBack = toDashboard,
             )
         }
@@ -978,6 +1013,7 @@ private fun SocialDestination(
     onHost: () -> Unit,
     onInvite: (String) -> Unit,
     onClaim: () -> Unit,
+    onTab: (PlayTab) -> Unit,
     onBack: () -> Unit,
 ) {
     when (destination) {
@@ -998,6 +1034,7 @@ private fun SocialDestination(
                 onHost = onHost,
                 onInvite = onInvite,
                 onClaim = onClaim,
+                onTab = onTab,
                 onBack = onBack,
             )
         }
@@ -1123,7 +1160,7 @@ private fun RecordDestination(
     journal: MatchJournal,
     starters: StarterCatalog,
     at: Long,
-    cards: Map<Int, Card>,
+    catalog: CardCatalog?,
     opponents: NpcCatalog?,
     formatId: String?,
     gate: ProfileGate,
@@ -1133,15 +1170,6 @@ private fun RecordDestination(
         Screen.AVATAR -> AvatarScreen(
             profile = profile,
             onChoose = gate.persist,
-            onBack = { onNavigate(Screen.STATS) },
-        )
-
-        Screen.HISTORY -> HistoryScreen(
-            profile = profile,
-            records = journal.records,
-            isLoading = journal.isLoading,
-            // To name an opponent a row stored by `iconID` — see `MatchRecord.opponentLabel`.
-            opponents = opponents,
             onBack = { onNavigate(Screen.STATS) },
         )
 
@@ -1175,14 +1203,24 @@ private fun RecordDestination(
             onBack = { onNavigate(Screen.DASHBOARD) },
         )
 
-        else -> StatsScreen(
+        // The record, its achievements and its history are one root with three tabs, so both
+        // doors into it open the same screen and differ only in which tab is showing.
+        else -> CharacterScreen(
             profile = profile,
-            // The card table, since an achievement's reward is now named rather than left implicit
-            // and a `CardItem` cannot name itself — see `ItemRow.itemName`. Empty before the
-            // catalogue loads, which costs the reward's name and nothing else.
-            cards = cards,
+            // For the collection readout, and to name an achievement's reward rather than leave
+            // it an id — see `ItemRow.itemName`. Null before the catalogue loads, which costs the
+            // set meters and the reward's name and nothing else.
+            catalog = catalog,
+            records = journal.records,
+            isHistoryLoading = journal.isLoading,
+            // To name an opponent a row stored by `iconID` — see `MatchRecord.opponentLabel`.
+            opponents = opponents,
+            initial = if (destination == Screen.HISTORY) {
+                CharacterTab.HISTORY
+            } else {
+                CharacterTab.SUMMARY
+            },
             onAvatar = { onNavigate(Screen.AVATAR) },
-            onHistory = { onNavigate(Screen.HISTORY) },
             onBack = { onNavigate(Screen.DASHBOARD) },
         )
     }
@@ -1496,6 +1534,7 @@ private fun CollectionDestination(
     starters: StarterCatalog,
     startup: StartupState,
     gate: ProfileGate,
+    onAuction: () -> Unit,
     onBack: () -> Unit,
 ) {
     // The shelf is a property of the format, not of the character — see `ShopCatalog.offers`.
@@ -1528,6 +1567,7 @@ private fun CollectionDestination(
             // them are intents now — the shop, the bag, and the starter box.
             onUseItem = gate.useItem,
             onIntent = gate.perform,
+            onAuction = onAuction,
             onBack = onBack,
         )
 

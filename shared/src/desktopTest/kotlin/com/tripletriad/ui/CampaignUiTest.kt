@@ -46,7 +46,7 @@ class CampaignUiTest {
     fun bothLaddersAreOffered() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter(FF14_BLOCK)
-        openOpponents()
+        openTournaments()
 
         assertTrue(exists(campaignRowTestTag(GOLD_SAUCER)), "the Gold Saucer is the ff14 ladder")
         assertTrue(exists(campaignRowTestTag(CARD_CLUB)), "the Card Club is the ff8 one")
@@ -56,7 +56,7 @@ class CampaignUiTest {
     fun anFf8CharacterSeesBothToo() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter(FF8_BLOCK)
-        openOpponents()
+        openTournaments()
 
         assertTrue(exists(campaignRowTestTag(CARD_CLUB)))
         assertTrue(exists(campaignRowTestTag(GOLD_SAUCER)))
@@ -66,7 +66,7 @@ class CampaignUiTest {
     fun aFreshPurseCannotEnter() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
-        openOpponents()
+        openTournaments()
         onNodeWithTag(campaignRowTestTag(GOLD_SAUCER)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(CAMPAIGN_LIST_TEST_TAG) }
 
@@ -337,7 +337,7 @@ class CampaignUiTest {
     @OptIn(ExperimentalTestApi::class)
     private fun ComposeUiTest.openRefereedLadder() {
         openDashboard()
-        openOpponents()
+        openTournaments()
         onNodeWithTag(campaignRowTestTag(GOLD_SAUCER)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(CAMPAIGN_LIST_TEST_TAG) }
     }
@@ -348,7 +348,7 @@ class CampaignUiTest {
         key: String = GOLD_SAUCER,
     ) {
         loadCharacter(documents)
-        openOpponents()
+        openTournaments()
         onNodeWithTag(campaignRowTestTag(key)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(CAMPAIGN_LIST_TEST_TAG) }
     }

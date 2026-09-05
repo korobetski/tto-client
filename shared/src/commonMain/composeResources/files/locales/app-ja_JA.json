@@ -1126,5 +1126,20 @@
   "APP_CARD_SOURCES_MORE": "ほか{0}件",
   "APP_NO_CARD_SOURCE": "このカードを落とす相手も売る店も、今のところありません。",
   "APP_QUEST_PLAY_5": "対戦を5回行う",
-  "APP_QUEST_WIN_5": "対戦に5回勝利する"
+  "APP_QUEST_WIN_5": "対戦に5回勝利する",
+  "APP_CAPTURE_HINTS": "奪えるカードを表示",
+  "APP_CAPTURE_HINTS_NOTE": "狙っているマスが裏返すカードを縁取ります。賭け試合では表示されません。",
+  "APP_CAPTURE_HINT_CELL": "奪われます",
+  "APP_QUESTS_WEEK": "今週 · {0}から",
+  "APP_QUEST_WEEK_DONE": "週間クエスト達成",
+  "APP_QUEST_WEEK_WIN": "今週中に15回勝利する",
+  "APP_QUEST_WEEK_PLAY": "今週中に25回対戦する",
+  "APP_QUEST_WEEK_RULE": "{0}で5回勝利する",
+  "APP_QUEST_WEEK_BEAT": "{0}に5回勝利する",
+  "APP_QUEST_WEEK_PVP": "マルチプレイで5回対戦する",
+  "APP_LOBBY_PROGRESS": "進行状況",
+  "APP_SUMMARY": "概要",
+  "APP_HISTORY_TAB": "履歴",
+  "APP_SOLO": "ソロ",
+  "APP_ANY_RULE": "すべてのルール"
 }

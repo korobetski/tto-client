@@ -344,6 +344,7 @@ class PvpStakeUiTest {
                         onHost = {},
                         onInvite = {},
                         onClaim = {},
+                        onTab = {},
                         onBack = {},
                     )
                 }

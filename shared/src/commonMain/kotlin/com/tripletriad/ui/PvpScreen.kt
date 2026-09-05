@@ -154,6 +154,7 @@ internal fun PvpScreen(
     onHost: () -> Unit,
     onInvite: (String) -> Unit,
     onClaim: () -> Unit,
+    onTab: (PlayTab) -> Unit,
     onBack: () -> Unit,
 ) {
     val strings = LocalStrings.current
@@ -234,10 +235,20 @@ internal fun PvpScreen(
 
     CharacterScaffold(
         profile = profile,
-        title = strings[StringKeys.MULTIPLAYER],
+        title = strings[StringKeys.PLAY],
         onBack = onBack,
         snackbar = note,
     ) {
+        // The play root's own header, so the three ways to start a match stay in one place and
+        // the tab row does not move when one is chosen. This screen's own two tabs below it are
+        // what the multiplayer rebuild removes; until then they are a second row, not a second
+        // header.
+        PlayTabs(
+            current = PlayTab.MULTIPLAYER,
+            waiting = session.claims.size + session.challenges.size,
+            onSelect = onTab,
+        )
+
         if (session.claims.isNotEmpty()) {
             ClaimBanner(count = session.claims.size, onClaim = onClaim)
         }

@@ -43,7 +43,7 @@ class InventoryUiTest {
 
     private fun ComposeUiTest.openBag(documents: com.tripletriad.storage.InMemoryDocumentStore) {
         loadCharacter(documents)
-        openFromDashboard(DASHBOARD_INVENTORY_TEST_TAG, INVENTORY_LIST_TEST_TAG)
+        openInventory()
     }
 
     private fun ComposeUiTest.select(item: Item) {
@@ -56,7 +56,7 @@ class InventoryUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
 
-        openFromDashboard(DASHBOARD_INVENTORY_TEST_TAG, INVENTORY_EMPTY_TEST_TAG)
+        openInventory()
 
         assertFalse(exists(INVENTORY_LIST_TEST_TAG), "an empty bag should not draw a list")
     }

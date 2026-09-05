@@ -150,6 +150,7 @@ class PvpListStateUiTest {
                         onHost = {},
                         onInvite = {},
                         onClaim = {},
+                        onTab = {},
                         onBack = {},
                     )
                 }

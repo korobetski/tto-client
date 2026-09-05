@@ -50,25 +50,42 @@ internal fun ProgressDestination(
             // are behind the splash, so the fallbacks are unreachable in practice.
             opponents = startup.opponents,
             formatId = startup.formats?.default?.id.orEmpty(),
+            collection = lobbyCollection(startup, profile),
             resume = lobbyResume(pvp, strings, onNavigate),
             onPlay = { onNavigate(Screen.OPPONENTS) },
-            onPvp = pvp?.let { { onNavigate(Screen.PVP) } },
             onConfirmEmail = onConfirmEmail,
             onStats = { onNavigate(Screen.STATS) },
             onQuests = { onNavigate(Screen.QUESTS) },
-            // The collection and the shelf are the navigation bar's own two entries; these two open
-            // the *other* tab of each, which the bar cannot reach in one tap.
-            onDecks = { onNavigate(Screen.DECKS) },
-            onInventory = { onNavigate(Screen.INVENTORY) },
             onHelp = { onNavigate(Screen.HELP) },
             onLessons = { onNavigate(Screen.LESSONS) },
             lessonsBadge = "${lessonsDone.coerceAtMost(LAST_LESSON + 1)} / ${LAST_LESSON + 1}",
-            onAuction = { onNavigate(Screen.AUCTION) },
             onOptions = onOptions,
             onLogout = onLogout,
             onQuit = onQuit,
         )
     }
+}
+
+/**
+ * How much of the format is in hand.
+ *
+ * Counted against the *format*, not the whole card table, for the same reason the collection screen
+ * counts that way: a card no format admits is not a hole in a collection. Zero over zero before the
+ * catalogue lands, which is behind the splash and so unreachable.
+ */
+private fun lobbyCollection(startup: StartupState, profile: GameSave): LobbyCollection {
+    val format = startup.formats?.default
+    val admitted = if (format == null) {
+        emptyList()
+    } else {
+        startup.catalog?.admittedBy(
+            format,
+        ).orEmpty()
+    }
+    return LobbyCollection(
+        owned = admitted.count { profile.cards.containsKey(it.id) },
+        total = admitted.size,
+    )
 }
 
 /**

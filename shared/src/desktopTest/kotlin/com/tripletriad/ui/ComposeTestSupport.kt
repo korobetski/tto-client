@@ -191,6 +191,16 @@ internal fun ComposeUiTest.openOpponents() {
     awaitOpponents()
 }
 
+/** The tournaments, which are the play root's third tab and no longer a rack inside the first. */
+@OptIn(ExperimentalTestApi::class)
+internal fun ComposeUiTest.openTournaments() {
+    openOpponents()
+    onNodeWithTag(screenTabTestTag("tournaments")).performClick()
+    waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
+        exists(CAMPAIGNS_LIST_TEST_TAG) || exists(CAMPAIGNS_EMPTY_TEST_TAG)
+    }
+}
+
 /**
  * Opens one of the lobby's entries, scrolling to it first.
  *
@@ -274,13 +284,67 @@ internal fun ComposeUiTest.leaveMatch() {
     }
 }
 
-/** The profile screen, and then the list its counters are a summary of. */
+/** The profile screen, and then the tab its counters are a summary of. */
 @OptIn(ExperimentalTestApi::class)
 internal fun ComposeUiTest.openHistory() {
-    openFromDashboard(DASHBOARD_STATS_TEST_TAG, STATS_TABLE_TEST_TAG)
-    onNodeWithTag(STATS_HISTORY_TEST_TAG).performClick()
+    openProfile()
+    onNodeWithTag(screenTabTestTag("history")).performClick()
     waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
         exists(HISTORY_LIST_TEST_TAG) || exists(HISTORY_EMPTY_TEST_TAG)
+    }
+}
+
+/**
+ * The decks, which are a tab of the cards root rather than a card on the lobby.
+ *
+ * Two taps, and that is the shape every one of these helpers now has: the bar names the root, the
+ * tab row names the sibling. It is what replaced a lobby that had to draw a grid of six to make
+ * its own screens reachable.
+ */
+@OptIn(ExperimentalTestApi::class)
+internal fun ComposeUiTest.openDecks() {
+    openFromBar("cards", CARD_GRID_TEST_TAG)
+    onNodeWithTag(screenTabTestTag("decks")).performClick()
+    waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_LIST_TEST_TAG) }
+}
+
+/** The bag, which is the store's second tab. */
+@OptIn(ExperimentalTestApi::class)
+internal fun ComposeUiTest.openInventory() {
+    openStore()
+    onNodeWithTag(screenTabTestTag("bag")).performClick()
+    waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
+        exists(INVENTORY_LIST_TEST_TAG) || exists(INVENTORY_EMPTY_TEST_TAG)
+    }
+}
+
+/** The shop, which is the store root's own tab. */
+@OptIn(ExperimentalTestApi::class)
+internal fun ComposeUiTest.openStore() {
+    openFromBar("store", SHOP_LIST_TEST_TAG)
+}
+
+/** The auction house, whose door is on the shop's shelf. */
+@OptIn(ExperimentalTestApi::class)
+internal fun ComposeUiTest.openAuction() {
+    openStore()
+    onNodeWithTag(SHOP_AUCTION_TEST_TAG).performScrollTo().performClick()
+    waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(AUCTION_SCREEN_TEST_TAG) }
+}
+
+/** The profile root, on the tab it opens on. */
+@OptIn(ExperimentalTestApi::class)
+internal fun ComposeUiTest.openProfile() {
+    openFromDashboard(DASHBOARD_PROGRESS_TEST_TAG, STATS_TABLE_TEST_TAG)
+}
+
+/** The profile root, on the achievements tab. */
+@OptIn(ExperimentalTestApi::class)
+internal fun ComposeUiTest.openAchievements() {
+    openProfile()
+    onNodeWithTag(screenTabTestTag("achievements")).performClick()
+    waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
+        exists(STATS_ACHIEVEMENTS_TEST_TAG) || exists(STATS_NO_ACHIEVEMENT_TEST_TAG)
     }
 }
 

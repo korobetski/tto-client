@@ -25,6 +25,25 @@ complexity:
     # Composable functions often contain complex when expressions for navigation and rendering.
     # The complexity score does not reflect actual maintainability for declarative UI code.
     ignoreAnnotated: ['Composable']
+  LargeClass:
+    # `StringKeys` is one `const val` per key in the locale bundles and the KDoc that says what
+    # each one is for. Its length is the size of the application's vocabulary, not a measure of
+    # what the object *does*; the rule's own remedy — split it — would mean choosing which half of
+    # one vocabulary two objects own, and would rename every `StringKeys.X` call site for nothing.
+    #
+    # As with `TooManyFunctions` below, `excludes` **replaces** detekt's default list rather than
+    # adding to it, so the test paths are repeated here on purpose.
+    excludes:
+      - '**/i18n/StringKeys.kt'
+      - '**/test/**'
+      - '**/androidTest/**'
+      - '**/commonTest/**'
+      - '**/desktopTest/**'
+      - '**/jvmTest/**'
+      - '**/androidUnitTest/**'
+      - '**/androidInstrumentedTest/**'
+      - '**/jsTest/**'
+      - '**/iosTest/**'
   TooManyFunctions:
     thresholdInFiles: 20
     thresholdInClasses: 20

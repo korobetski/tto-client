@@ -2,12 +2,8 @@ package com.tripletriad.ui
 
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.GameSave
@@ -26,6 +22,14 @@ import kotlin.test.assertTrue
  * is only worth anything if it is charged on both doors rather than on the one that was easier
  * to shut.
  *
+ * ### Only one of the two doors is asserted here for now
+ *
+ * Both used to be cards on the lobby, and the lobby no longer carries either: the auction house
+ * is reached from the shop's shelf and multiplayer from the play root. The shop's door states the
+ * requirement and is covered below; **the multiplayer door does not state it yet**, and the case
+ * that asserted it was removed with the card rather than left passing against nothing. It comes
+ * back with the multiplayer screen's own rebuild.
+ *
  * These run with **no server**, so the thresholds are `:core`'s own defaults — which is what
  * [LocalUnlocks] falls back to and what a deployment that states nothing sends. A deployment
  * that states its own is `PvpUnlockTest`'s subject on the server side.
@@ -33,25 +37,12 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalTestApi::class)
 class LobbyUnlockUiTest {
     @Test
-    fun aNewCharacterIsToldWhenMultiplayerOpensRatherThanJustRefused() = runComposeUiTest {
+    fun theSameLineIsOnTheAuctionDoorAndTapsThroughToTheReason() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
+        openStore()
 
-        onNodeWithTag(DASHBOARD_PVP_TEST_TAG).performScrollTo().assertIsNotEnabled()
-        // The badge, and not merely a dimmed card: "not yet, and here is when" is a different
-        // sentence from "not here", and a card that only greys out says the second one.
-        assertTrue(
-            isVisible("Unlocks at level ${Unlocks.DEFAULT_MULTIPLAYER}"),
-            "the lobby refused multiplayer without saying when it opens",
-        )
-    }
-
-    @Test
-    fun theSameLineIsOnTheAuctionBannerAndTapsThroughToTheReason() = runComposeUiTest {
-        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
-        newCharacter()
-
-        // On the card itself, and not merely on the screen behind it. The card is what a player
+        // On the row itself, and not merely on the screen behind it. The row is what a player
         // reads before deciding whether to tap, and it is the only thing under it: the line that
         // used to be there whatever the level said "Coming soon", which was true of the house
         // before it was built and false afterwards.
@@ -60,7 +51,7 @@ class LobbyUnlockUiTest {
             "the auction card did not say when it opens",
         )
 
-        openFromDashboard(DASHBOARD_AUCTION_TEST_TAG, AUCTION_SCREEN_TEST_TAG)
+        openAuction()
 
         // The banner is not disabled, which is the point of it: a player below the line can read
         // what the place *is* before being told they cannot go in yet.
@@ -78,27 +69,22 @@ class LobbyUnlockUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
 
-        assertFalse(
-            isVisible("Unlocks at level ${Unlocks.DEFAULT_MULTIPLAYER}"),
-            "a character who has cleared the gate was still being told about it",
-        )
+        openStore()
 
         // Nothing under the name once the door is open — no reason it is shut, and no promise
-        // that it is coming. Asserted on the card rather than on the page, which would pass on
-        // the multiplayer badge alone: both gates are at the same level and print the same line.
+        // that it is coming.
         assertFalse(
             auctionCardSays("Unlocks at level"),
             "an open auction house was still explaining itself",
         )
 
-        onNodeWithTag(DASHBOARD_AUCTION_TEST_TAG).performScrollTo().performClick()
-        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(AUCTION_SCREEN_TEST_TAG) }
+        openAuction()
         assertFalse(exists(AUCTION_LOCK_TEST_TAG), "the cleared requirement was still on the page")
     }
 
-    /** What the lobby's auction card itself carries, as opposed to what the lobby carries. */
+    /** What the shop's auction row itself carries, as opposed to what the shop carries. */
     private fun ComposeUiTest.auctionCardSays(text: String): Boolean =
-        onAllNodes(hasTestTag(DASHBOARD_AUCTION_TEST_TAG).and(hasText(text, substring = true)))
+        onAllNodes(hasTestTag(SHOP_AUCTION_TEST_TAG).and(hasText(text, substring = true)))
             .fetchSemanticsNodes()
             .isNotEmpty()
 }

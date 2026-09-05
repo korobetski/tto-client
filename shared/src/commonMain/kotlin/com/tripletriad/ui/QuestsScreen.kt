@@ -20,18 +20,23 @@ import androidx.compose.ui.unit.dp
 import com.tripletriad.data.DailyQuestRepository
 import com.tripletriad.data.DailyQuestStatus
 import com.tripletriad.data.NpcCatalog
+import com.tripletriad.data.WeeklyQuestRepository
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.Strings
 import com.tripletriad.model.DailyQuest
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.Objective
+import com.tripletriad.model.questWeekOf
 import com.tripletriad.time.isoDate
 import com.tripletriad.ui.theme.LocalTtoColors
 
 const val QUESTS_LIST_TEST_TAG: String = "quests-list"
 const val QUESTS_RESET_TEST_TAG: String = "quests-reset"
 const val QUESTS_NONE_TEST_TAG: String = "quests-none"
+
+/** The week's own quest, above the day's three. */
+const val QUESTS_WEEKLY_TEST_TAG: String = "quests-weekly"
 
 fun questRowTestTag(id: String): String = "quest-$id"
 
@@ -47,6 +52,7 @@ internal fun QuestsScreen(
 ) {
     val strings = LocalStrings.current
     val quests = remember(profile, at) { DailyQuestRepository().statuses(profile, at) }
+    val weekly = remember(profile, at) { WeeklyQuestRepository().statuses(profile, at) }
 
     CharacterScaffold(profile = profile, title = strings[StringKeys.QUESTS], onBack = onBack) {
         Text(
@@ -57,6 +63,29 @@ internal fun QuestsScreen(
                 QUESTS_RESET_TEST_TAG,
             ).padding(top = SpaceSm, bottom = 8.dp),
         )
+
+        // The week's first, and on its own, which is the whole difference between the two: the
+        // dailies are a menu of three and this is the thing being worked towards while they come
+        // and go. A section header over one row would be a header for its own sake — the line above
+        // it says which Monday it counts from, which is what a player actually needs to know.
+        if (weekly.isNotEmpty()) {
+            Column(
+                modifier = Modifier
+                    .testTag(QUESTS_WEEKLY_TEST_TAG)
+                    .fillMaxWidth()
+                    .padding(bottom = SpaceMd),
+                verticalArrangement = Arrangement.spacedBy(SpaceXs),
+            ) {
+                Text(
+                    text = strings.format(StringKeys.QUESTS_WEEK, questWeekOf(at)),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+                    style = MaterialTheme.typography.labelSmall,
+                )
+                for (status in weekly) {
+                    QuestRow(status = status, opponents = opponents, formatId = formatId)
+                }
+            }
+        }
 
         if (quests.isEmpty()) {
             // Reachable only from a save pinned to ids a later build removed from the catalogue —

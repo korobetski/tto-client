@@ -8,8 +8,9 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.DailyQuestCatalog
-import com.tripletriad.model.DailyQuests
 import com.tripletriad.model.GameSave
+import com.tripletriad.model.QuestLog
+import com.tripletriad.model.WeeklyQuestCatalog
 import com.tripletriad.model.questDayOf
 import com.tripletriad.time.FixedClock
 import kotlin.test.Test
@@ -55,8 +56,8 @@ class QuestsUiTest {
         val done = drawn.first()
         val open = drawn.last()
         val save = GameSave.new(createdAt = CREATED_AT).copy(
-            quests = DailyQuests(
-                day = today,
+            quests = QuestLog(
+                period = today,
                 questIds = drawn,
                 progress = mapOf(done to DailyQuestCatalog.getValue(done).objective.target),
                 completed = mapOf(done to FixedClock.DEFAULT_MILLIS),
@@ -82,8 +83,8 @@ class QuestsUiTest {
         val yesterday = questDayOf(FixedClock.DEFAULT_MILLIS - DAY_MILLIS)
         val drawn = DailyQuestCatalog.idsForDay(FixedClock.DEFAULT_MILLIS, CREATED_AT)
         val save = GameSave.new(createdAt = CREATED_AT).copy(
-            quests = DailyQuests(
-                day = yesterday,
+            quests = QuestLog(
+                period = yesterday,
                 questIds = drawn,
                 progress = drawn.associateWith { STALE_PROGRESS },
                 completed = mapOf(drawn.first() to FixedClock.DEFAULT_MILLIS - DAY_MILLIS),
@@ -111,10 +112,10 @@ class QuestsUiTest {
         // The referee's profile. Crediting a match is one write, on the server, and the day's
         // quests are pinned by the same call that pays it — see `MatchRewards.credit`.
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
-            stub.player.save.quests.day.isNotEmpty()
+            stub.player.save.quests.period.isNotEmpty()
         }
         val stored = stub.player.save
-        assertEquals(questDayOf(FixedClock.DEFAULT_MILLIS), stored.quests.day)
+        assertEquals(questDayOf(FixedClock.DEFAULT_MILLIS), stored.quests.period)
         assertEquals(DailyQuestCatalog.PER_DAY, stored.quests.questIds.size)
         assertTrue(
             stored.quests.questIds.all { DailyQuestCatalog[it] != null },
@@ -125,8 +126,8 @@ class QuestsUiTest {
     @Test
     fun aQuestFinishedByTheMatchIsAnnouncedOnThePanel() = runComposeUiTest {
         val save = freshSave(createdAt = CREATED_AT).copy(
-            quests = DailyQuests(
-                day = questDayOf(FixedClock.DEFAULT_MILLIS),
+            quests = QuestLog(
+                period = questDayOf(FixedClock.DEFAULT_MILLIS),
                 questIds = listOf(PLAY_THREE),
                 progress = mapOf(PLAY_THREE to ONE_SHORT),
             ),
@@ -160,8 +161,8 @@ class QuestsUiTest {
     @Test
     fun aRecordOfUnknownQuestsReadsAsEmpty() = runComposeUiTest {
         val save = GameSave.new(createdAt = CREATED_AT).copy(
-            quests = DailyQuests(
-                day = questDayOf(FixedClock.DEFAULT_MILLIS),
+            quests = QuestLog(
+                period = questDayOf(FixedClock.DEFAULT_MILLIS),
                 questIds = listOf("q-from-a-later-build"),
             ),
         )
@@ -187,5 +188,36 @@ class QuestsUiTest {
 
         fun DailyQuestCatalog.getValue(id: String) =
             this[id] ?: error("$id is not in the catalogue")
+    }
+
+    @Test
+    fun theWeeksQuestSitsAboveTheDaysThree() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        newCharacter()
+        openQuests()
+
+        // One, not three — see `WeeklyQuestCatalog.PER_WEEK` — and headed by the Monday it counts
+        // from rather than by a section title, because the date is what a player needs.
+        onNodeWithTag(QUESTS_WEEKLY_TEST_TAG).assertExists()
+        assertTrue(isVisible("This week"), "the week's block is not named")
+    }
+
+    @Test
+    fun theWeeksProgressIsShownBeforeAnyMatchHasBeenPlayed() = runComposeUiTest {
+        // The draw is computed from the week and the character, so the screen can show it with no
+        // credit yet — the same contract the dailies have, and what makes the quest screen worth
+        // opening on a Monday morning.
+        val save = GameSave.new(createdAt = CREATED_AT)
+        val documents = seeded(save)
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openQuests()
+
+        val drawn = WeeklyQuestCatalog
+            .idsForWeek(FixedClock.DEFAULT_MILLIS, save.creationDate)
+            .single()
+
+        onNodeWithTag(questRowTestTag(drawn)).assertExists()
+        onNodeWithTag(questProgressTestTag(drawn)).assertExists()
     }
 }

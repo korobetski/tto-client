@@ -7,6 +7,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -108,6 +109,17 @@ internal fun MatchBannerOverlay(event: BannerEvent?, hands: HandAxis = HandAxis.
         if (playing == null && pending.isNotEmpty()) {
             playing = pending.removeAt(0)
         }
+    }
+
+    // Under, for as long as something is on screen, and back up the moment nothing is — see
+    // [MatchMix]. `DisposableEffect` rather than `LaunchedEffect` because the way out of this
+    // composable that matters is the board being left mid-caption: without the `onDispose` the
+    // music would stay ducked into the lobby.
+    val mix = LocalMatchMix.current
+    val speaking = playing != null
+    DisposableEffect(mix, speaking) {
+        mix?.ducked = speaking
+        onDispose { mix?.ducked = false }
     }
 
     when (val current = playing) {

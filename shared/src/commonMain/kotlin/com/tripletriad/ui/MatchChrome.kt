@@ -434,6 +434,7 @@ private fun OutcomeCard(
             UnlockRows(
                 achievements = reward.achievements,
                 quests = reward.quests,
+                weeklyQuests = reward.weeklyQuests,
                 opponentName = opponentName,
             )
 
@@ -488,6 +489,7 @@ fun matchAchievementTestTag(id: String): String = "match-achievement-$id"
 internal fun UnlockRows(
     achievements: List<Achievement>,
     quests: List<DailyQuest>,
+    weeklyQuests: List<DailyQuest>,
     opponentName: String,
 ) {
     val strings = LocalStrings.current
@@ -509,6 +511,22 @@ internal fun UnlockRows(
             text = strings[StringKeys.QUEST_DONE] + " — " + quest.label(strings) { opponentName },
             color = LocalTtoColors.current.selectionRing,
             style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.testTag(questRowTestTag(quest.id)),
+        )
+    }
+    // Last, and named as the week's — a day's quest finishing is a pleasant line and a week's is
+    // the thing the player has been working towards for seven days. The same colour as the rest,
+    // because the panel already has a hierarchy and a second one would fight it; the word is what
+    // does the work.
+    for (quest in weeklyQuests) {
+        Text(
+            text = strings[StringKeys.QUEST_WEEK_DONE] + " — " +
+                quest.label(strings) { opponentName },
+            color = LocalTtoColors.current.selectionRing,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.testTag(questRowTestTag(quest.id)),

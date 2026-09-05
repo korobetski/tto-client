@@ -1,7 +1,6 @@
 package com.tripletriad.ui
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -16,6 +15,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
@@ -31,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tripletriad.audio.LocalAudio
@@ -38,18 +39,27 @@ import com.tripletriad.audio.Sound
 import com.tripletriad.data.DailyQuestRepository
 import com.tripletriad.data.DailyQuestStatus
 import com.tripletriad.data.NpcCatalog
+import com.tripletriad.data.WeeklyQuestRepository
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.GameSave
+import com.tripletriad.model.XpTable
+import com.tripletriad.model.questWeekOf
+import com.tripletriad.ui.theme.LocalTtoColors
 
+/** The one action the lobby opens on. The tag survives the redesign: it still means "play". */
 const val DASHBOARD_PLAY_TEST_TAG: String = "dashboard-play"
-const val DASHBOARD_PVP_TEST_TAG: String = "dashboard-pvp"
+
 const val DASHBOARD_STATS_TEST_TAG: String = "dashboard-stats"
 const val DASHBOARD_QUESTS_TEST_TAG: String = "dashboard-quests"
 
 const val DASHBOARD_QUESTS_BADGE_TEST_TAG: String = "dashboard-quests-badge"
-const val DASHBOARD_DECKS_TEST_TAG: String = "dashboard-decks"
-const val DASHBOARD_INVENTORY_TEST_TAG: String = "dashboard-inventory"
+
+/** The week's line inside the day's card — absent when the week's quest is already finished. */
+const val DASHBOARD_WEEKLY_TEST_TAG: String = "dashboard-weekly"
+
+const val DASHBOARD_PROGRESS_TEST_TAG: String = "dashboard-progress"
+const val DASHBOARD_COLLECTION_TEST_TAG: String = "dashboard-collection"
 const val DASHBOARD_HELP_TEST_TAG: String = "dashboard-help"
 const val DASHBOARD_LESSONS_TEST_TAG: String = "dashboard-lessons"
 const val DASHBOARD_LOGOUT_TEST_TAG: String = "dashboard-logout"
@@ -57,7 +67,8 @@ const val DASHBOARD_LOGOUT_TEST_TAG: String = "dashboard-logout"
 /** The card at the top, present only when the server is holding something for this player. */
 const val DASHBOARD_RESUME_TEST_TAG: String = "dashboard-resume"
 
-const val DASHBOARD_AUCTION_TEST_TAG: String = "dashboard-auction"
+/** The one remaining door an unconfirmed address is asked through from the lobby. */
+const val DASHBOARD_CONFIRM_TEST_TAG: String = "dashboard-confirm"
 
 /** The overflow the three commands that leave the session live behind. */
 const val DASHBOARD_MENU_TEST_TAG: String = "dashboard-menu"
@@ -80,13 +91,25 @@ internal class LobbyResume(
 )
 
 /**
- * The lobby, as a report on what is happening rather than a menu of places to go.
+ * What the collection is worth saying at the lobby: how much of the format is in hand.
  *
- * It used to be eight cards over a four-entry navigation bar, and half the cards were the bar said
- * twice. What is left is arranged by *when it matters*: what the server is holding for you, what
- * resets tonight, what you came here to do, and everything else. The three commands that end a
- * session — settings, sign out, quit — moved into the overflow, because a control that leaves is
- * not a destination and should not be shaped like one.
+ * Counted where the catalogue is, not here — the lobby has no business filtering a card table by
+ * format, and the collection screen's own count is derived the same way from the same two numbers.
+ */
+@Immutable
+internal class LobbyCollection(val owned: Int, val total: Int) {
+    val fraction: Float get() = if (total <= 0) 0f else owned.toFloat() / total
+}
+
+/**
+ * The lobby: one thing to do, what resets tonight, and what has been earned so far.
+ *
+ * The grid is gone. It held Card Decks, Inventory and Play — which is the navigation bar drawn a
+ * second time as cards — and it held them because the bar had four entries and nine destinations.
+ * The bar has five now and every destination answers to one of them (see [Tab]), so the lobby is
+ * free to stop being a menu: what is left is a **single** hero action chosen by urgency, the day's
+ * and the week's quests in one card, a progress readout, and one quiet line for the course and the
+ * rule book, which belong to no tab and are read once.
  *
  * There is no back arrow. There was one, and it signed the player out.
  */
@@ -97,20 +120,17 @@ internal fun DashboardScreen(
     at: Long,
     opponents: NpcCatalog?,
     formatId: String,
+    collection: LobbyCollection,
     resume: LobbyResume?,
     onPlay: () -> Unit,
-    onPvp: (() -> Unit)?,
-    // Null when there is nothing to confirm. See the multiplayer card, which is the one
-    // place an unconfirmed address costs a player anything.
+    // Null when there is nothing to confirm. It used to hang off the multiplayer card, which the
+    // Play tab owns now — so it is its own line here rather than a badge on a card that left.
     onConfirmEmail: (() -> Unit)?,
     onStats: () -> Unit,
     onQuests: () -> Unit,
-    onDecks: () -> Unit,
-    onInventory: () -> Unit,
     onHelp: () -> Unit,
     onLessons: () -> Unit,
     lessonsBadge: String,
-    onAuction: () -> Unit,
     onOptions: () -> Unit,
     onLogout: () -> Unit,
     onQuit: () -> Unit,
@@ -119,17 +139,20 @@ internal fun DashboardScreen(
     // Read, never written: `statuses` derives the day's draw when the save has not been credited
     // today, so the count is right on a character who has not played yet. See [QuestsScreen].
     val quests = remember(profile, at) { DailyQuestRepository().statuses(profile, at) }
-    // This deployment's thresholds, not this build's — see [LocalUnlocks].
-    val unlocks = LocalUnlocks.current
-    val multiplayerOpen = unlocks.allowsMultiplayer(profile)
+    // And the week's, which the lobby could not see at all until now: the card read one repository
+    // and the longest, best-paid objective in the game was invisible from the screen the player
+    // opens on.
+    val weekly = remember(profile, at) { WeeklyQuestRepository().statuses(profile, at) }
 
     ScreenScaffold(
         title = profile.username,
         // The root of a signed-in session has nothing above it. What used to be here was
         // `onLogout` behind a chevron, which is the one thing a back arrow must never mean.
         onBack = null,
+        // No `CharacterActions`: the purse, the level and the boons are all in the progress card
+        // below, and the bar was saying the level a second time fifteen pixels above the meter
+        // that measures it.
         actions = {
-            CharacterActions(profile)
             LobbyMenu(
                 onOptions = onOptions,
                 onLogout = onLogout,
@@ -145,109 +168,58 @@ internal fun DashboardScreen(
                 .padding(bottom = SpaceMd),
             verticalArrangement = Arrangement.spacedBy(SpaceSm),
         ) {
-            // The lobby's only way into the record, so the badge answers to the lobby's
-            // name for it rather than to the portrait's.
-            LevelBar(profile, onAvatar = onStats, avatarTag = DASHBOARD_STATS_TEST_TAG)
-
-            resume?.let {
-                SectionHeader(strings[StringKeys.LOBBY_RESUME], Modifier.padding(top = SpaceSm))
-                ResumeCard(it)
+            // One hero, never two. A prize on a deadline outranks a live match, a live match
+            // outranks "go and play" — and whichever wins is the whole answer to "what now".
+            if (resume != null) {
+                SectionHeader(strings[StringKeys.LOBBY_RESUME])
+                ResumeCard(resume)
+            } else {
+                HomeCard(
+                    label = strings[StringKeys.PLAY],
+                    icon = TtoIcons.Play,
+                    tag = DASHBOARD_PLAY_TEST_TAG,
+                    accented = true,
+                    onClick = onPlay,
+                )
             }
+
+            onConfirmEmail?.let { ConfirmCard(it) }
 
             SectionHeader(strings[StringKeys.LOBBY_TODAY], Modifier.padding(top = SpaceSm))
             QuestsCard(
                 quests = quests,
+                weekly = weekly,
+                at = at,
                 opponents = opponents,
                 formatId = formatId,
                 onOpen = onQuests,
             )
 
-            SectionHeader(strings[StringKeys.PLAY], Modifier.padding(top = SpaceSm))
+            SectionHeader(strings[StringKeys.LOBBY_PROGRESS], Modifier.padding(top = SpaceSm))
+            ProgressCard(profile = profile, collection = collection, onOpen = onStats)
+
+            HorizontalDivider(
+                modifier = Modifier.padding(top = SpaceMd),
+                color = MaterialTheme.colorScheme.outlineVariant,
+            )
+            // The two screens that belong to no tab, on one line, at the bottom. They are read
+            // once and never again, which is exactly the weight a line has and a card does not.
             Row(horizontalArrangement = Arrangement.spacedBy(SpaceSm)) {
-                Box(modifier = Modifier.weight(1f)) {
-                    HomeCard(
-                        label = strings[StringKeys.PLAY],
-                        icon = TtoIcons.Play,
-                        tag = DASHBOARD_PLAY_TEST_TAG,
-                        accented = true,
-                        onClick = onPlay,
-                    )
-                }
-                Box(modifier = Modifier.weight(1f)) {
-                    HomeCard(
-                        label = strings[StringKeys.MULTIPLAYER],
-                        icon = if (multiplayerOpen) TtoIcons.Person else TtoIcons.Lock,
-                        tag = DASHBOARD_PVP_TEST_TAG,
-                        // Two different reasons to be shut, and the badge says which. Without a
-                        // server there is nobody to play — see `PvpClient`; below the level there
-                        // is, and the answer is "not yet" rather than "not here".
-                        badge = when {
-                            // The level first, deliberately, and it is the *opposite* order to the
-                            // server's refusal. That one names the address first because a player
-                            // who has hit the door can act on it immediately; here the door is
-                            // usually still far away, and telling a level-one player to confirm an
-                            // address would suggest that confirming is what opens it.
-                            !multiplayerOpen -> strings.format(
-                                StringKeys.LOCKED_LEVEL,
-                                unlocks.multiplayer.toString(),
-                            )
-
-                            // Levelled, and stopped by the one thing left. Without this the card
-                            // would be a dead end: shut, with the remedy on a screen the player
-                            // last saw when they registered and no way back to it.
-                            onConfirmEmail != null -> strings[StringKeys.CONFIRM_NEEDED]
-
-                            else -> null
-                        },
-                        enabled = onPvp != null && multiplayerOpen,
-                        onClick = { onConfirmEmail?.invoke() ?: onPvp?.invoke() },
-                    )
-                }
+                AsideLink(
+                    label = strings[StringKeys.LESSONS],
+                    badge = lessonsBadge,
+                    tag = DASHBOARD_LESSONS_TEST_TAG,
+                    modifier = Modifier.weight(1f),
+                    onClick = onLessons,
+                )
+                AsideLink(
+                    label = strings[StringKeys.HELP],
+                    badge = null,
+                    tag = DASHBOARD_HELP_TEST_TAG,
+                    modifier = Modifier.weight(1f),
+                    onClick = onHelp,
+                )
             }
-
-            SectionHeader(strings[StringKeys.LOBBY_MORE], Modifier.padding(top = SpaceSm))
-            Row(horizontalArrangement = Arrangement.spacedBy(SpaceSm)) {
-                Box(modifier = Modifier.weight(1f)) {
-                    HomeCard(
-                        label = strings[StringKeys.CARD_DECKS],
-                        icon = TtoIcons.Collection,
-                        tag = DASHBOARD_DECKS_TEST_TAG,
-                        onClick = onDecks,
-                    )
-                }
-                Box(modifier = Modifier.weight(1f)) {
-                    HomeCard(
-                        label = strings[StringKeys.INVENTORY],
-                        icon = TtoIcons.Shop,
-                        tag = DASHBOARD_INVENTORY_TEST_TAG,
-                        onClick = onInventory,
-                    )
-                }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(SpaceSm)) {
-                Box(modifier = Modifier.weight(1f)) {
-                    HomeCard(
-                        label = strings[StringKeys.LESSONS],
-                        icon = TtoIcons.Quest,
-                        tag = DASHBOARD_LESSONS_TEST_TAG,
-                        badge = lessonsBadge,
-                        onClick = onLessons,
-                    )
-                }
-                Box(modifier = Modifier.weight(1f)) {
-                    HomeCard(
-                        label = strings[StringKeys.HELP],
-                        icon = TtoIcons.Help,
-                        tag = DASHBOARD_HELP_TEST_TAG,
-                        onClick = onHelp,
-                    )
-                }
-            }
-
-            // Under "Also", with no heading of its own. It had one — "Coming soon" — from
-            // when the house was a placeholder, and a section that says a working screen is not
-            // here yet is worse than no section at all.
-            AuctionBanner(open = unlocks.allowsAuction(profile), onClick = onAuction)
         }
     }
 }
@@ -290,15 +262,55 @@ private fun ResumeCard(resume: LobbyResume) {
 }
 
 /**
- * The day's three quests, with their meters rather than with a count of them.
+ * The one thing an unconfirmed address still costs, said where it can be acted on.
  *
- * The count is still there — `QuestsUiTest` reads it, and it is what a glance wants — but under it
- * are the three lines that say *which* one is nearly done. A badge saying `0 / 3` is a number a
- * player has to open a screen to act on.
+ * It used to be a badge on the multiplayer card. That card is a tab of the Play root now, and a
+ * player who never opens that tab would never learn why the door is shut.
+ */
+@Composable
+private fun ConfirmCard(onConfirm: () -> Unit) {
+    val strings = LocalStrings.current
+
+    TtoCard(
+        modifier = Modifier.testTag(DASHBOARD_CONFIRM_TEST_TAG).fillMaxWidth(),
+        onClick = onConfirm,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(SpaceMd),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(SpaceMd),
+        ) {
+            Icon(
+                imageVector = TtoIcons.Lock,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(IconMd),
+            )
+            Text(
+                text = strings[StringKeys.CONFIRM_NEEDED],
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+/**
+ * The week over the day, in one card.
+ *
+ * They are one card and not two because they answer the same question — what is worth doing before
+ * this resets — and they are in that order because the week is the thing being worked towards while
+ * the dailies come and go. The count in the corner stays the *day's*: it is what a glance wants,
+ * and `QuestsUiTest` reads it.
  */
 @Composable
 private fun QuestsCard(
     quests: List<DailyQuestStatus>,
+    weekly: List<DailyQuestStatus>,
+    at: Long,
     opponents: NpcCatalog?,
     formatId: String,
     onOpen: () -> Unit,
@@ -313,6 +325,29 @@ private fun QuestsCard(
             modifier = Modifier.fillMaxWidth().padding(SpaceMd),
             verticalArrangement = Arrangement.spacedBy(SpaceXs),
         ) {
+            if (weekly.isNotEmpty()) {
+                Text(
+                    text = strings.format(StringKeys.QUESTS_WEEK, questWeekOf(at)),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.testTag(DASHBOARD_WEEKLY_TEST_TAG),
+                )
+                for (status in weekly) {
+                    QuestLine(
+                        status = status,
+                        opponents = opponents,
+                        formatId = formatId,
+                        emphasis = true,
+                    )
+                }
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = SpaceSm),
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                )
+            }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -347,6 +382,7 @@ private fun QuestLine(
     status: DailyQuestStatus,
     opponents: NpcCatalog?,
     formatId: String,
+    emphasis: Boolean = false,
 ) {
     val strings = LocalStrings.current
     val done = status.isCompleted
@@ -358,8 +394,13 @@ private fun QuestLine(
     ) {
         Text(
             text = status.quest.label(strings, opponents, formatId),
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (done) SUBDUED else MUTED),
+            color = when {
+                emphasis -> LocalTtoColors.current.currency
+                done -> MaterialTheme.colorScheme.onSurface.copy(alpha = SUBDUED)
+                else -> MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED)
+            },
             style = MaterialTheme.typography.labelMedium,
+            fontWeight = if (emphasis) FontWeight.Bold else FontWeight.Normal,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
@@ -367,61 +408,136 @@ private fun QuestLine(
         Meter(
             fraction = if (done) 1f else status.progress.fraction,
             modifier = Modifier.width(MeterWidth),
-            colour = if (done) {
-                MaterialTheme.colorScheme.tertiary
-            } else {
-                MaterialTheme.colorScheme.primary
+            colour = when {
+                emphasis -> LocalTtoColors.current.currency
+                done -> MaterialTheme.colorScheme.tertiary
+                else -> MaterialTheme.colorScheme.primary
             },
         )
     }
 }
 
+/**
+ * Collection, level and purse — the three numbers that move, and the way into the record.
+ *
+ * The collection count is here because it is the progression players actually track and it lived
+ * nowhere: not on the lobby, not on the character sheet, only above the grid on the card list where
+ * it doubles as a filter readout.
+ */
 @Composable
-private fun AuctionBanner(open: Boolean, onClick: () -> Unit) {
+private fun ProgressCard(
+    profile: GameSave,
+    collection: LobbyCollection,
+    onOpen: () -> Unit,
+) {
     val strings = LocalStrings.current
+    val floor = XpTable.thresholdFor(profile.level)
+    val ceiling = XpTable.thresholdFor(profile.level + 1)
+    // At the top of the table there is no next threshold, so the bar is full rather than dividing
+    // by a zero span.
+    val span = ceiling - floor
+    val fraction = if (span <= 0L) 1f else ((profile.xp - floor).toFloat() / span).coerceIn(0f, 1f)
 
     TtoCard(
-        modifier = Modifier.testTag(DASHBOARD_AUCTION_TEST_TAG).fillMaxWidth(),
-        onClick = onClick,
+        modifier = Modifier.testTag(DASHBOARD_PROGRESS_TEST_TAG).fillMaxWidth(),
+        onClick = onOpen,
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(SpaceMd),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(SpaceMd),
         ) {
-            Icon(
-                imageVector = TtoIcons.Shop,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary.copy(
-                    alpha = if (open) 1f else SUBDUED,
-                ),
-                modifier = Modifier.size(IconMd),
-            )
-            Column(modifier = Modifier.weight(1f)) {
+            AvatarBadge(profile = profile, tag = DASHBOARD_STATS_TEST_TAG)
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(SpaceXs),
+            ) {
                 Text(
-                    text = strings[StringKeys.AUCTION],
+                    text = "${strings[StringKeys.LEVEL]} ${profile.level}$DOT_SEPARATOR" +
+                        "${profile.xp} ${strings[StringKeys.XP]}",
                     color = MaterialTheme.colorScheme.onSurface,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.bodySmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                // Nothing under the name once the house is open. The second line is where a
-                // *reason it is shut* goes, and an open door has none — the card then reads like
-                // the rest of the lobby's, which are their own labels and nothing else.
-                if (!open) {
-                    Text(
-                        text = strings.format(
-                            StringKeys.LOCKED_LEVEL,
-                            LocalUnlocks.current.auction.toString(),
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
-                        style = MaterialTheme.typography.labelMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
+                Meter(fraction = fraction, colour = MaterialTheme.colorScheme.tertiary)
+
+                Text(
+                    text = "${strings[StringKeys.COLLECTION]}$DOT_SEPARATOR" +
+                        "${collection.owned} / ${collection.total}",
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = SUBDUED),
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.testTag(DASHBOARD_COLLECTION_TEST_TAG),
+                )
+                Meter(
+                    fraction = collection.fraction,
+                    colour = MaterialTheme.colorScheme.primary,
+                )
+            }
+
+            Column(horizontalAlignment = Alignment.End) {
+                Icon(
+                    imageVector = TtoIcons.Chip,
+                    contentDescription = strings[StringKeys.MGP],
+                    tint = LocalTtoColors.current.currency,
+                    modifier = Modifier.size(IconSm),
+                )
+                Text(
+                    text = "${profile.mgp}",
+                    color = MaterialTheme.colorScheme.onBackground,
+                    style = MaterialTheme.typography.labelLarge,
+                    maxLines = 1,
+                    softWrap = false,
+                )
             }
         }
+    }
+}
+
+/** A destination with no tab and no card: a line of text with a count and a chevron. */
+@Composable
+private fun AsideLink(
+    label: String,
+    badge: String?,
+    tag: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = modifier
+            .testTag(tag)
+            .heightIn(min = MinTouchTarget)
+            .ttoClickable(onClick = onClick)
+            .padding(horizontal = SpaceSm),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(SpaceXs),
+    ) {
+        Text(
+            text = label,
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.labelLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        if (badge != null) {
+            Text(
+                text = badge,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+                softWrap = false,
+                modifier = Modifier.testTag("$tag-badge"),
+            )
+        }
+        Icon(
+            imageVector = TtoIcons.Forward,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+            modifier = Modifier.size(IconSm),
+        )
     }
 }
 
@@ -534,7 +650,7 @@ internal fun HomeCard(
             disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             // Dimmed rather than a different colour: a disabled card is the same destination, and
             // `Multiplayer` on a local profile has to stay readable enough to be understood as
-            // "not now" instead of as a rendering fault. See `DashboardScreen`'s own note.
+            // "not now" instead of as a rendering fault.
             disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = DISABLED),
         ),
     ) {
@@ -554,8 +670,7 @@ internal fun HomeCard(
             // The badge sits **under** the label rather than beside it. Beside it, the two shared
             // the width of a half-grid card and the label lost: `Quêtes journalières` came out as
             // `Quêtes jo / urnalières`, broken mid-word, because the longest word in it no longer
-            // fitted the column the badge had left. Under it the label gets the full width and the
-            // count reads as what it is — a subtitle about the destination above it.
+            // fitted the column the badge had left.
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = label,

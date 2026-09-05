@@ -261,6 +261,33 @@ internal object TtoIcons {
         }
     }
 
+    /**
+     * The random opponent, in the play root's app bar.
+     *
+     * A five face rather than a one: the pips have to read as *a die* at 24 dp, and a single
+     * centre pip reads as a bullet. Each pip is a diamond a stroke-width across rather than a
+     * zero-length segment, because a dot drawn as a degenerate subpath is a renderer's choice
+     * and this one has to be everyone's.
+     */
+    val Die: ImageVector by lazy {
+        icon("Die") {
+            moveTo(4.5f, 6f)
+            quadTo(4.5f, 4.5f, 6f, 4.5f)
+            lineTo(18f, 4.5f)
+            quadTo(19.5f, 4.5f, 19.5f, 6f)
+            lineTo(19.5f, 18f)
+            quadTo(19.5f, 19.5f, 18f, 19.5f)
+            lineTo(6f, 19.5f)
+            quadTo(4.5f, 19.5f, 4.5f, 18f)
+            close()
+            pip(8.5f, 8.5f)
+            pip(15.5f, 8.5f)
+            pip(12f, 12f)
+            pip(8.5f, 15.5f)
+            pip(15.5f, 15.5f)
+        }
+    }
+
     val Chip: ImageVector by lazy {
         symbol("Chip") {
             moveTo(12f, 22f)
@@ -479,6 +506,15 @@ internal object TtoIcons {
     private const val BOON_Y = 13f
     private const val BOON_R = 3.4f
     private const val BOON_EYE = 1.7f
+
+    /** One pip of [Die], as a diamond small enough that the stroke closes it into a dot. */
+    private fun PathBuilder.pip(x: Float, y: Float) {
+        moveTo(x, y - 0.4f)
+        lineTo(x + 0.4f, y)
+        lineTo(x, y + 0.4f)
+        lineTo(x - 0.4f, y)
+        close()
+    }
 
     private fun symbol(name: String, segments: PathBuilder.() -> Unit): ImageVector =
         ImageVector.Builder(

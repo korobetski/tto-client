@@ -1,5 +1,7 @@
 package com.tripletriad.ui
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,6 +28,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -55,6 +58,7 @@ import com.tripletriad.model.MatchResult
 import com.tripletriad.model.MatchState
 import com.tripletriad.model.MatchView
 import com.tripletriad.model.Npc
+import com.tripletriad.platform.rememberReducedMotion
 import com.tripletriad.ui.theme.LocalTtoColors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -634,11 +638,40 @@ private fun StatusRow(
     }
 }
 
+/**
+ * The score, which now says *when* it changed as well as what it is.
+ *
+ * ### Why a pulse at all
+ *
+ * The two digits always add to ten, so a capture moves both of them and neither by much: 5—5 to
+ * 6—4 is the difference between winning and losing and it looks like a font glitch. Everything
+ * else on the board announces itself — the card flips, the chain staggers, a caption names the
+ * rule — and the one number that says who is ahead was the quietest thing on screen.
+ *
+ * ### It fires on the change, not on arrival
+ *
+ * `LaunchedEffect(score)` would also run on the first composition, so a board would open by
+ * throbbing at a score nobody has moved. The remembered previous value is what tells a change from
+ * a beginning, and it is why this is not simply keyed on the score.
+ */
 @Composable
 private fun Score(view: MatchView) {
     // Computable from a view because both hand *sizes* are public even when their contents are not
     // — see `MatchView.score`. The total is still ten at every placement.
     val score = view.score
+    val pacing = LocalPacing.current
+    val reduced = rememberReducedMotion()
+    val pulse = remember { Animatable(1f) }
+    var previous by remember { mutableStateOf(score) }
+
+    LaunchedEffect(score, reduced, pacing) {
+        val moved = score != previous
+        previous = score
+        if (!moved || reduced) return@LaunchedEffect
+        pulse.snapTo(SCORE_PULSE_PEAK)
+        pulse.animateTo(1f, tween(pacing * SCORE_PULSE_MS))
+    }
+
     Text(
         text = buildAnnotatedString {
             withStyle(SpanStyle(color = CardColor.BLUE.edge)) { append(score.blue.toString()) }
@@ -648,7 +681,12 @@ private fun Score(view: MatchView) {
         color = MaterialTheme.colorScheme.onSurface,
         style = MaterialTheme.typography.bodyMedium,
         fontWeight = FontWeight.Bold,
-        modifier = Modifier.testTag(SCORE_TEST_TAG),
+        modifier = Modifier
+            .testTag(SCORE_TEST_TAG)
+            .graphicsLayer {
+                scaleX = pulse.value
+                scaleY = pulse.value
+            },
     )
 }
 
@@ -768,6 +806,17 @@ private const val OPPONENT_PAUSE_MS = 700L
 private const val OUTCOME_PAUSE_MS = 1_400L
 
 private val DEFAULT_TURN_LIMIT = 30.seconds
+
+/**
+ * How far the score swells when it moves, and for how long.
+ *
+ * A tenth, which is not much and is not meant to be: the number is 14 sp beside a back arrow and a
+ * portrait, and anything that made it *large* would be a second thing happening at the same moment
+ * as the flip it is reporting. It has to be seen out of the corner of an eye that is on the board.
+ */
+private const val SCORE_PULSE_PEAK = 1.1f
+
+private const val SCORE_PULSE_MS = 280
 
 private val TIMER_TICK = 100.milliseconds
 

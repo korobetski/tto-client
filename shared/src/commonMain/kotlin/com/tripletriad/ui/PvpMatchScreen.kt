@@ -48,6 +48,7 @@ import com.tripletriad.model.Card
 import com.tripletriad.model.DailyQuestCatalog
 import com.tripletriad.model.MatchResult
 import com.tripletriad.model.MatchView
+import com.tripletriad.model.WeeklyQuestCatalog
 import com.tripletriad.protocol.PvpMatchStatus
 import com.tripletriad.protocol.PvpMatchView
 import com.tripletriad.protocol.PvpMove
@@ -263,6 +264,11 @@ internal fun PvpMatchScreen(
                 layout = layout,
                 selected = selected,
                 revealed = revealed,
+                // **Never over a wager**, whatever the player has set. Against a program the aid
+                // is the player's own business; against a person with cards or MGP on the table it
+                // is an advantage the other side did not agree to and cannot see. `isFree` is the
+                // line `PvpStake` already draws for the lobby, and it is the right one here.
+                hints = LocalCaptureHints.current && wire.stake.isFree,
                 onSelect = { card -> selected = if (selected?.id == card.id) null else card },
                 onPlace = { position -> selected?.let { place(it, position) } },
                 onDrop = place,
@@ -346,11 +352,23 @@ private fun PvpPlayArea(
     layout: MatchLayout,
     selected: Card?,
     revealed: Boolean,
+    // Whether the board may ring what an aimed card would take. Passed rather than read from
+    // `LocalCaptureHints` here, because this is the one board where the answer is not only the
+    // player's — see the call site.
+    hints: Boolean,
     onSelect: (Card) -> Unit,
     onPlace: (Int) -> Unit,
     onDrop: (Card, Int) -> Unit,
 ) {
     val drag = rememberBoardDragState()
+
+    // See `PlayArea`, which computes the same thing the same way — this board draws its own grid
+    // rather than sharing that one's, so the pair travels twice.
+    val held = selected ?: drag.card.takeIf { drag.isDragging }
+    val aimed = drag.aimed()
+    val preview = remember(view, held, aimed, hints) {
+        if (hints) capturePreview(view, held, aimed) else emptySet()
+    }
 
     // The ghost is drawn here rather than inside the hand for the reason `PlayArea` gives: anywhere
     // lower and the floating card would be clipped by the row it came out of. `origin` is this
@@ -380,7 +398,7 @@ private fun PvpPlayArea(
                 tally = view.tally,
                 scale = layout.boardScale,
                 drag = drag,
-                held = selected ?: drag.card.takeIf { drag.isDragging },
+                held = held,
                 // Nothing ringed, and not merely because this is not a lesson: `captureHighlights`
                 // reads `MatchState.lastPlay`, and a refereed match has no `MatchState` on this
                 // side at all — the referee resolved the placement and sent the board that came
@@ -391,6 +409,8 @@ private fun PvpPlayArea(
                 // same waves, so a combo the referee resolved turns exactly as one this client did.
                 // That is the whole of "the same delay in every mode".
                 waves = captureWaves(view.lastPlay),
+                preview = preview,
+                jolt = view.joltAt(),
                 onPlace = onPlace,
             )
             OwnRow(
@@ -403,6 +423,7 @@ private fun PvpPlayArea(
             )
         }
         DragGhost(drag = drag, scale = layout.scale)
+        SilenceForTheLastFlip(view.isFinished)
     }
 }
 
@@ -721,6 +742,7 @@ private fun SettledPhase(
         UnlockRows(
             achievements = outcome.achievementIds.mapNotNull(AchievementCatalog::get),
             quests = outcome.questIds.mapNotNull(DailyQuestCatalog::get),
+            weeklyQuests = outcome.weeklyQuestIds.mapNotNull(WeeklyQuestCatalog::get),
             opponentName = wire.opponentName,
         )
     }

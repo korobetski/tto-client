@@ -1162,5 +1162,20 @@
   "APP_CARD_SOURCES_MORE": "+{0} more",
   "APP_NO_CARD_SOURCE": "Nothing drops or sells this one yet.",
   "APP_QUEST_PLAY_5": "Play 5 matches",
-  "APP_QUEST_WIN_5": "Win 5 matches"
+  "APP_QUEST_WIN_5": "Win 5 matches",
+  "APP_CAPTURE_HINTS": "Show what a card would take",
+  "APP_CAPTURE_HINTS_NOTE": "Rings the cards the cell you are aiming at would flip. Never over a wager.",
+  "APP_CAPTURE_HINT_CELL": "would be captured",
+  "APP_QUESTS_WEEK": "This week · since {0}",
+  "APP_QUEST_WEEK_DONE": "Week complete",
+  "APP_QUEST_WEEK_WIN": "Win 15 matches this week",
+  "APP_QUEST_WEEK_PLAY": "Play 25 matches this week",
+  "APP_QUEST_WEEK_RULE": "Win 5 matches with {0}",
+  "APP_QUEST_WEEK_BEAT": "Beat {0} five times",
+  "APP_QUEST_WEEK_PVP": "Play 5 multiplayer matches",
+  "APP_LOBBY_PROGRESS": "Progress",
+  "APP_SUMMARY": "Summary",
+  "APP_HISTORY_TAB": "History",
+  "APP_SOLO": "Solo",
+  "APP_ANY_RULE": "Any rule"
 }

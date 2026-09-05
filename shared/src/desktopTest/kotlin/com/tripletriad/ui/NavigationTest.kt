@@ -115,12 +115,9 @@ class NavigationTest {
 
         val entries = listOf(
             DASHBOARD_PLAY_TEST_TAG to OPPONENT_LIST_TEST_TAG,
-            DASHBOARD_STATS_TEST_TAG to STATS_TABLE_TEST_TAG,
-            DASHBOARD_DECKS_TEST_TAG to DECK_LIST_TEST_TAG,
-            DASHBOARD_INVENTORY_TEST_TAG to INVENTORY_EMPTY_TEST_TAG,
+            DASHBOARD_PROGRESS_TEST_TAG to STATS_TABLE_TEST_TAG,
             DASHBOARD_HELP_TEST_TAG to HELP_LIST_TEST_TAG,
             DASHBOARD_QUESTS_TEST_TAG to QUESTS_LIST_TEST_TAG,
-            DASHBOARD_AUCTION_TEST_TAG to AUCTION_SCREEN_TEST_TAG,
         )
         for ((entry, landmark) in entries) {
             openFromDashboard(entry, landmark)

@@ -121,6 +121,7 @@ class TouchTargetTest {
                         onHost = {},
                         onInvite = {},
                         onClaim = {},
+                        onTab = {},
                         onBack = {},
                     )
                 }

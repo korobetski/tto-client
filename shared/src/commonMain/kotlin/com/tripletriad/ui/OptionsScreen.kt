@@ -11,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -19,6 +20,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.platform.testTag
@@ -47,6 +49,8 @@ const val OPTIONS_DELETE_NOTE_TEST_TAG: String = "options-delete-note"
 fun optionsLanguageTestTag(locale: AppLocale): String = "options-language-${locale.tag}"
 
 fun optionsSpeedTestTag(speed: MatchSpeed): String = "options-speed-${speed.tag}"
+
+const val OPTIONS_CAPTURE_HINTS_TEST_TAG: String = "options-capture-hints"
 
 /**
  * The settings, as a sheet over whatever asked for them.
@@ -130,6 +134,15 @@ internal fun OptionsBody(
             SpeedChoice(current) { speed ->
                 settings.update { it.copy(matchSpeed = speed.tag) }
             }
+
+            // A switch and not a chip, unlike the two rows above it: those pick one of several,
+            // this is on or off, and a lone chip that is sometimes lit reads as a filter.
+            ToggleRow(
+                label = strings[StringKeys.CAPTURE_HINTS],
+                hint = strings[StringKeys.CAPTURE_HINTS_NOTE],
+                checked = current.captureHints,
+                tag = OPTIONS_CAPTURE_HINTS_TEST_TAG,
+            ) { on -> settings.update { it.copy(captureHints = on) } }
         }
 
         SettingsGroup(strings[StringKeys.AUDIO_SETTINGS]) {
@@ -296,6 +309,42 @@ private fun SpeedChoice(settings: UserSettings, onPick: (MatchSpeed) -> Unit) {
                 onClick = { onPick(speed) },
             )
         }
+    }
+}
+
+/**
+ * One setting that is simply on or off, with the sentence that says what it costs.
+ *
+ * The hint is not decoration here. "Show what a card would take" is a sentence a player can read
+ * two ways — every capturing cell, or the one being aimed at — and the second line is where the
+ * difference is stated rather than discovered.
+ */
+@Composable
+private fun ToggleRow(
+    label: String,
+    hint: String,
+    checked: Boolean,
+    tag: String,
+    onChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(SpaceMd),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Label(label)
+            Text(
+                text = hint,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+                style = MaterialTheme.typography.labelSmall,
+            )
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onChange,
+            modifier = Modifier.testTag(tag),
+        )
     }
 }
 

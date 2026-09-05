@@ -15,6 +15,7 @@ internal enum class Screen {
     MATCH,
     LESSONS,
     TUTORIAL,
+    CAMPAIGNS,
     CAMPAIGN,
     CAMPAIGN_MATCH,
     STATS,
@@ -46,15 +47,20 @@ internal enum class Screen {
             // Back out of the collection step keeps `ff14_`, which is what the account already
             // has — so skipping it is a decision the player is allowed to make silently.
             COLLECTION_CHOICE -> DASHBOARD
-            OPPONENTS, STATS, QUESTS, PVP, CARDS, DECKS, INVENTORY, SHOP, HELP -> DASHBOARD
-            // Reached from the lobby's own banner and from nowhere else, so it goes back there —
-            // even though it sits under the shop's tab, which is where it will *live*.
-            AUCTION -> DASHBOARD
-            // The course sits beside the rule book it ends at, and is reached from one place —
-            // see `LessonsScreen`, which explains why it left the opponent list.
-            LESSONS -> DASHBOARD
-            AVATAR, HISTORY -> STATS
-            MATCH, CAMPAIGN -> OPPONENTS
+            // Every root of a tab, and every sibling that shares one, backs out to the lobby.
+            // `AUCTION` is in the list rather than under `SHOP` for the same reason `DECKS` is not
+            // under `CARDS`: sibling tabs of one root are peers, and stepping back from a peer to
+            // a peer would make the chevron undo a tab press.
+            OPPONENTS, STATS, QUESTS, PVP, CAMPAIGNS, CARDS, DECKS, INVENTORY, SHOP, HELP,
+            AUCTION, LESSONS, HISTORY,
+            -> DASHBOARD
+            // The one screen the profile still opens *over* itself: choosing a face is a decision
+            // to make and leave, not a fourth tab.
+            AVATAR -> STATS
+            MATCH -> OPPONENTS
+            // A ladder is opened from the tournaments tab and backs out to it, not to the solo
+            // roster it used to be a carousel inside.
+            CAMPAIGN -> CAMPAIGNS
             TUTORIAL -> LESSONS
             PVP_MATCH, PVP_TABLE, PVP_CLAIM -> PVP
             CAMPAIGN_MATCH -> CAMPAIGN

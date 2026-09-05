@@ -4,7 +4,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.data.loadCardCatalog
 import com.tripletriad.data.loadNpcCatalog
@@ -24,7 +23,7 @@ class ArtworkUiTest {
     fun theRecordShowsTheCharactersAvatar() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
-        openFromDashboard(DASHBOARD_STATS_TEST_TAG, STATS_TABLE_TEST_TAG)
+        openFromDashboard(DASHBOARD_PROGRESS_TEST_TAG, STATS_TABLE_TEST_TAG)
 
         assertTrue(existsUnmerged(AVATAR_TEST_TAG), "the record should show the avatar")
     }
@@ -62,7 +61,7 @@ class ArtworkUiTest {
         val card = runBlocking { loadCardCatalog() }.all.first { it.id == first }
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
-        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
+        openDecks()
         onNodeWithTag(deckSlotTestTag(0)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
 
@@ -81,9 +80,9 @@ class ArtworkUiTest {
      * when the art arrived.
      *
      * It has to walk in through the lobby: the bodies' own tests provide the art themselves, so
-     * nothing below the app can see a provider that was never written. The clock is stopped on
-     * the way in because `AuctionSession.watch` is a poll that never finishes — see
-     * `AuctionUiTest`, which stops it for the same reason.
+     * nothing below the app can see a provider that was never written. The clock is stopped once
+     * inside because `AuctionSession.watch` is a poll that never finishes — see `AuctionUiTest`,
+     * which stops it for the same reason.
      */
     @Test
     fun theAuctionHouseIsGivenTheCardArt() = runComposeUiTest {
@@ -103,8 +102,11 @@ class ArtworkUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = server.connection) }
         openDashboard()
 
+        // The clock is pinned *after* the door, not before it: reaching the house now goes
+        // through the store tab and its own shelf, and a `waitUntil` on a frozen clock is a
+        // deadlock rather than a wait.
+        openAuction()
         mainClock.autoAdvance = false
-        onNodeWithTag(DASHBOARD_AUCTION_TEST_TAG).performScrollTo().performClick()
         mainClock.advanceTimeBy(A_SECOND)
         onNodeWithTag(screenTabTestTag("auction-sell")).performClick()
         mainClock.advanceTimeByFrame()

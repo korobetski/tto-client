@@ -4,6 +4,8 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.onNodeWithTag
@@ -146,6 +148,38 @@ class OptionsUiTest {
 
         assertTrue(isVisible("Vitesse d'animation"), "the label is not in French")
         assertTrue(isVisible("Instantanée"), "the crans are not in French")
+    }
+
+    @Test
+    fun theBoardsAidIsOnUntilItIsTurnedOff() = runComposeUiTest {
+        val store = InMemorySettingsStore("""{"language":"en_US"}""")
+        setContent { TestApp(store = store) }
+        openOptions()
+
+        // On by default: the digits are on screen either way, and the rule that combines them is
+        // what a new player is still learning. See `LocalCaptureHints`.
+        onNodeWithTag(OPTIONS_CAPTURE_HINTS_TEST_TAG).assertIsOn()
+
+        onNodeWithTag(OPTIONS_CAPTURE_HINTS_TEST_TAG).performClick()
+        waitForIdle()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { store.writes > 0 }
+
+        onNodeWithTag(OPTIONS_CAPTURE_HINTS_TEST_TAG).assertIsOff()
+        assertTrue(
+            store.stored.orEmpty().contains("\"capture_hints\": false"),
+            "the store still holds: ${store.stored.orEmpty()}",
+        )
+    }
+
+    @Test
+    fun theAidSaysWhatItDoesAndWhereItStops() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        openOptions()
+
+        // The note is not decoration: the label alone reads as "every capturing cell", which is
+        // the thing this deliberately is not.
+        assertTrue(isVisible("aiming at"), "the note does not say which cell it answers about")
+        assertTrue(isVisible("wager"), "the note does not say where it stops")
     }
 
     private fun ComposeUiTest.openOptions() {

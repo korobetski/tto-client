@@ -116,7 +116,7 @@ class AccountSettlementTest {
 
     private fun ComposeUiTest.openTheBag() {
         openDashboard()
-        openFromDashboard(DASHBOARD_INVENTORY_TEST_TAG, INVENTORY_LIST_TEST_TAG)
+        openInventory()
     }
 
     private class CreditingReporter(private val credit: () -> PlayerState?) : MatchReporter {

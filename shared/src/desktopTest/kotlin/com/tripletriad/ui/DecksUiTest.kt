@@ -1,6 +1,5 @@
 package com.tripletriad.ui
 
-import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -24,14 +23,10 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
 class DecksUiTest {
-    private fun ComposeUiTest.openDecks() {
-        newCharacter()
-        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
-    }
-
     @Test
     fun allFiveSlotsAreListedIncludingTheEmptyOnes() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        newCharacter()
         openDecks()
 
         for (slot in 0 until GameSave.MAX_DECKS) {
@@ -45,6 +40,7 @@ class DecksUiTest {
     @Test
     fun openingASlotShowsItsCardsAndBackReturnsToTheSlots() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        newCharacter()
         openDecks()
 
         onNodeWithTag(deckSlotTestTag(0)).performClick()
@@ -64,7 +60,7 @@ class DecksUiTest {
         val documents = seeded(freshSave())
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
-        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
+        openDecks()
 
         onNodeWithTag(deckSlotTestTag(0)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
@@ -84,7 +80,7 @@ class DecksUiTest {
         val documents = seeded(freshSave())
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
-        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
+        openDecks()
         val before = storedSave(documents)
 
         onNodeWithTag(deckSlotTestTag(0)).performClick()
@@ -102,7 +98,7 @@ class DecksUiTest {
         val documents = seeded(freshSave())
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
-        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
+        openDecks()
 
         onNodeWithTag(deckSlotTestTag(1)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
@@ -128,7 +124,7 @@ class DecksUiTest {
         val documents = seeded(extra)
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
-        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
+        openDecks()
 
         onNodeWithTag(deckSlotTestTag(0)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
@@ -152,7 +148,7 @@ class DecksUiTest {
         val documents = seeded(profile)
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
-        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
+        openDecks()
 
         onNodeWithTag(deckSlotTestTag(0)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
@@ -174,7 +170,7 @@ class DecksUiTest {
         val documents = seeded(profile)
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
-        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
+        openDecks()
 
         onNodeWithTag(deckSlotTestTag(0)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
@@ -213,7 +209,7 @@ class DecksUiTest {
         val documents = seeded(freshSave())
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
-        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
+        openDecks()
 
         onNodeWithTag(deckSlotTestTag(0)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
@@ -246,7 +242,7 @@ class DecksUiTest {
         val documents = seeded(twoDecks())
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
-        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
+        openDecks()
 
         onNodeWithTag(deckMoveDownTestTag(0)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
@@ -265,7 +261,7 @@ class DecksUiTest {
         val documents = seeded(twoDecks())
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
-        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
+        openDecks()
         val before = storedSave(documents).decks
 
         onNodeWithTag(deckMoveDownTestTag(0)).performClick()
@@ -284,6 +280,7 @@ class DecksUiTest {
     @Test
     fun theEndsOfTheListCannotBeMovedPastThem() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        newCharacter()
         openDecks()
 
         onNodeWithTag(deckMoveUpTestTag(0)).assertIsNotEnabled()
@@ -304,7 +301,7 @@ class DecksUiTest {
         val documents = seeded(freshSave())
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
-        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
+        openDecks()
 
         onNodeWithTag(deckSlotTestTag(0)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
@@ -323,7 +320,7 @@ class DecksUiTest {
         val documents = seeded(freshSave())
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
-        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
+        openDecks()
 
         onNodeWithTag(deckSlotTestTag(0)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
@@ -345,7 +342,7 @@ class DecksUiTest {
         val documents = seeded(freshSave())
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
-        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
+        openDecks()
 
         onNodeWithTag(deckSlotTestTag(1)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
@@ -364,7 +361,7 @@ class DecksUiTest {
         val documents = seeded(freshSave().withoutCard(lost))
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
-        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
+        openDecks()
 
         // Unmerged: the slot row is `ttoClickable`, which absorbs its descendants' semantics —
         // the same trap `deckPositionTestTag` documents one screen over.
@@ -383,6 +380,7 @@ class DecksUiTest {
     @Test
     fun anIntactDeckIsNotWarnedAbout() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        newCharacter()
         openDecks()
 
         onNodeWithTag(deckMissingTestTag(0), useUnmergedTree = true).assertDoesNotExist()
@@ -402,7 +400,7 @@ class DecksUiTest {
         val documents = seeded(withAces(deck = listOf(FIVE_STAR)))
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
-        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
+        openDecks()
 
         onNodeWithTag(deckSlotTestTag(0)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
@@ -416,7 +414,7 @@ class DecksUiTest {
         val documents = seeded(withAces(deck = listOf(FIVE_STAR)))
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
-        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
+        openDecks()
 
         onNodeWithTag(deckSlotTestTag(0)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
@@ -443,7 +441,7 @@ class DecksUiTest {
         val documents = seeded(withAces(deck = over))
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
-        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
+        openDecks()
 
         // Unmerged: the slot row is `ttoClickable`, which absorbs its descendants' semantics.
         onNodeWithTag(deckOverLimitTestTag(0), useUnmergedTree = true).assertExists()
@@ -474,6 +472,7 @@ class DecksUiTest {
     @Test
     fun fillingAnEmptyDraftProducesAFullLegalDeck() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        newCharacter()
         openDecks()
 
         // Slot 1 is empty on a fresh character; slot 0 holds the starter deck.
@@ -495,6 +494,7 @@ class DecksUiTest {
     @Test
     fun fillingIsRefusedOnceThereIsNothingLeftToAdd() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        newCharacter()
         openDecks()
 
         // The starter slot is already five cards, so the control has nothing to do on it.
@@ -507,6 +507,7 @@ class DecksUiTest {
     @Test
     fun duplicatingASlotCopiesItsCardsIntoTheFirstEmptyOne() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        newCharacter()
         openDecks()
 
         onNodeWithTag(deckCopyTestTag(0)).performClick()
@@ -523,6 +524,7 @@ class DecksUiTest {
     @Test
     fun anEmptySlotHasNothingToDuplicate() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        newCharacter()
         openDecks()
 
         // Drawn rather than hidden, so the eight rows stay the same width — see `StripButton`.

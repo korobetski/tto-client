@@ -1160,5 +1160,20 @@
   "APP_CARD_SOURCES_MORE": "+{0} autres",
   "APP_NO_CARD_SOURCE": "Personne ne la lâche et personne ne la vend pour l'instant.",
   "APP_QUEST_PLAY_5": "Jouer 5 matchs",
-  "APP_QUEST_WIN_5": "Gagner 5 matchs"
+  "APP_QUEST_WIN_5": "Gagner 5 matchs",
+  "APP_CAPTURE_HINTS": "Montrer ce qu’une carte prendrait",
+  "APP_CAPTURE_HINTS_NOTE": "Entoure les cartes que la case visée retournerait. Jamais sur une partie misée.",
+  "APP_CAPTURE_HINT_CELL": "serait prise",
+  "APP_QUESTS_WEEK": "Cette semaine · depuis le {0}",
+  "APP_QUEST_WEEK_DONE": "Semaine terminée",
+  "APP_QUEST_WEEK_WIN": "Gagner 15 matchs cette semaine",
+  "APP_QUEST_WEEK_PLAY": "Jouer 25 matchs cette semaine",
+  "APP_QUEST_WEEK_RULE": "Gagner 5 matchs avec {0}",
+  "APP_QUEST_WEEK_BEAT": "Battre {0} cinq fois",
+  "APP_QUEST_WEEK_PVP": "Jouer 5 matchs multijoueur",
+  "APP_LOBBY_PROGRESS": "Progression",
+  "APP_SUMMARY": "Résumé",
+  "APP_HISTORY_TAB": "Historique",
+  "APP_SOLO": "Solo",
+  "APP_ANY_RULE": "Toutes les règles"
 }

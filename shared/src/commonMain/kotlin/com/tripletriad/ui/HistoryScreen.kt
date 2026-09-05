@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -30,7 +31,6 @@ import com.tripletriad.data.NpcCatalog
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.Strings
-import com.tripletriad.model.GameSave
 import com.tripletriad.model.MatchRecord
 import com.tripletriad.model.MatchResult
 import com.tripletriad.model.OpponentKind
@@ -45,7 +45,7 @@ const val HISTORY_FORM_TEST_TAG: String = "history-form"
 fun historyRowTestTag(id: String): String = "history-$id"
 
 /**
- * Every match this character has finished, newest first.
+ * Every match this character has finished, newest first — the profile's third tab.
  *
  * ### What it says that the profile screen cannot
  *
@@ -68,40 +68,36 @@ fun historyRowTestTag(id: String): String = "history-$id"
  * daily total is a different screen's question and a chart of a dozen points is decoration.
  */
 @Composable
-internal fun HistoryScreen(
-    profile: GameSave,
+internal fun ColumnScope.HistoryBody(
     records: List<MatchRecord>,
     isLoading: Boolean,
     opponents: NpcCatalog?,
-    onBack: () -> Unit,
 ) {
     val strings = LocalStrings.current
     val tally = remember(records) { MatchTally.of(records) }
 
-    CharacterScaffold(profile = profile, title = strings[StringKeys.HISTORY], onBack = onBack) {
-        if (isLoading) {
-            LoadingNote(HISTORY_EMPTY_TEST_TAG)
-            return@CharacterScaffold
-        }
-        if (records.isEmpty()) {
-            EmptyNote(strings[StringKeys.NO_HISTORY], HISTORY_EMPTY_TEST_TAG)
-            return@CharacterScaffold
-        }
+    if (isLoading) {
+        LoadingNote(HISTORY_EMPTY_TEST_TAG)
+        return
+    }
+    if (records.isEmpty()) {
+        EmptyNote(strings[StringKeys.NO_HISTORY], HISTORY_EMPTY_TEST_TAG)
+        return
+    }
 
-        HistorySummary(tally)
-        FormStrip(records)
+    HistorySummary(tally)
+    FormStrip(records)
 
-        LazyColumn(
-            modifier = Modifier
-                .testTag(HISTORY_LIST_TEST_TAG)
-                .fillMaxWidth()
-                .weight(1f)
-                .padding(top = SpaceSm),
-            verticalArrangement = Arrangement.spacedBy(SpaceSm),
-        ) {
-            items(records, key = { it.id }) { record ->
-                HistoryRow(record = record, opponents = opponents)
-            }
+    LazyColumn(
+        modifier = Modifier
+            .testTag(HISTORY_LIST_TEST_TAG)
+            .fillMaxWidth()
+            .weight(1f)
+            .padding(top = SpaceSm),
+        verticalArrangement = Arrangement.spacedBy(SpaceSm),
+    ) {
+        items(records, key = { it.id }) { record ->
+            HistoryRow(record = record, opponents = opponents)
         }
     }
 }

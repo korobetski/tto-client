@@ -115,14 +115,13 @@ class OpponentUiTest {
         newCharacter()
         openOpponents()
 
-        // Scrolled to rather than assumed visible: the hub above the roster now carries a
-        // campaign rack and up to three shelves of its own, so a row that used to sit in the
-        // first screenful can sit well below it. That is the roster and the hub sharing one
-        // scroll, not a row that moved away.
+        // Scrolled to rather than assumed visible: the tab header and the filter row sit above
+        // the grid, and a tile that used to be in the first screenful can sit below them.
         onNodeWithTag(OPPONENT_LIST_TEST_TAG)
             .performScrollToNode(hasTestTag(opponentRowTestTag(TEST_OPPONENT)))
-        // The rules line moved into the detail sheet a tap opens — the row itself is 56 dp now
-        // and has no room left for it.
+        // What the *sheet* says, which is more than the tile can hold: the tile names the rules
+        // and the fee (`OpponentFilterUiTest`), the sheet also names the difficulty and labels
+        // the fee as one.
         onNodeWithTag(opponentRowTestTag(TEST_OPPONENT)).performClick()
 
         assertTrue(isVisible("All Open"), "tt-master imposes All Open and the sheet should say so")

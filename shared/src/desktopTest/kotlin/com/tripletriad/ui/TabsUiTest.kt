@@ -29,7 +29,7 @@ class TabsUiTest {
     fun theDecksEntryOpensTheSameScreenOnTheOtherTab() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
-        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
+        openDecks()
 
         assertTrue(exists(COLLECTION_TABS_TEST_TAG), "it should be the tabbed cards screen")
         onNodeWithTag(screenTabTestTag("cards")).performClick()
@@ -40,7 +40,7 @@ class TabsUiTest {
     fun backLeavesTheDeckEditorBeforeItLeavesTheScreen() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
-        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
+        openDecks()
 
         onNodeWithTag(deckSlotTestTag(0)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
@@ -72,7 +72,7 @@ class TabsUiTest {
     fun theBagEntryOpensTheSameScreenOnTheOtherTab() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
-        openFromDashboard(DASHBOARD_INVENTORY_TEST_TAG, INVENTORY_EMPTY_TEST_TAG)
+        openInventory()
 
         assertTrue(exists(STORE_TABS_TEST_TAG), "it should be the tabbed store screen")
         onNodeWithTag(screenTabTestTag("shop")).performClick()

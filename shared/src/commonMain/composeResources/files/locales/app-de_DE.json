@@ -1129,5 +1129,20 @@
   "APP_CARD_SOURCES_MORE": "+{0} weitere",
   "APP_NO_CARD_SOURCE": "Diese Karte lässt bisher niemand fallen und niemand verkauft sie.",
   "APP_QUEST_PLAY_5": "Spiele 5 Partien",
-  "APP_QUEST_WIN_5": "Gewinne 5 Partien"
+  "APP_QUEST_WIN_5": "Gewinne 5 Partien",
+  "APP_CAPTURE_HINTS": "Zeigen, was eine Karte erobern würde",
+  "APP_CAPTURE_HINTS_NOTE": "Umrandet die Karten, die das anvisierte Feld umdrehen würde. Nie bei Einsatz.",
+  "APP_CAPTURE_HINT_CELL": "würde erobert",
+  "APP_QUESTS_WEEK": "Diese Woche · seit {0}",
+  "APP_QUEST_WEEK_DONE": "Woche abgeschlossen",
+  "APP_QUEST_WEEK_WIN": "Gewinne diese Woche 15 Partien",
+  "APP_QUEST_WEEK_PLAY": "Spiele diese Woche 25 Partien",
+  "APP_QUEST_WEEK_RULE": "Gewinne 5 Partien mit {0}",
+  "APP_QUEST_WEEK_BEAT": "Besiege {0} fünfmal",
+  "APP_QUEST_WEEK_PVP": "Spiele 5 Mehrspieler-Partien",
+  "APP_LOBBY_PROGRESS": "Fortschritt",
+  "APP_SUMMARY": "Übersicht",
+  "APP_HISTORY_TAB": "Verlauf",
+  "APP_SOLO": "Solo",
+  "APP_ANY_RULE": "Alle Regeln"
 }

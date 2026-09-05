@@ -45,6 +45,7 @@ internal fun StoreScreen(
     initial: StoreTab,
     onUseItem: suspend (Item) -> ItemEffect?,
     onIntent: suspend (Intent) -> IntentOutcome,
+    onAuction: () -> Unit,
     onBack: () -> Unit,
 ) {
     val strings = LocalStrings.current
@@ -120,6 +121,7 @@ internal fun StoreScreen(
                 starters = starters,
                 selectedTag = selectedTag,
                 onSelect = { selectedTag = it },
+                onAuction = onAuction,
                 // Read from the profile rather than from a flag on it, so the panel disappears the
                 // moment the pack lands and comes back if a later build ever takes cards away.
                 onClaimStarter = if (!StarterPack.isOwedBy(profile)) {

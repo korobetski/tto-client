@@ -59,7 +59,7 @@ class AvatarUiTest {
     private fun ComposeUiTest.openPicker() {
         // The table rather than the level bar: the bar is on the lobby too now, so waiting
         // on it would be satisfied without having gone anywhere.
-        openFromDashboard(DASHBOARD_STATS_TEST_TAG, STATS_TABLE_TEST_TAG)
+        openFromDashboard(DASHBOARD_PROGRESS_TEST_TAG, STATS_TABLE_TEST_TAG)
         onNodeWithTag(AVATAR_TEST_TAG).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(AVATAR_GRID_TEST_TAG) }
     }

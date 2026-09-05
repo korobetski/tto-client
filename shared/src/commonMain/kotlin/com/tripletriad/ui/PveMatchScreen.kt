@@ -34,6 +34,7 @@ import com.tripletriad.model.DailyQuestCatalog
 import com.tripletriad.model.MatchResult
 import com.tripletriad.model.MatchView
 import com.tripletriad.model.Npc
+import com.tripletriad.model.WeeklyQuestCatalog
 import com.tripletriad.protocol.PveMove
 import com.tripletriad.protocol.RewardSummary
 import kotlinx.coroutines.delay
@@ -429,7 +430,20 @@ private fun PveExchange(
 internal fun quietMillis(view: MatchView): Long = maxOf(
     settleMillis(view.lastPlay),
     MatchBanner.afterPlacement(view).sumOf { it.totalMillis }.toLong(),
-)
+) + if (view.isFinished) LAST_FLIP_MS else 0L
+
+/**
+ * The extra beat the ninth card gets, and the third part of what happens on a last move.
+ *
+ * The other two are `MatchMix.silenced`, which stops the music on the same frame, and the score's
+ * own pulse. This is what gives them somewhere to land: without it the result panel opens over a
+ * card that is still turning, and the silence lasts no longer than the fade into a dialog.
+ *
+ * It is added *here* rather than in `settleMillis` because this is the one function that knows the
+ * board is full. And it lands exactly once: every other caller of [quietMillis] is asking how long
+ * until the **next** placement, and there is no next placement after the ninth.
+ */
+private const val LAST_FLIP_MS = 600L
 
 /** No board yet: the deal is in flight, or the connection is. */
 @Composable
@@ -518,6 +532,7 @@ internal fun RewardSummary.asMatchReward(
     items = items,
     achievements = achievementIds.mapNotNull(AchievementCatalog::get),
     quests = questIds.mapNotNull(DailyQuestCatalog::get),
+    weeklyQuests = weeklyQuestIds.mapNotNull(WeeklyQuestCatalog::get),
 )
 
 /**

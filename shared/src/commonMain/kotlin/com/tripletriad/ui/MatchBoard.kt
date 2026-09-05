@@ -45,11 +45,14 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tripletriad.i18n.LocalStrings
+import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.AscensionTally
 import com.tripletriad.model.Board
 import com.tripletriad.model.CaptureKind
@@ -132,6 +135,17 @@ internal fun PlayArea(
             onDrop = onDrop,
         )
     }
+    // What the aimed card would take, or nothing — see [capturePreview]. Computed here rather
+    // than in the grid because the *player's side* is a fact about the match and not about nine
+    // cells, and recomputed only when the aim or the held card moves: it is one `RulesEngine`
+    // resolve, and the grid recomposes on every drag frame.
+    val held = selected ?: drag.card.takeIf { drag.isDragging }
+    val aimed = drag.aimed()
+    val hinting = LocalCaptureHints.current
+    val preview = remember(view, held, aimed, hinting) {
+        if (hinting) capturePreview(view, held, aimed) else emptySet()
+    }
+
     val board: @Composable () -> Unit = {
         BoardGrid(
             board = view.board,
@@ -146,9 +160,11 @@ internal fun PlayArea(
             // need somewhere to go. Carried rather than reduced to a boolean because under the
             // Elemental rule the cells are not interchangeable: which of them helps depends on
             // *this* card's own element. See [TileCell].
-            held = selected ?: drag.card.takeIf { drag.isDragging },
+            held = held,
             highlights = highlights,
             waves = waves,
+            preview = preview,
+            jolt = view.joltAt(),
             onPlace = onPlace,
         )
     }
@@ -164,6 +180,7 @@ internal fun PlayArea(
     ) {
         PlayAreaContents(layout = layout, hand = hand, board = board)
         DragGhost(drag = drag, scale = layout.scale)
+        SilenceForTheLastFlip(view.isFinished)
     }
 }
 
@@ -316,12 +333,18 @@ internal fun BoardGrid(
     held: Card?,
     highlights: Map<Int, Set<Side>>,
     waves: Map<Int, Int>,
+    preview: Set<Int> = emptySet(),
+    // The placement a big chain landed on, or null. See [jolt].
+    jolt: Int? = null,
     onPlace: (Int) -> Unit,
 ) {
     val hovered = drag.hovered()
 
     Column(
-        modifier = Modifier.testTag(BOARD_TEST_TAG).padding(TileGap * scale),
+        modifier = Modifier
+            .testTag(BOARD_TEST_TAG)
+            .jolt(jolt)
+            .padding(TileGap * scale),
         verticalArrangement = Arrangement.spacedBy(TileGap * scale),
     ) {
         for (row in 0 until BOARD_WIDTH) {
@@ -331,7 +354,12 @@ internal fun BoardGrid(
                     val free = board.isEmpty(position)
 
                     DisposableEffect(position) {
-                        onDispose { drag.unregisterCell(position) }
+                        onDispose {
+                            drag.unregisterCell(position)
+                            // A cell that goes away under the pointer never gets its Exit, and a
+                            // stale hover would preview a move onto a cell that is now taken.
+                            drag.leave(position)
+                        }
                     }
 
                     TileCell(
@@ -346,8 +374,16 @@ internal fun BoardGrid(
                         held = held,
                         highlight = highlights[position].orEmpty(),
                         wave = waves[position] ?: 0,
+                        isPreviewed = position in preview,
                         modifier = Modifier
                             .testTag(tileTestTag(position))
+                            // A mouse resting on a free cell is aiming at it, which is the only
+                            // aim a desktop player who tapped their card has made — see
+                            // `BoardDragState.aimed`. Registered on the free cells only, for the
+                            // reason the drag bounds are: a taken cell is not a move.
+                            .then(
+                                if (free) Modifier.cellHover(drag, position) else Modifier,
+                            )
                             .onGloballyPositioned { coordinates ->
                                 // Only a free cell registers, so a drag over a taken one finds
                                 // nothing and [BoardDragState.drop] returns null.
@@ -387,19 +423,40 @@ private fun TileCell(
     held: Card?,
     highlight: Set<Side>,
     wave: Int,
+    isPreviewed: Boolean,
     modifier: Modifier,
 ) {
     val game = LocalTtoColors.current
+    val strings = LocalStrings.current
 
     Box(
         modifier = modifier
+            // The aid says the same thing to a reader that the ring says to an eye. A colour is
+            // the only channel the ring has, and "the cells that would flip" is exactly the kind
+            // of thing a player using a screen reader has no other way to be told. A
+            // `stateDescription` rather than a `contentDescription`, so it is added to the cell's
+            // own label — which is the card inside it — rather than replacing it.
+            .then(
+                if (isPreviewed) {
+                    Modifier.semantics {
+                        stateDescription = strings[StringKeys.CAPTURE_HINT_CELL]
+                    }
+                } else {
+                    Modifier
+                },
+            )
             .size(CardSpriteWidth * scale, CardSpriteHeight * scale)
             .clip(TileShape)
             .background(game.boardTile)
             .border(
-                width = if (isTarget) SelectionRingWidth else 1.dp,
+                // A previewed cell is ringed as loudly as the cell being aimed at, because it is
+                // the *answer* to the aim: a thinner ring would read as "maybe". It borrows the
+                // transient colour rather than the selection ring so the two are told apart at a
+                // glance — this is what would happen, that is where the card would go.
+                width = if (isTarget || isPreviewed) SelectionRingWidth else 1.dp,
                 color = when {
                     isTarget -> game.selectionRing
+                    isPreviewed -> game.transient
                     isOpen -> game.selectionRing.copy(alpha = OPEN_CELL_ALPHA)
                     else -> game.boardTileOutline
                 },

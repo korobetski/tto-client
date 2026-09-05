@@ -7,7 +7,6 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SkikoComposeUiTest
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.v2.runSkikoComposeUiTest
 import androidx.compose.ui.unit.Density
 import com.tripletriad.data.loadCardCatalog
@@ -140,7 +139,7 @@ class ScreenshotCapture {
     fun deckBuilder() = shoot("deck_builder", PHONE) {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
-        openFromDashboard(DASHBOARD_DECKS_TEST_TAG, DECK_LIST_TEST_TAG)
+        openDecks()
         onNodeWithTag(deckSlotTestTag(0)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
     }
@@ -180,7 +179,7 @@ class ScreenshotCapture {
         setContent { App(store = settingsFor(AppLocale.EN_US), server = server.connection) }
         openDashboard()
 
-        onNodeWithTag(DASHBOARD_AUCTION_TEST_TAG).performScrollTo().performClick()
+        openAuction()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(AUCTION_BOARD_TEST_TAG) }
         onNodeWithTag(auctionLotTestTag(SHOWN_LOT)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(AUCTION_DESK_SHEET_TEST_TAG) }
@@ -193,7 +192,7 @@ class ScreenshotCapture {
         setContent { App(store = settingsFor(AppLocale.EN_US), server = server.connection) }
         openDashboard()
 
-        onNodeWithTag(DASHBOARD_AUCTION_TEST_TAG).performScrollTo().performClick()
+        openAuction()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(AUCTION_BOARD_TEST_TAG) }
         onNodeWithTag(screenTabTestTag("auction-sell")).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(AUCTION_SELL_PICK_TEST_TAG) }
@@ -212,7 +211,7 @@ class ScreenshotCapture {
         setContent { App(store = settingsFor(AppLocale.EN_US), server = server.connection) }
         openDashboard()
 
-        onNodeWithTag(DASHBOARD_AUCTION_TEST_TAG).performScrollTo().performClick()
+        openAuction()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(AUCTION_BOARD_TEST_TAG) }
         onNodeWithTag(screenTabTestTag("auction-sell")).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(AUCTION_SELL_PICK_TEST_TAG) }

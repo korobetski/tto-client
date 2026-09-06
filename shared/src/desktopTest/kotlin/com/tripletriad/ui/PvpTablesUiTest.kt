@@ -3,6 +3,7 @@ package com.tripletriad.ui
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.i18n.AppLocale
@@ -11,6 +12,7 @@ import com.tripletriad.i18n.loadStrings
 import com.tripletriad.model.GameSave
 import com.tripletriad.net.PvpClient
 import com.tripletriad.protocol.PvpTable
+import com.tripletriad.protocol.Unlocks
 import com.tripletriad.ui.theme.TripleTriadTheme
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -52,6 +54,29 @@ class PvpTablesUiTest {
         onNodeWithTag(tableJoinTestTag(TABLE_ID)).assertDoesNotExist()
         onNodeWithTag(PVP_CANCEL_TABLE_TEST_TAG).assertExists()
         onNodeWithTag(PVP_HOST_TEST_TAG).assertDoesNotExist()
+    }
+
+    /**
+     * The level refereed play opens at, stated on the room rather than in a refusal after the fact.
+     *
+     * The other half of `LobbyUnlockUiTest`: that file covers the auction door and could not cover
+     * this one, because it runs with no server at all and this screen does not exist without one.
+     * The default profile here is a fresh character, which is exactly the player the line is for.
+     */
+    @Test
+    fun theRoomSaysWhichLevelOpensIt() = lobby {
+        onNodeWithTag(PVP_LOCK_TEST_TAG).assertExists()
+        // The level itself, and not merely a padlock: "you cannot yet" without the number is a
+        // player who has no idea whether they are one match away or twenty.
+        onNodeWithText("Unlocks at level ${Unlocks.DEFAULT_MULTIPLAYER}").assertExists()
+    }
+
+    /** And says nothing to somebody who is past it. */
+    @Test
+    fun aPlayerPastTheLevelIsNotToldAboutIt() = lobby(
+        profile = freshSave().copy(username = ME, level = Unlocks.DEFAULT_MULTIPLAYER),
+    ) {
+        onNodeWithTag(PVP_LOCK_TEST_TAG).assertDoesNotExist()
     }
 
     @Test
@@ -203,6 +228,58 @@ class PvpTablesUiTest {
         assertEquals(listOf("{}"), bodies, "the join carried $bodies")
     }
 
+    /**
+     * **Your own table is a state, not a button that changed its name.**
+     *
+     * It used to be the same full-width control as "Host a match", relabelled — so nothing on the
+     * screen said what you had opened or how long ago. What is asserted here is the line that
+     * could not exist before: the age of the table, read from `openedAt` against the clock the
+     * screen is given.
+     */
+    @Test
+    fun yourOwnTableSaysHowLongItHasBeenOpen() =
+        lobby(tables = listOf(tableJson(host = ME)), now = OPEN_MILLIS) {
+            onNodeWithTag(tableRowTestTag(TABLE_ID)).assertExists()
+            assertVisible("open for 4 min", "the card should say how long the table has stood")
+        }
+
+    @Test
+    fun aTableSaysHowLongItHasBeenOpen() {
+        val table = PvpTable(
+            id = TABLE_ID,
+            hostName = ME,
+            formatId = "free-play",
+            openedAt = NOW,
+            expiresAt = NOW + FIVE_MINUTES,
+        )
+
+        // Floored, not rounded up like `minutesLeft`: a table opened seconds ago has stood for
+        // zero minutes, and saying "1 min" of something that just happened is a small lie.
+        assertEquals(0, minutesSince(table, NOW))
+        assertEquals(OPEN_MINUTES - 1, minutesSince(table, NOW + OPEN_MILLIS - 1))
+        assertEquals(OPEN_MINUTES, minutesSince(table, NOW + OPEN_MILLIS))
+        // A clock that has not caught up with the server does not produce a negative age.
+        assertEquals(0, minutesSince(table, NOW - FIVE_MINUTES))
+    }
+
+    /**
+     * **An empty room is a page with three ways out, not a sentence.**
+     *
+     * Three people awake on a server this size is the ordinary state of the game, and the old
+     * screen answered it with "no one is offering a match right now" and nothing else — including
+     * no way at all to reach `onInvite`, which had existed since multiplayer did and had no door
+     * on any screen once its tab was the only one.
+     */
+    @Test
+    fun anEmptyRoomOffersThreeWaysOut() = lobby {
+        onNodeWithTag(PVP_HOST_TEST_TAG).assertExists()
+        onNodeWithTag(PVP_NAME_TEST_TAG).assertExists()
+        assertVisible(
+            "Solo matches still pay quests and XP.",
+            "the empty room should say what is still worth doing",
+        )
+    }
+
     /** Backing out of the deck question leaves the lobby as it was, and sends nothing. */
     @Test
     fun leavingTheDeckQuestionJoinsNothing() {
@@ -231,6 +308,7 @@ class PvpTablesUiTest {
     private fun lobby(
         tables: List<String> = emptyList(),
         claims: List<String> = emptyList(),
+        now: Long = NOW,
         refuse: Boolean = false,
         record: (String) -> Unit = {},
         body: (String) -> Unit = {},
@@ -288,7 +366,7 @@ class PvpTablesUiTest {
                         session = session,
                         catalog = pvpCards,
                         formats = pvpFormats,
-                        now = NOW,
+                        now = now,
                         onMatch = {},
                         onHost = {},
                         onInvite = {},
@@ -349,6 +427,10 @@ class PvpTablesUiTest {
         const val NOW = 0L
 
         const val FIVE_MINUTES = 300_000L
+
+        /** How long the table in `yourOwnTableSaysHowLongItHasBeenOpen` has stood. */
+        const val OPEN_MILLIS = 240_000L
+        const val OPEN_MINUTES = 4
         const val LIFETIME_MINUTES = 5
         const val TABLE_ID = "t-1"
     }

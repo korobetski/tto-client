@@ -18,6 +18,7 @@ import com.tripletriad.protocol.PvpChallenge
 import com.tripletriad.protocol.PvpMatchStatus
 import com.tripletriad.protocol.PvpMatchView
 import com.tripletriad.protocol.PvpMove
+import com.tripletriad.protocol.PvpPresence
 import com.tripletriad.protocol.PvpTable
 import com.tripletriad.protocol.PvpTableRequest
 import kotlinx.coroutines.delay
@@ -40,11 +41,31 @@ class PvpSession internal constructor(
     var challenges: List<PvpChallenge> by mutableStateOf(emptyList())
         private set
 
+    /**
+     * Who else is about, or null while nobody has answered that yet.
+     *
+     * Null and `PvpPresence()` are deliberately different states: "we have not asked" must not be
+     * drawn as "nobody is here", because the second is a reason not to open a table and the first
+     * is not a reason for anything.
+     */
+    var presence: PvpPresence? by mutableStateOf(null)
+        private set
+
     var isBusy: Boolean by mutableStateOf(false)
         private set
 
     var failure: AccountResult<*>? by mutableStateOf(null)
         private set
+
+    /**
+     * Invitations already announced, so the same one is not announced on every poll.
+     *
+     * Null until the first read, which is what makes that first read a *baseline* rather than a
+     * volley: an invitation that was already waiting when the app started is not news, and it is
+     * on the lobby screen where the player will see it. Only what arrives while they are watching
+     * something else is worth interrupting them for.
+     */
+    private var announced: Set<String>? = null
 
     private var dismissed: String? = null
 
@@ -102,11 +123,32 @@ class PvpSession internal constructor(
         }
     }
 
+    /**
+     * Reads who else is about. Failure leaves the last answer standing.
+     *
+     * The alternative — clearing it — would flicker the line off and back on across one dropped
+     * request, and a stale count of the room is a better answer than no count at all.
+     */
+    suspend fun refreshPresence() {
+        val token = tokenOf() ?: return
+        when (val result = client.presence(token)) {
+            is AccountResult.Ok -> presence = result.value
+            else -> Log.i(TAG) { "could not read who is about: $result" }
+        }
+    }
+
     suspend fun watchLobby() {
+        refreshPresence()
+        var ticks = 0
         while (match == null) {
             delay(WAIT_MILLIS)
             refreshTables()
             poll()
+            // Once a second for the tables, once every [PRESENCE_TICKS] for the room. The count is
+            // read at all because a player alone on the server should be told so *before* they
+            // open a table and wait at it; it is read rarely because it is the one thing on this
+            // screen that nothing acts on.
+            if (++ticks % PRESENCE_TICKS == 0) refreshPresence()
         }
     }
 
@@ -183,6 +225,20 @@ class PvpSession internal constructor(
                 Log.i(TAG) { "could not read the invitations: $result" }
             }
         }
+    }
+
+    /**
+     * The invitations that turned up since the last call, and never the same one twice.
+     *
+     * Reading is what marks them seen, so whoever announces them must be the only caller — see
+     * `watchAlerts`, which calls it whether or not it intends to announce anything, precisely so
+     * that invitations read on the lobby screen are not announced again on leaving it.
+     */
+    fun arrivals(): List<PvpChallenge> {
+        val received = challenges.filterNot { it.fromName.equals(hostName, true) }
+        val before = announced
+        announced = received.map { it.id }.toSet()
+        return if (before == null) emptyList() else received.filterNot { it.id in before }
     }
 
     suspend fun challenge(username: String, terms: PvpTableRequest) = request {
@@ -309,6 +365,8 @@ class PvpSession internal constructor(
         const val TAG = "PvpSession"
 
         const val WAIT_MILLIS = 1_000L
+
+        const val PRESENCE_TICKS = 15
     }
 }
 

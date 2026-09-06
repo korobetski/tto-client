@@ -400,6 +400,43 @@ internal val TUTORIAL_COURSE: List<TutorialLesson> = listOf(
     ),
 )
 
+/**
+ * The course in three chapters, which is the only shape twelve identical rows ever had.
+ *
+ * ### Why a span and not a set
+ *
+ * Progress through the course is an `Int` — the number of lessons finished — so what is done is
+ * always a *prefix*. A chapter that gathered lessons 2, 5 and 9 could not be given a bar at all:
+ * "two of three" would be true of three different sets of lessons and would say which only by
+ * accident. Chapters are therefore contiguous, and [first] alone defines them: each runs to the
+ * lesson before the next chapter's first, so no edit can leave a gap or an overlap between them.
+ *
+ * ### Why the first chapter holds one lesson
+ *
+ * That lesson is a whole match under All Open with nine lines of commentary — placing, capturing
+ * and counting, which is everything a player needs before a rule can mean anything. Splitting it
+ * into three rows would need three lessons that do not exist, and folding it into the captures
+ * would put "how a card is placed" under a heading about which card beats which.
+ */
+internal enum class LessonChapter(val slug: String, val labelKey: String, val first: Int) {
+    BASICS("basics", StringKeys.LESSON_CHAPTER_BASICS, 0),
+    CAPTURES("captures", StringKeys.LESSON_CHAPTER_CAPTURES, 1),
+    MATCHES("matches", StringKeys.LESSON_CHAPTER_MATCHES, 8),
+    ;
+
+    /** Where the chapter ends: the lesson before the next one starts, or the end of the course. */
+    val lessons: IntRange
+        get() = first..(entries.getOrNull(ordinal + 1)?.first?.minus(1) ?: TUTORIAL_COURSE.lastIndex)
+
+    /**
+     * How much of this chapter is behind the player.
+     *
+     * Clamped at both ends because [done] counts the whole course: a chapter the player has not
+     * reached is at zero rather than negative, and one they are past is full rather than over.
+     */
+    fun doneIn(done: Int): Int = (done - first).coerceIn(0, lessons.count())
+}
+
 internal val TUTORIAL_PUZZLES: List<TutorialPuzzle> = TUTORIAL_COURSE.mapNotNull { it.puzzle }
 
 internal val TUTORIAL_DRILLS: List<TutorialDrill> = TUTORIAL_COURSE.mapNotNull { it.drill }

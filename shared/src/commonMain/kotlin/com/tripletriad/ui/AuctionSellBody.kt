@@ -339,7 +339,7 @@ private fun ChosenCard(card: Card, spares: Int, onChange: () -> Unit) {
 /**
  * Every spare copy, as a grid with the collection's own filters over it.
  *
- * Not *like* the collection's grid — it is the same one. [rememberCardFilters], [CardFilterChips],
+ * Not *like* the collection's grid — it is the same one. [rememberCardFilters], [CardFilterMenus],
  * [CardGrid] and [CardCell] are what the card list is built from, because this is the same
  * question asked in a different room — *which of my cards* — and a player who has learned to find
  * a card once should not have to learn it again. What differs is the count in the corner: here it
@@ -373,7 +373,7 @@ private fun ColumnScope.SellPicker(
             }
         }
 
-        CardFilterChips(filters)
+        CardFilterMenus(filters)
 
         CardGrid(
             cards = shown,

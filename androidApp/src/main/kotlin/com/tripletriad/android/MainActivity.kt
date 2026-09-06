@@ -1,9 +1,14 @@
 package com.tripletriad.android
 
+import android.Manifest
 import android.content.pm.ApplicationInfo
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -47,6 +52,7 @@ class MainActivity : ComponentActivity() {
             MatchHistoryRepository.COLLECTION,
         )
         audio = AndroidAudioPlayer(applicationContext)
+        askToNotify()
         val server = buildServerConnection()
         setContent {
             App(
@@ -55,10 +61,31 @@ class MainActivity : ComponentActivity() {
                 history = history,
                 clock = AndroidClock,
                 audio = audio,
+                notifier = AndroidNotifier(applicationContext),
                 onQuit = ::quit,
                 server = server,
             )
         }
+    }
+
+    /**
+     * Asks for the notification permission once, at launch, and does nothing with the answer.
+     *
+     * Nothing, because there is nothing to do with it: `AndroidNotifier` checks the grant before
+     * every note it posts, so a refusal is already handled, and a callback here would only be a
+     * second place that could disagree with the first. Below API 33 the permission does not exist
+     * and the request is a no-op the framework answers immediately.
+     */
+    private fun askToNotify() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        val granted = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.POST_NOTIFICATIONS,
+        ) == PackageManager.PERMISSION_GRANTED
+        if (granted) return
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { allowed ->
+            Log.i(TAG) { "notifications allowed: $allowed" }
+        }.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
     private fun quit() {

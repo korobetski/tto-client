@@ -57,7 +57,7 @@ class TabsUiTest {
         newCharacter()
         openFromBar("store", SHOP_LIST_TEST_TAG)
         // Buy is in the purchase sheet now, and nothing has opened one. What says the shelf is
-        // up is the shelf itself — its three headers.
+        // up is the shelf itself — the chips that choose which of the three is on show.
         assertFalse(exists(SHOP_BUY_TEST_TAG), "nothing is picked, so there is nothing to buy")
         assertTrue(exists(shopShelfTestTag("boons")), "the shelf should name its sections")
 

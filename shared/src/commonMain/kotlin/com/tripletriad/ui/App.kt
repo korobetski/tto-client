@@ -34,11 +34,14 @@ import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.rememberStrings
+import com.tripletriad.model.GameRules
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.Npc
 import com.tripletriad.model.questDayOf
 import com.tripletriad.net.MatchReporter
 import com.tripletriad.net.ServerConnection
+import com.tripletriad.notify.Notifier
+import com.tripletriad.notify.SilentNotifier
 import com.tripletriad.protocol.ANY_DECK
 import com.tripletriad.protocol.PvpStakePolicy
 import com.tripletriad.protocol.Unlocks
@@ -76,6 +79,11 @@ fun App(
     history: DocumentStore = InMemoryDocumentStore(),
     clock: Clock = FixedClock(),
     audio: AudioPlayer = SilentAudioPlayer,
+    // Where a note goes when somebody is waiting on a player who is looking at another screen.
+    // Inert by default like the rest: a host that has not wired one up rings nothing, and neither
+    // does a test. See [watchAlerts] for the loop that decides what is worth a note, and
+    // [Notifier] for what this is not — nothing here is push, and nothing wakes a closed app.
+    notifier: Notifier = SilentNotifier,
     onQuit: () -> Unit = {},
     server: ServerConnection? = null,
     // The pace the game ships at, unless a test asks for less of it. See [Pacing]: at the default
@@ -191,6 +199,12 @@ fun App(
                 screen = screen,
                 onOpened = { screen = Screen.PVP_MATCH },
             )
+
+            // Everything else in this file watches for something to *draw*. This one watches for
+            // something to say while the player is drawing something else — an invitation, or a
+            // table of theirs being taken — and it is the only reason those two are noticed at all
+            // from outside the multiplayer screens. See [PvpAlerts].
+            AlertWatch(pvp = pvp, notifier = notifier, strings = strings, screen = screen)
 
             MatchSettlement(
                 reporter = reporter,
@@ -952,6 +966,10 @@ private fun CharacterDestination(
             formats = startup.formats,
             clock = clock,
             invitee = choice.invitee,
+            // The most recent row of this character's own history, which is what the book puts
+            // above its table of contents. Empty before the first match and offline alike.
+            lastRules = journal.records.firstOrNull()?.rules,
+            openAt = choice.helpRule,
             onMatch = { onNavigate(Screen.PVP_MATCH) },
             onHost = {
                 choice.invitee = null
@@ -1009,6 +1027,9 @@ private fun SocialDestination(
     formats: FormatCatalog?,
     clock: Clock,
     invitee: String?,
+    /** The rules of the most recent match — see [HelpScreen]. Null when none has been played. */
+    lastRules: GameRules?,
+    openAt: String?,
     onMatch: () -> Unit,
     onHost: () -> Unit,
     onInvite: (String) -> Unit,
@@ -1058,7 +1079,12 @@ private fun SocialDestination(
             }
         }
 
-        else -> HelpScreen(profile = profile, onBack = onBack)
+        else -> HelpScreen(
+            profile = profile,
+            lastRules = lastRules,
+            openAt = openAt,
+            onBack = onBack,
+        )
     }
 }
 
@@ -1483,6 +1509,15 @@ internal class Choice {
     var invitee: String? by mutableStateOf(null)
 
     var lesson: Int by mutableStateOf(0)
+
+    /**
+     * The rule book entry to open on arrival, set by whatever named the rule elsewhere.
+     *
+     * Cleared by nobody: it is read once, by the screen it is for, and a stale value only means
+     * the book opens where it was last opened from — which is where a player who came back for
+     * the same rule wants it.
+     */
+    var helpRule: String? by mutableStateOf(null)
 }
 
 internal val PLAYING_SCREENS =

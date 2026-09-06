@@ -13,6 +13,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -20,8 +21,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -34,21 +36,12 @@ import com.tripletriad.model.Card
 import com.tripletriad.model.Deck
 import com.tripletriad.model.DeckLimits
 import com.tripletriad.model.GameSave
-import com.tripletriad.model.HAND_SIZE
 import kotlinx.coroutines.launch
 
 const val DECK_LIST_TEST_TAG: String = "deck-list"
-fun deckMissingTestTag(index: Int): String = "deck-missing-$index"
 
-fun deckSlotTestTag(index: Int): String = "deck-slot-$index"
-
-fun deckOverLimitTestTag(index: Int): String = "deck-over-limit-$index"
-
-fun deckMoveUpTestTag(index: Int): String = "deck-move-up-$index"
-
-fun deckMoveDownTestTag(index: Int): String = "deck-move-down-$index"
-
-fun deckCopyTestTag(index: Int): String = "deck-copy-$index"
+/** The one row that stands for every slot still free. */
+const val DECK_NEW_TEST_TAG: String = "deck-new"
 
 @Composable
 internal fun ColumnScope.DecksBody(
@@ -81,6 +74,26 @@ internal fun ColumnScope.DecksBody(
     }
 }
 
+/**
+ * The decks a profile has, and one line standing for the slots it has not filled.
+ *
+ * ### Decks, not slots
+ *
+ * This drew all eight slots whether or not they held anything: seven empty rows, each with a
+ * duplicate button and two arrows that could do nothing, on a profile with one deck. Twenty-four
+ * dead controls answering a question — "how many slots are there" — nobody asks, in front of the
+ * one they do: *which of these can I play*.
+ *
+ * So an empty slot is not a row. The slots still exist — [GameSave.MAX_DECKS] of them, addressed
+ * by index everywhere — and the last line says how many are left, which is the only fact about an
+ * empty slot worth a line.
+ *
+ * ### Reordering is a swap between neighbours *in this list*
+ *
+ * Not between neighbouring slots. Slot 2 can be empty while slots 1 and 5 hold decks, and a swap
+ * with the empty one is a move that looks like nothing happened. So a row moves to the slot of the
+ * row drawn next to it, which is what the player is pointing at.
+ */
 @Composable
 private fun DeckSlots(
     profile: GameSave,
@@ -88,41 +101,138 @@ private fun DeckSlots(
     onEdit: (Int) -> Unit,
     onPersist: suspend (GameSave) -> Unit,
 ) {
+    val strings = LocalStrings.current
     val scope = rememberCoroutineScope()
 
     // The slot a duplicate would land in, or null when all eight are spoken for. Computed once for
-    // the whole list rather than per row: every row's copy button is about the same free slot, and
+    // the whole list rather than per row: every row's duplicate is about the same free slot, and
     // eight rows each scanning the list would be eight answers to one question.
     val free = remember(profile.decks) { firstEmptySlot(profile) }
+    val filled = remember(profile.decks) {
+        profile.decks.withIndex().filter { it.value.cards.isNotEmpty() }.map { it.index }
+    }
+
+    // Hoisted out of the rows, because a drag outlives the row it started on: the moment two decks
+    // swap, the deck under the finger is drawn one row further down while the pointer stream keeps
+    // arriving at the node it went down on. [dragged] follows the *deck*, by slot.
+    var dragged by remember { mutableStateOf<Int?>(null) }
+    var travel by remember { mutableStateOf(0f) }
+    var rowHeight by remember { mutableStateOf(0) }
+    val gap = with(LocalDensity.current) { SpaceSm.toPx() }
+
+    /**
+     * Takes a frame of the drag, and swaps two decks when the finger has carried one a whole row.
+     *
+     * What is left of the travel is carried across the swap — a whole step subtracted rather than
+     * a reset to zero — because otherwise the row would jump back under the finger every time it
+     * crossed one.
+     */
+    fun carry(delta: Float) {
+        val moved = travel + delta
+        val step = if (rowHeight > 0) rowHeight + gap else 0f
+        val here = dragged
+        val to = here?.let { draggedOnto(filled, it, moved, step) }
+        if (to == null || here == null) {
+            travel = moved
+            return
+        }
+        travel = moved - (if (moved > 0) step else -step)
+        dragged = to
+        scope.launch { onPersist(profile.withDecksSwapped(here, to)) }
+    }
 
     Column(
         modifier = Modifier.testTag(DECK_LIST_TEST_TAG).fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(SpaceSm),
     ) {
-        for (index in 0 until GameSave.MAX_DECKS) {
-            val deck = profile.decks.getOrNull(index) ?: Deck(name = "", cards = emptyList())
-            DeckSlotRow(
+        for ((row, index) in filled.withIndex()) {
+            val deck = profile.decks[index]
+            val move: (Int) -> Unit = { step ->
+                filled.getOrNull(row + step)?.let { to ->
+                    scope.launch { onPersist(profile.withDecksSwapped(index, to)) }
+                }
+            }
+            DeckCard(
                 index = index,
                 deck = deck,
                 cards = cards,
-                unowned = unownedPositions(deck, profile.cards),
-                overLimit = DeckLimits.overLimit(deck.cards, cards),
+                owned = profile.cards,
+                lifted = dragged == index,
+                travel = if (dragged == index) travel else 0f,
+                onMeasured = { rowHeight = it },
                 onClick = { onEdit(index) },
                 // A swap writes at once, with no Save to press: the list has no draft to hold it
                 // in, and a reordering the player has to confirm is one they can lose by walking
                 // away from the screen. The editor is the place with a draft; this is not it.
-                onMove = { to -> scope.launch { onPersist(profile.withDecksSwapped(index, to)) } },
-                // Null on an empty slot and on every row once the eight are full, which is what
-                // disables the button rather than hiding it — see [StripButton].
-                onCopy = (free to deck.cards.isNotEmpty()).let { (slot, filled) ->
-                    if (slot == null || !filled) {
-                        null
-                    } else {
-                        { scope.launch { onPersist(profile.withDeck(slot, deck)) } }
-                    }
+                onMoveUp = if (row > 0) ({ move(-1) }) else null,
+                onMoveDown = if (row < filled.lastIndex) ({ move(1) }) else null,
+                onCopy = free?.let { slot ->
+                    { scope.launch { onPersist(profile.withDeck(slot, deck)) } }
+                },
+                onGrab = {
+                    dragged = index
+                    travel = 0f
+                },
+                onDrag = { delta -> carry(delta) },
+                onDrop = {
+                    dragged = null
+                    travel = 0f
                 },
             )
         }
+
+        // The slots that are left, as one line rather than as one row each. It opens the editor on
+        // the first of them, which is exactly what tapping an empty slot used to do.
+        if (free != null) {
+            NewDeckRow(
+                slots = (free until GameSave.MAX_DECKS).count {
+                    profile.decks.getOrNull(it)?.cards.isNullOrEmpty()
+                },
+                onClick = { onEdit(free) },
+            )
+        }
+
+        // A profile can hold no deck at all — a starter profile always has one, but a player who
+        // empties theirs would otherwise be looking at a screen with one dashed line on it.
+        if (filled.isEmpty()) {
+            Text(
+                text = strings[StringKeys.DECK_NONE],
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.padding(horizontal = SpaceMd),
+            )
+        }
+    }
+}
+
+/** The dashed line that stands for every slot still free. */
+@Composable
+private fun NewDeckRow(slots: Int, onClick: () -> Unit) {
+    val strings = LocalStrings.current
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(DECK_NEW_TEST_TAG)
+            .rowSurface()
+            .ttoClickable(onClick = onClick)
+            .padding(SpaceMd),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(SpaceXs, Alignment.CenterHorizontally),
+    ) {
+        Text(
+            text = "+ ${strings[StringKeys.DECK_NEW]}",
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = SUBDUED),
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 1,
+        )
+        Text(
+            text = strings.format(StringKeys.DECK_FREE_SLOTS, "$slots"),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -137,152 +247,28 @@ private fun DeckSlots(
  * on a slot they never filled, and treating it as occupied would wedge the copy button on a profile
  * that had renamed all eight.
  */
+/**
+ * The slot a drag of [travel] pixels has carried the deck in slot [from] onto, or null while it is
+ * still over its own row.
+ *
+ * [step] is the row's own *measured* height plus the gap under it, so a deck swaps when it has
+ * been dragged over the deck beside it and not a moment before — the row grows a line when a deck
+ * is short of a card, and a hard-coded height would swap early on those. A step of zero is a list
+ * that has not been measured yet, which is not a list anything can have been dragged across.
+ *
+ * [filled] is the slots that hold a deck, in the order they are drawn. Neighbours in *that* list
+ * rather than neighbouring slots: slot 2 can be empty while 1 and 5 hold decks, and swapping with
+ * the empty one is a move that looks like nothing happened.
+ */
+internal fun draggedOnto(filled: List<Int>, from: Int, travel: Float, step: Float): Int? {
+    if (step <= 0f) return null
+    val towards = if (travel > 0) 1 else -1
+    if (travel * towards < step) return null
+    return filled.getOrNull(filled.indexOf(from) + towards)
+}
+
 internal fun firstEmptySlot(profile: GameSave): Int? =
     (0 until GameSave.MAX_DECKS).firstOrNull { profile.decks.getOrNull(it)?.cards.isNullOrEmpty() }
-
-@Composable
-@Suppress("LongParameterList")
-private fun DeckSlotRow(
-    index: Int,
-    deck: Deck,
-    cards: Map<Int, Card>,
-    unowned: Set<Int>,
-    overLimit: Map<Int, Int>,
-    onClick: () -> Unit,
-    onMove: (Int) -> Unit,
-    onCopy: (() -> Unit)?,
-) {
-    val strings = LocalStrings.current
-
-    // The surface and the two arrows are siblings, and only what is left of them opens the
-    // editor. Nesting the arrows inside the row's own `ttoClickable` would work — a merging node
-    // stays addressable inside another one — but it would put two meanings on one press area, and
-    // a mis-aimed tap on ↑ would open the slot instead of moving it.
-    Row(
-        modifier = Modifier.fillMaxWidth().rowSurface().padding(end = SpaceXs),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        // The tag stays on what *opens the deck* rather than on the surface around it: every
-        // caller taps it to reach the editor, and `SemanticsTest` reads a `Role.Button` off it.
-        // The surface is now only a container — the arrows are its other child.
-        DeckSlotFacts(
-            index = index,
-            deck = deck,
-            cards = cards,
-            unowned = unowned,
-            overLimit = overLimit,
-            modifier = Modifier
-                .weight(1f)
-                .testTag(deckSlotTestTag(index))
-                .ttoClickable(onClick = onClick)
-                .padding(SpaceMd),
-        )
-
-        // Its own column beside the arrows rather than a third button under them. The strip's
-        // height is what sets this row's, and a third 28 dp button would make every one of the
-        // eight rows taller for a control most of them are not about.
-        StripButton(
-            icon = TtoIcons.Copy,
-            description = strings[StringKeys.DECK_COPY],
-            tag = deckCopyTestTag(index),
-            enabled = onCopy != null,
-            onClick = { onCopy?.invoke() },
-        )
-
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            StripButton(
-                icon = TtoIcons.Collapse,
-                description = strings[StringKeys.MOVE_UP],
-                tag = deckMoveUpTestTag(index),
-                enabled = index > 0,
-                onClick = { onMove(index - 1) },
-            )
-            StripButton(
-                icon = TtoIcons.Expand,
-                description = strings[StringKeys.MOVE_DOWN],
-                tag = deckMoveDownTestTag(index),
-                enabled = index < GameSave.MAX_DECKS - 1,
-                onClick = { onMove(index + 1) },
-            )
-        }
-    }
-}
-
-@Composable
-private fun DeckSlotFacts(
-    index: Int,
-    deck: Deck,
-    cards: Map<Int, Card>,
-    unowned: Set<Int>,
-    overLimit: Map<Int, Int>,
-    modifier: Modifier,
-) {
-    val strings = LocalStrings.current
-
-    Row(
-        modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = deckLabel(strings, deck, index),
-                color = MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = "${deck.cards.size} / $HAND_SIZE$DOT_SEPARATOR" +
-                    "${strings[StringKeys.DECK_POWER]} ${deckPower(deck, cards)}",
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
-                style = MaterialTheme.typography.labelSmall,
-                // Two lines: this is `0 / 5 · Deck power 34`, the row also carries five
-                // thumbnails, and at one line the **number** is what falls off the end — so the
-                // line was clipping to `0 / 5 · Puissance du` and reporting no power at all.
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            // Said in words as well as in grey, because grey alone is a hint and this is a
-            // *reason*: a deck of five cards that never appears in the selector is otherwise a
-            // screen refusing to explain itself. `error` and not the faint tone the line above
-            // uses — every other line in this row is a fact about the deck, and this one is the
-            // only thing standing between the player and playing it.
-            if (unowned.isNotEmpty()) {
-                Text(
-                    text = strings.format(StringKeys.DECK_MISSING_CARDS, "${unowned.size}"),
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.testTag(deckMissingTestTag(index)),
-                )
-            }
-            // Said for the same reason the line above is, and in the same tone: a deck that never
-            // appears in the selector because it holds two five-stars is otherwise a screen
-            // refusing to explain itself, and this one is repairable in two taps.
-            if (overLimit.isNotEmpty()) {
-                Text(
-                    text = overLimitText(strings, overLimit),
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.testTag(deckOverLimitTestTag(index)),
-                )
-            }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(HairlineWidth)) {
-            for (position in 0 until HAND_SIZE) {
-                DeckPosition(
-                    card = deck.cards.getOrNull(position)?.let(cards::get),
-                    owned = position !in unowned,
-                )
-            }
-        }
-    }
-}
 
 /**
  * One small control in a strip beside something — a reordering arrow, or the duplicate beside a

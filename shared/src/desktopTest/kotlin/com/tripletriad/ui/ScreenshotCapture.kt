@@ -136,6 +136,14 @@ class ScreenshotCapture {
     }
 
     @Test
+    fun deckList() = shoot("deck_list", PHONE) {
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        newCharacter()
+        openDecks()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_LIST_TEST_TAG) }
+    }
+
+    @Test
     fun deckBuilder() = shoot("deck_builder", PHONE) {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()

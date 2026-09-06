@@ -6,6 +6,7 @@ import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -13,6 +14,7 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.LocalStrings
+import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.loadStrings
 import com.tripletriad.model.Card
 import com.tripletriad.model.GameSave
@@ -359,8 +361,8 @@ class AuctionUiTest {
      * The collection's own filters, over the seller's own spares.
      *
      * The point of the picker is that a card can be *found*, and 565 pictures in id order is not
-     * finding. One rarity chip is enough to prove the row is wired to the grid; the chips
-     * themselves are the card list's, and `CardListUiTest` is where they are read.
+     * finding. One rarity is enough to prove the menu is wired to the grid; the menus themselves
+     * are the card list's, and `CollectionUiTest` is where they are read.
      */
     @Test
     fun theFiltersNarrowWhatThePickerOffers() {
@@ -368,7 +370,12 @@ class AuctionUiTest {
             onNodeWithTag(AUCTION_SELL_PICK_TEST_TAG).performClick()
             onNodeWithTag(auctionSellCardTestTag(dear.id)).assertExists()
 
+            onNodeWithTag(CARD_RARITY_MENU_TEST_TAG).performClick()
+            waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
+                exists(rarityFilterTestTag(cheap.rarity))
+            }
             onNodeWithTag(rarityFilterTestTag(cheap.rarity)).performClick()
+            waitForIdle()
 
             onNodeWithTag(auctionSellCardTestTag(cheap.id)).assertExists()
             onNodeWithTag(auctionSellCardTestTag(dear.id)).assertDoesNotExist()
@@ -439,7 +446,156 @@ class AuctionUiTest {
         }
     }
 
+    // ---- The room ---------------------------------------------------------
+
+    /**
+     * The one question the house is opened with: is anybody selling *that* card.
+     *
+     * By the name on screen rather than by a card id, which is the only name a player has for it.
+     */
+    @Test
+    fun theRoomIsSearchedByTheNameOnTheCard() {
+        house(
+            listOf(lot(), lot(id = OTHER, cardId = dear.id)),
+            searchable = true,
+        ) {
+            onNodeWithTag(AUCTION_SEARCH_TEST_TAG).performTextReplacement(strings[dear.nameKey])
+
+            assertFalse(
+                exists(auctionLotTestTag(LOT)),
+                "a lot for another card survived the search",
+            )
+            assertTrue(exists(auctionLotTestTag(OTHER)), "the card searched for was hidden")
+        }
+    }
+
+    /**
+     * A room narrowed to nothing says so, and the chip that narrowed it is still there.
+     *
+     * The empty note is not the house's own "nothing is up for auction": one of them is a fact
+     * about the world and the other is something the player just did, and only the second has an
+     * undo.
+     */
+    @Test
+    fun aRoomNarrowedToNothingSaysSoWithoutHidingTheWayBack() {
+        house(listOf(lot()), searchable = true) {
+            onNodeWithTag(AUCTION_SEARCH_TEST_TAG).performTextReplacement("zzzz")
+
+            assertTrue(
+                exists(AUCTION_NO_MATCH_TEST_TAG),
+                "the room went blank instead of saying so",
+            )
+            assertFalse(exists("$AUCTION_BOARD_TEST_TAG-empty"), "an empty house was reported")
+            // The tag alone would pass with the empty-house sentence printed under it, which is
+            // the exact confusion this branch exists to avoid: the house is full, the query is not.
+            onNodeWithTag(AUCTION_NO_MATCH_TEST_TAG)
+                .assertTextEquals(strings[StringKeys.AUCTION_NO_MATCH])
+            onNodeWithTag(AUCTION_SEARCH_TEST_TAG).assertExists()
+            onNodeWithTag(auctionSortTestTag(AuctionSort.ENDING)).assertExists()
+        }
+    }
+
+    /** The default order: whatever order the house sent them in, the next one to go is on top. */
+    @Test
+    fun theRoomIsReadDeadlineFirstWhateverOrderTheHouseSentIt() {
+        house(
+            listOf(lot(endsIn = AN_HOUR), lot(id = OTHER, endsIn = A_MINUTE)),
+            searchable = true,
+        ) {
+            assertTrue(topOf(OTHER) < topOf(LOT), "the lot about to go was not at the top")
+        }
+    }
+
+    /** And the price chip changes it, which is the whole of the chips being wired to anything. */
+    @Test
+    fun thePriceChipReadsTheRoomCheapestFirst() {
+        house(
+            listOf(lot(startPrice = 900), lot(id = OTHER, startPrice = 100, endsIn = 2 * AN_HOUR)),
+            searchable = true,
+        ) {
+            assertTrue(topOf(LOT) < topOf(OTHER), "the room did not open deadline-first")
+
+            onNodeWithTag(auctionSortTestTag(AuctionSort.PRICE)).performClick()
+
+            assertTrue(topOf(OTHER) < topOf(LOT), "the cheaper lot was not brought to the top")
+        }
+    }
+
+    /**
+     * The collector's chip: what is here that I do not have.
+     *
+     * The profile owns one of the two cards, so exactly one lot survives — and the surviving row
+     * says why it survived, with the same word the chip is named after.
+     */
+    @Test
+    fun theMissingChipLeavesOnlyTheCardsThisPlayerHasNotGot() {
+        house(
+            listOf(lot(), lot(id = OTHER, cardId = dear.id)),
+            owns = mapOf(cheap.id to 1),
+            searchable = true,
+        ) {
+            onNodeWithTag(auctionSortTestTag(AuctionSort.MISSING)).performClick()
+
+            assertFalse(exists(auctionLotTestTag(LOT)), "a card already owned survived the chip")
+            assertTrue(
+                existsUnmerged(auctionPillTestTag(OTHER)),
+                "no pill on the lot that is missing",
+            )
+        }
+    }
+
+    // ---- The deadline as a shape -------------------------------------------
+
+    /**
+     * A deadline is a quantity that decreases, and it is drawn as one.
+     *
+     * The sentence it replaces is kept where it is still worth having — in the ring's own
+     * semantics, for a player who cannot see it — so this asserts both: the short number on the
+     * row, and that the row no longer spends a line on the long one.
+     */
+    @Test
+    fun aRunningLotWearsItsCountdownAsARingRatherThanASentence() {
+        house(listOf(lot(endsIn = 2 * AN_HOUR)), searchable = true) {
+            onNodeWithTag(auctionRingTestTag(LOT), useUnmergedTree = true)
+                .assertTextEquals(shortCountdown(strings, 2 * AN_HOUR))
+            assertFalse(
+                isVisible(
+                    strings.format(StringKeys.AUCTION_ENDS_IN, countdownText(strings, 2 * AN_HOUR)),
+                ),
+                "the row still spends a line on the sentence the ring replaced",
+            )
+        }
+    }
+
+    /** A lot that has ended has no countdown to draw, and says how it ended instead. */
+    @Test
+    fun aFinishedLotSaysHowItEndedAndWearsNoRing() {
+        house(listOf(lot(status = AuctionStatus.UNSOLD)), searchable = true) {
+            assertFalse(existsUnmerged(auctionRingTestTag(LOT)), "a finished lot is still counting")
+            assertVisible(
+                strings[StringKeys.AUCTION_STATUS_UNSOLD],
+                "the lot never said how it ended",
+            )
+        }
+    }
+
+    /**
+     * Being outbid is the one thing here that asks for a reaction, so it is a state and not a
+     * deduction from the price.
+     */
+    @Test
+    fun aLotYouHaveBeenOutbidOnWearsItOnTheRow() {
+        house(listOf(lot(topBid = 500, yourBid = 400, bidCount = 2)), searchable = true) {
+            onNodeWithTag(auctionPillTestTag(LOT), useUnmergedTree = true)
+                .assertTextEquals(strings[StringKeys.AUCTION_OUTBID])
+        }
+    }
+
     // ---- Harness ----------------------------------------------------------
+
+    /** Where a row sits down the list, which is the only way to read an order off a screen. */
+    private fun ComposeUiTest.topOf(lotId: String): Float =
+        onNodeWithTag(auctionLotTestTag(lotId)).fetchSemanticsNode().positionInRoot.y
 
     /** The room, read once and then left alone: no poll, so no clock to wait out. */
     @Suppress("LongParameterList")
@@ -447,6 +603,8 @@ class AuctionUiTest {
         lots: List<AuctionLot>,
         mgp: Int = PURSE,
         wide: Boolean = true,
+        owns: Map<Int, Int> = emptyMap(),
+        searchable: Boolean = false,
         block: ComposeUiTest.() -> Unit,
     ): MockEngine {
         val engine = pageEngine(lots)
@@ -468,12 +626,13 @@ class AuctionUiTest {
                                 session = session,
                                 lots = session.board,
                                 state = session.boardState,
-                                profile = purse(mgp),
+                                profile = purse(mgp).copy(cards = owns),
                                 cards = catalog,
                                 now = NOW,
                                 tag = AUCTION_BOARD_TEST_TAG,
                                 emptyText = "nothing",
                                 onRefresh = {},
+                                searchable = searchable,
                             )
                         }
                     }
@@ -598,20 +757,24 @@ class AuctionUiTest {
         startPrice: Int = FLOOR,
         yours: Boolean = false,
         topBid: Int? = null,
+        yourBid: Int? = null,
         bidCount: Int = 0,
         reservePrice: Int? = null,
         status: AuctionStatus = AuctionStatus.OPEN,
+        cardId: Int = cheap.id,
+        endsIn: Long = AN_HOUR,
     ) = AuctionLot(
         id = id,
-        cardId = cheap.id,
+        cardId = cardId,
         sellerName = "Kuplu",
         startPrice = startPrice,
-        endsAt = NOW + AN_HOUR,
+        endsAt = NOW + endsIn,
         status = status,
         topBid = topBid,
         bidCount = bidCount,
         reservePrice = reservePrice,
         yours = yours,
+        yourBid = yourBid,
     )
 
     private fun purse(mgp: Int) = GameSave.new(username = "Nael", createdAt = 0L).copy(mgp = mgp)
@@ -642,6 +805,7 @@ class AuctionUiTest {
         const val PURSE = 100_000
         const val NOW = 1_770_000_000_000L
         const val A_SECOND = 1_000L
+        const val A_MINUTE = 60L * 1_000L
         const val AN_HOUR = 60L * 60L * 1_000L
     }
 }

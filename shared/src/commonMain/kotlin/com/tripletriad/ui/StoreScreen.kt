@@ -152,6 +152,9 @@ internal fun StoreScreen(
                 onUse = onUseItem,
                 onIntent = onIntent,
                 onUnlocked = { unlocked = it },
+                // The empty bag's way out. The shop is the other tab of this very screen, so it
+                // is a tab change rather than a navigation.
+                onShop = { tab = StoreTab.SHOP },
             )
         }
     }

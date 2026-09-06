@@ -319,13 +319,76 @@ class StringsBundleTest {
         // every count moves by the same two and the four gaps stay where they were. Measured from
         // a `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted.
 
-        const val UNION_KEYS = 1856
+        //
+        // +7 to every bundle since: the multiplayer rebuild. Eight keys authored in all four
+        // `app-*` bundles — the four headings the one column is read by (`APP_PVP_WAITING`,
+        // `APP_PVP_TABLES_OPEN`, `APP_PVP_SENT`, `APP_PVP_FIND`), the age of your own table
+        // (`APP_PVP_TABLE_OPEN_SINCE`) and the three lines of the empty room — against one
+        // removed, `APP_PVP_NO_CHALLENGE`: there is no "no invitations" note any more, because
+        // the invitations section is only drawn when there are some. A key deleted from all four
+        // bundles moves every count and no gap, exactly as an added one does. Measured from a
+        // `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted.
+
+        // +3 to every bundle since: knowing whether anybody else is about. `APP_PVP_ONLINE_NOBODY`,
+        // `APP_PVP_ONLINE_ONE` and `APP_PVP_ONLINE_MANY` are one line in three readings — see
+        // `StringKeys.PVP_ONLINE_NOBODY` for why none of the three can be written as the others
+        // with a number substituted. Authored in all four `app-*` bundles at once, so every count
+        // moves by the same three and the four gaps stay where they were. Measured from a
+        // `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted.
+
+        // +4 to every bundle since: the notifications. Two notes, each a title and a body —
+        // `APP_NOTIFY_CHALLENGE_*` and `APP_NOTIFY_MATCH_*`. Authored in all four `app-*` bundles
+        // at once, so every count moves by the same four and the four gaps stay where they were.
+        // Measured from a `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted.
+
+        // +1 to every bundle since: `APP_CARD_SET`, the word the collection's set menu wears while
+        // it admits every set. The chip row it replaces never needed one — each chip carried a
+        // set's own name — and a closed menu names the question, not the answer. Authored in
+        // all four `app-*` bundles at once, so every count moves by the same one and the four gaps
+        // stay where they were. Measured from a
+        // `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted.
+
+        // +8 to every bundle since: the deck list's own vocabulary. Three states a deck can be in
+        // (`APP_DECK_PLAYABLE`, `APP_DECK_INCOMPLETE`, `APP_DECK_OUT_OF_LIMITS`), the line that
+        // stands for the empty slots and its count (`APP_DECK_NEW`, `APP_DECK_FREE_SLOTS`), the
+        // note a profile with no deck at all reads (`APP_DECK_NONE`), and the two controls that
+        // carry no words — the grip and the ⋮ (`APP_DECK_REORDER`, `APP_DECK_ACTIONS`). Authored
+        // in all four `app-*` bundles at once, so every count moves by the same eight and the four
+        // gaps stay where they were. Measured from a
+        // `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted.
+
+        // +4 to every bundle since: what a pack holds and what a purse is short of.
+        // `APP_PACK_CARDS` and `APP_PACK_MISSING` are the two numbers a booster tile now carries —
+        // how many cards come out and how many of the pool the collection still lacks —
+        // `APP_PACK_COMPLETE` is what the second becomes when the answer is none, and
+        // `APP_PRICE_SHORT` names the gap between a price and the purse instead of greying the
+        // offer out. Authored in all four `app-*` bundles at once, so every count moves by the
+        // same four and the four gaps stay where they were. Measured from a
+        // `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted.
+
+        // +5 to every bundle since: what an item in the bag does, and the confirmation over the
+        // stack. `APP_ITEM_EFFECT_BOON`, `APP_ITEM_EFFECT_CARD` and `APP_ITEM_EFFECT_POUCH` are the
+        // effect line each bag row now carries, `APP_SELL_ALL_CONFIRM` is what "sell all" renames
+        // itself to on the first tap, and `APP_ITEM_ACTIONS` names the row's ⋮ for a screen reader.
+        // Authored in all four `app-*` bundles at once, so every count moves by the same five and
+        // the four gaps stay where they were. Measured from a
+        // `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted.
+
+        // +4 to every bundle since: the sale room's own controls — `APP_AUCTION_SORT_ENDING` and
+        // `APP_AUCTION_SORT_PRICE` name two of the three chips above the list,
+        // `APP_AUCTION_MISSING` names the third and the pill on each row it leaves, and
+        // `APP_AUCTION_NO_MATCH` is what the room says when those controls have hidden every lot
+        // in it. Authored in all four `app-*` bundles at once, so every count moves by the same
+        // four and the four gaps stay where they were. Measured from a
+        // `:shared:desktopTest --tests "*StringsBundleTest*"` run on 2026-09-06 and pasted.
+
+        const val UNION_KEYS = 1892
 
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 1852,
-            AppLocale.FR_FR to 1853,
-            AppLocale.DE_DE to 1781,
-            AppLocale.JA_JA to 1813,
+            AppLocale.EN_US to 1888,
+            AppLocale.FR_FR to 1889,
+            AppLocale.DE_DE to 1817,
+            AppLocale.JA_JA to 1849,
         )
 
         val EXPECTED_GAPS = mapOf(

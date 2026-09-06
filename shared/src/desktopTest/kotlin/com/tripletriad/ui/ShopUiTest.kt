@@ -1,6 +1,6 @@
 package com.tripletriad.ui
 
-import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
@@ -9,7 +9,6 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
-import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.FF14_BLOCK
 import com.tripletriad.data.Inventory
@@ -40,12 +39,37 @@ class ShopUiTest {
         openFromBar("store", SHOP_LIST_TEST_TAG)
     }
 
+    /**
+     * Walks to one shelf, which is now a thing the shop can be on the wrong one of.
+     *
+     * The shelves used to be three sections of one scroller and every offer was reachable by
+     * scrolling far enough. One shelf shows at a time now — see `ShopBody` — so a test that wants
+     * a potion has to ask for the boons the way a player does.
+     */
+    private fun ComposeUiTest.shelf(slug: String) {
+        onNodeWithTag(shopShelfTestTag(slug)).performClick()
+        waitForIdle()
+    }
+
+    /**
+     * The words on one tagged line.
+     *
+     * Unmerged: every one of these lines is inside a tile that is itself clickable, and a
+     * clickable node swallows its descendants' text into one blob.
+     */
+    private fun ComposeUiTest.lineOf(tag: String): String =
+        onNodeWithTag(tag, useUnmergedTree = true)
+            .fetchSemanticsNode()
+            .config[SemanticsProperties.Text]
+            .joinToString("") { it.text }
+
     @Test
     fun buyingTakesTheMgpAndPutsTheItemInTheBag() = runComposeUiTest {
         val documents = seeded(profile(mgp = GameSave.STARTING_MGP))
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openShop(documents)
 
+        shelf("boons")
         val potion = ShopCatalog.ff14.first { it.item == PotionItem(PotionType.MGP) }
         onNodeWithTag(shopOfferTestTag(potion)).performClick()
         onNodeWithTag(SHOP_BUY_TEST_TAG).performClick()
@@ -64,6 +88,7 @@ class ShopUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openShop(documents)
 
+        shelf("cards")
         val expensive = ShopCatalog.ff14.first { it.item == CardItem(MILLION_MGP_CARD) }
         onNodeWithTag(SHOP_LIST_TEST_TAG)
             .performScrollToNode(hasTestTag(shopOfferTestTag(expensive)))
@@ -88,6 +113,7 @@ class ShopUiTest {
         assertFalse(exists(SHOP_SHEET_TEST_TAG), "no sheet before anything is picked")
         assertFalse(exists(SHOP_BUY_TEST_TAG), "and so no buy button")
 
+        shelf("boons")
         val potion = ShopCatalog.ff14.first { it.item == PotionItem(PotionType.MGP) }
         onNodeWithTag(shopOfferTestTag(potion)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(SHOP_BUY_TEST_TAG) }
@@ -101,6 +127,7 @@ class ShopUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openShop(documents)
 
+        shelf("boons")
         val potion = ShopCatalog.ff14.first { it.item == PotionItem(PotionType.MGP) }
         onNodeWithTag(shopOfferTestTag(potion)).performClick()
         onNodeWithTag(SHOP_BUY_TEST_TAG).performClick()
@@ -116,6 +143,7 @@ class ShopUiTest {
 
         // The sheet now closes itself on a buy — see `StoreScreen.buy` — so the second purchase
         // reopens it on the same offer rather than pressing a button that is no longer there.
+        shelf("boons")
         val potion = ShopCatalog.ff14.first { it.item == PotionItem(PotionType.MGP) }
         onNodeWithTag(shopOfferTestTag(potion)).performClick()
         onNodeWithTag(SHOP_BUY_TEST_TAG).performClick()
@@ -131,20 +159,100 @@ class ShopUiTest {
     }
 
     @Test
-    fun bothShelvesAreOnOneScreen() = runComposeUiTest {
+    fun eachShelfIsOneChipAwayAndOnlyOneIsOnScreen() = runComposeUiTest {
         val documents = seeded(profile(mgp = ENOUGH_FOR_ANY_PACK))
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openShop(documents)
 
         // Only the item decides the tag; the price is derived and not what this test is about.
         val bronze = ShopOffer(BoosterItem(BoosterType.BRONZE), price = 1)
-        onNodeWithTag(SHOP_LIST_TEST_TAG)
-            .performScrollToNode(hasTestTag(shopOfferTestTag(bronze)))
-        onNodeWithTag(shopOfferTestTag(bronze)).assertExists()
+        val card = ShopCatalog.ff8.last()
 
+        // The shop opens on the packs, and the cards are not underneath them any more: the rack
+        // and the grid used to share one scroller, which is the second axis this replaces.
+        onNodeWithTag(shopOfferTestTag(bronze)).assertExists()
+        assertFalse(exists(shopOfferTestTag(card)), "the cards are on their own shelf")
+
+        shelf("cards")
+        onNodeWithTag(SHOP_LIST_TEST_TAG).performScrollToNode(hasTestTag(shopOfferTestTag(card)))
+        onNodeWithTag(shopOfferTestTag(card)).assertExists()
+        assertFalse(exists(shopOfferTestTag(bronze)), "and the packs went with their shelf")
+    }
+
+    /**
+     * **A pack says how much of its pool the collection is still missing.**
+     *
+     * The number the purchase actually turns on, and the one the shelf never carried: two packs
+     * at the same price are not the same offer when one of them can only hand back duplicates.
+     * It is read off `BoosterType.pool` against the profile's own cards — see `packFacts` — so
+     * nothing is fetched to say it.
+     *
+     * Asserted at both ends, because a line that says "6 still missing" whatever the collection
+     * holds is not a fact about the collection.
+     */
+    @Test
+    fun aPackSaysHowMuchOfItsPoolTheCollectionLacks() = runComposeUiTest {
+        val pool = BoosterType.BRONZE.pool
+        val documents = seeded(profile(mgp = ENOUGH_FOR_ANY_PACK).copy(cards = emptyMap()))
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openShop(documents)
+
+        val bronze = ShopOffer(BoosterItem(BoosterType.BRONZE), price = 1)
+        onNodeWithTag(SHOP_LIST_TEST_TAG).performScrollToNode(hasTestTag(shopOfferTestTag(bronze)))
+        assertEquals(
+            "${pool.size} still missing",
+            lineOf(shopPackMissingTestTag(bronze)),
+            "a collection holding none of the pool is missing all of it",
+        )
+    }
+
+    @Test
+    fun aPackWhosePoolIsOwnedSaysSoInsteadOfCountingNothing() = runComposeUiTest {
+        val owned = BoosterType.BRONZE.pool.associateWith { 1 }
+        val documents = seeded(profile(mgp = ENOUGH_FOR_ANY_PACK).copy(cards = owned))
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openShop(documents)
+
+        val bronze = ShopOffer(BoosterItem(BoosterType.BRONZE), price = 1)
+        onNodeWithTag(SHOP_LIST_TEST_TAG).performScrollToNode(hasTestTag(shopOfferTestTag(bronze)))
+        assertEquals(
+            "collection complete",
+            lineOf(shopPackMissingTestTag(bronze)),
+            "\"0 still missing\" is a sentence nobody writes",
+        )
+    }
+
+    /**
+     * **An unaffordable price says what is missing rather than only turning red.**
+     *
+     * "You need 400 more" is a match away and a grey button is not an instruction. The gap is
+     * the client's own arithmetic over a price the client already has — the purchase itself is
+     * still the server's to refuse, which is what `SHOP_BUY_TEST_TAG` staying disabled says.
+     */
+    @Test
+    fun aPriceOutOfReachNamesTheGap() = runComposeUiTest {
+        val documents = seeded(profile(mgp = GameSave.STARTING_MGP))
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openShop(documents)
+
+        shelf("cards")
+        val expensive = ShopCatalog.ff14.first { it.item == CardItem(MILLION_MGP_CARD) }
         onNodeWithTag(SHOP_LIST_TEST_TAG)
-            .performScrollToNode(hasTestTag(shopOfferTestTag(ShopCatalog.ff8.last())))
-        onNodeWithTag(shopOfferTestTag(ShopCatalog.ff8.last())).assertExists()
+            .performScrollToNode(hasTestTag(shopOfferTestTag(expensive)))
+
+        val short = expensive.price - GameSave.STARTING_MGP
+        assertEquals(
+            "you need ${grouped(short)} more",
+            lineOf(shopShortTestTag(expensive)),
+            "the shelf should name the gap it is asking to be closed",
+        )
+
+        val potion = ShopCatalog.ff14.first { it.item == PotionItem(PotionType.MGP) }
+        shelf("boons")
+        assertFalse(
+            exists(shopShortTestTag(potion)),
+            "an affordable offer is short of nothing and says nothing",
+        )
     }
 
     @Test
@@ -157,6 +265,7 @@ class ShopUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openShop(documents)
 
+        shelf("cards")
         onNodeWithTag(SHOP_LIST_TEST_TAG).performScrollToNode(hasTestTag(shopOfferTestTag(offer)))
         onNodeWithTag(shopOfferTestTag(offer)).performClick()
         onNodeWithTag(SHOP_BUY_TEST_TAG).performClick()
@@ -203,70 +312,11 @@ class ShopUiTest {
         assertFalse(exists(SHOP_STARTER_TEST_TAG), "a playable character is owed nothing")
     }
 
-    /**
-     * **The booster rack is scrollable with a mouse**, which for a long while it was not.
-     *
-     * The rack holds nine packs and shows about four. `ScrollHint` was drawn under it as an
-     * indicator, on the claim that the rack "answers shift+wheel on a desktop" — it does not: a
-     * horizontal scroll delta reaches it and moves nothing, and a vertical one belongs to the page.
-     * That left pressing the mouse on a *pack tile* and hauling it sideways as the only way to see
-     * the other five, on a control whose whole job is to be clicked.
-     *
-     * So the bar is a scrollbar now, and this is the assertion that dragging it moves the rack.
-     * Measured on a tile's position rather than on `ScrollState`, because the state is private to
-     * the composable and what is being claimed is that the packs move.
-     *
-     * The drag starts at the **centre**: the bar is inset by `SpaceLg` at both ends, so a gesture
-     * beginning at the node's edge starts in the padding and is never seen — which is a fair
-     * description of the bug this replaces, and not something to reproduce in the test for it.
-     */
-    @Test
-    fun theBoosterRackScrollsFromItsScrollbar() = runComposeUiTest {
-        val documents = seeded(profile(mgp = ENOUGH_FOR_ANY_PACK))
-        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
-        openShop(documents)
-
-        val bronze = ShopOffer(BoosterItem(BoosterType.BRONZE), price = 1)
-        val tag = shopOfferTestTag(bronze)
-        fun packAt(): Float = onNodeWithTag(tag).fetchSemanticsNode().positionInRoot.x
-
-        assertTrue(
-            exists(SHOP_RACK_HINT_TEST_TAG),
-            "nine packs do not fit; the bar should be there",
-        )
-        val start = packAt()
-
-        onNodeWithTag(SHOP_RACK_HINT_TEST_TAG).performTouchInput {
-            down(center)
-            moveBy(Offset(RACK_DRAG_PX, 0f))
-            up()
-        }
-        waitForIdle()
-
-        val dragged = packAt()
-        assertTrue(
-            dragged < start,
-            "dragging the bar right should carry the rack left: $start -> $dragged",
-        )
-
-        onNodeWithTag(SHOP_RACK_HINT_TEST_TAG).performTouchInput {
-            down(center)
-            moveBy(Offset(-RACK_DRAG_PX, 0f))
-            up()
-        }
-        waitForIdle()
-
-        assertEquals(start, packAt(), "and dragging it back should return the rack")
-    }
-
     private companion object {
         val MILLION_MGP_CARD = Card.idFor(block = 1, number = 74)
 
         val CHEAP_CARD = Card.idFor(block = 1, number = 2)
 
         const val ENOUGH_FOR_ANY_PACK = 200_000
-
-        /** Well past the touch slop, and well short of the track: the rack must not hit its end. */
-        const val RACK_DRAG_PX = 60f
     }
 }

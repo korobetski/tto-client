@@ -10,10 +10,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,9 +29,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
+import com.tripletriad.model.GameRules
 import com.tripletriad.model.GameSave
 
 const val HELP_LIST_TEST_TAG: String = "help-list"
+
+const val HELP_SEARCH_TEST_TAG: String = "help-search"
+const val HELP_SEARCH_CLEAR_TEST_TAG: String = "help-search-clear"
+const val HELP_NO_MATCH_TEST_TAG: String = "help-no-match"
 
 fun helpRuleTestTag(ruleKey: String): String = "help-rule-$ruleKey"
 
@@ -37,19 +44,128 @@ fun helpTextTestTag(ruleKey: String): String = "help-text-$ruleKey"
 
 fun helpFamilyTestTag(labelKey: String): String = "help-family-$labelKey"
 
+/**
+ * A section of the book: a family, or the handful of rules the last match was played under.
+ *
+ * The last match is a section rather than a shelf of chips because it is read the same way as a
+ * family — a heading and rows that open — and a player who has just come off a board looking for
+ * *why did that happen* should find the entry where entries live.
+ */
+internal data class HelpSection(val labelKey: String, val rules: List<String>)
+
+/**
+ * The book as it is shown: what the search admits, under the headings it belongs to.
+ *
+ * Pure, and apart from the composable for the reason `roomLots` is: an order and a filter are
+ * invisible to any test that only checks the rows exist.
+ *
+ * The search reads **the name and the paragraph**, not the name alone. Somebody who half-remembers
+ * a rule types what it does — "wall", "element" — and a book of seventeen entries that only
+ * matched titles would answer nothing to the question it exists for.
+ *
+ * A search hides the last-match section. It is a shortcut past the table of contents, and a player
+ * who is typing has already gone past it; leaving it would print three rules twice.
+ *
+ * @param lastRules the rules of the most recent match, or empty when there is no match to read.
+ */
+internal fun helpSections(
+    query: String,
+    lastRules: List<String>,
+    nameOf: (String) -> String,
+    textOf: (String) -> String,
+): List<HelpSection> {
+    val needle = query.trim()
+    val matches: (String) -> Boolean = { key ->
+        needle.isEmpty() ||
+            nameOf(key).contains(needle, ignoreCase = true) ||
+            textOf(key).contains(needle, ignoreCase = true)
+    }
+
+    val recent = lastRules.filter { it in HELP_RULES }
+    val head = if (needle.isEmpty() && recent.isNotEmpty()) {
+        listOf(HelpSection(StringKeys.HELP_LAST_MATCH, recent))
+    } else {
+        emptyList()
+    }
+
+    return head + HELP_FAMILIES.mapNotNull { family ->
+        family.rules.filter(matches)
+            .takeIf { it.isNotEmpty() }
+            ?.let { HelpSection(family.labelKey, it) }
+    }
+}
+
+/**
+ * The rule book.
+ *
+ * @param lastRules what the most recent match was played under, so the three or four rules a
+ *   player has just met are in front of the seventeen they have not. Null before a match has been
+ *   played, and on a profile whose history is unreadable — both mean "nothing to put on top".
+ * @param openAt the entry to open on arrival, which is how a lesson's rule pill lands here.
+ */
 @Composable
-internal fun HelpScreen(profile: GameSave, onBack: () -> Unit) {
+internal fun HelpScreen(
+    profile: GameSave,
+    lastRules: GameRules?,
+    openAt: String?,
+    onBack: () -> Unit,
+) {
     val strings = LocalStrings.current
-    var open by remember { mutableStateOf<String?>(null) }
+    var query by remember { mutableStateOf("") }
+
+    // Keyed on the request, so arriving from a lesson opens that rule and a second arrival at the
+    // same rule does not fight the player closing it.
+    var open by remember(openAt) { mutableStateOf(openAt) }
+
+    val recent = remember(lastRules) { lastRules?.activeRuleKeys().orEmpty() }
+    val sections = remember(query, recent, strings) {
+        helpSections(
+            query = query,
+            lastRules = recent,
+            nameOf = { strings[it] },
+            // Absent rather than a key: the four locales do not describe the same set, and a rule
+            // with no paragraph is then searchable by its name alone rather than by "RULE_X_HELP".
+            textOf = { key -> "${key}_HELP".let { if (strings.has(it)) strings[it] else "" } },
+        )
+    }
+
+    val listState = rememberLazyListState()
 
     CharacterScaffold(profile = profile, title = strings[StringKeys.HELP], onBack = onBack) {
+        TtoSearchField(
+            value = query,
+            onValueChange = { query = it },
+            tag = HELP_SEARCH_TEST_TAG,
+            clearTag = HELP_SEARCH_CLEAR_TEST_TAG,
+            placeholder = strings[StringKeys.HELP_SEARCH],
+            modifier = Modifier.fillMaxWidth().padding(bottom = SpaceSm),
+        )
+
+        // A book with entries but none of them shown is something the player did, and the search
+        // above is still full: this says which word to take back out.
+        if (sections.isEmpty()) {
+            EmptyNote(strings[StringKeys.HELP_NO_MATCH], HELP_NO_MATCH_TEST_TAG)
+            return@CharacterScaffold
+        }
+
+        // An entry opened from elsewhere is opened *and shown*. Seventeen rows and four headings
+        // are taller than a phone, so a rule the player asked for by name can be expanded well
+        // below the fold — which looks exactly like nothing having happened.
+        LaunchedEffect(open, sections) {
+            val index = open?.let { rule -> rowIndexOf(sections, rule) } ?: return@LaunchedEffect
+            listState.animateScrollToItem(index)
+        }
+
         LazyColumn(
+            state = listState,
             modifier = Modifier.testTag(HELP_LIST_TEST_TAG).fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(SpaceSm),
         ) {
-            for (family in HELP_FAMILIES) {
-                item(key = family.labelKey) { HelpSectionHeader(family.labelKey) }
-                items(family.rules, key = { it }) { ruleKey ->
+            for (section in sections) {
+                item(key = "section-${section.labelKey}") {
+                    HelpSectionHeader(section.labelKey)
+                }
+                items(section.rules, key = { "${section.labelKey}-$it" }) { ruleKey ->
                     HelpRow(
                         ruleKey = ruleKey,
                         isOpen = open == ruleKey,
@@ -59,6 +175,24 @@ internal fun HelpScreen(profile: GameSave, onBack: () -> Unit) {
             }
         }
     }
+}
+
+/**
+ * Where a rule's row sits in the flat list the `LazyColumn` lays out.
+ *
+ * Headings are items too, which is what makes this arithmetic rather than an `indexOf`. The first
+ * occurrence wins: a rule in the last-match section is also in its family, and scrolling to the
+ * copy the player can see without scrolling is the right one of the two.
+ */
+internal fun rowIndexOf(sections: List<HelpSection>, ruleKey: String): Int? {
+    var index = 0
+    for (section in sections) {
+        index++
+        val at = section.rules.indexOf(ruleKey)
+        if (at >= 0) return index + at
+        index += section.rules.size
+    }
+    return null
 }
 
 @Composable
@@ -127,13 +261,20 @@ private fun HelpRow(ruleKey: String, isOpen: Boolean, onClick: () -> Unit) {
         // `AnimatedVisibility` rather than an `if`, so the text slides in instead of the row
         // snapping to twice its height — an accordion that jumps reads as a layout bug.
         AnimatedVisibility(visible = isOpen) {
-            Text(
-                // The French bundle sets the "FF14 only" qualifier in italics — see [markup].
-                text = markup(strings["${ruleKey}_HELP"]),
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.testTag(helpTextTestTag(ruleKey)),
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(SpaceMd)) {
+                Text(
+                    // The French bundle sets the "FF14 only" qualifier in italics — see [markup].
+                    text = markup(strings["${ruleKey}_HELP"]),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.testTag(helpTextTestTag(ruleKey)),
+                )
+                // Under the paragraph and not instead of it: the picture settles which way the
+                // rule runs, the paragraph says what it is called and where it applies.
+                RULE_DIAGRAMS[ruleKey]?.let { frames ->
+                    RuleDiagram(ruleKey = ruleKey, frames = frames)
+                }
+            }
         }
     }
 }

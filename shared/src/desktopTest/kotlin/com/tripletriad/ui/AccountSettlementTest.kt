@@ -2,8 +2,6 @@ package com.tripletriad.ui
 
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.data.Inventory
 import com.tripletriad.i18n.AppLocale
@@ -67,8 +65,7 @@ class AccountSettlementTest {
         }
         openTheBag()
 
-        onNodeWithTag(inventoryRowTestTag(CardItem(WON_CARD))).performClick()
-        onNodeWithTag(INVENTORY_USE_TEST_TAG).performClick()
+        useItem(CardItem(WON_CARD))
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { stored.save.ownsCard(WON_CARD) }
 
         assertEquals(listOf(accountKey), reporter.drained, "the queue was not drained at launch")

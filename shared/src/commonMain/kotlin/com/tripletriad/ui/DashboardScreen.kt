@@ -168,16 +168,24 @@ internal fun DashboardScreen(
                 .padding(bottom = SpaceMd),
             verticalArrangement = Arrangement.spacedBy(SpaceSm),
         ) {
+            // Where the player is, before what they can do about it. The lobby opens on the
+            // level, the purse and the collection because those are what the session before this
+            // one *moved* — the hero below is the same one tap whether it is read first or not,
+            // and putting the meter under it made the progress the reward for scrolling.
+            SectionHeader(strings[StringKeys.LOBBY_PROGRESS])
+            ProgressCard(profile = profile, collection = collection, onOpen = onStats)
+
             // One hero, never two. A prize on a deadline outranks a live match, a live match
             // outranks "go and play" — and whichever wins is the whole answer to "what now".
             if (resume != null) {
-                SectionHeader(strings[StringKeys.LOBBY_RESUME])
+                SectionHeader(strings[StringKeys.LOBBY_RESUME], Modifier.padding(top = SpaceSm))
                 ResumeCard(resume)
             } else {
                 HomeCard(
                     label = strings[StringKeys.PLAY],
                     icon = TtoIcons.Play,
                     tag = DASHBOARD_PLAY_TEST_TAG,
+                    modifier = Modifier.padding(top = SpaceSm),
                     accented = true,
                     onClick = onPlay,
                 )
@@ -194,9 +202,6 @@ internal fun DashboardScreen(
                 formatId = formatId,
                 onOpen = onQuests,
             )
-
-            SectionHeader(strings[StringKeys.LOBBY_PROGRESS], Modifier.padding(top = SpaceSm))
-            ProgressCard(profile = profile, collection = collection, onOpen = onStats)
 
             HorizontalDivider(
                 modifier = Modifier.padding(top = SpaceMd),
@@ -620,6 +625,7 @@ internal fun HomeCard(
     label: String,
     icon: ImageVector,
     tag: String,
+    modifier: Modifier = Modifier,
     accented: Boolean = false,
     enabled: Boolean = true,
     badge: String? = null,
@@ -642,7 +648,7 @@ internal fun HomeCard(
             onClick()
         },
         enabled = enabled,
-        modifier = Modifier.fillMaxWidth().heightIn(min = CARD_MIN_HEIGHT).testTag(tag),
+        modifier = modifier.fillMaxWidth().heightIn(min = CARD_MIN_HEIGHT).testTag(tag),
         shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = container,

@@ -7,13 +7,16 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.assertWidthIsEqualTo
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.height
 import com.tripletriad.FF14_BLOCK
 import com.tripletriad.FF8_BLOCK
 import com.tripletriad.data.CardValue
@@ -57,6 +60,20 @@ class CollectionUiTest {
     private fun ComposeUiTest.openCards(block: Int = FF14_BLOCK) {
         newCharacter(block)
         openFromBar("cards", CARD_GRID_TEST_TAG)
+    }
+
+    /**
+     * Open one of the filter menus and choose a line from it.
+     *
+     * Two taps rather than one, and waited on in between: a `DropdownMenu` is composed into its own
+     * window when it opens, so the item does not exist until the anchor has been clicked and the
+     * frame has run. See [CardFilterMenus].
+     */
+    private fun ComposeUiTest.pickFilter(menu: String, item: String) {
+        onNodeWithTag(menu).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(item) }
+        onNodeWithTag(item).performClick()
+        waitForIdle()
     }
 
     @Test
@@ -234,20 +251,22 @@ class CollectionUiTest {
 
         onNodeWithTag(CARD_MISSING_FILTER_TEST_TAG).performClick()
         waitForIdle()
-        // Nothing on screen is owned, and the two chips are exclusive: picking one drops the other.
+        // Nothing on screen is owned, and the segments are exclusive: one is always the one lit.
         onNodeWithTag(CARD_TOTAL_TEST_TAG).assertTextEquals(
             "Owned$DOT_SEPARATOR" + "0 / ${ALL_CARDS - STARTER_CARDS.size}",
         )
     }
 
     @Test
-    fun tappingTheChosenHoldingChipAgainClearsIt() = runComposeUiTest {
+    fun theWholeCollectionIsOneSegmentAwayFromEitherHalf() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openCards()
 
+        // The way back that the pair of chips did not have: "all" was whatever was left when
+        // neither of the other two was lit. See `Held` in `CardListBody.kt`.
         onNodeWithTag(CARD_MISSING_FILTER_TEST_TAG).performClick()
         waitForIdle()
-        onNodeWithTag(CARD_MISSING_FILTER_TEST_TAG).performClick()
+        onNodeWithTag(CARD_ANY_FILTER_TEST_TAG).performClick()
         waitForIdle()
 
         onNodeWithTag(CARD_TOTAL_TEST_TAG).assertTextEquals(
@@ -324,6 +343,9 @@ class CollectionUiTest {
         // `SECRET_CARD_IDS` in `CardListBody.kt`.
         const val ALL_CARDS = 564
 
+        /** Two fifths of the stage: a floor under a regression, not a measure of the layout. */
+        const val GRID_TOP_CEILING = 0.4f
+
         /** `card_frame.png`'s authored size, and so the cell's. See `CardListBody`. */
         val CELL_SIDE = 44.dp
 
@@ -351,8 +373,7 @@ class CollectionUiTest {
         openCards()
 
         onNodeWithTag(CARD_FILTERS_TEST_TAG).assertExists()
-        onNodeWithTag(typeFilterTestTag(CardType.FIRE)).performClick()
-        waitForIdle()
+        pickFilter(CARD_TYPE_MENU_TEST_TAG, typeFilterTestTag(CardType.FIRE))
 
         val fire = catalog.all.count { it.type == CardType.FIRE }
         val held = STARTER_CARDS.count { catalog.byId[it]?.type == CardType.FIRE }
@@ -363,17 +384,53 @@ class CollectionUiTest {
     }
 
     @Test
-    fun tappingTheChosenTypeAgainClearsIt() = runComposeUiTest {
+    fun anElementIsPutBackFromTheSameMenuItWasChosenIn() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openCards()
 
-        onNodeWithTag(typeFilterTestTag(CardType.FIRE)).performClick()
-        onNodeWithTag(typeFilterTestTag(CardType.FIRE)).performClick()
-        waitForIdle()
+        pickFilter(CARD_TYPE_MENU_TEST_TAG, typeFilterTestTag(CardType.FIRE))
+        pickFilter(CARD_TYPE_MENU_TEST_TAG, typeFilterTestTag(null))
 
         onNodeWithTag(CARD_TOTAL_TEST_TAG).assertTextEquals(
             "Owned$DOT_SEPARATOR${STARTER_CARDS.size} / $ALL_CARDS",
         )
+    }
+
+    /**
+     * The row says what it is hiding without being opened.
+     *
+     * The one thing a row of chips did better than a menu, and the reason the closed menu is
+     * titled by its answer rather than by its question — see [CardFilterMenus].
+     */
+    @Test
+    fun aMenuIsTitledByTheFilterInForce() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        openCards()
+
+        assertTrue(isVisible("Type ▾"), "the closed menu should name the question")
+
+        pickFilter(CARD_TYPE_MENU_TEST_TAG, typeFilterTestTag(CardType.FIRE))
+
+        assertTrue(isVisible("FIRE ▾"), "the closed menu should name the answer")
+        assertFalse(isVisible("Type ▾"), "the question is still on the chip")
+    }
+
+    /**
+     * What the whole rework is for: the grid used to start at roughly two thirds of the way down
+     * a phone screen, under five bands of controls. Two bands put it back near the top.
+     *
+     * A fraction of the stage rather than a number of dp, because the stage is whatever size the
+     * test window happens to be. Two fifths is loose on purpose — it is a floor under a
+     * regression, not a measurement of the current layout.
+     */
+    @Test
+    fun theGridStartsNearTheTopRatherThanUnderFiveBandsOfControls() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        openCards()
+
+        val stage = onRoot().getBoundsInRoot().height
+        val top = onNodeWithTag(CARD_GRID_TEST_TAG).getBoundsInRoot().top
+        assertTrue(top < stage * GRID_TOP_CEILING, "the grid starts $top down a $stage stage")
     }
 
     @Test
@@ -381,8 +438,7 @@ class CollectionUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openCards()
 
-        onNodeWithTag(setFilterTestTag(FF8_BLOCK)).performClick()
-        waitForIdle()
+        pickFilter(CARD_SET_MENU_TEST_TAG, setFilterTestTag(FF8_BLOCK))
 
         // Mooba is in this block but the fixture profile does not own it, so the list — and the
         // total beneath it — hides that one card. See `SECRET_CARD_IDS` in `CardListBody.kt`.

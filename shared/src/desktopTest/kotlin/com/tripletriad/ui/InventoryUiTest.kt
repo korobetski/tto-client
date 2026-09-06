@@ -1,5 +1,6 @@
 package com.tripletriad.ui
 
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
@@ -46,10 +47,16 @@ class InventoryUiTest {
         openInventory()
     }
 
-    private fun ComposeUiTest.select(item: Item) {
-        onNodeWithTag(inventoryRowTestTag(item)).performClick()
+    /** The row's overflow menu, which is where the two sales live. */
+    private fun ComposeUiTest.openMenu(item: Item) {
+        onNodeWithTag(inventoryMenuTestTag(item)).performClick()
         waitForIdle()
     }
+
+    /** The text of one tagged line, unmerged so a row's own lines stay separable. */
+    private fun ComposeUiTest.lineOf(tag: String): String =
+        onNodeWithTag(tag, useUnmergedTree = true).fetchSemanticsNode()
+            .config[SemanticsProperties.Text].joinToString("") { it.text }
 
     @Test
     fun aFreshCharactersBagSaysItIsEmpty() = runComposeUiTest {
@@ -62,30 +69,71 @@ class InventoryUiTest {
     }
 
     @Test
-    fun theActionsAppearOnlyOnceSomethingIsSelected() = runComposeUiTest {
+    fun everyRowCarriesItsOwnActionsWithNothingSelected() = runComposeUiTest {
         val documents = seeded(withBag())
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openBag(documents)
 
-        assertFalse(exists(INVENTORY_USE_TEST_TAG), "the footer is up with nothing selected")
-
-        select(CardItem(SELLABLE_CARD))
-
-        onNodeWithTag(INVENTORY_USE_TEST_TAG).assertIsEnabled()
+        // No tap first: the bar under the list is gone, and with it the select-then-act detour.
+        for (item in listOf(CardItem(SELLABLE_CARD), BoosterItem(BoosterType.BRONZE))) {
+            onNodeWithTag(inventoryUseTestTag(item)).assertIsEnabled()
+            onNodeWithTag(inventoryMenuTestTag(item)).assertIsEnabled()
+        }
     }
 
     @Test
-    fun tappingTheSelectedRowAgainClearsTheSelection() = runComposeUiTest {
+    fun theBagIsGroupedByKind() = runComposeUiTest {
         val documents = seeded(withBag())
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openBag(documents)
 
-        select(CardItem(SELLABLE_CARD))
-        assertTrue(exists(INVENTORY_USE_TEST_TAG), "the footer should be up")
+        // The fixture holds one of each kind, so all three headers are due.
+        for (group in BagGroup.entries) {
+            assertTrue(
+                exists(inventoryGroupTestTag(group.slug)),
+                "no header for ${group.slug}",
+            )
+        }
+    }
 
-        select(CardItem(SELLABLE_CARD))
+    @Test
+    fun anEmptyBagOffersTheShop() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        newCharacter()
+        openInventory()
 
-        assertFalse(exists(INVENTORY_USE_TEST_TAG), "a second tap should put the footer away")
+        onNodeWithTag(INVENTORY_SHOP_TEST_TAG).performClick()
+
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(SHOP_LIST_TEST_TAG) }
+    }
+
+    @Test
+    fun aPotionSaysWhatDrinkingItBuys() = runComposeUiTest {
+        val documents = seeded(withBag())
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openBag(documents)
+
+        assertEquals(
+            "MGP boosted for your next ${PotionType.MGP.modifier.value} matches",
+            lineOf(inventoryEffectTestTag(PotionItem(PotionType.MGP))),
+            "the row does not say what the potion does",
+        )
+    }
+
+    @Test
+    fun aPackInTheBagSaysHowMuchOfItIsNew() = runComposeUiTest {
+        val documents = seeded(withBag())
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openBag(documents)
+
+        val pool = BoosterType.BRONZE.pool
+        val missing = pool.count { !storedSave(documents).ownsCard(it) }
+        check(missing > 0) { "the fixture needs a pack with something new in it" }
+        assertTrue(
+            lineOf(inventoryEffectTestTag(BoosterItem(BoosterType.BRONZE)))
+                .endsWith("$missing still missing"),
+            "the pack row does not count what the collection lacks",
+        )
     }
 
     @Test
@@ -95,8 +143,7 @@ class InventoryUiTest {
         openBag(documents)
         val before = storedSave(documents).mgp
 
-        select(CardItem(SELLABLE_CARD))
-        onNodeWithTag(INVENTORY_SELL_TEST_TAG).performClick()
+        sellItem(CardItem(SELLABLE_CARD))
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { storedSave(documents).mgp > before }
 
         val save = storedSave(documents)
@@ -114,13 +161,16 @@ class InventoryUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openBag(documents)
 
-        select(BoosterItem(BoosterType.BRONZE))
+        val pack = BoosterItem(BoosterType.BRONZE)
+        openMenu(pack)
 
-        onNodeWithTag(INVENTORY_SELL_TEST_TAG).assertIsNotEnabled()
-        onNodeWithTag(INVENTORY_SELL_ALL_TEST_TAG).assertIsNotEnabled()
+        // Both entries are still in the menu, greyed: a row whose menu is two lines on one item
+        // and none on the next says nothing about *why*.
+        onNodeWithTag(inventorySellTestTag(pack)).assertIsNotEnabled()
+        onNodeWithTag(inventorySellAllTestTag(pack)).assertIsNotEnabled()
         // And Use is live, which is what stops a pack being stuck in the bag now that Discard is
         // gone: the two item kinds that cannot be sold are exactly the two that are consumed.
-        onNodeWithTag(INVENTORY_USE_TEST_TAG).assertIsEnabled()
+        onNodeWithTag(inventoryUseTestTag(pack)).assertIsEnabled()
     }
 
     @Test
@@ -131,8 +181,7 @@ class InventoryUiTest {
 
         assertFalse(storedSave(documents).ownsCard(SELLABLE_CARD))
 
-        select(CardItem(SELLABLE_CARD))
-        onNodeWithTag(INVENTORY_USE_TEST_TAG).performClick()
+        useItem(CardItem(SELLABLE_CARD))
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { storedSave(documents).ownsCard(SELLABLE_CARD) }
 
         assertEquals(
@@ -163,8 +212,7 @@ class InventoryUiTest {
         }
         openBag(documents)
 
-        select(CardItem(SELLABLE_CARD))
-        onNodeWithTag(INVENTORY_USE_TEST_TAG).performClick()
+        useItem(CardItem(SELLABLE_CARD))
 
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(UNLOCKED_CARD_TEST_TAG) }
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { !exists(UNLOCKED_CARD_TEST_TAG) }
@@ -176,8 +224,7 @@ class InventoryUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openBag(documents)
 
-        select(BoosterItem(BoosterType.BRONZE))
-        onNodeWithTag(INVENTORY_USE_TEST_TAG).performClick()
+        useItem(BoosterItem(BoosterType.BRONZE))
         // The pack leaving the bag is the signal the use went through. Its own size is not: a
         // pack out and a card in leaves it unchanged.
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
@@ -193,9 +240,7 @@ class InventoryUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openBag(documents)
 
-        select(CardItem(STARTER_CARDS.first()))
-
-        onNodeWithTag(INVENTORY_USE_TEST_TAG).assertIsEnabled()
+        onNodeWithTag(inventoryUseTestTag(CardItem(STARTER_CARDS.first()))).assertIsEnabled()
         assertTrue(isVisible("already owned \u00d71"), "the row still says it is not the first")
     }
 
@@ -206,8 +251,7 @@ class InventoryUiTest {
         openBag(documents)
         val cardsBefore = storedSave(documents).cards
 
-        select(BoosterItem(BoosterType.BRONZE))
-        onNodeWithTag(INVENTORY_USE_TEST_TAG).performClick()
+        useItem(BoosterItem(BoosterType.BRONZE))
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PACK_REVEAL_TEST_TAG) }
 
         // Every card is on screen from the start, face down. Turning them over is the player's.
@@ -247,8 +291,7 @@ class InventoryUiTest {
 
         assertEquals(0, storedSave(documents).boons.mgp)
 
-        select(PotionItem(PotionType.MGP))
-        onNodeWithTag(INVENTORY_USE_TEST_TAG).performClick()
+        useItem(PotionItem(PotionType.MGP))
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { storedSave(documents).boons.mgp > 0 }
 
         val save = storedSave(documents)
@@ -267,8 +310,7 @@ class InventoryUiTest {
         val each = Inventory.priceOf(CardItem(SELLABLE_CARD), cards)
         check(held > 1) { "the fixture needs a stack to empty, had $held" }
 
-        select(CardItem(SELLABLE_CARD, stack = held))
-        onNodeWithTag(INVENTORY_SELL_ALL_TEST_TAG).performClick()
+        sellAllItems(CardItem(SELLABLE_CARD, stack = held))
 
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
             Inventory.count(storedSave(documents), CardItem(SELLABLE_CARD)) == 0
@@ -286,10 +328,36 @@ class InventoryUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openBag(documents)
 
-        select(CardItem(STARTER_CARDS.first()))
+        val single = CardItem(STARTER_CARDS.first())
+        openMenu(single)
 
-        onNodeWithTag(INVENTORY_SELL_ALL_TEST_TAG).assertIsNotEnabled()
-        onNodeWithTag(INVENTORY_SELL_TEST_TAG).assertIsEnabled()
+        onNodeWithTag(inventorySellAllTestTag(single)).assertIsNotEnabled()
+        onNodeWithTag(inventorySellTestTag(single)).assertIsEnabled()
+    }
+
+    @Test
+    fun sellingAWholeStackTakesASecondTap() = runComposeUiTest {
+        val documents = seeded(withBag())
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openBag(documents)
+
+        val held = Inventory.count(storedSave(documents), CardItem(SELLABLE_CARD))
+        val each = Inventory.priceOf(CardItem(SELLABLE_CARD), cards)
+        check(held > 1) { "the fixture needs a stack to confirm over, had $held" }
+
+        openMenu(CardItem(SELLABLE_CARD))
+        onNodeWithTag(inventorySellAllTestTag(CardItem(SELLABLE_CARD))).performClick()
+        waitForIdle()
+
+        assertEquals(
+            held,
+            Inventory.count(storedSave(documents), CardItem(SELLABLE_CARD)),
+            "one tap emptied the stack",
+        )
+        assertTrue(
+            isVisible("Confirm: sell $held for ${each * held}"),
+            "the second tap is not named, so nothing says what it will do",
+        )
     }
 
     private companion object {

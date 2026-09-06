@@ -42,6 +42,7 @@ fun main() {
                 documents = documents,
                 history = history,
                 clock = JvmClock,
+                notifier = DesktopNotifier,
                 onQuit = ::exitApplication,
                 server = server,
             )

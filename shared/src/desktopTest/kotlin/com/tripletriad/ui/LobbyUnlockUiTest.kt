@@ -22,13 +22,14 @@ import kotlin.test.assertTrue
  * is only worth anything if it is charged on both doors rather than on the one that was easier
  * to shut.
  *
- * ### Only one of the two doors is asserted here for now
+ * ### Only one of the two doors is asserted here, and why the other cannot be
  *
- * Both used to be cards on the lobby, and the lobby no longer carries either: the auction house
- * is reached from the shop's shelf and multiplayer from the play root. The shop's door states the
- * requirement and is covered below; **the multiplayer door does not state it yet**, and the case
- * that asserted it was removed with the card rather than left passing against nothing. It comes
- * back with the multiplayer screen's own rebuild.
+ * Both used to be cards on the lobby, and the lobby no longer carries either: the auction house is
+ * reached from the shop's shelf and multiplayer from the play root. The shop's door is covered
+ * below. The multiplayer one states its level again — see `PvpLocked` — but not anywhere these
+ * tests can read it: they run with **no server**, and without one the multiplayer screen is not
+ * drawn at all. It is asserted where it can be, against a session:
+ * `PvpTablesUiTest.theRoomSaysWhichLevelOpensIt`.
  *
  * These run with **no server**, so the thresholds are `:core`'s own defaults — which is what
  * [LocalUnlocks] falls back to and what a deployment that states nothing sends. A deployment

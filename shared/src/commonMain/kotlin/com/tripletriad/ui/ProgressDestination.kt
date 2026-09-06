@@ -38,6 +38,12 @@ internal fun ProgressDestination(
                 choice.lesson = lesson
                 onNavigate(Screen.TUTORIAL)
             },
+            // The rule pills. `Choice` carries the request the way it carries the lesson: the
+            // rule book is one screen with one entry open, not seventeen destinations.
+            onRule = { ruleKey ->
+                choice.helpRule = ruleKey
+                onNavigate(Screen.HELP)
+            },
             onBack = { onNavigate(Screen.DASHBOARD) },
         )
 

@@ -61,6 +61,7 @@ import kotlinx.coroutines.runBlocking
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
@@ -75,8 +76,7 @@ class AccountBagSyncTest {
         val session = signedIn()
         setContent { Fixture(session) }
 
-        onNodeWithTag(inventoryRowTestTag(CardItem(WON_CARD))).performClick()
-        onNodeWithTag(INVENTORY_USE_TEST_TAG).performClick()
+        useItem(CardItem(WON_CARD))
 
         // Use is a round trip here, and `waitForIdle` stood in this line's place settling nothing:
         // the coroutine suspends inside Ktor, off the dispatcher Compose tracks, so idle is reached
@@ -104,8 +104,7 @@ class AccountBagSyncTest {
         )
         setContent { Bag(profile, onUse = { null }) }
 
-        onNodeWithTag(inventoryRowTestTag(CardItem(WON_CARD))).performClick()
-        onNodeWithTag(INVENTORY_USE_TEST_TAG).performClick()
+        useItem(CardItem(WON_CARD))
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(INVENTORY_NOTE_TEST_TAG) }
 
         assertTrue(
@@ -160,21 +159,26 @@ class AccountBagSyncTest {
             )
         }
 
-        onNodeWithTag(inventoryRowTestTag(CardItem(WON_CARD))).performClick()
-        onNodeWithTag(INVENTORY_SELL_TEST_TAG).performClick()
+        sellItem(CardItem(WON_CARD))
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { asked == 1 }
 
-        onNodeWithTag(INVENTORY_SELL_TEST_TAG).assertIsNotEnabled()
-        onNodeWithTag(INVENTORY_SELL_TEST_TAG).performClick()
+        // The menu closed as the sale started, so the lock is on the row's own controls: the way
+        // back to Sell is the ⋮ button, and it is the one that has to be dead.
+        onNodeWithTag(inventoryMenuTestTag(CardItem(WON_CARD))).assertIsNotEnabled()
+        onNodeWithTag(inventoryMenuTestTag(CardItem(WON_CARD))).performClick()
         waitForIdle()
+        assertFalse(
+            exists(inventorySellTestTag(CardItem(WON_CARD))),
+            "a locked row still opened its menu",
+        )
         assertEquals(1, asked, "the second tap was sent as a second sale")
 
-        // Released, so the flag is seen to be dropped rather than merely never raised: a button
-        // that stayed dead after the answer came back would be the other half of this bug.
+        // Released, so the flag is seen to be dropped rather than merely never raised: a row that
+        // stayed dead after the answer came back would be the other half of this bug.
         answered.complete(Unit)
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { done }
         waitForIdle()
-        onNodeWithTag(INVENTORY_SELL_TEST_TAG).assertIsEnabled()
+        onNodeWithTag(inventoryMenuTestTag(CardItem(WON_CARD))).assertIsEnabled()
     }
 
     // ---- Harness -----------------------------------------------------------
@@ -185,8 +189,7 @@ class AccountBagSyncTest {
     )
 
     private fun ComposeUiTest.sell() {
-        onNodeWithTag(inventoryRowTestTag(CardItem(WON_CARD))).performClick()
-        onNodeWithTag(INVENTORY_SELL_TEST_TAG).performClick()
+        sellItem(CardItem(WON_CARD))
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(INVENTORY_NOTE_TEST_TAG) }
     }
 
@@ -214,6 +217,7 @@ class AccountBagSyncTest {
                             onUse = onUse,
                             onIntent = onIntent,
                             onUnlocked = {},
+                            onShop = {},
                         )
                     }
                 }

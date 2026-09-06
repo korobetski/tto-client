@@ -56,7 +56,7 @@ class TouchTargetTest {
         newCharacter()
 
         openFromBar("cards", CARD_GRID_TEST_TAG)
-        assertTouchTarget(typeFilterTestTag(null))
+        assertTouchTarget(CARD_TYPE_MENU_TEST_TAG)
         assertTouchTarget(cardCellTestTag(STARTER_CARDS.first()))
 
         onNodeWithTag(screenTabTestTag("decks")).performClick()

@@ -20,6 +20,7 @@ import com.tripletriad.data.loadCardCatalog
 import com.tripletriad.data.loadFormatCatalog
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.GameSave
+import com.tripletriad.model.Item
 import com.tripletriad.net.ServerConnection
 import com.tripletriad.settings.InMemorySettingsStore
 import com.tripletriad.settings.SettingsStore
@@ -318,6 +319,41 @@ internal fun ComposeUiTest.openInventory() {
     }
 }
 
+/**
+ * Uses one bag item.
+ *
+ * The row's own button, not a footer: the bag's actions live on the rows since the shelves were
+ * grouped. See `BagItemRow`.
+ */
+@OptIn(ExperimentalTestApi::class)
+internal fun ComposeUiTest.useItem(item: Item) {
+    onNodeWithTag(inventoryUseTestTag(item)).performClick()
+    waitForIdle()
+}
+
+/** Sells one of a bag item, through the row's overflow menu. */
+@OptIn(ExperimentalTestApi::class)
+internal fun ComposeUiTest.sellItem(item: Item) {
+    onNodeWithTag(inventoryMenuTestTag(item)).performClick()
+    waitForIdle()
+    onNodeWithTag(inventorySellTestTag(item)).performClick()
+    waitForIdle()
+}
+
+/**
+ * Sells the whole stack: the menu, then the entry twice — the second tap is the confirmation the
+ * entry asks for by renaming itself. See `BagMenu`.
+ */
+@OptIn(ExperimentalTestApi::class)
+internal fun ComposeUiTest.sellAllItems(item: Item) {
+    onNodeWithTag(inventoryMenuTestTag(item)).performClick()
+    waitForIdle()
+    onNodeWithTag(inventorySellAllTestTag(item)).performClick()
+    waitForIdle()
+    onNodeWithTag(inventorySellAllTestTag(item)).performClick()
+    waitForIdle()
+}
+
 /** The shop, which is the store root's own tab. */
 @OptIn(ExperimentalTestApi::class)
 internal fun ComposeUiTest.openStore() {
@@ -328,7 +364,10 @@ internal fun ComposeUiTest.openStore() {
 @OptIn(ExperimentalTestApi::class)
 internal fun ComposeUiTest.openAuction() {
     openStore()
-    onNodeWithTag(SHOP_AUCTION_TEST_TAG).performScrollTo().performClick()
+    // No scroll: the way in is a banner above the shelf chips now, not a row inside the grid,
+    // and `performScrollTo` on a node with no scrollable ancestor is an error rather than a
+    // no-op. See `ShopBody`.
+    onNodeWithTag(SHOP_AUCTION_TEST_TAG).performClick()
     waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(AUCTION_SCREEN_TEST_TAG) }
 }
 

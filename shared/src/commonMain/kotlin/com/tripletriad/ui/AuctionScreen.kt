@@ -145,6 +145,10 @@ private fun ColumnScope.AuctionRoom(
                 tag = AUCTION_BOARD_TEST_TAG,
                 emptyText = strings[StringKeys.AUCTION_EMPTY],
                 onRefresh = { scope.launch { session.refreshBoard() } },
+                // The room, and only the room. `Mes lots` is this player's own handful — a search
+                // field over four rows is a control that costs more than it saves — and the
+                // consignment desk is not a list at all.
+                searchable = true,
             )
 
             AuctionTab.MINE -> AuctionBoardBody(

@@ -1,25 +1,11 @@
 package com.tripletriad.ui
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.FlowRowScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -28,11 +14,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
 import com.tripletriad.data.CardSet
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
@@ -210,272 +193,54 @@ internal fun rememberCardFilters(cards: List<Card>, sets: List<CardSet>): CardFi
 }
 
 /**
- * The search field, and the order beside it.
+ * The search field, and the count of what answers to it.
  *
- * ### Why these two share a line
+ * ### Why the count shares this line
  *
- * The collection is 565 cards and the header above the grid was already five rows of chips deep on
- * a phone. Search earns a row of its own; an order does not, and a menu behind one icon costs
- * nothing when it is not open. They belong together anyway — both are about *reaching* a card
- * rather than about which cards are admitted, which is what every chip below them decides.
+ * "Owned · 3 / 21" is a fact about what the field and the menus below it have narrowed the list
+ * to, and it used to sit on a band of its own above them — one more of the five bands the grid was
+ * pushed down by. Beside the field it is next to the control that changes it and costs the screen
+ * no band at all.
+ *
+ * Beside rather than *inside*: as the field's `supportingText` it would be swallowed by the text
+ * field's own merged semantics, which is a screen reader announcing the size of the collection as
+ * part of reading out a search box.
  *
  * ### Not drawn in the consignment picker
  *
  * That list is the spare copies of one collection, which is a handful of cards, and [CardFilters]
- * carries the state whether or not this is rendered — an unsearched query matches everything and
- * the default order is the catalogue's. So the picker is unchanged and can adopt this by adding one
- * line, rather than by growing a second copy of the rule.
+ * carries the query whether or not this is rendered — an unsearched query matches everything. So
+ * the picker is unchanged and can adopt this by adding one line, rather than by growing a second
+ * copy of the rule.
+ *
+ * @param count what the list currently holds, drawn beside the field. Null draws nothing, which is
+ *   a room that has not got a count to give rather than a count that came out zero.
  */
 @Composable
-internal fun CardSearchRow(filters: CardFilters) {
-    val strings = LocalStrings.current
-
+internal fun CardSearchRow(filters: CardFilters, count: String? = null) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(bottom = SpaceXs),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(SpaceXs),
+        horizontalArrangement = Arrangement.spacedBy(SpaceSm),
     ) {
-        OutlinedTextField(
+        TtoSearchField(
             value = filters.query,
-            onValueChange = { filters.query = it.take(MAX_QUERY) },
-            placeholder = { Text(strings[StringKeys.SEARCH_CARDS]) },
-            singleLine = true,
-            leadingIcon = {
-                Icon(
-                    imageVector = TtoIcons.Search,
-                    contentDescription = null,
-                    modifier = Modifier.size(IconSm),
-                )
-            },
-            trailingIcon = {
-                // Only once there is something to clear. A permanently lit × on an empty field is
-                // a control that does nothing, next to the one place on this screen a tap is
-                // expensive — the keyboard is open and the grid is behind it.
-                if (filters.query.isNotEmpty()) {
-                    IconButton(
-                        onClick = { filters.query = "" },
-                        modifier = Modifier.testTag(CARD_SEARCH_CLEAR_TEST_TAG),
-                    ) {
-                        Icon(
-                            imageVector = TtoIcons.Back,
-                            contentDescription = strings[StringKeys.CANCEL],
-                            modifier = Modifier.size(IconSm),
-                        )
-                    }
-                }
-            },
-            textStyle = MaterialTheme.typography.bodyMedium,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            colors = TextFieldDefaults.colors(
-                focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
-            ),
-            modifier = Modifier.testTag(CARD_SEARCH_TEST_TAG).weight(1f),
+            onValueChange = { filters.query = it },
+            tag = CARD_SEARCH_TEST_TAG,
+            clearTag = CARD_SEARCH_CLEAR_TEST_TAG,
+            modifier = Modifier.weight(1f),
         )
 
-        SortMenu(filters)
-    }
-}
-
-@Composable
-private fun SortMenu(filters: CardFilters) {
-    val strings = LocalStrings.current
-    var open by remember { mutableStateOf(false) }
-
-    Box {
-        IconButton(
-            onClick = { open = true },
-            modifier = Modifier.testTag(CARD_SORT_TEST_TAG),
-        ) {
-            Icon(
-                imageVector = TtoIcons.Sort,
-                // Names the order in force rather than the word "sort", so a screen reader — and
-                // a long-press tooltip — say which one it is without opening the menu.
-                contentDescription = strings[filters.sort.labelKey],
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
-            )
-        }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            for (candidate in CardSort.entries) {
-                DropdownMenuItem(
-                    text = { Text(strings[candidate.labelKey]) },
-                    onClick = {
-                        filters.sort = candidate
-                        open = false
-                    },
-                    trailingIcon = {
-                        if (candidate == filters.sort) {
-                            Icon(
-                                imageVector = TtoIcons.Done,
-                                contentDescription = null,
-                                modifier = Modifier.size(IconSm),
-                            )
-                        }
-                    },
-                    modifier = Modifier.testTag(cardSortTestTag(candidate)),
-                )
-            }
-        }
-    }
-}
-
-/** Longer than the longest card name in any of the four bundles, and short of a paste bomb. */
-private const val MAX_QUERY = 40
-
-/** The chips those three questions are answered with. */
-@Composable
-internal fun CardFilterChips(filters: CardFilters) {
-    val strings = LocalStrings.current
-
-    Column(
-        modifier = Modifier.testTag(CARD_FILTERS_TEST_TAG).fillMaxWidth().padding(bottom = 6.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        // A set row only when there is a choice to make. One set admitted is not a filter, it is a
-        // row of one chip that does nothing.
-        if (filters.sets.size > 1) {
-            FilterRow {
-                TtoFilterChip(
-                    label = strings[StringKeys.ALL],
-                    tag = setFilterTestTag(null),
-                    selected = filters.set == null,
-                ) { filters.set = null }
-                for (block in filters.sets) {
-                    TtoFilterChip(
-                        label = setLabel(strings, block),
-                        tag = setFilterTestTag(block),
-                        selected = filters.set == block,
-                        onClick = { filters.set = block.takeIf { it != filters.set } },
-                    )
-                }
-            }
-        }
-
-        FilterRow {
-            TtoFilterChip(
-                label = strings[StringKeys.ALL],
-                tag = typeFilterTestTag(null),
-                selected = filters.type == null,
-            ) { filters.type = null }
-            for (candidate in filters.types) {
-                TypeChip(candidate, isOn = filters.type == candidate) {
-                    filters.type = candidate.takeIf { it != filters.type }
-                }
-            }
-        }
-
-        // Rarity on its own row rather than folded into the elements. The two answer different
-        // questions — "which tribe" and "how good" — and a card list is read for both at once,
-        // which is why they are `and`ed rather than exclusive. Only when there is a choice, for
-        // the same reason the set row is: a table with one rarity is not a filter.
-        if (filters.rarities.size > 1) {
-            FilterRow {
-                TtoFilterChip(
-                    label = strings[StringKeys.ALL],
-                    tag = rarityFilterTestTag(null),
-                    selected = filters.rarity == null,
-                ) { filters.rarity = null }
-                for (candidate in filters.rarities) {
-                    RarityChip(candidate, isOn = filters.rarity == candidate) {
-                        filters.rarity = candidate.takeIf { it != filters.rarity }
-                    }
-                }
-            }
-        }
-    }
-}
-
-/**
- * A row of chips that wraps instead of scrolling.
- *
- * Twelve elements do not fit across a phone, and a `horizontalScroll` answered that by hiding
- * the ends of the row: the first chip was clipped at the left edge, the last at the right, and
- * nothing on screen said there was more. Wrapping puts every filter in front of the player at
- * the cost of a second line, which is the right trade for a control they choose from.
- */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun FilterRow(content: @Composable FlowRowScope.() -> Unit) {
-    FlowRow(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(SpaceXs),
-        verticalArrangement = Arrangement.spacedBy(SpaceXs),
-        content = content,
-    )
-}
-
-/**
- * One rarity, drawn as the star plate the card itself wears.
- *
- * At [RarityChipWidth] x [RarityChipHeight] — the art's own size, the same numbers `CardView`
- * uses. Stars rather than a number because that is what the player is looking at on the card,
- * and a count of them is a translation of something already legible.
- */
-@Composable
-private fun RarityChip(rarity: Int, isOn: Boolean, onClick: () -> Unit) {
-    val stars = LocalCardArt.current?.starsFor(rarity)
-
-    TtoIconChip(
-        tag = rarityFilterTestTag(rarity),
-        description = starsOf(rarity),
-        selected = isOn,
-        onClick = onClick,
-    ) {
-        if (stars == null) {
+        if (count != null) {
             Text(
-                text = "$STAR$rarity",
-                color = MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.labelSmall,
-            )
-        } else {
-            Image(
-                bitmap = stars,
-                contentDescription = null,
-                modifier = Modifier
-                    .size(width = RarityChipWidth, height = RarityChipHeight)
-                    .alpha(if (isOn) 1f else MUTED),
-                filterQuality = FilterQuality.None,
+                text = count,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = SUBDUED),
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.testTag(CARD_TOTAL_TEST_TAG),
             )
         }
     }
 }
-
-@Composable
-private fun TypeChip(type: CardType, isOn: Boolean, onClick: () -> Unit) {
-    val icon = LocalCardArt.current?.typeIcon(type)
-
-    TtoIconChip(
-        tag = typeFilterTestTag(type),
-        // The enum's own name, because nothing translates the elements yet — `app-*.json` has no
-        // key for any of the twelve. It is what a screen reader reads out; a word in the wrong
-        // language beats the silence an undescribed icon leaves.
-        description = type.name,
-        selected = isOn,
-        onClick = onClick,
-    ) {
-        if (icon == null) {
-            Text(
-                text = type.name.take(1),
-                color = MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.labelSmall,
-            )
-        } else {
-            Image(
-                bitmap = icon,
-                contentDescription = null,
-                modifier = Modifier.size(TypeChipSize).alpha(if (isOn) 1f else MUTED),
-                filterQuality = FilterQuality.None,
-            )
-        }
-    }
-}
-
-private val TypeChipSize = 16.dp
-
-/** The star plate's own size, as `CardView` draws it. Scaling it would blur five small stars. */
-private val RarityChipWidth = 29.dp
-private val RarityChipHeight = 28.dp

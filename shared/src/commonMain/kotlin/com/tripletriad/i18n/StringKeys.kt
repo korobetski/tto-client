@@ -177,6 +177,40 @@ object StringKeys {
 
     const val PACK_ODDS: String = "APP_PACK_ODDS"
 
+    /** How many cards one pack hands over, on the tile that sells it: `{0} card(s)`. */
+    const val PACK_CARDS: String = "APP_PACK_CARDS"
+
+    /** How many of a pack's pool the collection does not hold yet: `{0} still missing`. */
+    const val PACK_MISSING: String = "APP_PACK_MISSING"
+
+    /** Said instead of [PACK_MISSING] when the pool holds nothing new. */
+    const val PACK_COMPLETE: String = "APP_PACK_COMPLETE"
+
+    /** What the purse is short of a price, which is the actionable half of "too expensive". */
+    const val PRICE_SHORT: String = "APP_PRICE_SHORT"
+
+    /**
+     * What a potion does, on the row that holds it: `{0} boosted for your next {1} matches`.
+     *
+     * The count is the potion's own `BoonModifier.value`, which `Boons.spending` says is a number
+     * of matches rather than a multiplier. **The percentage is deliberately not in the sentence**:
+     * `MatchRewards.BOON_PERCENT` is private to `:core`, and a 20 written here would be a second
+     * copy of a number this client cannot see change.
+     */
+    const val ITEM_EFFECT_BOON: String = "APP_ITEM_EFFECT_BOON"
+
+    /** What using a card item does, said before it is used rather than after. */
+    const val ITEM_EFFECT_CARD: String = "APP_ITEM_EFFECT_CARD"
+
+    /** What a pouch pays out: `holds {0}`. */
+    const val ITEM_EFFECT_POUCH: String = "APP_ITEM_EFFECT_POUCH"
+
+    /** The second tap on "sell all", which names the stack and the payout: `{0}` for `{1}`. */
+    const val SELL_ALL_CONFIRM: String = "APP_SELL_ALL_CONFIRM"
+
+    /** The bag row's overflow menu, which has no label of its own. */
+    const val ITEM_ACTIONS: String = "APP_ITEM_ACTIONS"
+
     const val ALL: String = "APP_ALL"
 
     const val FREE: String = "APP_FREE"
@@ -257,6 +291,58 @@ object StringKeys {
     // ---- Playing another person. All `APP_`: the legacy bundles have no key for any of this.
     const val PVP_TABLES: String = "APP_PVP_TABLES"
     const val PVP_NO_TABLE: String = "APP_PVP_NO_TABLE"
+
+    /**
+     * The headings the one multiplayer column is read by, top to bottom.
+     *
+     * [PVP_WAITING] heads what is owed an answer, [PVP_TABLES_OPEN] the only part that is a
+     * choice, [PVP_SENT] the invitations waiting on somebody else, and [PVP_FIND] the two doors
+     * that start something new. There is no heading for "your table": the card says so itself.
+     */
+    const val PVP_WAITING: String = "APP_PVP_WAITING"
+    const val PVP_TABLES_OPEN: String = "APP_PVP_TABLES_OPEN"
+    const val PVP_SENT: String = "APP_PVP_SENT"
+    const val PVP_FIND: String = "APP_PVP_FIND"
+
+    /**
+     * Who else the server has heard from lately, above the door that opens a table.
+     *
+     * Three keys for one sentence because the three readings are not the same sentence with a
+     * different number in it. [PVP_ONLINE_NOBODY] is a warning — an open table with nobody about
+     * is a wait, and saying "0 other players online" makes the player do that arithmetic
+     * themselves. [PVP_ONLINE_ONE] exists because no European locale here can write "1 other
+     * players", and a plural library for a single string is a dependency that does not earn its
+     * place.
+     */
+    const val PVP_ONLINE_NOBODY: String = "APP_PVP_ONLINE_NOBODY"
+    const val PVP_ONLINE_ONE: String = "APP_PVP_ONLINE_ONE"
+    const val PVP_ONLINE_MANY: String = "APP_PVP_ONLINE_MANY"
+
+    /**
+     * The two things worth interrupting a player for, in a notification.
+     *
+     * Both are *waits*: an invitation and a table that has just been taken each leave somebody
+     * else sitting there until this player answers. Everything else the multiplayer screen knows
+     * — a table opened, a table lapsed, a prize still uncollected — waits on nobody, and a
+     * notification for it would be a notification the player learns to swipe away.
+     */
+    const val NOTIFY_CHALLENGE_TITLE: String = "APP_NOTIFY_CHALLENGE_TITLE"
+    const val NOTIFY_CHALLENGE_BODY: String = "APP_NOTIFY_CHALLENGE_BODY"
+    const val NOTIFY_MATCH_TITLE: String = "APP_NOTIFY_MATCH_TITLE"
+    const val NOTIFY_MATCH_BODY: String = "APP_NOTIFY_MATCH_BODY"
+
+    /** How long the player's own table has been open. See `PvpScreen.MyTableCard`. */
+    const val PVP_TABLE_OPEN_SINCE: String = "APP_PVP_TABLE_OPEN_SINCE"
+
+    /**
+     * The empty room, which is a page rather than a sentence — see `PvpScreen.LobbyEmpty`.
+     *
+     * [PVP_EMPTY_SOLO] is the one line that is not a door, and the one that has to stay true: a
+     * solo match pays quests and XP whatever multiplayer is doing.
+     */
+    const val PVP_EMPTY_LEAD: String = "APP_PVP_EMPTY_LEAD"
+    const val PVP_HOST_HINT: String = "APP_PVP_HOST_HINT"
+    const val PVP_EMPTY_SOLO: String = "APP_PVP_EMPTY_SOLO"
     const val PVP_HOST: String = "APP_PVP_HOST"
     const val PVP_HOST_OPEN: String = "APP_PVP_HOST_OPEN"
     const val PVP_HOST_CANCEL: String = "APP_PVP_HOST_CANCEL"
@@ -334,7 +420,6 @@ object StringKeys {
     const val PVP_SENT_TO: String = "APP_PVP_SENT_TO"
     const val PVP_ACCEPT: String = "APP_PVP_ACCEPT"
     const val PVP_DECLINE: String = "APP_PVP_DECLINE"
-    const val PVP_NO_CHALLENGE: String = "APP_PVP_NO_CHALLENGE"
 
     const val PVP_FORFEIT: String = "APP_PVP_FORFEIT"
     const val PVP_YOU_LEFT: String = "APP_PVP_YOU_LEFT"
@@ -365,6 +450,17 @@ object StringKeys {
     const val LESSONS_ALL_DONE: String = "APP_LESSONS_ALL_DONE"
 
     const val LESSON_TO_RULES: String = "APP_LESSON_TO_RULES"
+
+    /**
+     * The three chapters the course is read in — see [com.tripletriad.ui.LessonChapter].
+     *
+     * They name what is being learnt, not how far along it is: a heading that said "1 / 3" would
+     * repeat the bar underneath it, and a course whose chapters are numbered rather than named is
+     * a list of twelve rows again with two extra lines in it.
+     */
+    const val LESSON_CHAPTER_BASICS: String = "APP_LESSON_CHAPTER_BASICS"
+    const val LESSON_CHAPTER_CAPTURES: String = "APP_LESSON_CHAPTER_CAPTURES"
+    const val LESSON_CHAPTER_MATCHES: String = "APP_LESSON_CHAPTER_MATCHES"
 
     const val LESSON_TITLE_BASICS: String = "APP_LESSON_TITLE_BASICS"
     const val LESSON_TITLE_SAME: String = "APP_LESSON_TITLE_SAME"
@@ -517,6 +613,30 @@ object StringKeys {
     const val HELP_FAMILY_CAPTURE: String = "APP_HELP_FAMILY_CAPTURE"
     const val HELP_FAMILY_ELEMENTS: String = "APP_HELP_FAMILY_ELEMENTS"
 
+    /** The rule book's own search box. Not [SEARCH_CARDS]: it says what is being looked for. */
+    const val HELP_SEARCH: String = "APP_HELP_SEARCH"
+
+    /** Seventeen rules and none of them matching, which is a different fact from an empty book. */
+    const val HELP_NO_MATCH: String = "APP_HELP_NO_MATCH"
+
+    /**
+     * The heading over the rules the last match was actually played under.
+     *
+     * "Last match", not "your rules": it is one match, the most recent one, and a player who has
+     * played none is shown nothing rather than an empty heading.
+     */
+    const val HELP_LAST_MATCH: String = "APP_HELP_LAST_MATCH"
+
+    /**
+     * The three words under the cards of a rule's diagram.
+     *
+     * Verbs in the third person, because the card is the subject: "captures" reads as a caption to
+     * the card above it, where "capture" would read as an instruction to the player.
+     */
+    const val HELP_CAPTURES: String = "APP_HELP_CAPTURES"
+    const val HELP_HOLDS: String = "APP_HELP_HOLDS"
+    const val HELP_FAILS: String = "APP_HELP_FAILS"
+
     const val OPPONENTS_LOCKED: String = "APP_OPPONENTS_LOCKED"
 
     const val OPPONENTS_UNEARNED: String = "APP_OPPONENTS_UNEARNED"
@@ -639,6 +759,31 @@ object StringKeys {
     const val AUCTION_YOUR_LOT: String = "APP_AUCTION_YOUR_LOT"
     const val AUCTION_YOU_LEAD: String = "APP_AUCTION_YOU_LEAD"
     const val AUCTION_OUTBID: String = "APP_AUCTION_OUTBID"
+
+    /**
+     * The room read deadline-first, which is what an auction is.
+     *
+     * Named for what it puts at the top rather than for the field it sorts on: `endsAt` ascending
+     * is an implementation, "ending soon" is the reason anybody wants it.
+     */
+    const val AUCTION_SORT_ENDING: String = "APP_AUCTION_SORT_ENDING"
+
+    /** The room read cheapest-first. */
+    const val AUCTION_SORT_PRICE: String = "APP_AUCTION_SORT_PRICE"
+
+    /**
+     * A card this player has never owned — the chip that narrows the room to those lots, and the
+     * pill on each of the rows that survive it.
+     *
+     * One key for both on purpose: they are the same claim about the same lot, and two wordings
+     * would be a chip that promises one thing and rows that say another. `MISSING` is not reused
+     * here because it is the collection's plural filter — "Manquantes" over a grid of cards — and
+     * it is the wrong number over a single lot.
+     */
+    const val AUCTION_MISSING: String = "APP_AUCTION_MISSING"
+
+    /** A room that holds lots but shows none, because the search or the chip hid them all. */
+    const val AUCTION_NO_MATCH: String = "APP_AUCTION_NO_MATCH"
 
     /** Takes the anti-snipe window in seconds - `AuctionPolicy.antiSnipeSeconds`. */
     const val AUCTION_ANTI_SNIPE: String = "APP_AUCTION_ANTI_SNIPE"
@@ -805,9 +950,44 @@ object StringKeys {
     const val MISSING: String = "APP_MISSING"
     const val NO_CARD_MATCH: String = "APP_NO_CARD_MATCH"
 
+    /**
+     * The word the set menu wears while it admits every set. `tto-*.json` names each set —
+     * "FFVIII", "FFXIV" — but has no word for the question they answer, which a chip row never
+     * had to ask and a closed menu does.
+     */
+    const val CARD_SET: String = "APP_CARD_SET"
+
     // ---- Decks.
     const val DECK_COPY: String = "APP_DECK_COPY"
     const val DECK_FILL: String = "APP_DECK_FILL"
+
+    /**
+     * The three states a deck is in, in a word each — see `DeckState`. The list said none of them
+     * before: a deck that could be played was a row with no warning on it, which is not a fact a
+     * player can read.
+     */
+    const val DECK_PLAYABLE: String = "APP_DECK_PLAYABLE"
+
+    /** A deck short of a card, or of a card the profile no longer owns. See [DECK_PLAYABLE]. */
+    const val DECK_INCOMPLETE: String = "APP_DECK_INCOMPLETE"
+
+    /** A deck over a star-rank cap. See [DECK_PLAYABLE] and [DECK_OVER_LIMIT]. */
+    const val DECK_OUT_OF_LIMITS: String = "APP_DECK_OUT_OF_LIMITS"
+
+    /** The one line that stands for every empty slot, and `{0}` of them are left. */
+    const val DECK_NEW: String = "APP_DECK_NEW"
+
+    /** How many slots the new-deck line has left to give. */
+    const val DECK_FREE_SLOTS: String = "APP_DECK_FREE_SLOTS"
+
+    /** What a profile with nothing in any slot is told. */
+    const val DECK_NONE: String = "APP_DECK_NONE"
+
+    /** What the grip is, for anyone who cannot see six dots. */
+    const val DECK_REORDER: String = "APP_DECK_REORDER"
+
+    /** What the ⋮ opens: the three things a row does that are not "open it". */
+    const val DECK_ACTIONS: String = "APP_DECK_ACTIONS"
 
     /**
      * Where a card comes from — the four tables that were shipped and unreadable. See
@@ -856,6 +1036,9 @@ object StringKeys {
         STARTER_PACK, STARTER_PACK_DESC, FREE, CLAIM, ALL,
         PACK_SEALED, PACK_BREAK_SEAL, PACK_SPENT, PACK_REVEAL, PACK_TO_COLLECTION,
         PACK_ODDS, BOOSTERS,
+        PACK_CARDS, PACK_MISSING, PACK_COMPLETE, PRICE_SHORT,
+        ITEM_EFFECT_BOON, ITEM_EFFECT_CARD, ITEM_EFFECT_POUCH,
+        SELL_ALL_CONFIRM, ITEM_ACTIONS,
         ACHIEVEMENTS_LIST, ACHIEVEMENTS, SUMMARY, HISTORY_TAB,
         FORFEITS, MATCHES, WIN_RATE, BOONS, NO_ACHIEVEMENT, NEXT_TIER,
         ACHIEVEMENT_REWARD, ACHIEVEMENT_REWARD_MGP,
@@ -865,10 +1048,14 @@ object StringKeys {
         QUESTS_WEEK, QUEST_WEEK_DONE, QUEST_WEEK_WIN, QUEST_WEEK_PLAY, QUEST_WEEK_RULE,
         QUEST_WEEK_BEAT, QUEST_WEEK_PVP,
         PVP_CHALLENGE, PVP_INVITE, PVP_INVITE_TO, PVP_FROM, PVP_SENT_TO,
-        PVP_ACCEPT, PVP_DECLINE, PVP_NO_CHALLENGE,
+        PVP_ACCEPT, PVP_DECLINE,
         PVP_TABLES, PVP_NO_TABLE, PVP_HOST, PVP_HOST_OPEN, PVP_HOST_CANCEL, PVP_JOIN,
         PVP_TABLE_BY, PVP_TABLE_MINE, PVP_TABLE_FREE, PVP_TABLE_EXPIRES,
         PVP_TABLE_HEAVY, PVP_TABLE_OVER_LIMIT, PVP_JOIN_CONFIRM,
+        PVP_WAITING, PVP_TABLES_OPEN, PVP_SENT, PVP_FIND, PVP_TABLE_OPEN_SINCE,
+        PVP_EMPTY_LEAD, PVP_HOST_HINT, PVP_EMPTY_SOLO,
+        PVP_ONLINE_NOBODY, PVP_ONLINE_ONE, PVP_ONLINE_MANY,
+        NOTIFY_CHALLENGE_TITLE, NOTIFY_CHALLENGE_BODY, NOTIFY_MATCH_TITLE, NOTIFY_MATCH_BODY,
         PVP_DECK, PVP_DECK_ANY,
         PVP_STAKE, PVP_STAKE_MGP, PVP_TRADE,
         PVP_STAKE_LIMIT, PVP_STAKE_OVER_LIMIT, PVP_STAKE_OVER_PURSE,
@@ -936,6 +1123,7 @@ object StringKeys {
         AUCTION_YOUR_BID, AUCTION_ENDS, AUCTION_ENDS_IN, AUCTION_ENDED,
         AUCTION_NO_BIDS, AUCTION_BIDS,
         AUCTION_YOUR_LOT, AUCTION_YOU_LEAD, AUCTION_OUTBID, AUCTION_ANTI_SNIPE,
+        AUCTION_SORT_ENDING, AUCTION_SORT_PRICE, AUCTION_MISSING, AUCTION_NO_MATCH,
         AUCTION_LEFT_HOURS, AUCTION_LEFT_MINUTES, AUCTION_LEFT_SECONDS,
         AUCTION_STATUS_AWAITING, AUCTION_STATUS_SOLD, AUCTION_STATUS_UNSOLD,
         AUCTION_STATUS_CANCELLED,
@@ -960,11 +1148,16 @@ object StringKeys {
         ERROR_EMAIL_TAKEN, ERROR_BAD_EMAIL, ERROR_UNVERIFIED, ERROR_BAD_CODE,
         MATCH_SPEED, SPEED_NORMAL, SPEED_FAST, SPEED_FASTER, SPEED_INSTANT,
         CAPTURE_HINTS, CAPTURE_HINTS_NOTE, CAPTURE_HINT_CELL,
-        SEARCH_CARDS, SORT_NUMBER, MISSING, NO_CARD_MATCH,
+        SEARCH_CARDS, SORT_NUMBER, MISSING, NO_CARD_MATCH, CARD_SET,
         DECK_COPY, DECK_FILL,
+        DECK_PLAYABLE, DECK_INCOMPLETE, DECK_OUT_OF_LIMITS,
+        DECK_NEW, DECK_FREE_SLOTS, DECK_NONE, DECK_REORDER, DECK_ACTIONS,
         LEAVE_MATCH, LEAVE_MATCH_PVE, LEAVE_MATCH_CONFIRM,
         HISTORY, NO_HISTORY, HISTORY_FORM, HISTORY_KEPT,
         CARD_SOURCES, CARD_SOURCES_MORE, NO_CARD_SOURCE,
+        LESSON_CHAPTER_BASICS, LESSON_CHAPTER_CAPTURES, LESSON_CHAPTER_MATCHES,
+        HELP_SEARCH, HELP_NO_MATCH, HELP_LAST_MATCH,
+        HELP_CAPTURES, HELP_HOLDS, HELP_FAILS,
     )
 
     val appOwned: List<String> = all.filter { it.startsWith("APP_") }

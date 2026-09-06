@@ -3,7 +3,6 @@ package com.tripletriad.ui
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.LocalStrings
@@ -50,21 +49,24 @@ class PvpListStateUiTest {
         onNodeWithTag(PVP_TABLES_FAILED_TEST_TAG).assertDoesNotExist()
     }
 
+    /**
+     * The invitations keep their loading and failed states, and lose their empty one.
+     *
+     * No tab is pressed to get here any more — that is the point of the rebuild. An unread list
+     * says so on the same screen as everything else, and a list that came back empty says nothing
+     * at all: there is no "no invitations" note, because a heading with nothing under it is not
+     * worth the line on a screen whose whole order is "what is owed an answer".
+     */
     @Test
-    fun theInvitationsTabHasTheSameThreeStates() = unread {
-        onNodeWithTag(screenTabTestTag("invites")).performClick()
-
+    fun invitationsThatHaveNotBeenReadSaySoWithoutATab() = unread {
         onNodeWithTag(PVP_CHALLENGES_LOADING_TEST_TAG).assertExists()
-        onNodeWithTag(PVP_NO_CHALLENGE_TEST_TAG).assertDoesNotExist()
     }
 
     @Test
     fun invitationsThatCouldNotBeReadOfferToTryAgain() = unread(answering = false) {
-        onNodeWithTag(screenTabTestTag("invites")).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PVP_CHALLENGES_FAILED_TEST_TAG) }
 
         onNodeWithTag("$PVP_CHALLENGES_FAILED_TEST_TAG-retry").assertExists()
-        onNodeWithTag(PVP_NO_CHALLENGE_TEST_TAG).assertDoesNotExist()
     }
 
     @Test

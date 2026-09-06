@@ -1,5 +1,7 @@
 package com.tripletriad.ui
 
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -10,6 +12,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.Card
@@ -23,18 +26,82 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
 class DecksUiTest {
+    /**
+     * The list holds the decks the profile has, and one line for all the slots it has not used.
+     *
+     * It used to hold eight rows whatever the profile had — seven of them empty, each with three
+     * controls that could do nothing. This is the assertion that keeps them from coming back:
+     * *no* row for slot 1 on a character who has one deck.
+     */
     @Test
-    fun allFiveSlotsAreListedIncludingTheEmptyOnes() = runComposeUiTest {
-        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
-        newCharacter()
+    fun onlyTheDecksThatExistAreListedAndTheFreeSlotsAreOneLine() = runComposeUiTest {
+        // A *stored* empty slot under the starter deck, which is the case that tells a list of
+        // decks from a list of slots: it has a name, it is in the file, and it is not a deck.
+        val documents = seeded(
+            freshSave().let { save ->
+                save.copy(decks = save.decks + Deck(name = SECOND_DECK, cards = emptyList()))
+            },
+        )
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
         openDecks()
 
-        for (slot in 0 until GameSave.MAX_DECKS) {
-            onNodeWithTag(deckSlotTestTag(slot)).assertExists()
-        }
+        onNodeWithTag(deckSlotTestTag(0)).assertExists()
         assertTrue(isVisible(GameSave.DEFAULT_DECK_NAME), "slot 0 holds the starter deck")
-        // An unnamed slot is labelled by its 1-based number rather than left blank.
-        assertTrue(isVisible("Deck 5"), "an empty slot should still be named")
+        for (slot in 1 until GameSave.MAX_DECKS) {
+            onNodeWithTag(deckSlotTestTag(slot)).assertDoesNotExist()
+        }
+        assertFalse(isVisible(SECOND_DECK), "an empty slot is not a deck, named or not")
+        onNodeWithTag(DECK_NEW_TEST_TAG).assertExists()
+        val free = GameSave.MAX_DECKS - 1
+        assertTrue(isVisible("$free slot(s) free"), "the empty slots are counted, not drawn")
+    }
+
+    /** And the line is gone once there is nowhere left for it to lead. */
+    @Test
+    fun theNewDeckLineDisappearsWhenEverySlotIsTaken() = runComposeUiTest {
+        val documents = seeded(everySlotFilled())
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openDecks()
+
+        onNodeWithTag(deckSlotTestTag(GameSave.MAX_DECKS - 1)).assertExists()
+        onNodeWithTag(DECK_NEW_TEST_TAG).assertDoesNotExist()
+    }
+
+    /**
+     * Every row says whether it can be played, including the row that can.
+     *
+     * The warnings were the only thing the list ever said about a deck, so "nothing is wrong with
+     * this one" was written as silence — which is also what a screen that has not finished loading
+     * looks like. Three states, one pill, one of them good.
+     */
+    @Test
+    fun everyDeckWearsItsState() = runComposeUiTest {
+        val over = listOf(FIVE_STAR, OTHER_FIVE_STAR) + STARTER_DECK.take(HAND_SIZE - 2)
+        val profile = withAces(deck = over).let { save ->
+            save.copy(decks = save.decks + Deck(name = SECOND_DECK, cards = STARTER_DECK))
+        }
+        val documents = seeded(profile)
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openDecks()
+
+        // Unmerged: the pill sits inside the row's own `ttoClickable`, which absorbs it.
+        onNodeWithTag(deckStateTestTag(0), useUnmergedTree = true)
+            .assertTextEquals("Out of limits")
+        onNodeWithTag(deckStateTestTag(1), useUnmergedTree = true).assertTextEquals("Playable")
+    }
+
+    /** A deck short of a card it no longer owns is not offered as playable either. */
+    @Test
+    fun aDeckMissingACardIsMarkedIncomplete() = runComposeUiTest {
+        val documents = seeded(freshSave().withoutCard(STARTER_DECK.first()))
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openDecks()
+
+        onNodeWithTag(deckStateTestTag(0), useUnmergedTree = true).assertTextEquals("Incomplete")
     }
 
     @Test
@@ -100,7 +167,8 @@ class DecksUiTest {
         loadCharacter(documents)
         openDecks()
 
-        onNodeWithTag(deckSlotTestTag(1)).performClick()
+        // The empty slots have one line between them, and it opens the first of them.
+        onNodeWithTag(DECK_NEW_TEST_TAG).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
         // The deck's five, not the collection's nine: a slot takes `HAND_SIZE` and `plusCard`
         // ignores the rest, so clicking all nine would build the same deck and prove less.
@@ -185,17 +253,33 @@ class DecksUiTest {
     }
 
     /**
-     * The starter deck in slot 0 and a named empty one under it.
+     * The starter deck in slot 0 and a second named one under it.
      *
      * Two *named* slots, because a swap is only observable by what the names do — a fixture whose
      * second slot was the padding `withDeck` invents would let a swap that dropped a deck pass.
+     * Both hold cards, because the list draws the decks a profile has and an empty slot is no
+     * longer a row to swap with.
      */
     private fun twoDecks(): GameSave = freshSave().let { save ->
-        save.copy(decks = save.decks + Deck(name = SECOND_DECK, cards = emptyList()))
+        save.copy(decks = save.decks + Deck(name = SECOND_DECK, cards = STARTER_DECK))
+    }
+
+    /** A profile with nothing left to fill: every slot holds a deck. */
+    private fun everySlotFilled(): GameSave = freshSave().let { save ->
+        save.copy(
+            decks = List(GameSave.MAX_DECKS) { slot ->
+                Deck(name = "Deck ${slot + 1}", cards = STARTER_DECK)
+            },
+        )
     }
 
     private companion object {
         const val SECOND_DECK = "Second"
+
+        /** Enough of a drag to cross the row below, and not enough to cross the one after it. */
+        const val DRAG_OVERSHOOT = 1.4f
+
+        const val DRAG_STEPS = 8
 
         val SIXTH_CARD = Card.idFor(block = 1, number = 44)
 
@@ -236,6 +320,9 @@ class DecksUiTest {
      * The list has no draft and no Save button — see `DeckSlots` — so "it moved" and "it was
      * written" are the same claim, and asserting only the first would pass on a screen that
      * forgets the reordering the moment the player leaves it.
+     *
+     * Through the ⋮ rather than through the grip: this is the path a keyboard and a screen reader
+     * take, and `aDeckDraggedOverTheOneBelowSwapsWithIt` is the same swap by gesture.
      */
     @Test
     fun movingASlotDownSwapsItWithTheOneBelowAndWritesAtOnce() = runComposeUiTest {
@@ -244,7 +331,7 @@ class DecksUiTest {
         loadCharacter(documents)
         openDecks()
 
-        onNodeWithTag(deckMoveDownTestTag(0)).performClick()
+        pickAction(deckMenuTestTag(0), deckMoveDownTestTag(0))
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
             storedSave(documents).decks.first().name == SECOND_DECK
         }
@@ -264,11 +351,11 @@ class DecksUiTest {
         openDecks()
         val before = storedSave(documents).decks
 
-        onNodeWithTag(deckMoveDownTestTag(0)).performClick()
+        pickAction(deckMenuTestTag(0), deckMoveDownTestTag(0))
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
             storedSave(documents).decks.first().name == SECOND_DECK
         }
-        onNodeWithTag(deckMoveUpTestTag(1)).performClick()
+        pickAction(deckMenuTestTag(1), deckMoveUpTestTag(1))
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
             storedSave(documents).decks.first().name == GameSave.DEFAULT_DECK_NAME
         }
@@ -276,18 +363,79 @@ class DecksUiTest {
         assertEquals(before, storedSave(documents).decks)
     }
 
-    /** The two arrows a swap would have nothing to swap with are inert rather than absent. */
+    /**
+     * The move a row has nothing to swap with is greyed rather than dropped from the menu.
+     *
+     * Both ends are read on a two-deck profile, because the ends are now the ends of the *list of
+     * decks* and not of the eight slots: a deck in slot 0 with the next deck in slot 4 is the last
+     * row on screen, and offering it a Move down would swap it with an empty slot — a move that
+     * looks like nothing happening.
+     */
     @Test
-    fun theEndsOfTheListCannotBeMovedPastThem() = runComposeUiTest {
-        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
-        newCharacter()
+    fun theTopOfTheListCannotBeMovedUp() = runComposeUiTest {
+        val documents = seeded(twoDecks())
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
         openDecks()
+
+        openMenu(deckMenuTestTag(0), deckMoveUpTestTag(0))
 
         onNodeWithTag(deckMoveUpTestTag(0)).assertIsNotEnabled()
         onNodeWithTag(deckMoveDownTestTag(0)).assertIsEnabled()
-        val last = GameSave.MAX_DECKS - 1
-        onNodeWithTag(deckMoveUpTestTag(last)).assertIsEnabled()
-        onNodeWithTag(deckMoveDownTestTag(last)).assertIsNotEnabled()
+    }
+
+    /**
+     * And the bottom cannot be moved down.
+     *
+     * Its own test rather than two halves of one, because a menu is a window: the click that would
+     * open the second one is spent dismissing the first, and a test that opened both in turn would
+     * be asserting against a menu that never opened.
+     */
+    @Test
+    fun theBottomOfTheListCannotBeMovedDown() = runComposeUiTest {
+        val documents = seeded(twoDecks())
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openDecks()
+
+        openMenu(deckMenuTestTag(1), deckMoveDownTestTag(1))
+
+        onNodeWithTag(deckMoveUpTestTag(1)).assertIsEnabled()
+        onNodeWithTag(deckMoveDownTestTag(1)).assertIsNotEnabled()
+    }
+
+    /**
+     * The same swap, by the grip.
+     *
+     * A drag is the reason the arrows could leave the row, so it is held by a test that fails if
+     * the gesture stops working — the arrows in the menu would otherwise cover for it. The travel
+     * is one row and a third: enough to cross the row below, short of crossing two.
+     */
+    @Test
+    fun aDeckDraggedOverTheOneBelowSwapsWithIt() = runComposeUiTest {
+        val documents = seeded(twoDecks())
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openDecks()
+
+        val row = onNodeWithTag(deckSlotTestTag(0)).fetchSemanticsNode().size.height
+        val travel = row * DRAG_OVERSHOOT
+        onNodeWithTag(deckDragTestTag(0)).performTouchInput {
+            down(center)
+            for (step in 1..DRAG_STEPS) {
+                moveTo(center + Offset(0f, travel * step / DRAG_STEPS))
+            }
+            up()
+        }
+
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
+            storedSave(documents).decks.first().name == SECOND_DECK
+        }
+        assertEquals(
+            GameSave.DEFAULT_DECK_NAME,
+            storedSave(documents).decks[1].name,
+            "the deck that was dragged should be under the one it passed",
+        )
     }
 
     /**
@@ -344,7 +492,7 @@ class DecksUiTest {
         loadCharacter(documents)
         openDecks()
 
-        onNodeWithTag(deckSlotTestTag(1)).performClick()
+        onNodeWithTag(DECK_NEW_TEST_TAG).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
 
         for (position in 0 until HAND_SIZE) {
@@ -475,8 +623,8 @@ class DecksUiTest {
         newCharacter()
         openDecks()
 
-        // Slot 1 is empty on a fresh character; slot 0 holds the starter deck.
-        onNodeWithTag(deckSlotTestTag(1)).performClick()
+        // Slot 1 is empty on a fresh character, and the new-deck line is how it is reached.
+        onNodeWithTag(DECK_NEW_TEST_TAG).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
         for (position in 0 until HAND_SIZE) {
             onNodeWithTag(deckPositionTestTag(position)).assertExists()
@@ -510,8 +658,8 @@ class DecksUiTest {
         newCharacter()
         openDecks()
 
-        onNodeWithTag(deckCopyTestTag(0)).performClick()
-        waitForIdle()
+        pickAction(deckMenuTestTag(0), deckCopyTestTag(0))
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(deckSlotTestTag(1)) }
 
         // The copy landed in slot 1, and it holds the same five cards — which the slot row states
         // as its own count.
@@ -521,13 +669,30 @@ class DecksUiTest {
         assertFalse(exists(DECK_MISSING_TEST_TAG), "the copy claims cards the profile lacks")
     }
 
+    /** With every slot spoken for there is nowhere to copy to, and the item says so. */
     @Test
-    fun anEmptySlotHasNothingToDuplicate() = runComposeUiTest {
-        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
-        newCharacter()
+    fun aDuplicateWithNowhereToLandIsRefused() = runComposeUiTest {
+        val documents = seeded(everySlotFilled())
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
         openDecks()
 
-        // Drawn rather than hidden, so the eight rows stay the same width — see `StripButton`.
-        onNodeWithTag(deckCopyTestTag(1)).assertExists().assertIsNotEnabled()
+        openMenu(deckMenuTestTag(0), deckCopyTestTag(0))
+        // Greyed rather than dropped, so the menu is the same three lines on every row.
+        onNodeWithTag(deckCopyTestTag(0)).assertExists().assertIsNotEnabled()
+    }
+
+    // ---- Reaching the ⋮ ------------------------------------------------------
+
+    /** Menu items are composed into their own window, so one is only there once it is open. */
+    private fun ComposeUiTest.openMenu(menu: String, item: String) {
+        onNodeWithTag(menu).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(item) }
+    }
+
+    private fun ComposeUiTest.pickAction(menu: String, item: String) {
+        openMenu(menu, item)
+        onNodeWithTag(item).performClick()
+        waitForIdle()
     }
 }

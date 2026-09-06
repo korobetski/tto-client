@@ -58,8 +58,7 @@ class AccountBagAppTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = connection(sessions)) }
 
         openTheBag()
-        onNodeWithTag(inventoryRowTestTag(BoosterItem(PACK))).performClick()
-        onNodeWithTag(INVENTORY_USE_TEST_TAG).performClick()
+        useItem(BoosterItem(PACK))
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PACK_REVEAL_TEST_TAG) }
 
         val bag = stored.save.bag
@@ -80,8 +79,7 @@ class AccountBagAppTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = connection(sessions)) }
 
         openTheBag()
-        onNodeWithTag(inventoryRowTestTag(BoosterItem(PACK))).performClick()
-        onNodeWithTag(INVENTORY_USE_TEST_TAG).performClick()
+        useItem(BoosterItem(PACK))
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PACK_REVEAL_TEST_TAG) }
 
         var taps = 0
@@ -106,8 +104,7 @@ class AccountBagAppTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = connection(sessions)) }
 
         openTheBag()
-        onNodeWithTag(inventoryRowTestTag(BoosterItem(PACK))).performClick()
-        onNodeWithTag(INVENTORY_USE_TEST_TAG).performClick()
+        useItem(BoosterItem(PACK))
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PACK_REVEAL_TEST_TAG) }
 
         var taps = 0

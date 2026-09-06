@@ -1,7 +1,7 @@
 package com.tripletriad.ui
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -17,19 +17,19 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.Strings
 import com.tripletriad.model.Card
 import com.tripletriad.model.GameSave
 import com.tripletriad.protocol.AuctionLot
-import com.tripletriad.ui.theme.LocalTtoColors
 
 const val AUCTION_BOARD_TEST_TAG: String = "auction-board"
 
@@ -63,32 +63,76 @@ internal fun ColumnScope.AuctionBoardBody(
     tag: String,
     emptyText: String,
     onRefresh: () -> Unit,
+    searchable: Boolean = false,
 ) {
     val strings = LocalStrings.current
     val sheet = rememberModalBottomSheetState()
-    val selected = session.selected?.takeIf { chosen -> lots.any { it.id == chosen.id } }
+
+    // The room's two controls, and the state behind them. Held here rather than in
+    // [AuctionSession] because they are how *this* list is read and not what the house was asked:
+    // `refreshBoard` takes a card id and the search is by name, in the language on screen.
+    var query by remember { mutableStateOf("") }
+    var sort by remember { mutableStateOf(AuctionSort.ENDING) }
+
+    val missing: (AuctionLot) -> Boolean = { (profile.cards[it.cardId] ?: 0) == 0 }
+    // Unconditionally remembered, `searchable` being one of the keys: a `remember` inside a
+    // branch is a slot that moves when the branch does, which is the one way this could hold a
+    // list belonging to another tab.
+    val shown = remember(lots, query, sort, strings, profile.cards, searchable) {
+        if (!searchable) {
+            lots
+        } else {
+            roomLots(
+                lots = lots,
+                query = query,
+                sort = sort,
+                nameOf = { lot -> cards[lot.cardId]?.let { strings[it.nameKey] } ?: "" },
+                missing = missing,
+            )
+        }
+    }
+
+    val selected = session.selected?.takeIf { chosen -> shown.any { it.id == chosen.id } }
 
     val list: @Composable (Modifier) -> Unit = { modifier ->
-        when {
-            state == ListState.LOADING && lots.isEmpty() -> LoadingNote("$tag-loading")
+        Column(modifier = modifier) {
+            if (searchable) {
+                AuctionRoomControls(
+                    query = query,
+                    onQuery = { query = it },
+                    sort = sort,
+                    onSort = { sort = it },
+                )
+            }
 
-            state == ListState.FAILED && lots.isEmpty() ->
-                FailedNote(strings[StringKeys.AUCTION_FAILED], "$tag-failed", onRefresh)
+            when {
+                state == ListState.LOADING && lots.isEmpty() -> LoadingNote("$tag-loading")
 
-            lots.isEmpty() -> EmptyNote(emptyText, "$tag-empty")
+                state == ListState.FAILED && lots.isEmpty() ->
+                    FailedNote(strings[StringKeys.AUCTION_FAILED], "$tag-failed", onRefresh)
 
-            else -> LazyColumn(
-                modifier = modifier.testTag(tag),
-                verticalArrangement = Arrangement.spacedBy(SpaceSm),
-            ) {
-                items(lots, key = { it.id }) { lot ->
-                    AuctionLotRow(
-                        lot = lot,
-                        card = cards[lot.cardId],
-                        now = session.remaining(lot, now),
-                        selected = selected?.id == lot.id,
-                        onClick = { session.select(lot.id) },
-                    )
+                lots.isEmpty() -> EmptyNote(emptyText, "$tag-empty")
+
+                // A room that has lots but shows none is a different fact from an empty house,
+                // and it is one the player caused: the chips above are still lit, and this says
+                // which of them to undo.
+                shown.isEmpty() ->
+                    EmptyNote(strings[StringKeys.AUCTION_NO_MATCH], AUCTION_NO_MATCH_TEST_TAG)
+
+                else -> LazyColumn(
+                    modifier = Modifier.testTag(tag).fillMaxWidth().weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(SpaceSm),
+                ) {
+                    items(shown, key = { it.id }) { lot ->
+                        AuctionLotRow(
+                            lot = lot,
+                            card = cards[lot.cardId],
+                            now = session.remaining(lot, now),
+                            missing = missing(lot),
+                            selected = selected?.id == lot.id,
+                            onClick = { session.select(lot.id) },
+                        )
+                    }
                 }
             }
         }
@@ -101,8 +145,8 @@ internal fun ColumnScope.AuctionBoardBody(
         // modal sheet, so reading the board threw a lot nobody had picked over the list — and a
         // modal sheet takes the input as well as the screen, so the tabs behind it were dead
         // until it was dismissed. The room is a list until the player picks something out of it.
-        LaunchedEffect(lots.firstOrNull()?.id) {
-            if (session.selected == null) session.select(lots.firstOrNull()?.id)
+        LaunchedEffect(shown.firstOrNull()?.id) {
+            if (session.selected == null) session.select(shown.firstOrNull()?.id)
         }
 
         Row(
@@ -161,6 +205,7 @@ private fun AuctionLotRow(
     lot: AuctionLot,
     card: Card?,
     now: Long,
+    missing: Boolean,
     selected: Boolean,
     onClick: () -> Unit,
 ) {
@@ -198,54 +243,23 @@ private fun AuctionLotRow(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
                     style = MaterialTheme.typography.labelMedium,
                 )
+                AuctionPill(lot, missing)
             }
-            Text(
-                text = statusText(strings, lot) ?: strings.format(
-                    StringKeys.AUCTION_ENDS_IN,
-                    countdownText(strings, now),
-                ),
-                // Red for the last stretch, and only for it: a colour every row wears is a
-                // colour that says nothing. `AuctionRules.extendedEnd` uses the same window, so
-                // this is also exactly the period in which a bid moves the deadline.
-                color = if (lot.status.isOpen && now <= URGENT_MILLIS) {
-                    MaterialTheme.colorScheme.error
-                } else {
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED)
-                },
-                style = MaterialTheme.typography.labelMedium,
-            )
+
+            // How a finished lot ended. A running one says it in the ring instead, which is the
+            // whole point of the ring: a deadline is a quantity that decreases.
+            statusText(strings, lot)?.let { ended ->
+                Text(
+                    text = ended,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
         }
 
-        AuctionBadge(lot)
-    }
-}
-
-/** The one word this row is about, when there is one: whose lot it is, or who is winning it. */
-@Composable
-private fun AuctionBadge(lot: AuctionLot) {
-    val strings = LocalStrings.current
-    val label = when {
-        lot.yours -> strings[StringKeys.AUCTION_YOUR_LOT]
-        lot.youLead -> strings[StringKeys.AUCTION_YOU_LEAD]
-        lot.yourBid != null -> strings[StringKeys.AUCTION_OUTBID]
-        else -> return
-    }
-
-    Box(
-        modifier = Modifier.width(BadgeWidth),
-        contentAlignment = Alignment.CenterEnd,
-    ) {
-        Text(
-            text = label,
-            color = when {
-                lot.youLead -> LocalTtoColors.current.currency
-                lot.yours -> MaterialTheme.colorScheme.onSurface.copy(alpha = SUBDUED)
-                else -> MaterialTheme.colorScheme.error
-            },
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.End,
-        )
+        if (lot.status.isOpen) {
+            CountdownRing(lotId = lot.id, millisLeft = now, urgent = now <= URGENT_MILLIS)
+        }
     }
 }
 
@@ -254,8 +268,3 @@ internal fun bidCountText(strings: Strings, lot: AuctionLot): String = if (lot.b
 } else {
     strings.format(StringKeys.AUCTION_BIDS, "${lot.bidCount}")
 }
-
-/** The window in which the row turns red — [com.tripletriad.data.AuctionRules.extendedEnd]'s. */
-private const val URGENT_MILLIS = 120_000L
-
-private val BadgeWidth = 72.dp

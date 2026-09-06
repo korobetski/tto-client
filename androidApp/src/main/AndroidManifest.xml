@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
+    <!--
+      Asked for at launch and refusable. Every note this app posts is decided by `PvpAlerts`, and
+      a refusal costs the player exactly those notes: an invitation still reaches the multiplayer
+      screen, it just no longer knocks. Below API 33 the permission does not exist and notifying
+      needs no grant. See `AndroidNotifier`.
+    -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"

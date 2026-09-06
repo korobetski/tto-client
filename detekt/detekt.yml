@@ -57,8 +57,17 @@ complexity:
     # rather than adding to it, so naming only the file above silently un-exempted every test
     # source and six test classes failed at once. detekt's defaults are repeated below because
     # this key overwrites them; `desktopTest` is ours and is not among them.
+    #
+    # `PvpSession` is the same shape one layer up: fourteen of its declarations are one PvP route
+    # each — `refreshTables`, `refreshChallenges`, `refreshClaims`, `refreshPresence`, `host`,
+    # `join`, `challenge`, `accept`, `play`, `claim` and the rest — wrapped in the same three-line
+    # `request { }` so a refusal lands on `failure` and the screen stops spinning. The split the
+    # rule asks for is a lobby half and a board half, and they cannot be split: the lobby's own
+    # poll is what discovers the match the board then plays, and both halves would need the other's
+    # `poll()`. If the day comes that they no longer share it, this exemption should go.
     excludes:
       - '**/net/AccountClient.kt'
+      - '**/ui/PvpSession.kt'
       - '**/test/**'
       - '**/androidTest/**'
       - '**/commonTest/**'

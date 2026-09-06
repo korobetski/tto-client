@@ -186,6 +186,30 @@ internal object TtoIcons {
         }
     }
 
+    /**
+     * Six dots in two columns — the grip a row is dragged by.
+     *
+     * The same trick [More] is drawn with, doubled: a hundredth-of-a-unit segment under a round
+     * cap is a disc, and six of them are the texture every list in every application has agreed
+     * means "take hold of this here".
+     */
+    val Grip: ImageVector by lazy {
+        icon("Grip") {
+            moveTo(9f, 6f)
+            lineTo(9f, 6.1f)
+            moveTo(9f, 12f)
+            lineTo(9f, 12.1f)
+            moveTo(9f, 18f)
+            lineTo(9f, 18.1f)
+            moveTo(15f, 6f)
+            lineTo(15f, 6.1f)
+            moveTo(15f, 12f)
+            lineTo(15f, 12.1f)
+            moveTo(15f, 18f)
+            lineTo(15f, 18.1f)
+        }
+    }
+
     /** One sheet behind another, offset — the shape of a thing there are now two of. */
     val Copy: ImageVector by lazy {
         icon("Copy") {

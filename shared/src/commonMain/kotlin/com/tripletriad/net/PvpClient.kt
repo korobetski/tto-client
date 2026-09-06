@@ -8,6 +8,7 @@ import com.tripletriad.protocol.PvpClaim
 import com.tripletriad.protocol.PvpJoinRequest
 import com.tripletriad.protocol.PvpMatchView
 import com.tripletriad.protocol.PvpMove
+import com.tripletriad.protocol.PvpPresence
 import com.tripletriad.protocol.PvpQueueState
 import com.tripletriad.protocol.PvpRefusal
 import com.tripletriad.protocol.PvpTable
@@ -38,6 +39,21 @@ class PvpClient(
     suspend fun tables(token: String): AccountResult<List<PvpTable>> =
         call(HTTP_OK) {
             client.get("${baseUrl()}/pvp/tables") {
+                protocolHeaders()
+                bearer(token)
+            }
+        }
+
+    /**
+     * How many other players the server has heard from lately, and how many tables are on offer.
+     *
+     * A separate round trip from [tables] rather than a field on it, because the two are read at
+     * different rates: the table list is polled once a second while the lobby is open, and a count
+     * of who is about does not change fast enough to be worth counting that often.
+     */
+    suspend fun presence(token: String): AccountResult<PvpPresence> =
+        call(HTTP_OK) {
+            client.get("${baseUrl()}/pvp/presence") {
                 protocolHeaders()
                 bearer(token)
             }

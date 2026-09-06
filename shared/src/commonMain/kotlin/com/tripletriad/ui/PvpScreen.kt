@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -30,12 +32,9 @@ import com.tripletriad.data.Format
 import com.tripletriad.data.FormatCatalog
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
-import com.tripletriad.i18n.Strings
 import com.tripletriad.model.GameSave
-import com.tripletriad.model.TradeRule
 import com.tripletriad.protocol.ANY_DECK
 import com.tripletriad.protocol.PvpChallenge
-import com.tripletriad.protocol.PvpStake
 import com.tripletriad.protocol.PvpTable
 import com.tripletriad.protocol.PvpTableRequest
 import kotlinx.coroutines.CoroutineScope
@@ -45,11 +44,15 @@ const val PVP_HOST_TEST_TAG: String = "pvp-host"
 const val PVP_CANCEL_TABLE_TEST_TAG: String = "pvp-cancel-table"
 const val PVP_NAME_TEST_TAG: String = "pvp-name"
 const val PVP_CHALLENGE_TEST_TAG: String = "pvp-challenge"
-const val PVP_NO_CHALLENGE_TEST_TAG: String = "pvp-no-challenge"
 const val PVP_NO_TABLE_TEST_TAG: String = "pvp-no-table"
-const val PVP_LIST_TEST_TAG: String = "pvp-challenges"
+
+// The one list. `PVP_TABLES_TEST_TAG` is now the open-tables heading rather than a list of its
+// own — it still means "there are tables", which is all anything ever asked it.
+const val PVP_LOBBY_TEST_TAG: String = "pvp-lobby"
 const val PVP_TABLES_TEST_TAG: String = "pvp-tables"
-const val PVP_LOBBY_TABS_TEST_TAG: String = "pvp-lobby-tabs"
+
+/** The line that says whether there is anybody to play. See [PresenceLine]. */
+const val PVP_PRESENCE_TEST_TAG: String = "pvp-presence"
 const val PVP_CLAIM_BANNER_TEST_TAG: String = "pvp-claim-banner"
 const val PVP_CLAIM_BANNER_ACTION_TEST_TAG: String = "pvp-claim-banner-go"
 const val PVP_NOTE_TEST_TAG: String = "pvp-note"
@@ -70,8 +73,6 @@ fun tableRowTestTag(id: String): String = "pvp-table-$id"
 fun tableJoinTestTag(id: String): String = "pvp-join-$id"
 
 fun tableCautionTestTag(id: String): String = "pvp-caution-$id"
-
-internal enum class LobbyTab { TABLES, CHALLENGES }
 
 /**
  * A table or an invitation the player has said yes to, waiting only on which deck they bring.
@@ -142,6 +143,33 @@ internal suspend fun PvpSession.take(seat: PvpSeat) = when (seat.kind) {
     PvpSeat.Kind.CHALLENGE -> accept(seat.id)
 }
 
+/**
+ * The multiplayer room, read from the top down in the order things are owed.
+ *
+ * ### Why the two tabs went
+ *
+ * They were `Tables` and `Invitations`, and the screen opened on the first. An invitation is an
+ * *event* — somebody named this player and is waiting on an answer — and it was being filed
+ * behind a tab that had to be remembered and pressed. The data was never the problem: one loop
+ * refreshed both lists whichever tab was showing, so the invitation was in memory and out of
+ * sight at the same time.
+ *
+ * So there is one column, ordered by what it costs to ignore each thing:
+ *
+ * 1. **a prize on a timer** — settled *against* the player if they never come;
+ * 2. **invitations received** — somebody is waiting;
+ * 3. **your own table** — open, and taking up the one table you are allowed;
+ * 4. **the other tables** — the only part that is a choice rather than an answer;
+ * 5. **invitations you sent**, then the two doors that start something new.
+ *
+ * Nothing here is a tab, and nothing is hidden behind one.
+ *
+ * ### The empty room is a page, not a sentence
+ *
+ * Three players on a server is the ordinary state of a game this size, not a fault. When there is
+ * nothing at all — see [LobbyEmpty] — the screen offers the three things that can still be done
+ * instead of reporting that nobody is here.
+ */
 @Composable
 @Suppress("LongParameterList")
 internal fun PvpScreen(
@@ -159,7 +187,6 @@ internal fun PvpScreen(
 ) {
     val strings = LocalStrings.current
     val scope = rememberCoroutineScope()
-    var tab by remember { mutableStateOf(LobbyTab.TABLES) }
     val note = rememberNoteHost(PVP_NOTE_TEST_TAG)
     // What the player has said yes to and not yet brought a deck to. See [PvpSeat].
     var seat by remember { mutableStateOf<PvpSeat?>(null) }
@@ -239,48 +266,372 @@ internal fun PvpScreen(
         onBack = onBack,
         snackbar = note,
     ) {
-        // The play root's own header, so the three ways to start a match stay in one place and
-        // the tab row does not move when one is chosen. This screen's own two tabs below it are
-        // what the multiplayer rebuild removes; until then they are a second row, not a second
-        // header.
+        // The play root's own header, so the three ways to start a match stay in one place and the
+        // tab row does not move when one is chosen. It is the only tab row on this screen now.
         PlayTabs(
             current = PlayTab.MULTIPLAYER,
             waiting = session.claims.size + session.challenges.size,
             onSelect = onTab,
         )
 
-        if (session.claims.isNotEmpty()) {
-            ClaimBanner(count = session.claims.size, onClaim = onClaim)
-        }
+        // Above the room and not in place of it: the server is what refuses a table, and a player
+        // below the line is better served by reading what is on offer and what it will cost them
+        // to join it than by a shut door. See [PvpLocked].
+        PvpLocked(profile)
 
-        ScreenTabs(
-            tabs = listOf(
-                strings[StringKeys.PVP_TABLES] to screenTabTestTag("tables"),
-                strings[StringKeys.PVP_CHALLENGE] to screenTabTestTag("invites"),
-            ),
-            selected = tab.ordinal,
-            onSelect = { index -> tab = LobbyTab.entries[index] },
-            modifier = Modifier.testTag(PVP_LOBBY_TABS_TEST_TAG),
+        LobbyBody(
+            profile = profile,
+            session = session,
+            now = now,
+            scope = scope,
+            onHost = onHost,
+            onInvite = onInvite,
+            onClaim = onClaim,
+            onSit = sit,
         )
+    }
+}
 
-        when (tab) {
-            LobbyTab.TABLES -> TablesBody(
-                profile = profile,
-                session = session,
+/**
+ * The column, or the page that replaces it when there is nothing in it.
+ *
+ * "Nothing" is a stricter test than an empty table list: an invitation, a prize or a table of your
+ * own each mean the room has something in it, and a lobby still being read means nobody has been
+ * asked yet — see `PvpSession.tablesState`, and [LobbyEmpty], which must never stand in for a
+ * question that has not come back.
+ */
+@Composable
+@Suppress("LongParameterList", "LongMethod")
+private fun ColumnScope.LobbyBody(
+    profile: GameSave,
+    session: PvpSession,
+    now: Long,
+    scope: CoroutineScope,
+    onHost: () -> Unit,
+    onInvite: (String) -> Unit,
+    onClaim: () -> Unit,
+    onSit: (PvpSeat) -> Unit,
+) {
+    val strings = LocalStrings.current
+    val mine = session.myTable
+    // An invitation the player sent is not something waiting on them, and it is the same row type
+    // either way — so it is told apart once, here, rather than inside the row.
+    val received = session.challenges.filterNot { it.fromName.equals(profile.username, true) }
+    val sent = session.challenges.filter { it.fromName.equals(profile.username, true) }
+    val others = session.tables.filterNot { it.id == mine?.id }
+    val bare = session.claims.isEmpty() && session.challenges.isEmpty() && mine == null &&
+        others.isEmpty() && session.tablesState == ListState.READY
+
+    if (bare) {
+        LobbyEmpty(session = session, onHost = onHost, onInvite = onInvite)
+        return
+    }
+
+    LazyColumn(
+        modifier = Modifier
+            .testTag(PVP_LOBBY_TEST_TAG)
+            .fillMaxWidth()
+            .weight(1f),
+        verticalArrangement = Arrangement.spacedBy(SpaceSm),
+    ) {
+        if (session.claims.isNotEmpty()) {
+            item("claims") { ClaimBanner(count = session.claims.size, onClaim = onClaim) }
+        }
+
+        // Drawn before any invitation and outside the header, because a room that could not be
+        // read has no invitations to head. When the read came back and there is nothing, this is
+        // silent — an empty section for an event is a heading with nothing under it.
+        when (session.challengesState) {
+            ListState.LOADING -> item("invites-state") {
+                LoadingNote(PVP_CHALLENGES_LOADING_TEST_TAG)
+            }
+
+            ListState.FAILED -> item("invites-state") {
+                FailedNote(
+                    text = strings[StringKeys.ERROR_OFFLINE],
+                    tag = PVP_CHALLENGES_FAILED_TEST_TAG,
+                    onRetry = { scope.launch { session.refreshChallenges() } },
+                )
+            }
+
+            ListState.READY -> Unit
+        }
+
+        if (received.isNotEmpty()) {
+            item("waiting") { SectionHeader(strings[StringKeys.PVP_WAITING]) }
+            items(received, key = { it.id }) { challenge ->
+                ChallengeRow(
+                    challenge = challenge,
+                    mine = false,
+                    onAccept = { onSit(PvpSeat.at(challenge)) },
+                    onDrop = { scope.launch { session.dropChallenge(challenge.id) } },
+                )
+            }
+        }
+
+        if (mine != null) {
+            item("mine") {
+                MyTableCard(
+                    table = mine,
+                    now = now,
+                    enabled = !session.isBusy,
+                    onCancel = { scope.launch { session.cancelTable(mine.id) } },
+                )
+            }
+        }
+
+        item("tables-state") {
+            when {
+                session.tablesState == ListState.LOADING && others.isEmpty() ->
+                    LoadingNote(PVP_TABLES_LOADING_TEST_TAG)
+
+                session.tablesState == ListState.FAILED && others.isEmpty() -> FailedNote(
+                    text = strings[StringKeys.ERROR_OFFLINE],
+                    tag = PVP_TABLES_FAILED_TEST_TAG,
+                    onRetry = { scope.launch { session.refreshTables() } },
+                )
+
+                others.isEmpty() -> EmptyNote(
+                    strings[StringKeys.PVP_NO_TABLE],
+                    PVP_NO_TABLE_TEST_TAG,
+                )
+
+                else -> SectionHeader(
+                    text = strings[StringKeys.PVP_TABLES_OPEN] + "  ${others.size}",
+                    modifier = Modifier.testTag(PVP_TABLES_TEST_TAG),
+                )
+            }
+        }
+
+        items(others, key = { it.id }) { table ->
+            TableRow(
+                table = table,
                 now = now,
-                scope = scope,
-                onHost = onHost,
-                onSit = sit,
-            )
-
-            LobbyTab.CHALLENGES -> ChallengesBody(
+                enabled = !session.isBusy,
+                // The reader's own profile, because what a wager *is* depends on who is looking
+                // at it — see the row's own note.
                 profile = profile,
-                session = session,
-                scope = scope,
-                onInvite = onInvite,
-                onSit = sit,
+                // Names the seat rather than joining. The deck question comes first now — see
+                // [PvpSeat] — and it is the answer to it that sends the request.
+                onJoin = { onSit(PvpSeat.at(table)) },
             )
         }
+
+        if (sent.isNotEmpty()) {
+            item("sent") {
+                SectionHeader(
+                    text = strings[StringKeys.PVP_SENT],
+                    modifier = Modifier.padding(top = SpaceSm),
+                )
+            }
+            items(sent, key = { it.id }) { challenge ->
+                ChallengeRow(
+                    challenge = challenge,
+                    mine = true,
+                    onAccept = {},
+                    onDrop = { scope.launch { session.dropChallenge(challenge.id) } },
+                )
+            }
+        }
+
+        item("doors") {
+            Column(
+                modifier = Modifier.padding(top = SpaceMd),
+                verticalArrangement = Arrangement.spacedBy(SpaceSm),
+            ) {
+                SectionHeader(strings[StringKeys.PVP_FIND])
+                PresenceLine(session)
+                // Absent rather than disabled when a table is already open: the card above *is*
+                // that table, and the server allows one.
+                if (mine == null) {
+                    WideButton(
+                        label = strings[StringKeys.PVP_HOST],
+                        tag = PVP_HOST_TEST_TAG,
+                        enabled = !session.isBusy,
+                        onClick = onHost,
+                    )
+                }
+                InviteByName(busy = session.isBusy, onInvite = onInvite)
+            }
+        }
+    }
+}
+
+/**
+ * What the room offers when it has nothing in it.
+ *
+ * Three doors in the order they have a chance of working — open a table and be found, name
+ * somebody, or go and play a program — because "nobody is here" is a true sentence that leaves
+ * the player at a dead end on the screen they came to for a match.
+ *
+ * The solo line is the one that is not a door: it costs nothing to say, and it is the honest
+ * answer on a server with three people awake.
+ */
+/**
+ * Whether there is anybody to play, said above the door that opens a table.
+ *
+ * Placed before the door and not after it because it is the one thing that changes the answer:
+ * opening a table in an empty room is a wait with nothing at the end of it, and the player could
+ * not tell that from the screen — an empty lobby looked the same whether the server had nobody on
+ * it or simply nobody hosting.
+ *
+ * Draws nothing at all until the count arrives, so the line never appears as "nobody is here"
+ * while the question is still in flight.
+ */
+@Composable
+private fun PresenceLine(session: PvpSession, modifier: Modifier = Modifier) {
+    val line = presenceLine(session.presence, LocalStrings.current) ?: return
+    Text(
+        text = line,
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
+        style = MaterialTheme.typography.labelMedium,
+        modifier = modifier.testTag(PVP_PRESENCE_TEST_TAG),
+    )
+}
+
+@Composable
+private fun ColumnScope.LobbyEmpty(
+    session: PvpSession,
+    onHost: () -> Unit,
+    onInvite: (String) -> Unit,
+) {
+    val strings = LocalStrings.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .weight(1f)
+            .verticalScroll(rememberScrollState())
+            .padding(top = SpaceMd),
+        verticalArrangement = Arrangement.spacedBy(SpaceSm),
+    ) {
+        Text(
+            text = strings[StringKeys.PVP_NO_TABLE],
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.testTag(PVP_NO_TABLE_TEST_TAG),
+        )
+        Text(
+            text = strings[StringKeys.PVP_EMPTY_LEAD],
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
+            style = MaterialTheme.typography.bodySmall,
+        )
+        PresenceLine(session, Modifier.padding(bottom = SpaceSm))
+
+        TtoCard(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = strings[StringKeys.PVP_HOST],
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = strings[StringKeys.PVP_HOST_HINT],
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.padding(bottom = SpaceSm),
+            )
+            WideButton(
+                label = strings[StringKeys.PVP_HOST_OPEN],
+                tag = PVP_HOST_TEST_TAG,
+                enabled = !session.isBusy,
+                onClick = onHost,
+            )
+        }
+
+        TtoCard(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = strings[StringKeys.PVP_CHALLENGE],
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            InviteByName(busy = session.isBusy, onInvite = onInvite)
+        }
+
+        Text(
+            text = strings[StringKeys.PVP_EMPTY_SOLO],
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.padding(top = SpaceMd),
+        )
+    }
+}
+
+/**
+ * The one door `onInvite` never had.
+ *
+ * The call has existed since multiplayer did; the only way to reach it was the tab the rebuild
+ * removed, and before that it was a field at the bottom of a list nobody scrolled to. It is on
+ * the screen twice on purpose — under the tables when there are some, and as one of the three
+ * doors when there are none — because it is the answer to two different questions: "nobody I want
+ * to play is here" and "there is nobody here at all".
+ */
+@Composable
+private fun InviteByName(busy: Boolean, onInvite: (String) -> Unit) {
+    val strings = LocalStrings.current
+    var name by remember { mutableStateOf("") }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(SpaceSm),
+    ) {
+        OutlinedTextField(
+            value = name,
+            onValueChange = { name = it },
+            singleLine = true,
+            label = { Text(strings[StringKeys.USERNAME]) },
+            modifier = Modifier.weight(1f).testTag(PVP_NAME_TEST_TAG),
+        )
+        TextButton(
+            // Trimmed here as well as on the server, for the reason `Credentials.looksValid`
+            // gives: a round trip to be told about a trailing space is a round trip wasted.
+            enabled = name.isNotBlank() && !busy,
+            // Straight to the terms screen rather than sending from here: an invitation states the
+            // same four things a table does, and the screen that states them already exists.
+            onClick = { onInvite(name.trim()) },
+            modifier = Modifier.testTag(PVP_CHALLENGE_TEST_TAG),
+        ) {
+            Text(strings[StringKeys.PVP_INVITE])
+        }
+    }
+}
+
+/**
+ * The player's own table, as a state and not as a button that changed its name.
+ *
+ * It used to be the same full-width control as "Host a match", relabelled "Withdraw my table" —
+ * so the only way to learn what you had opened, and how long ago, was to remember choosing it.
+ * A table is the one thing on this screen that belongs to the reader; it is worth a card that
+ * says what it is.
+ */
+@Composable
+private fun MyTableCard(table: PvpTable, now: Long, enabled: Boolean, onCancel: () -> Unit) {
+    val strings = LocalStrings.current
+
+    TtoCard(modifier = Modifier.testTag(tableRowTestTag(table.id)).fillMaxWidth()) {
+        Text(
+            text = strings[StringKeys.PVP_TABLE_MINE],
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = strings.format(StringKeys.PVP_TABLE_OPEN_SINCE, "${minutesSince(table, now)}") +
+                DOT_SEPARATOR + stakeLine(table.stake, strings),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = SUBDUED),
+            style = MaterialTheme.typography.labelMedium,
+        )
+        RulesStrip(rules = table.rules, roulette = table.roulette, tag = null)
+        WideButton(
+            label = strings[StringKeys.PVP_HOST_CANCEL],
+            tag = PVP_CANCEL_TABLE_TEST_TAG,
+            filled = false,
+            enabled = enabled,
+            onClick = onCancel,
+        )
     }
 }
 
@@ -352,79 +703,8 @@ private fun ClaimBanner(count: Int, onClaim: () -> Unit) {
 }
 
 @Composable
-private fun ColumnScope.TablesBody(
-    profile: GameSave,
-    session: PvpSession,
-    now: Long,
-    scope: CoroutineScope,
-    onHost: () -> Unit,
-    onSit: (PvpSeat) -> Unit,
-) {
-    val strings = LocalStrings.current
-    val mine = session.myTable
-
-    if (mine == null) {
-        WideButton(
-            label = strings[StringKeys.PVP_HOST],
-            tag = PVP_HOST_TEST_TAG,
-            enabled = !session.isBusy,
-            onClick = onHost,
-        )
-    } else {
-        WideButton(
-            label = strings[StringKeys.PVP_HOST_CANCEL],
-            tag = PVP_CANCEL_TABLE_TEST_TAG,
-            filled = false,
-            enabled = !session.isBusy,
-            onClick = { scope.launch { session.cancelTable(mine.id) } },
-        )
-    }
-
-    if (session.tables.isEmpty()) {
-        // "Nobody is here" only once somebody has been asked, and never when nobody could be —
-        // see `PvpSession.tablesState`. An empty list is three different things and only one of
-        // them is worth telling a player.
-        when (session.tablesState) {
-            ListState.LOADING -> LoadingNote(PVP_TABLES_LOADING_TEST_TAG)
-            ListState.READY ->
-                EmptyNote(strings[StringKeys.PVP_NO_TABLE], PVP_NO_TABLE_TEST_TAG)
-
-            ListState.FAILED -> FailedNote(
-                text = strings[StringKeys.ERROR_OFFLINE],
-                tag = PVP_TABLES_FAILED_TEST_TAG,
-                onRetry = { scope.launch { session.refreshTables() } },
-            )
-        }
-    } else {
-        LazyColumn(
-            modifier = Modifier
-                .testTag(PVP_TABLES_TEST_TAG)
-                .fillMaxWidth()
-                .weight(1f),
-            verticalArrangement = Arrangement.spacedBy(SpaceSm),
-        ) {
-            items(session.tables, key = { it.id }) { table ->
-                TableRow(
-                    table = table,
-                    mine = table.id == mine?.id,
-                    now = now,
-                    enabled = !session.isBusy,
-                    // The reader's own profile, because what a wager *is* depends on who is
-                    // looking at it — see the row's own note.
-                    profile = profile,
-                    // Names the seat rather than joining. The deck question comes first now —
-                    // see [PvpSeat] — and it is the answer to it that sends the request.
-                    onJoin = { onSit(PvpSeat.at(table)) },
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun TableRow(
     table: PvpTable,
-    mine: Boolean,
     now: Long,
     enabled: Boolean,
     profile: GameSave,
@@ -450,11 +730,10 @@ private fun TableRow(
             .testTag(tableRowTestTag(table.id))
             .fillMaxWidth()
             // A plain row. It used to be `selected = !mine`, which tinted every table **except**
-            // the player's own — so in a lobby of six, five were marked and one was not, and a
-            // mark carried by the majority is not a mark. The row already says whose table it is
-            // in words, on its first line, in whichever language the player reads; the tint was
-            // saying the same thing again and worse. See the claim banner below, which is now the
-            // only tinted thing on this screen and means something because of it.
+            // the player's own — a mark carried by the majority is not a mark. The player's own
+            // table is a card of its own now (see `MyTableCard`), so this list is other people's
+            // and needs no mark at all. The claim banner is the only tinted thing here, and means
+            // something because of it.
             .rowSurface()
             .padding(SpaceMd),
         verticalArrangement = Arrangement.spacedBy(SpaceXs),
@@ -465,11 +744,7 @@ private fun TableRow(
             horizontalArrangement = Arrangement.spacedBy(SpaceSm),
         ) {
             Text(
-                text = if (mine) {
-                    strings[StringKeys.PVP_TABLE_MINE]
-                } else {
-                    strings.format(StringKeys.PVP_TABLE_BY, table.hostName)
-                },
+                text = strings.format(StringKeys.PVP_TABLE_BY, table.hostName),
                 color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.Bold,
@@ -477,20 +752,16 @@ private fun TableRow(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
-            // A host joining their own table would be a match against themselves, which the server
-            // refuses — so the button is absent rather than offered and then denied.
-            if (!mine) {
-                RowButton(
-                    label = strings[
-                        if (confirming) StringKeys.PVP_JOIN_CONFIRM else StringKeys.PVP_JOIN,
-                    ],
-                    tag = tableJoinTestTag(table.id),
-                    enabled = enabled && !overLimit,
-                    onClick = {
-                        if (heavy && !confirming) confirming = true else onJoin()
-                    },
-                )
-            }
+            RowButton(
+                label = strings[
+                    if (confirming) StringKeys.PVP_JOIN_CONFIRM else StringKeys.PVP_JOIN,
+                ],
+                tag = tableJoinTestTag(table.id),
+                enabled = enabled && !overLimit,
+                onClick = {
+                    if (heavy && !confirming) confirming = true else onJoin()
+                },
+            )
         }
 
         Text(
@@ -504,7 +775,7 @@ private fun TableRow(
         // above makes about the tint it used to have.
         val caution = when {
             overLimit -> strings.format(StringKeys.PVP_TABLE_OVER_LIMIT, "$ceiling")
-            heavy && !mine -> strings[StringKeys.PVP_TABLE_HEAVY]
+            heavy -> strings[StringKeys.PVP_TABLE_HEAVY]
             else -> null
         }
         if (caution != null) {
@@ -516,100 +787,6 @@ private fun TableRow(
             )
         }
         RulesStrip(rules = table.rules, roulette = table.roulette)
-    }
-}
-
-internal fun minutesLeft(table: PvpTable, now: Long): Int {
-    val left = (table.expiresAt - now).coerceAtLeast(0L)
-    return ((left + MILLIS_PER_MINUTE - 1) / MILLIS_PER_MINUTE).toInt()
-}
-
-private const val MILLIS_PER_MINUTE = 60_000L
-
-internal fun stakeLine(stake: PvpStake, strings: Strings): String {
-    if (stake.isFree) return strings[StringKeys.PVP_TABLE_FREE]
-
-    val parts = buildList {
-        if (stake.mgp > 0) add(strings.format(StringKeys.PVP_STAKE_MGP, "${stake.mgp}"))
-        if (stake.trade != TradeRule.NONE) add(strings[tradeKey(stake.trade)])
-    }
-    return parts.joinToString(" $DOT_SEPARATOR ")
-}
-
-internal fun tradeKey(trade: TradeRule): String = when (trade) {
-    TradeRule.NONE -> StringKeys.PVP_TRADE_NONE
-    TradeRule.ONE -> StringKeys.PVP_TRADE_ONE
-    TradeRule.DIFF -> StringKeys.PVP_TRADE_DIFF
-    TradeRule.DIRECT -> StringKeys.PVP_TRADE_DIRECT
-    TradeRule.ALL -> StringKeys.PVP_TRADE_ALL
-}
-
-@Composable
-private fun ColumnScope.ChallengesBody(
-    profile: GameSave,
-    session: PvpSession,
-    scope: CoroutineScope,
-    onInvite: (String) -> Unit,
-    onSit: (PvpSeat) -> Unit,
-) {
-    val strings = LocalStrings.current
-    var name by remember { mutableStateOf("") }
-
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(top = SpaceSm),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(SpaceSm),
-    ) {
-        OutlinedTextField(
-            value = name,
-            onValueChange = { name = it },
-            singleLine = true,
-            label = { Text(strings[StringKeys.USERNAME]) },
-            modifier = Modifier.weight(1f).testTag(PVP_NAME_TEST_TAG),
-        )
-        TextButton(
-            // Trimmed here as well as on the server, for the reason `Credentials.looksValid`
-            // gives: a round trip to be told about a trailing space is a round trip wasted.
-            enabled = name.isNotBlank() && !session.isBusy,
-            // Straight to the terms screen rather than sending from here: an invitation states the
-            // same four things a table does, and the screen that states them already exists.
-            onClick = { onInvite(name.trim()) },
-            modifier = Modifier.testTag(PVP_CHALLENGE_TEST_TAG),
-        ) {
-            Text(strings[StringKeys.PVP_INVITE])
-        }
-    }
-
-    if (session.challenges.isEmpty()) {
-        when (session.challengesState) {
-            ListState.LOADING -> LoadingNote(PVP_CHALLENGES_LOADING_TEST_TAG)
-            ListState.READY ->
-                EmptyNote(strings[StringKeys.PVP_NO_CHALLENGE], PVP_NO_CHALLENGE_TEST_TAG)
-
-            ListState.FAILED -> FailedNote(
-                text = strings[StringKeys.ERROR_OFFLINE],
-                tag = PVP_CHALLENGES_FAILED_TEST_TAG,
-                onRetry = { scope.launch { session.refreshChallenges() } },
-            )
-        }
-    } else {
-        LazyColumn(
-            modifier = Modifier
-                .testTag(PVP_LIST_TEST_TAG)
-                .fillMaxWidth()
-                .weight(1f),
-            verticalArrangement = Arrangement.spacedBy(SpaceSm),
-        ) {
-            items(session.challenges, key = { it.id }) { challenge ->
-                ChallengeRow(
-                    challenge = challenge,
-                    mine = challenge.fromName.equals(profile.username, ignoreCase = true),
-                    // As with a table: accepting names the seat, and the deck screen sends it.
-                    onAccept = { onSit(PvpSeat.at(challenge)) },
-                    onDrop = { scope.launch { session.dropChallenge(challenge.id) } },
-                )
-            }
-        }
     }
 }
 

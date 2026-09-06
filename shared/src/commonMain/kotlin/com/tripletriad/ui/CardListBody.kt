@@ -16,6 +16,9 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -27,7 +30,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tripletriad.data.CardCatalog
 import com.tripletriad.data.CardValue
@@ -50,6 +52,8 @@ const val CARD_SHEET_TEST_TAG: String = "card-sheet"
 
 const val CARD_SELL_TEST_TAG: String = "card-sell"
 
+const val CARD_ANY_FILTER_TEST_TAG: String = "card-filter-any"
+
 const val CARD_OWNED_FILTER_TEST_TAG: String = "card-filter-owned"
 
 const val CARD_MISSING_FILTER_TEST_TAG: String = "card-filter-missing"
@@ -63,9 +67,13 @@ const val CARD_NO_MATCH_TEST_TAG: String = "card-no-match"
  * them apart would admit a fourth state — both on — that means an empty grid for no reason the
  * player could see. [MISSING] is the half that was absent, and it is the one a collection is read
  * for once it is mostly full: 564 tiles with 30 gaps in them is not a list of what is left to find.
+ *
+ * All three are on screen together. Drawn as two chips, [ANY] had no control of its own — it was
+ * whatever was left when neither of the other two was lit, which is a state a player reaches by
+ * undoing rather than by choosing.
  */
 private enum class Held(val tag: String, val labelKey: String) {
-    ANY("any", StringKeys.ALL),
+    ANY(CARD_ANY_FILTER_TEST_TAG, StringKeys.ALL),
     OWNED(CARD_OWNED_FILTER_TEST_TAG, StringKeys.OWNED),
     MISSING(CARD_MISSING_FILTER_TEST_TAG, StringKeys.MISSING),
     ;
@@ -75,9 +83,6 @@ private enum class Held(val tag: String, val labelKey: String) {
         OWNED -> copies > 0
         MISSING -> copies <= 0
     }
-
-    /** The chip's own state: tapping the one that is on turns it off rather than doing nothing. */
-    fun toggled(to: Held): Held = if (this == to) ANY else to
 }
 
 fun cardCellTestTag(cardId: Int): String = "card-cell-$cardId"
@@ -104,7 +109,7 @@ internal fun ColumnScope.CardListBody(
 
     // Set, element, rarity, name and order, asked the way the auction's consignment picker asks
     // the first three — see [CardFilters]. What stays here is what only this room admits: a secret
-    // card nobody owns, and the owned/missing pair beside the count.
+    // card nobody owns, and the All / Owned / Missing segments beside the menus.
     val filters = rememberCardFilters(admitted, catalog.sets)
     val cards = remember(
         admitted,
@@ -125,38 +130,19 @@ internal fun ColumnScope.CardListBody(
         )
     }
 
-    // The count and the toggles that change it, on one line. "Owned · 33 / 263" and "show only
-    // what I own" are the same sentence twice, so the controls belong beside the fact rather
-    // than at the end of the elements, where it was the chip the narrow layout cut in half.
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(bottom = SpaceSm),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(SpaceXs),
-    ) {
-        Text(
-            // Counted over what is **on screen**, so the line answers the question the grid is
-            // currently asking. Filtered to fire, "Owned · 3 / 21" is a fact about fire cards;
-            // the unfiltered total is the same sentence with no filter applied.
-            text = "${strings[StringKeys.OWNED]}$DOT_SEPARATOR" +
-                "${cards.count { owned.containsKey(it.id) }} / ${cards.size}",
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = SUBDUED),
-            style = MaterialTheme.typography.labelMedium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.testTag(CARD_TOTAL_TEST_TAG).weight(1f),
-        )
+    // Two bands of controls where there were five — see [CardFilterMenus]. The count rides under
+    // the search field rather than on a line of its own, because it is a fact about what the field
+    // and the menus have narrowed the list to: counted over what is **on screen**, so filtered to
+    // fire it reads "Owned · 3 / 21", a fact about fire cards.
+    CardSearchRow(
+        filters = filters,
+        count = "${strings[StringKeys.OWNED]}$DOT_SEPARATOR" +
+            "${cards.count { owned.containsKey(it.id) }} / ${cards.size}",
+    )
 
-        for (candidate in listOf(Held.OWNED, Held.MISSING)) {
-            TtoFilterChip(
-                label = strings[candidate.labelKey],
-                tag = candidate.tag,
-                selected = held == candidate,
-            ) { held = held.toggled(candidate) }
-        }
+    CardFilterMenus(filters) {
+        HeldSegments(held) { held = it }
     }
-
-    CardSearchRow(filters)
-    CardFilterChips(filters)
 
     // Selling takes the copy out of the collection and pays for it. Asked rather than computed:
     // a card's worth is its **rarity**, and on an account it is the server's card table that says
@@ -186,7 +172,7 @@ internal fun ColumnScope.CardListBody(
     val grid: @Composable (Modifier) -> Unit = { modifier ->
         // Said rather than left blank. Every way this list empties is now something the player did
         // — a name that matches nothing, a set filtered to an element it has none of, "missing" on
-        // a tribe that is complete — and an empty grid under five rows of controls looks like a
+        // a tribe that is complete — and an empty grid under a row of controls looks like a
         // screen that failed to load. One sentence covers all of them because they are all the
         // same fact: nothing here answers to what was asked.
         if (cards.isEmpty()) {
@@ -249,6 +235,39 @@ internal fun ColumnScope.CardListBody(
                         .padding(horizontal = SpaceMd, vertical = SpaceSm),
                 )
             }
+        }
+    }
+}
+
+/**
+ * All / Owned / Missing, as one control with three positions.
+ *
+ * A segmented row rather than the pair of chips this replaces. Two chips could say "owned" and
+ * "missing" but never "all": the third state was the absence of the other two, so the way back to
+ * the whole collection was to notice which chip was lit and tap it again. Three segments say what
+ * the grid is showing and offer the way out of it in the same object.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun HeldSegments(held: Held, onPick: (Held) -> Unit) {
+    val strings = LocalStrings.current
+
+    SingleChoiceSegmentedButtonRow {
+        Held.entries.forEachIndexed { index, candidate ->
+            SegmentedButton(
+                selected = held == candidate,
+                onClick = { onPick(candidate) },
+                shape = SegmentedButtonDefaults.itemShape(index, Held.entries.size),
+                modifier = Modifier.testTag(candidate.tag),
+                label = {
+                    Text(
+                        text = strings[candidate.labelKey],
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1,
+                        softWrap = false,
+                    )
+                },
+            )
         }
     }
 }

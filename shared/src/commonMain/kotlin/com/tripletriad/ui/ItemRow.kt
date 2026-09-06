@@ -4,6 +4,7 @@ import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.Strings
 import com.tripletriad.model.BoonType
 import com.tripletriad.model.BoosterItem
+import com.tripletriad.model.BoosterType
 import com.tripletriad.model.Card
 import com.tripletriad.model.CardItem
 import com.tripletriad.model.CardOrigin
@@ -75,3 +76,55 @@ internal fun ownedNote(strings: Strings, item: Item, owned: Map<Int, Int>): Stri
 /** A card's name, or its id when the catalog has not got it. Both callers above want this. */
 internal fun cardName(strings: Strings, cardId: Int, cards: Map<Int, Card>): String =
     cards[cardId]?.let { strings[it.nameKey] } ?: "#$cardId"
+
+/**
+ * What holding this item buys, said on the row rather than left to be discovered by using it.
+ *
+ * Null for [MiscItem] alone: an item the port does not recognise cannot be described, and a line
+ * that says nothing under a name that says nothing is two lines of nothing.
+ */
+internal fun itemEffect(
+    strings: Strings,
+    item: Item,
+    cards: Map<Int, Card>,
+    owned: Map<Int, Int>,
+): String? = when (item) {
+    // The same three facts the shop's own tile carries, from the same [packFacts] — a pack that
+    // reads one way where it is bought and another where it is opened is two packs to the player.
+    is BoosterItem -> packEffect(strings, item.boosterType, cards, owned)
+
+    is PotionItem -> strings.format(
+        StringKeys.ITEM_EFFECT_BOON,
+        boonLabel(strings, item.potionType.modifier.type),
+        item.potionType.modifier.value.toString(),
+    )
+
+    is CardItem -> strings[StringKeys.ITEM_EFFECT_CARD]
+
+    is PouchItem -> strings.format(StringKeys.ITEM_EFFECT_POUCH, grouped(item.mgp))
+
+    is MiscItem -> null
+}
+
+private fun packEffect(
+    strings: Strings,
+    type: BoosterType,
+    cards: Map<Int, Card>,
+    owned: Map<Int, Int>,
+): String {
+    val facts = packFacts(type, cards, owned)
+    return listOfNotNull(
+        strings.format(StringKeys.PACK_CARDS, facts.draws.toString()),
+        facts.stars?.let(::starRange),
+        if (facts.missing == 0) {
+            strings[StringKeys.PACK_COMPLETE]
+        } else {
+            strings.format(StringKeys.PACK_MISSING, facts.missing.toString())
+        },
+    ).joinToString(DOT_SEPARATOR)
+}
+
+private fun boonLabel(strings: Strings, type: BoonType): String = when (type) {
+    BoonType.MGP -> strings[StringKeys.MGP]
+    BoonType.XP -> strings[StringKeys.XP]
+}

@@ -72,8 +72,7 @@ class AccountBagUiTest {
         val session = signedIn()
         setContent { Fixture(session) }
 
-        onNodeWithTag(inventoryRowTestTag(BoosterItem(PACK))).performClick()
-        onNodeWithTag(INVENTORY_USE_TEST_TAG).performClick()
+        useItem(BoosterItem(PACK))
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PACK_REVEAL_TEST_TAG) }
 
         val bag = session.save?.bag.orEmpty()
@@ -96,8 +95,7 @@ class AccountBagUiTest {
         val session = signedIn()
         setContent { Fixture(session) }
 
-        onNodeWithTag(inventoryRowTestTag(BoosterItem(PACK))).performClick()
-        onNodeWithTag(INVENTORY_USE_TEST_TAG).performClick()
+        useItem(BoosterItem(PACK))
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PACK_REVEAL_TEST_TAG) }
 
         val cardStacks = session.save?.bag.orEmpty().filterIsInstance<CardItem>().sumOf { it.stack }
@@ -109,8 +107,7 @@ class AccountBagUiTest {
         val session = signedIn()
         setContent { Fixture(session) }
 
-        onNodeWithTag(inventoryRowTestTag(BoosterItem(PACK))).performClick()
-        onNodeWithTag(INVENTORY_USE_TEST_TAG).performClick()
+        useItem(BoosterItem(PACK))
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PACK_REVEAL_TEST_TAG) }
 
         var taps = 0
@@ -146,6 +143,7 @@ class AccountBagUiTest {
                             onUse = gate.useItem,
                             onIntent = gate.perform,
                             onUnlocked = {},
+                            onShop = {},
                         )
                     }
                 }

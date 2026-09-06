@@ -24,7 +24,7 @@ mostly used at, and the one that shows the sheets and full-width grids a wide wi
 | ![Card detail](docs/screenshots/card_detail.png)<br>**Card detail** — the panel, as the sheet over the grid carries it | ![Tutorial](docs/screenshots/tutorial.png)<br>**Tutorial** — the first lesson, mid-sentence |
 | ![Auction house](docs/screenshots/auction_room.png)<br>**Auction house** — the sale room, with a lot open at the desk | ![Consignment desk](docs/screenshots/auction_sell.png)<br>**Consignment desk** — a card, two prices and what the house charges |
 | ![Consignment picker](docs/screenshots/auction_picker.png)<br>**Consignment picker** — the collection's own grid and filters, over what is spare | ![Opponents](docs/screenshots/opponents.png)<br>**Opponents** — ladders, then the shelves that say who is worth playing |
-| ![Match history](docs/screenshots/history.png)<br>**Match history** — the tally, the recent form, and what each match paid | |
+| ![Match history](docs/screenshots/history.png)<br>**Match history** — the tally, the recent form, and what each match paid | ![Decks](docs/screenshots/deck_list.png)<br>**Decks** — the decks a profile has, one line for the slots it has not filled |
 
 ### How these are taken
 

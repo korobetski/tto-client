@@ -37,7 +37,6 @@ class PvpLobbyUiTest {
     fun anInvitationReceivedCanBeAccepted() = lobby(challenges = listOf(fromKuplu())) {
         onNodeWithTag(challengeRowTestTag(INVITE_ID)).assertExists()
         onNodeWithTag(challengeAcceptTestTag(INVITE_ID)).assertExists()
-        onNodeWithTag(PVP_NO_CHALLENGE_TEST_TAG).assertDoesNotExist()
     }
 
     @Test
@@ -65,7 +64,7 @@ class PvpLobbyUiTest {
     }
 
     @Test
-    fun invitingNeedsAName() = lobby(onInvites = true) {
+    fun invitingNeedsAName() = lobby {
         onNodeWithTag(PVP_CHALLENGE_TEST_TAG).assertIsNotEnabled()
 
         onNodeWithTag(PVP_NAME_TEST_TAG).performTextInput("Kuplu")
@@ -75,7 +74,7 @@ class PvpLobbyUiTest {
 
     @Test
     fun aTypedNameIsTrimmedBeforeItIsSent() {
-        lobby(onInvites = true) {
+        lobby {
             onNodeWithTag(PVP_NAME_TEST_TAG).performTextInput("  Kuplu  ")
             onNodeWithTag(PVP_CHALLENGE_TEST_TAG).performClick()
             waitForIdle()
@@ -90,9 +89,6 @@ class PvpLobbyUiTest {
     private fun lobby(
         tables: List<String> = emptyList(),
         challenges: List<String> = emptyList(),
-        // The lobby opens on the tables. Anything about invitations has to say so, because the
-        // other tab is not composed at all until it is selected.
-        onInvites: Boolean = challenges.isNotEmpty(),
         claims: List<String> = emptyList(),
         record: (String) -> Unit = {},
         recordBody: (String) -> Unit = {},
@@ -147,10 +143,6 @@ class PvpLobbyUiTest {
                     )
                 }
             }
-        }
-        if (onInvites) {
-            onNodeWithTag(screenTabTestTag("invites")).performClick()
-            waitForIdle()
         }
         block()
     }

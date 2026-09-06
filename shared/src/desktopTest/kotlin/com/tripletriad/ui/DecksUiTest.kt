@@ -1,11 +1,15 @@
 package com.tripletriad.ui
 
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -14,11 +18,15 @@ import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.v2.runComposeUiTest
+import com.tripletriad.data.loadCardCatalog
 import com.tripletriad.i18n.AppLocale
+import com.tripletriad.i18n.StringKeys
+import com.tripletriad.i18n.loadStrings
 import com.tripletriad.model.Card
 import com.tripletriad.model.Deck
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.HAND_SIZE
+import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -26,6 +34,12 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
 class DecksUiTest {
+    private val english = runBlocking { loadStrings(AppLocale.EN_US) }
+
+    /** The labels the two moves carry — the arrows' own, kept when the arrows went. */
+    private val moveLeft = english[StringKeys.MOVE_LEFT]
+    private val moveRight = english[StringKeys.MOVE_RIGHT]
+
     /**
      * The list holds the decks the profile has, and one line for all the slots it has not used.
      *
@@ -279,6 +293,9 @@ class DecksUiTest {
         /** Enough of a drag to cross the row below, and not enough to cross the one after it. */
         const val DRAG_OVERSHOOT = 1.4f
 
+        /** Past the touch slop, short of the next position: a drag that must change nothing. */
+        const val DRAG_UNDERSHOOT = 0.6f
+
         const val DRAG_STEPS = 8
 
         val SIXTH_CARD = Card.idFor(block = 1, number = 44)
@@ -453,7 +470,7 @@ class DecksUiTest {
 
         onNodeWithTag(deckSlotTestTag(0)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
-        onNodeWithTag(deckShiftRightTestTag(0)).performClick()
+        shiftBy(0, moveRight)
         onNodeWithTag(DECK_SAVE_TEST_TAG).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_LIST_TEST_TAG) }
 
@@ -462,7 +479,7 @@ class DecksUiTest {
         assertEquals(HAND_SIZE, storedSave(documents).decks.first().cards.size, "nothing was lost")
     }
 
-    /** Shifting left is the same move back, and the ends of the hand refuse it. */
+    /** Shifting left is the same move back, and the ends of the hand offer no such action. */
     @Test
     fun theEndsOfTheHandCannotBeShiftedPastThem() = runComposeUiTest {
         val documents = seeded(freshSave())
@@ -473,18 +490,22 @@ class DecksUiTest {
         onNodeWithTag(deckSlotTestTag(0)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
 
-        onNodeWithTag(deckShiftLeftTestTag(0)).assertIsNotEnabled()
-        onNodeWithTag(deckShiftRightTestTag(HAND_SIZE - 1)).assertIsNotEnabled()
+        assertEquals(listOf(moveRight), shiftsAt(0), "the first position can only go right")
+        assertEquals(
+            listOf(moveLeft),
+            shiftsAt(HAND_SIZE - 1),
+            "the last position can only go left",
+        )
 
-        onNodeWithTag(deckShiftRightTestTag(0)).performClick()
-        onNodeWithTag(deckShiftLeftTestTag(1)).performClick()
+        shiftBy(0, moveRight)
+        shiftBy(1, moveLeft)
         onNodeWithTag(DECK_SAVE_TEST_TAG).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_LIST_TEST_TAG) }
 
         assertEquals(STARTER_DECK, storedSave(documents).decks.first().cards, "right then left")
     }
 
-    /** An empty position has nothing to shift, so both of its arrows are inert. */
+    /** An empty position has nothing to shift, so it offers neither move. */
     @Test
     fun anEmptyPositionOffersNoShift() = runComposeUiTest {
         val documents = seeded(freshSave())
@@ -496,8 +517,7 @@ class DecksUiTest {
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
 
         for (position in 0 until HAND_SIZE) {
-            onNodeWithTag(deckShiftLeftTestTag(position)).assertIsNotEnabled()
-            onNodeWithTag(deckShiftRightTestTag(position)).assertIsNotEnabled()
+            assertEquals(emptyList(), shiftsAt(position), "position $position offers a move")
         }
     }
 
@@ -680,6 +700,220 @@ class DecksUiTest {
         openMenu(deckMenuTestTag(0), deckCopyTestTag(0))
         // Greyed rather than dropped, so the menu is the same three lines on every row.
         onNodeWithTag(deckCopyTestTag(0)).assertExists().assertIsNotEnabled()
+    }
+
+    /**
+     * An empty position holds the space a card would take, so the row keeps its shape.
+     *
+     * A gap drawn shorter than a sprite would pull its grip up level with nothing and leave the
+     * hand stepping up and down as cards go in and come out. Asserted as geometry because that is
+     * what it is.
+     */
+    @Test
+    fun anEmptyPositionKeepsTheRowOnOneLine() = runComposeUiTest {
+        val hand = elementalHand()
+        val documents = seeded(handProfile(hand))
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openDecks()
+
+        onNodeWithTag(deckSlotTestTag(0)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
+
+        // A hole in the middle: tapping a position takes its card out of the draft.
+        onNodeWithTag(deckPositionTestTag(2)).performClick()
+        waitForIdle()
+
+        val first = onNodeWithTag(deckPositionDragTestTag(0)).getUnclippedBoundsInRoot()
+        val last = onNodeWithTag(deckPositionDragTestTag(HAND_SIZE - 1))
+            .getUnclippedBoundsInRoot()
+        assertEquals(first.top, last.top, "the grips under the row are not on one line")
+    }
+
+    /**
+     * **A position is the card as the board will draw it, not a portrait of it.**
+     *
+     * Asserted on the label [CardFace] gives every card it draws — name and the four powers in
+     * board order. A thumbnail carries no such label, so this is the assertion that keeps the
+     * hand from quietly going back to five 40 dp portraits.
+     */
+    @Test
+    fun everyPositionDrawsTheCardTheWayTheBoardWill() = runComposeUiTest {
+        val hand = elementalHand()
+        val documents = seeded(handProfile(hand))
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openDecks()
+
+        onNodeWithTag(deckSlotTestTag(0)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
+
+        for ((position, card) in hand.withIndex()) {
+            val label = "${english[card.nameKey]}, " +
+                "${card.top} ${card.right} ${card.bottom} ${card.left}"
+            onNode(
+                hasContentDescription(label) and
+                    hasAnyAncestor(hasTestTag(deckPositionTestTag(position))),
+                useUnmergedTree = true,
+            ).assertExists()
+        }
+    }
+
+    /**
+     * **A card dragged onto its neighbour changes places with it.**
+     *
+     * The same swap the two arrows make, by the gesture a hand of five cards is actually
+     * rearranged with — and the one the list of decks already used, see
+     * `aDeckDraggedOverTheOneBelowSwapsWithIt`. Read on what is *saved*, because the editor holds
+     * a draft: a reordering that never reaches the file is a reordering the player loses.
+     */
+    @Test
+    fun aCardDraggedOntoItsNeighbourSwapsWithIt() = runComposeUiTest {
+        val documents = seeded(freshSave())
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openDecks()
+
+        onNodeWithTag(deckSlotTestTag(0)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
+
+        // The step is the *column*, which is wider than the thumbnail the gesture goes down on —
+        // the powers under the card set the width. Measured off two positions rather than
+        // assumed, so this test does not have to know either number.
+        val first = onNodeWithTag(deckPositionTestTag(0)).fetchSemanticsNode().positionInRoot
+        val second = onNodeWithTag(deckPositionTestTag(1)).fetchSemanticsNode().positionInRoot
+        val travel = (second.x - first.x) * DRAG_OVERSHOOT
+
+        onNodeWithTag(deckPositionTestTag(0)).performTouchInput {
+            down(center)
+            for (step in 1..DRAG_STEPS) {
+                moveTo(center + Offset(travel * step / DRAG_STEPS, 0f))
+            }
+            up()
+        }
+        waitForIdle()
+
+        onNodeWithTag(DECK_SAVE_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_LIST_TEST_TAG) }
+
+        assertEquals(
+            listOf(STARTER_DECK[1], STARTER_DECK[0]) + STARTER_DECK.drop(2),
+            storedSave(documents).decks.first().cards,
+            "the dragged card should be where the one it passed was",
+        )
+    }
+
+    /**
+     * **And the same drag taken by the grip, which is where the arrows used to be.**
+     *
+     * The card is draggable too, but the grip is the part that *says* the hand can be
+     * rearranged — it is what replaced the two arrows, and a grip that only looked the part
+     * would leave the screen with no visible way to reorder at all.
+     */
+    @Test
+    fun aCardDraggedByItsGripSwapsWithItsNeighbour() = runComposeUiTest {
+        val documents = seeded(freshSave())
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openDecks()
+
+        onNodeWithTag(deckSlotTestTag(0)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
+
+        val first = onNodeWithTag(deckPositionTestTag(0)).fetchSemanticsNode().positionInRoot
+        val second = onNodeWithTag(deckPositionTestTag(1)).fetchSemanticsNode().positionInRoot
+        val travel = (second.x - first.x) * DRAG_OVERSHOOT
+
+        onNodeWithTag(deckPositionDragTestTag(0)).performTouchInput {
+            down(center)
+            for (step in 1..DRAG_STEPS) {
+                moveTo(center + Offset(travel * step / DRAG_STEPS, 0f))
+            }
+            up()
+        }
+        waitForIdle()
+
+        onNodeWithTag(DECK_SAVE_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_LIST_TEST_TAG) }
+
+        assertEquals(
+            listOf(STARTER_DECK[1], STARTER_DECK[0]) + STARTER_DECK.drop(2),
+            storedSave(documents).decks.first().cards,
+            "the grip did not move the card it belongs to",
+        )
+    }
+
+    /** And a drag short of the next position moves nothing — the hand is not a slider. */
+    @Test
+    fun aCardDraggedLessThanAWholePositionStaysWhereItIs() = runComposeUiTest {
+        val documents = seeded(freshSave())
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openDecks()
+
+        onNodeWithTag(deckSlotTestTag(0)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
+
+        val first = onNodeWithTag(deckPositionTestTag(0)).fetchSemanticsNode().positionInRoot
+        val second = onNodeWithTag(deckPositionTestTag(1)).fetchSemanticsNode().positionInRoot
+        val travel = (second.x - first.x) * DRAG_UNDERSHOOT
+
+        onNodeWithTag(deckPositionTestTag(0)).performTouchInput {
+            down(center)
+            for (step in 1..DRAG_STEPS) {
+                moveTo(center + Offset(travel * step / DRAG_STEPS, 0f))
+            }
+            up()
+        }
+        waitForIdle()
+
+        onNodeWithTag(DECK_SAVE_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_LIST_TEST_TAG) }
+
+        assertEquals(
+            STARTER_DECK,
+            storedSave(documents).decks.first().cards,
+            "a drag that stopped short still moved the card",
+        )
+    }
+
+    /** Five cards that all carry an element, so the badge has something to draw. */
+    private fun elementalHand(): List<Card> =
+        runBlocking { loadCardCatalog() }.all
+            .filter { it.type != null }
+            .sortedBy { it.id }
+            .take(HAND_SIZE)
+
+    // ---- The two moves the arrows used to make -------------------------------
+
+    /**
+     * What a position offers a screen reader, in the order it offers them.
+     *
+     * The arrows are gone and the drag replacing them reaches a finger and a mouse only; these
+     * actions are the whole of the keyboard and screen-reader path, so they are asserted the way
+     * the arrows were.
+     */
+    private fun ComposeUiTest.shiftsAt(position: Int): List<String> =
+        onNodeWithTag(deckPositionTestTag(position))
+            .fetchSemanticsNode()
+            .config
+            .getOrElse(SemanticsActions.CustomActions) { emptyList() }
+            .map { it.label }
+
+    private fun ComposeUiTest.shiftBy(position: Int, label: String) {
+        val action = onNodeWithTag(deckPositionTestTag(position))
+            .fetchSemanticsNode()
+            .config[SemanticsActions.CustomActions]
+            .first { it.label == label }
+        runOnIdle { action.action() }
+        waitForIdle()
+    }
+
+    private fun handProfile(hand: List<Card>): GameSave = freshSave().let { save ->
+        save.copy(
+            cards = save.cards + hand.associate { it.id to 1 },
+            decks = listOf(Deck(name = "Elements", cards = hand.map { it.id })),
+        )
     }
 
     // ---- Reaching the ⋮ ------------------------------------------------------

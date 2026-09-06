@@ -21,14 +21,20 @@ fun cardStatsTestTag(cardId: Int): String = "card-stats-$cardId"
 
 fun cardTypeTestTag(cardId: Int): String = "card-type-$cardId"
 
+/**
+ * @param tag null where the same card is already drawn elsewhere on the screen — the deck editor
+ *   shows a card in the hand and again in the picker grid, and one test tag on two nodes is a tag
+ *   no test can address. The caller that passes null identifies the line by what encloses it.
+ */
 @Composable
 internal fun CardStatsLine(
     card: Card,
     modifier: Modifier = Modifier,
     showType: Boolean = true,
+    tag: String? = cardStatsTestTag(card.id),
 ) {
     Row(
-        modifier = modifier.testTag(cardStatsTestTag(card.id)),
+        modifier = modifier.then(tag?.let { Modifier.testTag(it) } ?: Modifier),
         horizontalArrangement = Arrangement.spacedBy(3.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -41,7 +47,7 @@ internal fun CardStatsLine(
             maxLines = 1,
             softWrap = false,
         )
-        if (showType) CardTypeBadge(card = card)
+        if (showType) CardTypeBadge(card = card, tag = tag?.let { cardTypeTestTag(card.id) })
     }
 }
 
@@ -51,16 +57,22 @@ internal fun CardStatsLine(
  * @param size how big to draw it. The stats line's own [TypeBadgeSize] is as small as the icon
  *   stays legible; the deck builder asks for more, because there the element is what the player
  *   is choosing on rather than a footnote to the powers.
+ * @param tag null where this card's badge is drawn twice on one screen — see [CardStatsLine]. The
+ *   element is still named to a screen reader either way.
  */
 @Composable
-internal fun CardTypeBadge(card: Card, size: Dp = TypeBadgeSize) {
+internal fun CardTypeBadge(
+    card: Card,
+    size: Dp = TypeBadgeSize,
+    tag: String? = cardTypeTestTag(card.id),
+) {
     val type = card.type ?: return
     val icon = LocalCardArt.current?.typeIcon(type) ?: return
 
     Image(
         bitmap = icon,
         contentDescription = type.name,
-        modifier = Modifier.testTag(cardTypeTestTag(card.id)).size(size),
+        modifier = Modifier.then(tag?.let { Modifier.testTag(it) } ?: Modifier).size(size),
         filterQuality = FilterQuality.None,
     )
 }

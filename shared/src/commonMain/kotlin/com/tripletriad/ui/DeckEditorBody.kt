@@ -1,16 +1,22 @@
 package com.tripletriad.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -24,10 +30,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.Card
@@ -60,9 +76,8 @@ fun deckPickTestTag(cardId: Int): String = "deck-pick-$cardId"
 
 fun deckRemainingTestTag(cardId: Int): String = "deck-remaining-$cardId"
 
-fun deckShiftLeftTestTag(position: Int): String = "deck-shift-left-$position"
-
-fun deckShiftRightTestTag(position: Int): String = "deck-shift-right-$position"
+/** The handle a position is dragged by — absent where there is no card to move. */
+fun deckPositionDragTestTag(position: Int): String = "deck-position-drag-$position"
 
 @Composable
 internal fun DeckEditor(
@@ -111,52 +126,12 @@ internal fun DeckEditor(
         // it to the list. This is the screen where the deck can actually be repaired.
         val unowned = unownedPositions(draft, profile.cards)
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            for (position in 0 until HAND_SIZE) {
-                val card = draft.cards.getOrNull(position)?.let(cards::get)
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    // The tag sits on the *clickable* box and not on the frame inside it: a
-                    // `clickable` merges its descendants' semantics, so a tag one level down is
-                    // absorbed and unreachable from the merged tree a test drives.
-                    Box(
-                        modifier = Modifier
-                            .testTag(deckPositionTestTag(position))
-                            .ttoClickable(enabled = card != null) {
-                                draft = draft.minusCardAt(position)
-                            },
-                    ) {
-                        DeckPosition(card = card, owned = position !in unowned)
-                    }
-
-                    // Order is not decoration: under `RULE_ORDER` it is the sequence the hand is
-                    // played in, and it is the only thing a card's position in a deck decides —
-                    // see `Deck.plusCard`, whose KDoc says a player who wants a different order
-                    // "removes and re-adds". These two arrows are that, without emptying the slot
-                    // and rebuilding it around the one card that had to move.
-                    Row {
-                        StripButton(
-                            icon = TtoIcons.Back,
-                            description = strings[StringKeys.MOVE_LEFT],
-                            tag = deckShiftLeftTestTag(position),
-                            enabled = card != null && position > 0,
-                            size = ShiftButtonSize,
-                            onClick = { draft = draft.withCardMoved(position, position - 1) },
-                        )
-                        StripButton(
-                            icon = TtoIcons.Forward,
-                            description = strings[StringKeys.MOVE_RIGHT],
-                            tag = deckShiftRightTestTag(position),
-                            enabled = card != null && position < draft.cards.size - 1,
-                            size = ShiftButtonSize,
-                            onClick = { draft = draft.withCardMoved(position, position + 1) },
-                        )
-                    }
-                }
-            }
-        }
+        DeckHand(
+            draft = draft,
+            cards = cards,
+            unowned = unowned,
+            onDraft = { draft = it },
+        )
 
         if (unowned.isNotEmpty()) {
             Text(
@@ -334,6 +309,177 @@ internal fun DeckEditor(
 }
 
 /**
+ * The draft's five positions, in the order they will be played.
+ *
+ * ### Why the order is worth a gesture
+ *
+ * A card's place in a deck decides exactly one thing — under `RULE_ORDER` it is the sequence the
+ * hand is dealt in — and it used to be changed one step at a time through the two arrows below
+ * each position. Dragging a card onto its neighbour is the same swap, said the way a hand of five
+ * cards is actually rearranged, and it is the gesture the list of decks was already reordered by
+ * (see `DeckCard`). The arrows stay for the same reason they stayed there: a drag reaches neither
+ * a keyboard nor a screen reader, so deleting them would make reordering a sighted-pointer
+ * feature.
+ *
+ * ### The drag is held here, not in the position
+ *
+ * The moment two cards swap, the card under the finger is drawn one position further along while
+ * the pointer stream keeps arriving at the node the gesture went down on. [dragged] therefore
+ * follows the *position the card is now in*, and the travel left over from a swap is carried
+ * across it rather than reset, so the card does not jump back under the finger each time it
+ * crosses a neighbour.
+ */
+@Composable
+private fun DeckHand(
+    draft: Deck,
+    cards: Map<Int, Card>,
+    unowned: Set<Int>,
+    onDraft: (Deck) -> Unit,
+) {
+    val strings = LocalStrings.current
+    val gripLabel = strings[StringKeys.DECK_REORDER]
+
+    var dragged by remember { mutableStateOf<Int?>(null) }
+    var travel by remember { mutableStateOf(0f) }
+    // The column's own measured width, not the thumbnail's: the powers under a card are wider than
+    // the 40 dp portrait above them, and stepping by the portrait would swap before the finger had
+    // reached the next position.
+    var columnWidth by remember { mutableStateOf(0) }
+    val gap = with(LocalDensity.current) { DeckHandGap.toPx() }
+
+    fun carry(delta: Float) {
+        val here = dragged ?: return
+        val moved = travel + delta
+        val step = if (columnWidth > 0) columnWidth + gap else 0f
+        // The same rule the deck list swaps by, over the filled positions instead of the filled
+        // slots — here they are contiguous, so a position's neighbour is the next index.
+        val to = draggedOnto(draft.cards.indices.toList(), here, moved, step)
+        if (to == null) {
+            travel = moved
+            return
+        }
+        travel = moved - (if (moved > 0) step else -step)
+        dragged = to
+        onDraft(draft.withCardMoved(here, to))
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(DeckHandGap),
+    ) {
+        for (position in 0 until HAND_SIZE) {
+            val card = draft.cards.getOrNull(position)?.let(cards::get)
+            val lifted = dragged == position
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    // Above its neighbours only while it is being dragged: a position permanently
+                    // on its own layer draws over the one it is swapping with at the wrong moment.
+                    .zIndex(if (lifted) 1f else 0f)
+                    .graphicsLayer { translationX = if (lifted) travel else 0f }
+                    .onSizeChanged { columnWidth = it.width },
+            ) {
+                // The tag sits on the *clickable* box and not on the frame inside it: a
+                // `clickable` merges its descendants' semantics, so a tag one level down is
+                // absorbed and unreachable from the merged tree a test drives.
+                Box(
+                    modifier = Modifier
+                        .testTag(deckPositionTestTag(position))
+                        .ttoClickable(enabled = card != null) {
+                            onDraft(draft.minusCardAt(position))
+                        }
+                        // A drag reaches a finger and a mouse and nothing else. These are the
+                        // same two moves the arrows made, kept where a screen reader and a
+                        // keyboard can still find them once the arrows are gone.
+                        .semantics {
+                            customActions = listOfNotNull(
+                                shift(strings[StringKeys.MOVE_LEFT], card, position > 0) {
+                                    onDraft(draft.withCardMoved(position, position - 1))
+                                },
+                                shift(
+                                    strings[StringKeys.MOVE_RIGHT],
+                                    card,
+                                    position < draft.cards.size - 1,
+                                ) {
+                                    onDraft(draft.withCardMoved(position, position + 1))
+                                },
+                            )
+                        }
+                        // The card is draggable as well as its grip: nothing here scrolls
+                        // sideways, so a sideways drag on a card can only mean "move this one",
+                        // and the tap that takes the card out survives because a drag past the
+                        // touch slop consumes the gesture before the tap is recognised.
+                        .pointerInput(position, card?.id) {
+                            if (card == null) return@pointerInput
+                            detectDragGestures(
+                                onDragStart = {
+                                    dragged = position
+                                    travel = 0f
+                                },
+                                onDragEnd = {
+                                    dragged = null
+                                    travel = 0f
+                                },
+                                onDragCancel = {
+                                    dragged = null
+                                    travel = 0f
+                                },
+                            ) { change, delta ->
+                                change.consume()
+                                carry(delta.x)
+                            }
+                        },
+                ) {
+                    HandPosition(card = card, owned = position !in unowned)
+                }
+
+                // The handle, in the place the two arrows used to hold: a card is easier to
+                // drop where it belongs than to walk there one position at a time. What a drag
+                // reaches nobody else does, so the two moves it replaces stay on the position
+                // itself as accessibility actions.
+                Box(
+                    modifier = Modifier
+                        .height(GripHeight)
+                        .testTag(deckPositionDragTestTag(position))
+                        .semantics { contentDescription = gripLabel }
+                        .pointerInput(position, card?.id) {
+                            if (card == null) return@pointerInput
+                            detectDragGestures(
+                                onDragStart = {
+                                    dragged = position
+                                    travel = 0f
+                                },
+                                onDragEnd = {
+                                    dragged = null
+                                    travel = 0f
+                                },
+                                onDragCancel = {
+                                    dragged = null
+                                    travel = 0f
+                                },
+                            ) { change, delta ->
+                                change.consume()
+                                carry(delta.x)
+                            }
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (card != null) {
+                        Icon(
+                            imageVector = TtoIcons.Grip,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+                            modifier = Modifier.size(IconSm),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
  * This deck topped up from [pool] until it is full, legal and paid for.
  *
  * ### Completes rather than replaces
@@ -397,7 +543,62 @@ internal fun Deck.withCardMoved(from: Int, to: Int): Deck {
     return copy(cards = moved)
 }
 
+/** One of the two moves the arrows used to make, or nothing where the move is off the end. */
+private fun shift(
+    label: String,
+    card: Card?,
+    possible: Boolean,
+    move: () -> Unit,
+): CustomAccessibilityAction? =
+    if (card == null || !possible) {
+        null
+    } else {
+        CustomAccessibilityAction(label) {
+            move()
+            true
+        }
+    }
+
+/**
+ * A position drawn the way the card will be *on the board*, and not as the 40 dp portrait.
+ *
+ * The hand is where synergy is judged, and the sprite is the only drawing of a card that carries
+ * the four powers and the element in the arrangement they will be read in during the match. Five
+ * of them at [HAND_CARD_SCALE] fit across the narrowest phone this screen is laid out for.
+ */
+@Composable
+private fun HandPosition(card: Card?, owned: Boolean) {
+    if (card == null) {
+        Box(
+            modifier = Modifier
+                .size(CardSpriteWidth * HAND_CARD_SCALE, CardSpriteHeight * HAND_CARD_SCALE)
+                .clip(RoundedCornerShape(EmptySlotCorner))
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+        )
+    } else {
+        CardFace(
+            card = card,
+            scale = HAND_CARD_SCALE,
+            modifier = if (owned) Modifier else Modifier.alpha(SPENT_ALPHA),
+        )
+    }
+}
+
 private const val MAX_DECK_NAME = 24
 
-/** The editor's: two side by side are exactly one [DeckThumbSize] wide. */
-private val ShiftButtonSize = DeckThumbSize / 2
+/**
+ * Five sprites and four gaps across the narrowest phone the app is laid out for.
+ *
+ * 5 × 104 dp × 0.65 + 4 × [DeckHandGap] = 354 dp, inside the 360 dp screen once its own padding is
+ * taken off. Measured on a screenshot rather than trusted to this arithmetic.
+ */
+private const val HAND_CARD_SCALE = 0.65f
+
+/** As tall as the arrows it replaces, and no taller: the sprite above it is the tall thing. */
+private val GripHeight = DeckThumbSize / 2
+
+/** The corner an empty slot is cut with — [EmptyCardSlot]'s, at the size of a sprite. */
+private val EmptySlotCorner = 4.dp
+
+/** Between two positions. Read by the drag as well as by the row, so it is named once. */
+private val DeckHandGap = 4.dp

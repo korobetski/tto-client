@@ -2,6 +2,7 @@ package com.tripletriad.ui
 
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -30,6 +31,7 @@ import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
 class PvpTablesUiTest {
@@ -279,6 +281,31 @@ class PvpTablesUiTest {
             "the empty room should say what is still worth doing",
         )
     }
+
+    /**
+     * **The card's contents stay inside the card.**
+     *
+     * `TtoCard` draws a border and nothing else — every other card in the app pads its own
+     * content, and this one did not: the heading sat on the outline with its first letter under
+     * it, and the withdraw button ran out over both rounded corners. Asserted as geometry because
+     * that is what was wrong; a semantics tree cannot tell a padded card from an unpadded one.
+     */
+    @Test
+    fun yourOwnTableKeepsItsContentsInsideItsBorder() =
+        lobby(tables = listOf(tableJson(host = ME))) {
+            val card = onNodeWithTag(tableRowTestTag(TABLE_ID)).getUnclippedBoundsInRoot()
+            val button = onNodeWithTag(PVP_CANCEL_TABLE_TEST_TAG).getUnclippedBoundsInRoot()
+
+            assertTrue(
+                button.left > card.left && button.right < card.right,
+                "the withdraw button spans ${button.left}..${button.right}, " +
+                    "the card ${card.left}..${card.right}",
+            )
+            assertTrue(
+                button.bottom < card.bottom,
+                "the withdraw button ends at ${button.bottom}, the card at ${card.bottom}",
+            )
+        }
 
     /** Backing out of the deck question leaves the lobby as it was, and sends nothing. */
     @Test

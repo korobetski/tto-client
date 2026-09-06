@@ -520,34 +520,44 @@ private fun ColumnScope.LobbyEmpty(
         PresenceLine(session, Modifier.padding(bottom = SpaceSm))
 
         TtoCard(modifier = Modifier.fillMaxWidth()) {
-            Text(
-                text = strings[StringKeys.PVP_HOST],
-                color = MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                text = strings[StringKeys.PVP_HOST_HINT],
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
-                style = MaterialTheme.typography.labelMedium,
-                modifier = Modifier.padding(bottom = SpaceSm),
-            )
-            WideButton(
-                label = strings[StringKeys.PVP_HOST_OPEN],
-                tag = PVP_HOST_TEST_TAG,
-                enabled = !session.isBusy,
-                onClick = onHost,
-            )
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(SpaceMd),
+                verticalArrangement = Arrangement.spacedBy(SpaceXs),
+            ) {
+                Text(
+                    text = strings[StringKeys.PVP_HOST],
+                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = strings[StringKeys.PVP_HOST_HINT],
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(bottom = SpaceSm),
+                )
+                WideButton(
+                    label = strings[StringKeys.PVP_HOST_OPEN],
+                    tag = PVP_HOST_TEST_TAG,
+                    enabled = !session.isBusy,
+                    onClick = onHost,
+                )
+            }
         }
 
         TtoCard(modifier = Modifier.fillMaxWidth()) {
-            Text(
-                text = strings[StringKeys.PVP_CHALLENGE],
-                color = MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-            )
-            InviteByName(busy = session.isBusy, onInvite = onInvite)
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(SpaceMd),
+                verticalArrangement = Arrangement.spacedBy(SpaceXs),
+            ) {
+                Text(
+                    text = strings[StringKeys.PVP_CHALLENGE],
+                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                InviteByName(busy = session.isBusy, onInvite = onInvite)
+            }
         }
 
         Text(
@@ -612,26 +622,33 @@ private fun MyTableCard(table: PvpTable, now: Long, enabled: Boolean, onCancel: 
     val strings = LocalStrings.current
 
     TtoCard(modifier = Modifier.testTag(tableRowTestTag(table.id)).fillMaxWidth()) {
-        Text(
-            text = strings[StringKeys.PVP_TABLE_MINE],
-            color = MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            text = strings.format(StringKeys.PVP_TABLE_OPEN_SINCE, "${minutesSince(table, now)}") +
-                DOT_SEPARATOR + stakeLine(table.stake, strings),
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = SUBDUED),
-            style = MaterialTheme.typography.labelMedium,
-        )
-        RulesStrip(rules = table.rules, roulette = table.roulette, tag = null)
-        WideButton(
-            label = strings[StringKeys.PVP_HOST_CANCEL],
-            tag = PVP_CANCEL_TABLE_TEST_TAG,
-            filled = false,
-            enabled = enabled,
-            onClick = onCancel,
-        )
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(SpaceMd),
+            verticalArrangement = Arrangement.spacedBy(SpaceXs),
+        ) {
+            Text(
+                text = strings[StringKeys.PVP_TABLE_MINE],
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = strings.format(
+                    StringKeys.PVP_TABLE_OPEN_SINCE,
+                    "${minutesSince(table, now)}",
+                ) + DOT_SEPARATOR + stakeLine(table.stake, strings),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = SUBDUED),
+                style = MaterialTheme.typography.labelMedium,
+            )
+            RulesStrip(rules = table.rules, roulette = table.roulette, tag = null)
+            WideButton(
+                label = strings[StringKeys.PVP_HOST_CANCEL],
+                tag = PVP_CANCEL_TABLE_TEST_TAG,
+                filled = false,
+                enabled = enabled,
+                onClick = onCancel,
+            )
+        }
     }
 }
 

@@ -2,13 +2,16 @@ package com.tripletriad.ui
 
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.i18n.AppLocale
+import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.loadStrings
 import com.tripletriad.model.GameRules
 import kotlinx.coroutines.runBlocking
@@ -169,6 +172,40 @@ class HelpUiTest {
             existsUnmerged(ruleDiagramTestTag(FALLEN_ACE)),
             "the rule the diagrams exist for is not drawn",
         )
+    }
+
+    /**
+     * And the picture says which of the two placements captured.
+     *
+     * Asserted on the frame's own sentence rather than on the arrow glyph: the arrow is what a
+     * sighted player reads, the sentence is what everybody else gets, and a diagram that drew both
+     * frames the same way would still have two frames.
+     */
+    @Test
+    fun theTwoFramesOfARuleSayOppositeThings() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        openHelp()
+
+        onNodeWithTag(HELP_LIST_TEST_TAG)
+            .performScrollToNode(hasTestTag(helpRuleTestTag(FALLEN_ACE)))
+        onNodeWithTag(helpRuleTestTag(FALLEN_ACE)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { existsUnmerged(ruleDiagramTestTag(FALLEN_ACE)) }
+
+        val frames = RULE_DIAGRAMS.getValue(FALLEN_ACE)
+        assertEquals(
+            listOf(true, false),
+            frames.map { it.captured },
+            "one frame captures and the other does not, or there is nothing to tell apart",
+        )
+        for (frame in frames) {
+            val outcome = english[
+                if (frame.captured) StringKeys.HELP_CAPTURES else StringKeys.HELP_FAILS,
+            ]
+            onNodeWithContentDescription(
+                "${frame.attacker} $outcome ${frame.defender}",
+                useUnmergedTree = true,
+            ).assertExists()
+        }
     }
 
     /** And a rule a pair of cards cannot state keeps its paragraph and gets no picture. */

@@ -426,7 +426,10 @@ internal enum class LessonChapter(val slug: String, val labelKey: String, val fi
 
     /** Where the chapter ends: the lesson before the next one starts, or the end of the course. */
     val lessons: IntRange
-        get() = first..(entries.getOrNull(ordinal + 1)?.first?.minus(1) ?: TUTORIAL_COURSE.lastIndex)
+        get() {
+            val next = entries.getOrNull(ordinal + 1)?.first
+            return first..(next?.minus(1) ?: TUTORIAL_COURSE.lastIndex)
+        }
 
     /**
      * How much of this chapter is behind the player.

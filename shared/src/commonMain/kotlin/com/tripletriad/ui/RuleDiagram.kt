@@ -55,8 +55,7 @@ internal data class RuleFrame(val defender: String, val attacker: String, val ca
  * component from this one — and drawing them a two-card picture anyway would illustrate a rule
  * they do not have.
  *
- * So a rule has a diagram when a pair says it, and a paragraph alone otherwise. See the report in
- * `docs/` for what a board-shaped diagram would take.
+ * So a rule has a diagram when a pair says it, and a paragraph alone otherwise.
  */
 internal val RULE_DIAGRAMS: Map<String, List<RuleFrame>> = mapOf(
     // The lower number wins, so the 1 takes the 9 — and the same 9 played against a 1 takes

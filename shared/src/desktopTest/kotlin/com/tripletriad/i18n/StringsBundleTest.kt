@@ -382,13 +382,23 @@ class StringsBundleTest {
         // four and the four gaps stay where they were. Measured from a
         // `:shared:desktopTest --tests "*StringsBundleTest*"` run on 2026-09-06 and pasted.
 
-        const val UNION_KEYS = 1892
+        // +9 to every bundle since: the course's three chapters and the rule book's own controls.
+        // `APP_LESSON_CHAPTER_BASICS`, `_CAPTURES` and `_MATCHES` name the three spans the lesson
+        // list is now read in; `APP_HELP_SEARCH` and `APP_HELP_NO_MATCH` are the book's search box
+        // and what it says when nothing answers; `APP_HELP_LAST_MATCH` heads the rules the previous
+        // match really used; and `APP_HELP_CAPTURES`, `APP_HELP_HOLDS` and `APP_HELP_FAILS` are the
+        // three outcomes a rule diagram is captioned with. Authored in all four `app-*` bundles at
+        // once, so every count moves by the same nine and the four gaps stay where they were.
+        // Measured from a `:shared:desktopTest --tests "*StringsBundleTest*"` run on 2026-09-06 and
+        // pasted.
+
+        const val UNION_KEYS = 1901
 
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 1888,
-            AppLocale.FR_FR to 1889,
-            AppLocale.DE_DE to 1817,
-            AppLocale.JA_JA to 1849,
+            AppLocale.EN_US to 1897,
+            AppLocale.FR_FR to 1898,
+            AppLocale.DE_DE to 1826,
+            AppLocale.JA_JA to 1858,
         )
 
         val EXPECTED_GAPS = mapOf(

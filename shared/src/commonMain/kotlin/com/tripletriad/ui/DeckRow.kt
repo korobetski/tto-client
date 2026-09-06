@@ -310,17 +310,6 @@ private fun DeckCardFacts(
                 tag = deckStateTestTag(index),
             )
         }
-        Text(
-            text = "${deck.cards.size} / $HAND_SIZE$DOT_SEPARATOR" +
-                "${strings[StringKeys.DECK_POWER]} ${deckPower(deck, cards)}",
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
-            style = MaterialTheme.typography.labelSmall,
-            // Two lines: this is `0 / 5 · Deck power 34`, the row also carries five
-            // thumbnails, and at one line the **number** is what falls off the end — so the
-            // line was clipping to `0 / 5 · Puissance du` and reporting no power at all.
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
         // The pill says *that* the deck cannot be played; these say *why*, which is the half a
         // player can act on. `error` and not the faint tone the line above uses — every other line
         // in this row is a fact about the deck, and this is what stands between it and a match.

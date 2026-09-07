@@ -1,7 +1,9 @@
 package com.tripletriad.ui
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
@@ -666,20 +668,24 @@ class AuctionUiTest {
                     LocalWideLayout provides true,
                 ) {
                     TripleTriadTheme {
-                        AuctionScreen(
-                            profile = purse(PURSE).copy(
-                                level = Unlocks.DEFAULT_AUCTION,
-                                // A spare copy, so the consignment tab is the desk and not its
-                                // empty note — which is a different branch and `sell` covers it.
-                                cards = mapOf(cheap.id to 2),
-                                decks = emptyList(),
-                            ),
-                            session = session,
-                            cards = catalog,
-                            sets = pvpCards.sets,
-                            clock = FixedClock(NOW),
-                            onBack = {},
-                        )
+                        // The body, not the store screen it is a tab of: what is under test is
+                        // the room, and mounting the whole store would put a shelf and a bag in
+                        // front of it. `StoreUiTest` is where the tab itself is read.
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            AuctionBody(
+                                profile = purse(PURSE).copy(
+                                    level = Unlocks.DEFAULT_AUCTION,
+                                    // A spare copy, so the consignment tab is the desk and
+                                    // not its empty note — a branch `sell` covers.
+                                    cards = mapOf(cheap.id to 2),
+                                    decks = emptyList(),
+                                ),
+                                session = session,
+                                cards = catalog,
+                                sets = pvpCards.sets,
+                                clock = FixedClock(NOW),
+                            )
+                        }
                     }
                 }
             }

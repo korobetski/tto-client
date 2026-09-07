@@ -3,6 +3,7 @@ package com.tripletriad.ui
 import com.tripletriad.i18n.StringKeys
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -150,6 +151,25 @@ class HelpBookTest {
     }
 
     /**
+     * The two that stay prose, and why the count is asserted next to the names.
+     *
+     * Sudden Death is a second deal and Roulette picks the rule list itself; neither is a thing a
+     * board says. The count keeps a newly listed rule from arriving with no picture unnoticed,
+     * and the names keep the count from being met by dropping a picture somewhere else.
+     */
+    @Test
+    fun everyRuleButTheTwoThatCannotBeDrawnIsDrawn() {
+        for (rule in PROSE_ONLY) {
+            assertFalse(rule in RULE_DIAGRAMS, "$rule cannot be drawn and should not be")
+        }
+        assertEquals(
+            HELP_RULES.size - PROSE_ONLY.size,
+            RULE_DIAGRAMS.size,
+            "a rule was listed with no picture",
+        )
+    }
+
+    /**
      * The invariant the diagrams exist for: each shows the rule **and its limit**.
      *
      * A single capturing frame would illustrate "a 1 beats an A" — which is the half of Fallen Ace
@@ -157,9 +177,37 @@ class HelpBookTest {
      */
     @Test
     fun everyDiagramShowsACaptureAndAFailure() {
-        for ((ruleKey, frames) in RULE_DIAGRAMS) {
+        val pairs = RULE_DIAGRAMS.mapValues { it.value }
+            .filterValues { it is RuleArt.Placements }
+        assertTrue(pairs.isNotEmpty(), "no rule is drawn as a pair any more")
+        for ((ruleKey, art) in pairs) {
+            val frames = (art as RuleArt.Placements).frames
             assertTrue(frames.any { it.captured }, "$ruleKey never captures")
             assertTrue(frames.any { !it.captured }, "$ruleKey never fails, so it reads as always")
         }
+    }
+
+    /**
+     * A board that turns nothing shows a rule happening and not a rule applying.
+     *
+     * Every grid but the elemental bonuses — which change numbers rather than owners — has at
+     * least one card ringed as taken, because that is the outcome the picture is drawn for.
+     */
+    @Test
+    fun everyBoardThatIsAboutACaptureShowsOne() {
+        val boards = RULE_DIAGRAMS.filterKeys { it !in BONUS_ONLY }
+            .values.filterIsInstance<RuleArt.Grid>()
+        assertTrue(boards.isNotEmpty(), "no rule is drawn as a board")
+        for (board in boards) {
+            assertTrue(board.tiles.any { it.flips }, "a capture rule is drawn turning nothing")
+        }
+    }
+
+    private companion object {
+        /** Not every rule is a picture: see [RuleArt]. */
+        val PROSE_ONLY = listOf("RULE_SUDDEN_DEATH", "RULE_ROULETTE")
+
+        /** The rules that change a number rather than an owner. */
+        val BONUS_ONLY = setOf("RULE_ELEMENTAL", "RULE_ASCENSION", "RULE_DESCENSION")
     }
 }

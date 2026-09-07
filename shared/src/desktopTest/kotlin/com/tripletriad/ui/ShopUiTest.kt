@@ -5,11 +5,13 @@ import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.v2.runComposeUiTest
+import androidx.compose.ui.unit.height
 import com.tripletriad.FF14_BLOCK
 import com.tripletriad.data.Inventory
 import com.tripletriad.data.ShopCatalog
@@ -223,14 +225,15 @@ class ShopUiTest {
     }
 
     /**
-     * **An unaffordable price says what is missing rather than only turning red.**
+     * **The gap is named in the sheet, and nowhere on the shelf.**
      *
-     * "You need 400 more" is a match away and a grey button is not an instruction. The gap is
-     * the client's own arithmetic over a price the client already has — the purchase itself is
-     * still the server's to refuse, which is what `SHOP_BUY_TEST_TAG` staying disabled says.
+     * "You need 400 more" is a match away and a grey button is not an instruction, so the number
+     * is still written — but under the offer that was tapped, not under every price in the grid.
+     * On the tile the red is the whole message: the line said the same thing a second time and
+     * only some tiles had it, which is what left the grid at two heights.
      */
     @Test
-    fun aPriceOutOfReachNamesTheGap() = runComposeUiTest {
+    fun aPriceOutOfReachNamesTheGapInTheSheetAndNotOnTheTile() = runComposeUiTest {
         val documents = seeded(profile(mgp = GameSave.STARTING_MGP))
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openShop(documents)
@@ -240,18 +243,53 @@ class ShopUiTest {
         onNodeWithTag(SHOP_LIST_TEST_TAG)
             .performScrollToNode(hasTestTag(shopOfferTestTag(expensive)))
 
+        assertFalse(
+            exists(shopShortTestTag(expensive)),
+            "the tile still carries the line the red replaced",
+        )
+
+        onNodeWithTag(shopOfferTestTag(expensive)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(SHOP_SHEET_TEST_TAG) }
+
         val short = expensive.price - GameSave.STARTING_MGP
         assertEquals(
             "you need ${grouped(short)} more",
             lineOf(shopShortTestTag(expensive)),
-            "the shelf should name the gap it is asking to be closed",
+            "the sheet should name the gap it is asking to be closed",
         )
+    }
 
-        val potion = ShopCatalog.ff14.first { it.item == PotionItem(PotionType.MGP) }
-        shelf("boons")
-        assertFalse(
-            exists(shopShortTestTag(potion)),
-            "an affordable offer is short of nothing and says nothing",
+    /**
+     * **Every tile on a shelf is the same height, affordable or not.**
+     *
+     * The shortfall line was drawn under the prices the purse could not reach and under no
+     * others, so a grid of eleven packs came out at two heights with the rows stepping around
+     * each other. Asserted on the boosters, where the cheapest is affordable on a starting purse
+     * and the dearest is not.
+     */
+    @Test
+    fun everyPackTileIsTheSameHeight() = runComposeUiTest {
+        // Enough for the cheapest pack and nowhere near the dearest, which is the pair of states
+        // the tile used to draw at two heights. The prices are the card table's — see
+        // `BoosterPricing` — so the fixture names a purse between them rather than a literal.
+        val documents = seeded(profile(mgp = MID_PURSE))
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openShop(documents)
+
+        shelf("boosters")
+        // Any price: only the item's slug reaches the tag, and an offer must cost something.
+        val cheapest = ShopOffer(BoosterItem(BoosterType.BRONZE), price = 1)
+        val dearest = ShopOffer(BoosterItem(BoosterType.PLATINUM), price = 1)
+
+        onNodeWithTag(SHOP_LIST_TEST_TAG)
+            .performScrollToNode(hasTestTag(shopOfferTestTag(dearest)))
+        val tall = onNodeWithTag(shopOfferTestTag(dearest)).getUnclippedBoundsInRoot().height
+        onNodeWithTag(SHOP_LIST_TEST_TAG)
+            .performScrollToNode(hasTestTag(shopOfferTestTag(cheapest)))
+        assertEquals(
+            tall,
+            onNodeWithTag(shopOfferTestTag(cheapest)).getUnclippedBoundsInRoot().height,
+            "an unaffordable pack is drawn taller than one the purse can reach",
         )
     }
 
@@ -318,5 +356,8 @@ class ShopUiTest {
         val CHEAP_CARD = Card.idFor(block = 1, number = 2)
 
         const val ENOUGH_FOR_ANY_PACK = 200_000
+
+        /** Above the bronze pouch and below the platinum one, which `BoosterPricing` sets. */
+        const val MID_PURSE = 1_000
     }
 }

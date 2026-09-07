@@ -24,6 +24,7 @@ import com.tripletriad.model.Card
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.Item
 import com.tripletriad.protocol.ItemEffect
+import com.tripletriad.time.Clock
 import kotlinx.coroutines.launch
 
 const val STORE_TABS_TEST_TAG: String = "store-tabs"
@@ -32,6 +33,9 @@ internal enum class StoreTab {
     SHOP,
 
     BAG,
+
+    /** The auction house, which used to be a screen behind a banner on the shelf. */
+    AUCTION,
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,9 +47,10 @@ internal fun StoreScreen(
     starters: StarterCatalog,
     format: Format,
     initial: StoreTab,
+    auctions: AuctionSession?,
+    clock: Clock,
     onUseItem: suspend (Item) -> ItemEffect?,
     onIntent: suspend (Intent) -> IntentOutcome,
-    onAuction: () -> Unit,
     onBack: () -> Unit,
 ) {
     val strings = LocalStrings.current
@@ -102,11 +107,15 @@ internal fun StoreScreen(
         title = strings[StringKeys.SHOP],
         onBack = onBack,
         snackbar = note,
+        // The board lays two panes out and the shelf does not, so the column is only widened for
+        // the tab that has something to put in it.
+        wide = tab == StoreTab.AUCTION,
     ) {
         ScreenTabs(
             tabs = listOf(
                 strings[StringKeys.CARD_SHOP] to screenTabTestTag("shop"),
                 strings[StringKeys.INVENTORY] to screenTabTestTag("bag"),
+                strings[StringKeys.AUCTION] to screenTabTestTag("auction"),
             ),
             selected = tab.ordinal,
             onSelect = { index -> tab = StoreTab.entries[index] },
@@ -121,7 +130,6 @@ internal fun StoreScreen(
                 starters = starters,
                 selectedTag = selectedTag,
                 onSelect = { selectedTag = it },
-                onAuction = onAuction,
                 // Read from the profile rather than from a flag on it, so the panel disappears the
                 // moment the pack lands and comes back if a later build ever takes cards away.
                 onClaimStarter = if (!StarterPack.isOwedBy(profile)) {
@@ -155,6 +163,16 @@ internal fun StoreScreen(
                 // The empty bag's way out. The shop is the other tab of this very screen, so it
                 // is a tab change rather than a navigation.
                 onShop = { tab = StoreTab.SHOP },
+            )
+
+            StoreTab.AUCTION -> AuctionBody(
+                profile = profile,
+                session = auctions,
+                // `byId` over the whole table rather than `cards`: a lot can name a card the
+                // format does not admit, and it still has to be drawn.
+                cards = catalog.byId,
+                sets = catalog.sets,
+                clock = clock,
             )
         }
     }

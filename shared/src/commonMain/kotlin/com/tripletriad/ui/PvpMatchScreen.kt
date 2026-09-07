@@ -144,6 +144,12 @@ internal fun PvpMatchScreen(
     // See [PvpSession.isSettled].
     LaunchedEffect(session) { session.watch { session.isSettled } }
 
+    // Arrival, announced once per match. The turn clock does not start until both sides have done
+    // this, so a match paired while the player was on a PvE board cannot forfeit them before they
+    // have ever seen it. Keyed on the match id rather than on the session so that a second match
+    // in the same session announces itself too. See [PvpSession.attend].
+    LaunchedEffect(session, session.match?.matchId) { session.attend() }
+
     // The rule captions and the coin flip, exactly as a PvE match plays them. They were absent
     // here for the same reason the match had no artwork: this screen was written as "render what
     // the server says" and the announcements are not something the server says — they are derived

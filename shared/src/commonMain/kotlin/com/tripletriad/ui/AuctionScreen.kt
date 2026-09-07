@@ -48,7 +48,15 @@ internal enum class AuctionTab {
 }
 
 /**
- * The auction house.
+ * The auction house, as the store's third tab.
+ *
+ * ### Tabs inside a tab
+ *
+ * The house was a screen of its own, reached from a banner on the shop's shelf. It is a tab of
+ * the store now — buying a card from a player and buying one from a shelf are the same errand,
+ * and the bar already lit `Magasin` for it. The cost is that its own three tabs sit under the
+ * store's three: the outer row says *which shop*, the inner row says *which lots*, and they are
+ * drawn differently enough not to read as one row of six.
  *
  * ### Three tabs, and the middle one is the one with a deadline on it
  *
@@ -65,38 +73,27 @@ internal enum class AuctionTab {
  * Saying "coming soon" to either would be wrong in a different direction.
  */
 @Composable
-@Suppress("LongParameterList")
-internal fun AuctionScreen(
+internal fun ColumnScope.AuctionBody(
     profile: GameSave,
     session: AuctionSession?,
     cards: Map<Int, Card>,
     sets: List<CardSet>,
     clock: Clock,
-    onBack: () -> Unit,
 ) {
     val strings = LocalStrings.current
     val unlocks = LocalUnlocks.current
     val open = unlocks.allowsAuction(profile)
 
-    CharacterScaffold(
-        profile = profile,
-        title = strings[StringKeys.AUCTION],
-        onBack = onBack,
-        wide = true,
+    Column(
+        modifier = Modifier
+            .testTag(AUCTION_SCREEN_TEST_TAG)
+            .fillMaxWidth()
+            .weight(1f),
     ) {
-        Column(
-            modifier = Modifier
-                .testTag(AUCTION_SCREEN_TEST_TAG)
-                .fillMaxWidth()
-                .weight(1f),
-        ) {
-            when {
-                !open ->
-                    AuctionClosed(strings.format(StringKeys.LOCKED_LEVEL, "${unlocks.auction}"))
-
-                session == null -> AuctionUnserved()
-                else -> AuctionRoom(session, profile, cards, sets, clock)
-            }
+        when {
+            !open -> AuctionClosed(strings.format(StringKeys.LOCKED_LEVEL, "${unlocks.auction}"))
+            session == null -> AuctionUnserved()
+            else -> AuctionRoom(session, profile, cards, sets, clock)
         }
     }
 }

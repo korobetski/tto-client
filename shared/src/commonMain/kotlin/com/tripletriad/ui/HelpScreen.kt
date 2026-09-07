@@ -271,8 +271,8 @@ private fun HelpRow(ruleKey: String, isOpen: Boolean, onClick: () -> Unit) {
                 )
                 // Under the paragraph and not instead of it: the picture settles which way the
                 // rule runs, the paragraph says what it is called and where it applies.
-                RULE_DIAGRAMS[ruleKey]?.let { frames ->
-                    RuleDiagram(ruleKey = ruleKey, frames = frames)
+                RULE_DIAGRAMS[ruleKey]?.let { art ->
+                    RuleDiagram(ruleKey = ruleKey, art = art)
                 }
             }
         }

@@ -191,7 +191,7 @@ class HelpUiTest {
         onNodeWithTag(helpRuleTestTag(FALLEN_ACE)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { existsUnmerged(ruleDiagramTestTag(FALLEN_ACE)) }
 
-        val frames = RULE_DIAGRAMS.getValue(FALLEN_ACE)
+        val frames = (RULE_DIAGRAMS.getValue(FALLEN_ACE) as RuleArt.Placements).frames
         assertEquals(
             listOf(true, false),
             frames.map { it.captured },
@@ -208,9 +208,16 @@ class HelpUiTest {
         }
     }
 
-    /** And a rule a pair of cards cannot state keeps its paragraph and gets no picture. */
+    /**
+     * A rule two sides at once state gets a board rather than a pair.
+     *
+     * Same was prose for as long as the only picture available was one card meeting one card,
+     * which would have illustrated a rule it does not have. It is a grid now, and the assertion
+     * is on the shape and not merely on the tag: a `Placements` under Same would be back to
+     * drawing the wrong rule while still passing a test for "there is a diagram".
+     */
     @Test
-    fun aRuleAPairOfCardsCannotStateIsLeftAsProse() = runComposeUiTest {
+    fun aRuleAboutTwoSidesAtOnceIsDrawnAsABoard() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openHelp()
 
@@ -218,9 +225,16 @@ class HelpUiTest {
         onNodeWithTag(helpRuleTestTag(SAME)).performClick()
 
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { existsUnmerged(helpTextTestTag(SAME)) }
-        assertFalse(
+        assertTrue(
             existsUnmerged(ruleDiagramTestTag(SAME)),
-            "Same is about two sides at once and cannot be drawn with one pair",
+            "the rule that needs two neighbours to be stated is left as prose",
+        )
+        val art = RULE_DIAGRAMS.getValue(SAME)
+        assertTrue(art is RuleArt.Grid, "Same is drawn as a pair, which states a rule it has not")
+        assertEquals(
+            2,
+            art.tiles.count { it.flips },
+            "a Same that turns one card is not a Same",
         )
     }
 

@@ -1,9 +1,6 @@
 package com.tripletriad.ui
 
-import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.hasTestTag
-import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.GameSave
@@ -25,7 +22,7 @@ import kotlin.test.assertTrue
  * ### Only one of the two doors is asserted here, and why the other cannot be
  *
  * Both used to be cards on the lobby, and the lobby no longer carries either: the auction house is
- * reached from the shop's shelf and multiplayer from the play root. The shop's door is covered
+ * the store's third tab and multiplayer is the play root's. The shop's door is covered
  * below. The multiplayer one states its level again — see `PvpLocked` — but not anywhere these
  * tests can read it: they run with **no server**, and without one the multiplayer screen is not
  * drawn at all. It is asserted where it can be, against a session:
@@ -38,30 +35,25 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalTestApi::class)
 class LobbyUnlockUiTest {
     @Test
-    fun theSameLineIsOnTheAuctionDoorAndTapsThroughToTheReason() = runComposeUiTest {
+    fun theAuctionTabStatesTheLevelThatOpensIt() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
-        openStore()
 
-        // On the row itself, and not merely on the screen behind it. The row is what a player
-        // reads before deciding whether to tap, and it is the only thing under it: the line that
-        // used to be there whatever the level said "Coming soon", which was true of the house
-        // before it was built and false afterwards.
-        assertTrue(
-            auctionCardSays("Unlocks at level ${Unlocks.DEFAULT_AUCTION}"),
-            "the auction card did not say when it opens",
-        )
-
+        // The tab is not disabled, which is the point of it: a player below the line can read
+        // what the place *is* before being told they cannot trade there yet. The banner the shelf
+        // used to carry said the same thing one tap earlier; the tab is the tap.
         openAuction()
 
-        // The banner is not disabled, which is the point of it: a player below the line can read
-        // what the place *is* before being told they cannot go in yet.
-        assertTrue(isVisible("Auction house"), "the screen did not name what it is")
+        assertTrue(isVisible("Auction house"), "the tab did not name what it is")
         assertTrue(exists(AUCTION_LOCK_TEST_TAG), "the requirement was not stated on the page")
+        assertTrue(
+            isVisible("Unlocks at level ${Unlocks.DEFAULT_AUCTION}"),
+            "the page did not say when it opens",
+        )
     }
 
     @Test
-    fun atTheThresholdBothStopSayingIt() = runComposeUiTest {
+    fun atTheThresholdItStopsSayingIt() = runComposeUiTest {
         // XP, not `level`: `GameSave.sane()` derives the level from it on every load and every
         // write, so a save that names a level it has not earned is a save the repository undoes.
         val documents = seeded(
@@ -70,22 +62,14 @@ class LobbyUnlockUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
 
-        openStore()
+        openAuction()
 
-        // Nothing under the name once the door is open — no reason it is shut, and no promise
-        // that it is coming.
+        // Nothing about a level once the door is open — no reason it is shut, and no promise that
+        // it is coming.
+        assertFalse(exists(AUCTION_LOCK_TEST_TAG), "the cleared requirement was still on the page")
         assertFalse(
-            auctionCardSays("Unlocks at level"),
+            isVisible("Unlocks at level"),
             "an open auction house was still explaining itself",
         )
-
-        openAuction()
-        assertFalse(exists(AUCTION_LOCK_TEST_TAG), "the cleared requirement was still on the page")
     }
-
-    /** What the shop's auction row itself carries, as opposed to what the shop carries. */
-    private fun ComposeUiTest.auctionCardSays(text: String): Boolean =
-        onAllNodes(hasTestTag(SHOP_AUCTION_TEST_TAG).and(hasText(text, substring = true)))
-            .fetchSemanticsNodes()
-            .isNotEmpty()
 }

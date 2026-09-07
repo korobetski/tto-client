@@ -260,6 +260,8 @@
   "APP_PVP_TABLE_FREE": "Nothing at stake",
   "APP_PVP_TABLE_HEAVY": "Big stake",
   "APP_PVP_TABLE_OVER_LIMIT": "Above your limit of {0} MGP",
+  "APP_PVP_WAITING_NOW": "An opponent is waiting",
+  "APP_PVP_WAITING_KEPT": "Your current game is kept",
   "APP_PVP_JOIN_CONFIRM": "Join anyway",
   "APP_PVP_STAKE": "Stake",
   "APP_PVP_STAKE_MGP": "{0} MGP",

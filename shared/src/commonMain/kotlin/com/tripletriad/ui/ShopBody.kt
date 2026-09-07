@@ -12,7 +12,6 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -53,9 +53,6 @@ const val SHOP_STARTER_TEST_TAG: String = "shop-starter"
 const val SHOP_STARTER_CLAIM_TEST_TAG: String = "shop-starter-claim"
 
 const val SHOP_NOTE_TEST_TAG: String = "shop-note"
-
-/** The way into the auction house, which lives under the store's tab. */
-const val SHOP_AUCTION_TEST_TAG: String = "shop-auction"
 
 fun shopOfferTestTag(offer: ShopOffer): String = "shop-offer-${itemSlug(offer.item)}"
 
@@ -105,7 +102,6 @@ internal fun ColumnScope.ShopBody(
     selectedTag: String?,
     onSelect: (String?) -> Unit,
     onClaimStarter: (() -> Unit)? = null,
-    onAuction: (() -> Unit)? = null,
 ) {
     // Split once per shelf rather than filtered three times per frame. `Item` is sealed and has
     // four cases, so `others` can only ever be `MiscItem` — kept under the boons, at the foot of
@@ -124,14 +120,6 @@ internal fun ColumnScope.ShopBody(
     // that goes away the moment it is taken.
     if (onClaimStarter != null) {
         StarterPackPanel(starters = starters, cards = cards, onClaim = onClaimStarter)
-    }
-
-    // The other shop, and the one the shelves cannot be: a price here is fixed and a price there
-    // is what somebody else will pay. It sits under the store's tab because buying a card from a
-    // player and buying one from a shelf are the same errand — the lobby used to carry it as a
-    // card of its own, which is the thing the five tabs replaced.
-    if (onAuction != null) {
-        AuctionEntry(profile = profile, onClick = onAuction)
     }
 
     if (stocked.size > 1) {
@@ -486,63 +474,26 @@ internal fun ShopOfferSheet(
             enabled = isAffordable,
             onClick = onBuy,
         )
+
+        // The gap, said once and here rather than under every price on the shelf. A disabled
+        // button says "not this"; "you need 400 more" is a match away and "you need 2 760 more"
+        // is not, and only arithmetic over the price tells the two apart.
+        if (!isAffordable) {
+            Text(
+                text = strings.format(
+                    StringKeys.PRICE_SHORT,
+                    grouped(offer.price - profile.mgp),
+                ),
+                modifier = Modifier.fillMaxWidth().testTag(shopShortTestTag(offer)),
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.labelSmall,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 private val SheetGlyphSize = 56.dp
 
 private const val PERCENT = 100
-
-/**
- * The way into the auction house, on the shelf it belongs beside.
- *
- * Below the level it opens at the row says so and refuses the tap — "not yet, and here is when"
- * rather than a control that greys out and explains nothing. The screen behind it states the same
- * requirement again ([AUCTION_LOCK_TEST_TAG]) for the player who arrives another way.
- */
-@Composable
-private fun AuctionEntry(profile: GameSave, onClick: () -> Unit) {
-    val strings = LocalStrings.current
-    val unlocks = LocalUnlocks.current
-    val open = unlocks.allowsAuction(profile)
-
-    Row(
-        modifier = Modifier
-            .testTag(SHOP_AUCTION_TEST_TAG)
-            .fillMaxWidth()
-            .rowSurface()
-            .ttoClickable(role = Role.Button, onClick = onClick)
-            .padding(SpaceMd),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(SpaceMd),
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = strings[StringKeys.AUCTION],
-                color = MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.titleSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            // Nothing under the name once the house is open. The second line is where a *reason
-            // it is shut* goes, and an open door has none.
-            if (!open) {
-                Text(
-                    text = strings.format(
-                        StringKeys.LOCKED_LEVEL,
-                        unlocks.auction.toString(),
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
-                    style = MaterialTheme.typography.labelMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-        Icon(
-            imageVector = TtoIcons.Forward,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
-            modifier = Modifier.size(IconSm),
-        )
-    }
-}

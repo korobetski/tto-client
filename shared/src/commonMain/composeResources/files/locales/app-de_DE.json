@@ -260,6 +260,8 @@
   "APP_PVP_TABLE_FREE": "Nichts auf dem Spiel",
   "APP_PVP_TABLE_HEAVY": "Hoher Einsatz",
   "APP_PVP_TABLE_OVER_LIMIT": "Über deinem Limit von {0} MGP",
+  "APP_PVP_WAITING_NOW": "Ein Gegner wartet auf dich",
+  "APP_PVP_WAITING_KEPT": "Dein laufendes Spiel bleibt erhalten",
   "APP_PVP_JOIN_CONFIRM": "Trotzdem beitreten",
   "APP_PVP_STAKE": "Einsatz",
   "APP_PVP_STAKE_MGP": "{0} MGP",

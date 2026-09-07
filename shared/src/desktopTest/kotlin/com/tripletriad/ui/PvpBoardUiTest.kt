@@ -395,6 +395,39 @@ class PvpBoardUiTest {
     // ---- Harness ----------------------------------------------------------
 
     @Suppress("LongParameterList")
+    /**
+     * The board says the player is here, which is what starts the server's turn clock.
+     *
+     * The clock used to start at pairing, so a player who had opened a table and gone to play
+     * something else could be forfeited at the maximum stake for a match they were never shown.
+     * The server now waits for both sides to announce themselves — see `PvpRoutes.attend` — and
+     * this call is this client's half of that. Asserted on the request path rather than on
+     * anything drawn, because nothing about it is drawn.
+     */
+    @Test
+    fun openingTheBoardAnnouncesArrivalToTheServer() = runComposeUiTest {
+        val asked = mutableListOf<String>()
+        val engine = MockEngine { request ->
+            asked += request.url.encodedPath
+            respondJson(json.encodeToString(PvpMatchView.serializer(), playing()))
+        }
+        val session = sessionOver(engine)
+        runBlocking { session.resume() }
+
+        setContent {
+            CompositionLocalProvider(LocalStrings provides strings) {
+                TripleTriadTheme {
+                    PvpMatchScreen(session = session, cards = catalogue, now = NOW, onExit = {})
+                }
+            }
+        }
+
+        assertTrue(
+            asked.any { it.endsWith("/attend") },
+            "the board never told the server the player was looking at it: $asked",
+        )
+    }
+
     private fun board(
         view: PvpMatchView = playing(),
         record: (PvpMove) -> Unit = {},

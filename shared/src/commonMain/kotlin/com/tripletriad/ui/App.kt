@@ -348,6 +348,18 @@ fun App(
                         }
                     }
 
+                    // Over the board rather than inside it, and outside the transition for the
+                    // reason the sheet is: it belongs to the app, not to the screen it is
+                    // covering, and it has to survive the navigation it offers.
+                    if (shouldOfferWaitingMatch(pvp, screen)) {
+                        PvpWaitingStrip(
+                            pvp = pvp,
+                            clock = clock,
+                            strings = strings,
+                            onJoin = { screen = Screen.PVP_MATCH },
+                        )
+                    }
+
                     // Outside the transition, so the sheet is not slid off the edge with the
                     // screen underneath it when the player navigates from inside it.
                     if (optionsOpen) {
@@ -834,18 +846,6 @@ private fun CharacterDestination(
             onNavigate = onNavigate,
         )
 
-        // Not a shop tab yet, and deliberately not a dimmed card either — see [AuctionScreen].
-        Screen.AUCTION -> AuctionScreen(
-            profile = profile,
-            session = auctions,
-            // `byId`, which the catalog builds once, and not a fresh 565-entry map on every
-            // recomposition of the lobby.
-            cards = startup.catalog?.byId.orEmpty(),
-            sets = startup.catalog?.sets.orEmpty(),
-            clock = clock,
-            onBack = toDashboard,
-        )
-
         Screen.OPPONENTS -> startup.opponents?.let { opponents ->
             // The format ordinary matches are played in: the widest one, which with `MODE` gone
             // is every released block. When a player picks a format this becomes their choice.
@@ -992,7 +992,7 @@ private fun CharacterDestination(
         // The four that browse the card table. Grouped for the same reason the character-bearing
         // screens are grouped one level up: they share a prerequisite, and checking it four times
         // is four places for one of them to forget.
-        Screen.CARDS, Screen.DECKS, Screen.INVENTORY, Screen.SHOP,
+        Screen.CARDS, Screen.DECKS, Screen.INVENTORY, Screen.SHOP, Screen.AUCTION,
         -> startup.catalog?.let { catalog ->
             CollectionDestination(
                 destination = destination,
@@ -1004,7 +1004,10 @@ private fun CharacterDestination(
                 // it, and threading them one at a time is how a screen ends up knowing which
                 // source is live — the exact thing `ProfileGate` exists to hide.
                 gate = gate,
-                onAuction = { onNavigate(Screen.AUCTION) },
+                // The house is the store's third tab now, so the screen is handed the session
+                // rather than a way to navigate away to it.
+                auctions = auctions,
+                clock = clock,
                 onBack = toDashboard,
             )
         }
@@ -1569,7 +1572,8 @@ private fun CollectionDestination(
     starters: StarterCatalog,
     startup: StartupState,
     gate: ProfileGate,
-    onAuction: () -> Unit,
+    auctions: AuctionSession?,
+    clock: Clock,
     onBack: () -> Unit,
 ) {
     // The shelf is a property of the format, not of the character — see `ShopCatalog.offers`.
@@ -1592,17 +1596,22 @@ private fun CollectionDestination(
             onBack = onBack,
         )
 
-        Screen.SHOP, Screen.INVENTORY -> StoreScreen(
+        Screen.SHOP, Screen.INVENTORY, Screen.AUCTION -> StoreScreen(
             profile = profile,
             catalog = catalog,
             starters = starters,
             format = format,
-            initial = if (destination == Screen.INVENTORY) StoreTab.BAG else StoreTab.SHOP,
+            initial = when (destination) {
+                Screen.INVENTORY -> StoreTab.BAG
+                Screen.AUCTION -> StoreTab.AUCTION
+                else -> StoreTab.SHOP
+            },
+            auctions = auctions,
+            clock = clock,
             // No `onPersist`: every write this screen makes moves something of value, so all of
             // them are intents now — the shop, the bag, and the starter box.
             onUseItem = gate.useItem,
             onIntent = gate.perform,
-            onAuction = onAuction,
             onBack = onBack,
         )
 

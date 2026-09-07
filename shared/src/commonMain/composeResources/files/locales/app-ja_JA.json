@@ -260,6 +260,8 @@
   "APP_PVP_TABLE_FREE": "賭けなし",
   "APP_PVP_TABLE_HEAVY": "高額な賭け",
   "APP_PVP_TABLE_OVER_LIMIT": "あなたの上限 MGP {0} を超えています",
+  "APP_PVP_WAITING_NOW": "対戦相手が待っています",
+  "APP_PVP_WAITING_KEPT": "プレイ中のゲームは保存されます",
   "APP_PVP_JOIN_CONFIRM": "それでも参加",
   "APP_PVP_STAKE": "賭け",
   "APP_PVP_STAKE_MGP": "MGP {0}",

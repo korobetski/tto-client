@@ -68,6 +68,30 @@ class TabsUiTest {
         assertFalse(exists(shopShelfTestTag("boons")), "the shelf stayed over the bag")
     }
 
+    /**
+     * **The auction house is the store's third tab, not a screen behind a banner.**
+     *
+     * It was reached by tapping a row above the shelf, which is a navigation away from the store
+     * to somewhere that lit the store's own tab in the bar. Asserted from the shelf: one tap, no
+     * screen change — the store's tabs are still there behind the room.
+     */
+    @Test
+    fun theAuctionHouseIsTheStoresThirdTab() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        newCharacter()
+        openFromBar("store", SHOP_LIST_TEST_TAG)
+
+        onNodeWithTag(screenTabTestTag("auction")).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(AUCTION_SCREEN_TEST_TAG) }
+
+        assertTrue(exists(STORE_TABS_TEST_TAG), "the store's tabs went with the shelf")
+        assertFalse(exists(SHOP_LIST_TEST_TAG), "the shelf stayed under the auction house")
+
+        // And back, which is what a tab is: the shelf returns without a navigation.
+        onNodeWithTag(screenTabTestTag("shop")).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(SHOP_LIST_TEST_TAG) }
+    }
+
     @Test
     fun theBagEntryOpensTheSameScreenOnTheOtherTab() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }

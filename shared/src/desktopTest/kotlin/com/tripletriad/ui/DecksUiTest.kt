@@ -1,9 +1,13 @@
 package com.tripletriad.ui
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
@@ -18,6 +22,8 @@ import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.v2.runComposeUiTest
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.height
 import com.tripletriad.data.loadCardCatalog
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.StringKeys
@@ -297,6 +303,11 @@ class DecksUiTest {
         const val DRAG_UNDERSHOOT = 0.6f
 
         const val DRAG_STEPS = 8
+
+        /** A phone, and short enough that eight decks cannot all be on screen at once. */
+        val SHORT_WINDOW_WIDTH = 380.dp
+
+        val SHORT_WINDOW_HEIGHT = 520.dp
 
         val SIXTH_CARD = Card.idFor(block = 1, number = 44)
 
@@ -700,6 +711,40 @@ class DecksUiTest {
         openMenu(deckMenuTestTag(0), deckCopyTestTag(0))
         // Greyed rather than dropped, so the menu is the same three lines on every row.
         onNodeWithTag(deckCopyTestTag(0)).assertExists().assertIsNotEnabled()
+    }
+
+    /**
+     * **A list too long for the window scrolls; it does not squeeze its last deck.**
+     *
+     * The scaffold hands its content a column of a bounded height and no scrolling of its own, so
+     * a `Column` of eight rows in a phone-height window measured the rows it had room for and gave
+     * the ones past the fold what was left, which is nothing. The last deck was drawn flat.
+     * Asserted as geometry, on the shortest window the app is meant to run in.
+     */
+    @Test
+    fun theListScrollsRatherThanFlatteningItsLastDeck() = runComposeUiTest {
+        val documents = seeded(everySlotFilled())
+        setContent {
+            Box(modifier = Modifier.size(SHORT_WINDOW_WIDTH, SHORT_WINDOW_HEIGHT)) {
+                TestApp(store = settingsFor(AppLocale.EN_US), documents = documents)
+            }
+        }
+        loadCharacter(documents)
+        openDecks()
+
+        val last = GameSave.MAX_DECKS - 1
+        val first = onNodeWithTag(deckSlotTestTag(0)).getUnclippedBoundsInRoot().height
+        assertEquals(
+            first,
+            onNodeWithTag(deckSlotTestTag(last)).getUnclippedBoundsInRoot().height,
+            "the last deck is drawn shorter than the first",
+        )
+
+        // And it is reachable: a row kept at full height below the fold is no better than a flat
+        // one if nothing scrolls it into view.
+        onNodeWithTag(DECK_LIST_TEST_TAG)
+            .performScrollToNode(hasTestTag(deckSlotTestTag(last)))
+        onNodeWithTag(deckSlotTestTag(last)).assertIsDisplayed()
     }
 
     /**

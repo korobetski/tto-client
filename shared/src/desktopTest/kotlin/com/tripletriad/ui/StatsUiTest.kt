@@ -3,10 +3,12 @@ package com.tripletriad.ui
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.v2.runComposeUiTest
+import androidx.compose.ui.unit.height
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.AchievementCatalog
@@ -22,6 +24,9 @@ class StatsUiTest {
     private fun ComposeUiTest.openStats() {
         openProfile()
     }
+
+    private fun ComposeUiTest.height(family: String) =
+        onNodeWithTag(achievementFamilyTestTag(family)).getUnclippedBoundsInRoot().height
 
     @Test
     fun aFreshCharacterReadsZeroWithoutDividingByZero() = runComposeUiTest {
@@ -139,6 +144,31 @@ class StatsUiTest {
         onNodeWithTag(achievementRowTestTag(SECOND_TIER)).assertTextEquals("1 / 30")
     }
 
+    /**
+     * **Every medallion is the same height, whatever it has to say.**
+     *
+     * A family carries a date only once it is started, a reward line only where the next rung pays
+     * one, and a bar only while a rung is left — so left to wrap, the cards came out at half a
+     * dozen heights and the grid read as a wall of misaligned boxes. Asserted across three
+     * families chosen for saying *different* amounts: one earned and dated, one that names a card
+     * reward, one that names neither.
+     */
+    @Test
+    fun everyAchievementCardIsTheSameHeight() = runComposeUiTest {
+        val documents = seeded(
+            GameSave.new(createdAt = 0L)
+                .copy(npcWins = mapOf("tt-master" to 1))
+                .withAchievement(FIRST_WIN, instant = UNLOCKED_AT),
+        )
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openAchievements()
+
+        val dated = height(TRIPLE_TEAM)
+        assertEquals(dated, height(BEAST_TRIBE), "a card with a reward line is drawn taller")
+        assertEquals(dated, height(MGP_POT), "a card with neither is drawn shorter")
+    }
+
     @Test
     fun theCatalogueIsTheOneTheAs3Declares() {
         assertEquals(ACHIEVEMENTS, AchievementCatalog.all.size)
@@ -166,6 +196,12 @@ class StatsUiTest {
         const val SECOND_TIER = "ac-tt2"
 
         const val TRIPLE_TEAM = "ac-tt"
+
+        /** A family whose next rung pays a card, so its medallion carries a reward line. */
+        const val BEAST_TRIBE = "ac-fob"
+
+        /** And one that pays nothing and has not been started. */
+        const val MGP_POT = "ac-mp"
 
         const val UNLOCKED_AT = 1_614_816_000_000L
         const val UNLOCKED_ON = "2021-03-04"

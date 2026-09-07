@@ -272,51 +272,38 @@ internal fun CardOffer(
 }
 
 /**
- * A price on the shelf, and — when the purse cannot reach it — **by how much**.
+ * A price on the shelf, red when the purse cannot reach it.
  *
- * Out of reach used to be said by turning the number red and disabling the buy button, which
- * tells a player that they cannot have this and nothing else. The gap is the actionable half:
- * "you need 400 more" is a match away and "you need 2 760 more" is not, and only the shelf knows
- * which of the two this is.
+ * **The line that named the gap is gone from the tile.** It said "you need 510 more" under every
+ * price that was out of reach, which is the same fact the red already carries — and it carried it
+ * at the cost of a second line on some tiles and not on others, so a shelf of eleven packs came
+ * out at two heights. The number itself is not lost: the purchase sheet says it, once, where
+ * there is one offer and nothing to line up with.
  *
  * Dimming the whole offer, which this did before the red, hid the name and the description of
  * everything expensive — and three cards on this shelf cost more than a character will hold for a
  * very long time.
  *
  * The coin and the grouped number themselves are [PriceTag], which is how every price in the app
- * is written; what belongs to the shop is the colour and the line underneath.
+ * is written; what belongs to the shop is the colour.
  */
 @Composable
 internal fun OfferPrice(offer: ShopOffer, profile: GameSave) {
-    val strings = LocalStrings.current
-    val short = offer.price - profile.mgp
+    val affordable = offer.isAffordableBy(profile)
 
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        PriceTag(
-            price = offer.price,
-            color = if (short <= 0) {
-                MaterialTheme.colorScheme.tertiary
-            } else {
-                MaterialTheme.colorScheme.error
-            },
-            coin = if (short <= 0) {
-                LocalTtoColors.current.currency
-            } else {
-                MaterialTheme.colorScheme.error
-            },
-        )
-        if (short > 0) {
-            Text(
-                text = strings.format(StringKeys.PRICE_SHORT, grouped(short)),
-                modifier = Modifier.testTag(shopShortTestTag(offer)),
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.labelSmall,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
+    PriceTag(
+        price = offer.price,
+        color = if (affordable) {
+            MaterialTheme.colorScheme.tertiary
+        } else {
+            MaterialTheme.colorScheme.error
+        },
+        coin = if (affordable) {
+            LocalTtoColors.current.currency
+        } else {
+            MaterialTheme.colorScheme.error
+        },
+    )
 }
 
 /** Wide enough for a pack's name, its contents line and its price without any of them wrapping. */

@@ -392,13 +392,19 @@ class StringsBundleTest {
         // Measured from a `:shared:desktopTest --tests "*StringsBundleTest*"` run on 2026-09-06 and
         // pasted.
 
-        const val UNION_KEYS = 1901
+        // +2 to every bundle since: the strip that announces a paired multiplayer match over
+        // whatever board the player is on — `APP_PVP_WAITING_NOW` and `APP_PVP_WAITING_KEPT`, the
+        // two lines of it. Authored in all four `app-*` bundles at once, so every count moves by
+        // the same two and the four gaps stay where they were. Measured from a
+        // `:shared:desktopTest --tests "*StringsBundleTest*"` run on 2026-09-07 and pasted.
+
+        const val UNION_KEYS = 1903
 
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 1897,
-            AppLocale.FR_FR to 1898,
-            AppLocale.DE_DE to 1826,
-            AppLocale.JA_JA to 1858,
+            AppLocale.EN_US to 1899,
+            AppLocale.FR_FR to 1900,
+            AppLocale.DE_DE to 1828,
+            AppLocale.JA_JA to 1860,
         )
 
         val EXPECTED_GAPS = mapOf(

@@ -300,6 +300,16 @@ object StringKeys {
      * that start something new. There is no heading for "your table": the card says so itself.
      */
     const val PVP_WAITING: String = "APP_PVP_WAITING"
+
+    /**
+     * The strip that says a paired match is open somewhere else, and what it costs to go to it.
+     *
+     * Two lines because the second is the one that makes the first actionable: a player mid-way
+     * through a campaign board will not leave it on "an opponent is waiting" alone, and the game
+     * they are in is in fact kept. See [PvpWaitingStrip].
+     */
+    const val PVP_WAITING_NOW: String = "APP_PVP_WAITING_NOW"
+    const val PVP_WAITING_KEPT: String = "APP_PVP_WAITING_KEPT"
     const val PVP_TABLES_OPEN: String = "APP_PVP_TABLES_OPEN"
     const val PVP_SENT: String = "APP_PVP_SENT"
     const val PVP_FIND: String = "APP_PVP_FIND"
@@ -1052,7 +1062,8 @@ object StringKeys {
         PVP_TABLES, PVP_NO_TABLE, PVP_HOST, PVP_HOST_OPEN, PVP_HOST_CANCEL, PVP_JOIN,
         PVP_TABLE_BY, PVP_TABLE_MINE, PVP_TABLE_FREE, PVP_TABLE_EXPIRES,
         PVP_TABLE_HEAVY, PVP_TABLE_OVER_LIMIT, PVP_JOIN_CONFIRM,
-        PVP_WAITING, PVP_TABLES_OPEN, PVP_SENT, PVP_FIND, PVP_TABLE_OPEN_SINCE,
+        PVP_WAITING, PVP_WAITING_NOW, PVP_WAITING_KEPT,
+        PVP_TABLES_OPEN, PVP_SENT, PVP_FIND, PVP_TABLE_OPEN_SINCE,
         PVP_EMPTY_LEAD, PVP_HOST_HINT, PVP_EMPTY_SOLO,
         PVP_ONLINE_NOBODY, PVP_ONLINE_ONE, PVP_ONLINE_MANY,
         NOTIFY_CHALLENGE_TITLE, NOTIFY_CHALLENGE_BODY, NOTIFY_MATCH_TITLE, NOTIFY_MATCH_BODY,

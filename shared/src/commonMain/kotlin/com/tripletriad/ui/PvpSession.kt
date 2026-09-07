@@ -283,6 +283,24 @@ class PvpSession internal constructor(
         }
     }
 
+    /**
+     * Says the player is at the board, so the server may start the turn clock.
+     *
+     * Called when the match screen opens, not from the poll: the poll runs from the lobby and from
+     * every other screen, and treating it as attendance would start a forfeit clock against a
+     * player who has not been shown the match. A failure is logged and swallowed — the worst case
+     * is the clock starting a moment later, and a dialog here would be in front of a board the
+     * player has just walked up to.
+     */
+    suspend fun attend() {
+        val token = tokenOf() ?: return
+        val matchId = match?.matchId ?: return
+        when (val result = client.attend(token, matchId)) {
+            is AccountResult.Ok -> match = result.value
+            else -> Log.i(TAG) { "could not announce arrival at $matchId: $result" }
+        }
+    }
+
     suspend fun forfeit() = request {
         val token = tokenOf() ?: return@request
         val matchId = match?.matchId ?: return@request

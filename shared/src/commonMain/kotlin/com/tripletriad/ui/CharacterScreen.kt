@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -453,6 +454,15 @@ private fun ColumnScope.AchievementsBody(profile: GameSave, cards: Map<Int, Card
     }
 }
 
+/**
+ * One family's medallion — a **fixed height**, whatever it has to say.
+ *
+ * What a medallion holds varies: a date only once the family is started, a reward line only where
+ * the next rung pays one, a bar only while there is a rung left. Left to wrap, the twenty-two
+ * cards came out at half a dozen different heights and the grid read as a wall of misaligned
+ * boxes. So the height is [MedallionHeight] for all of them and the slack goes between the name
+ * and the footer, which keeps the bars of a row on one line.
+ */
 @Composable
 private fun Medallion(family: AchievementFamily, profile: GameSave, cards: Map<Int, Card>) {
     val strings = LocalStrings.current
@@ -463,6 +473,7 @@ private fun Medallion(family: AchievementFamily, profile: GameSave, cards: Map<I
         modifier = Modifier
             .testTag(achievementFamilyTestTag(family.key))
             .fillMaxWidth()
+            .height(MedallionHeight)
             .rowSurface(selected = earned != null)
             .padding(SpaceSm),
         verticalArrangement = Arrangement.spacedBy(SpaceXs),
@@ -500,6 +511,8 @@ private fun Medallion(family: AchievementFamily, profile: GameSave, cards: Map<I
                 }
             }
         }
+
+        Spacer(modifier = Modifier.weight(1f))
 
         if (earned != null) {
             Text(
@@ -616,3 +629,6 @@ private val BarHeight = 10.dp
 private val DotSize = 8.dp
 private val MedallionIconSize = 32.dp
 private val MedallionMinWidth = 150.dp
+
+/** Room for the tallest medallion there is: a two-line name, a date, a reward and a bar. */
+private val MedallionHeight = 136.dp

@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -95,7 +97,7 @@ internal fun ColumnScope.DecksBody(
  * row drawn next to it, which is what the player is pointing at.
  */
 @Composable
-private fun DeckSlots(
+private fun ColumnScope.DeckSlots(
     profile: GameSave,
     cards: Map<Int, Card>,
     onEdit: (Int) -> Unit,
@@ -141,8 +143,15 @@ private fun DeckSlots(
         scope.launch { onPersist(profile.withDecksSwapped(here, to)) }
     }
 
+    // The list scrolls itself. The scaffold hands its content a column with a bounded height and
+    // no scrolling of its own, so eight rows that do not fit are not clipped — Column hands the
+    // rows past the fold what space is left, which is none, and the last deck is drawn flattened.
     Column(
-        modifier = Modifier.testTag(DECK_LIST_TEST_TAG).fillMaxWidth(),
+        modifier = Modifier
+            .testTag(DECK_LIST_TEST_TAG)
+            .fillMaxWidth()
+            .weight(1f, fill = false)
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(SpaceSm),
     ) {
         for ((row, index) in filled.withIndex()) {

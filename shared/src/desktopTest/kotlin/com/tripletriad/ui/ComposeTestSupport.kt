@@ -360,14 +360,11 @@ internal fun ComposeUiTest.openStore() {
     openFromBar("store", SHOP_LIST_TEST_TAG)
 }
 
-/** The auction house, whose door is on the shop's shelf. */
+/** The auction house, which is the store's third tab. */
 @OptIn(ExperimentalTestApi::class)
 internal fun ComposeUiTest.openAuction() {
     openStore()
-    // No scroll: the way in is a banner above the shelf chips now, not a row inside the grid,
-    // and `performScrollTo` on a node with no scrollable ancestor is an error rather than a
-    // no-op. See `ShopBody`.
-    onNodeWithTag(SHOP_AUCTION_TEST_TAG).performClick()
+    onNodeWithTag(screenTabTestTag("auction")).performClick()
     waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(AUCTION_SCREEN_TEST_TAG) }
 }
 

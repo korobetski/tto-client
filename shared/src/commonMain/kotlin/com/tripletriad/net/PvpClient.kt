@@ -167,6 +167,22 @@ class PvpClient(
             }
         }
 
+    /**
+     * Tells the server this player is looking at the board.
+     *
+     * The turn clock does not start until both sides have said it, so a match paired while the
+     * player was elsewhere cannot run out against them before they have seen it. Sent when the
+     * board opens and nowhere else — a poll is not attendance, and sending it from the poll would
+     * arm the clock from the lobby.
+     */
+    suspend fun attend(token: String, matchId: String): AccountResult<PvpMatchView> =
+        call(HTTP_OK) {
+            client.post("${baseUrl()}/pvp/match/$matchId/attend") {
+                protocolHeaders()
+                bearer(token)
+            }
+        }
+
     suspend fun forfeit(token: String, matchId: String): AccountResult<PvpMatchView> =
         call(HTTP_OK) {
             client.post("${baseUrl()}/pvp/match/$matchId/forfeit") {

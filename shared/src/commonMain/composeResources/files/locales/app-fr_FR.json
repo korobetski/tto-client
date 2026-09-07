@@ -260,6 +260,8 @@
   "APP_PVP_TABLE_FREE": "Sans mise",
   "APP_PVP_TABLE_HEAVY": "Grosse mise",
   "APP_PVP_TABLE_OVER_LIMIT": "Au-dessus de votre limite de {0} MGP",
+  "APP_PVP_WAITING_NOW": "Un adversaire vous attend",
+  "APP_PVP_WAITING_KEPT": "Votre partie en cours est conservée",
   "APP_PVP_JOIN_CONFIRM": "Rejoindre quand même",
   "APP_PVP_STAKE": "Mise",
   "APP_PVP_STAKE_MGP": "{0} MGP",

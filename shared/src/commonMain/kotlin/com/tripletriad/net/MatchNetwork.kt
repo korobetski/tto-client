@@ -1,5 +1,6 @@
 package com.tripletriad.net
 
+import com.tripletriad.protocol.ClientPlatform
 import com.tripletriad.storage.DocumentStore
 import com.tripletriad.time.Clock
 import io.ktor.client.engine.HttpClientEngineFactory
@@ -62,6 +63,12 @@ fun serverConnection(
             queue = TranscriptQueue(stores.queue),
             submitter = KtorMatchSubmitter(client = http, baseUrl = address, token = token),
         ),
-        releases = GithubReleaseClient(http),
+        // Not in the browser. A release there is not a file to download but the next load of the
+        // page, so there is nothing to advise — and the page's CSP refuses `api.github.com` anyway.
+        releases = if (clientPlatform == ClientPlatform.WEB) {
+            ReleaseSource.None
+        } else {
+            GithubReleaseClient(http)
+        },
     )
 }

@@ -68,6 +68,8 @@ Other:
 ./gradlew :androidApp:installDebug           # onto an attached device
 ./gradlew :androidApp:verifyReleaseApk       # release-only; not wired into `check` (costs ~2 min)
 ./gradlew :desktopApp:packageDeb             # jpackage builds for the host only
+./gradlew :webApp:wasmJsBrowserDevelopmentRun  # localhost:8082, API forwarded to 127.0.0.1:8080
+./gradlew :webApp:wasmJsBrowserDistribution  # webApp/build/dist/wasmJs/productionExecutable/
 ./gradlew :shared:coverageReport             # shared/build/reports/jacoco/coverageReport/html/
 ```
 
@@ -89,9 +91,16 @@ see Compose or I/O; `ui/` does no I/O and holds no rules.
 (in-memory store, stopped clock, silent audio, no server). That is why previews, screenshots and the
 UI tests run with no filesystem, no network and no machine locale bleeding in. `:androidApp` and
 `:desktopApp` are thin hosts that supply the real implementations; `iosApp/` has Swift sources but
-**no `.xcodeproj` — no iOS app has ever run**. The browser is further behind still: `:shared` has
-its `wasmJs` actuals and a `BrowserDocumentStore`, but there is **no `:webApp` host yet** — that is
-step 3.3 of `tto-server/docs/web-platform.md`.
+**no `.xcodeproj` — no iOS app has ever run**. `:webApp` is the browser's host: one server, the
+page's own origin, and every store over `localStorage` — the session token included, for the
+reasons its `Main.kt` gives. Two things differ from the other hosts and bite if forgotten:
+
+- **A failed `fetch` is a `kotlin.Error`, not an `IOException`**, straight out of Ktor's `Js`
+  engine. `MatchNetwork.wasmJs.kt` translates it at the engine, so `catch (Exception)` keeps working
+  in `:shared`; a second HTTP client built around another engine factory would lose that.
+- **The API prefixes the game calls are listed twice** — `webApp/build.gradle.kts` for the dev
+  server, `tto-server/Caddyfile` for the game's host. A new top-level route on the server is a 404
+  in the browser until both know it.
 
 `server == null` is a supported configuration, not a degraded one: the game plays off local `.sav`
 profiles. Adding a feature means keeping both paths working.

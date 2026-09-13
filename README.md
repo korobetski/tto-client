@@ -96,8 +96,8 @@ This repository contains a **Kotlin Multiplatform** client for Triple Triad, a s
 - **Android** — Full support with native UI
 - **Desktop (JVM)** — Complete implementation for development and testing
 - **iOS** — Framework compiles (SwiftUI host sources included, project setup pending)
-- **Browser (Wasm)** — `:shared` compiles for `wasmJs` and its tests pass in Chrome and Firefox; the
-  host that turns it into a page, `:webApp`, does not exist yet
+- **Browser (Wasm)** — `:webApp` builds the game as a static page; `tto-web` deploys it from each
+  tagged release, on its own host
 
 ---
 
@@ -265,6 +265,13 @@ adb shell am start -n com.tripletriad.android/.MainActivity
 
 # The common tests again under wasm, in headless Chrome and Firefox (both must be installed)
 ./gradlew :shared:wasmJsBrowserTest
+
+# The browser game, served on http://localhost:8082 with the API forwarded to a local server on 8080
+# (-Ptto.apiServer=<url> for another one)
+./gradlew :webApp:wasmJsBrowserDevelopmentRun
+
+# The files tto-web deploys: webApp/build/dist/wasmJs/productionExecutable/
+./gradlew :webApp:wasmJsBrowserDistribution
 
 # Static analysis
 ./gradlew ktlintCheck detekt

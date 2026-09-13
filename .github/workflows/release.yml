@@ -166,13 +166,67 @@ jobs:
           # An installer is a build output, not a record. The release is where it lives.
           retention-days: 7
 
+  # The browser game, as the directory of static files `:webApp` builds, packed into one archive.
+  #
+  # Not a download for players — a player opens a page, they do not unpack a tarball. It is attached
+  # to the release because the release is what `tto-web` deploys from: that repository pins a client
+  # version and fetches this file for it, so the page served on the game's host is always a build
+  # somebody tagged, and moving it forward or back is a one-line change there. See
+  # `tto-server/docs/web-platform.md` § `:webApp` belongs in `tto-client`.
+  web:
+    name: Browser bundle
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v5
+
+      - name: Read the version from the tag
+        id: version
+        run: echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      # The wasm tests before the bundle: `verify` runs the common suite on the JVM only, and the
+      # browser is where `FetchEngine` and `BrowserDocumentStore` actually execute. Both browsers
+      # ship on the ubuntu runner image.
+      - name: Test and build
+        run: |
+          ./gradlew :shared:wasmJsBrowserTest :webApp:wasmJsBrowserDistribution --no-daemon \
+            -Ptto.lint=false -PclientVersion="${{ steps.version.outputs.value }}"
+
+      # Checked rather than trusted, for the same reason the installers are counted: an archive of
+      # an empty directory is a deployment of a blank page. `index.html` is what the host serves at
+      # `/`, and `composeResources/` is what the catalogues are fetched from — a bundle without it
+      # loads, draws its splash screen, and stops.
+      - name: Pack the bundle
+        id: bundle
+        run: |
+          dir=webApp/build/dist/wasmJs/productionExecutable
+          for required in index.html tto.js composeResources; do
+            [ -e "$dir/$required" ] || { echo "::error::$dir/$required is missing" >&2; exit 1; }
+          done
+          name="tto-web-${{ steps.version.outputs.value }}.tar.gz"
+          tar czf "$name" -C "$dir" .
+          echo "path=$name" >> "$GITHUB_OUTPUT"
+          ls -l "$name"
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: web-bundle
+          path: ${{ steps.bundle.outputs.path }}
+          retention-days: 7
+
   publish:
     name: Signed APK
     # The installers gate the release as much as the tests do. A release that carries the APK
     # today and the desktop builds tomorrow publishes a download page that is wrong for as long
     # as the gap lasts, under a URL people are already reading — the same argument the concurrency
-    # block above makes about cancelling mid-publish. Both platforms, or neither.
-    needs: [verify, installers]
+    # block above makes about cancelling mid-publish. Every platform, or none — the browser too.
+    needs: [verify, installers, web]
     runs-on: ubuntu-latest
     # On `publish` and not on `verify`, so the approval is asked for only once the build is green —
     # being paged to approve something that then fails its own tests is how an approval becomes a
@@ -367,6 +421,12 @@ jobs:
           fi
           ls -1 installers/*
 
+      - name: Collect the browser bundle
+        uses: actions/download-artifact@v6
+        with:
+          name: web-bundle
+          path: web
+
       # `gh` rather than a third-party action: it ships on the runner, and creating a release is
       # one command. `--generate-notes` fills the body from the commits since the previous tag.
       #
@@ -391,6 +451,14 @@ jobs:
           for format in deb msi dmg; do
             assets+=("installers/tto-$version.$format")
           done
+          # After the installers and not among them: it is for `tto-web`'s deployment, not for a
+          # player, and the notes below say so.
+          web="web/tto-web-$version.tar.gz"
+          if [ ! -f "$web" ]; then
+            echo "::error::the browser bundle job passed but $web did not arrive" >&2
+            exit 1
+          fi
+          assets+=("$web")
           [ -n "$bundle" ] && assets+=("$bundle")
 
           # Written to a file and passed with `--notes-file`, because `--generate-notes` fills the
@@ -408,6 +476,9 @@ jobs:
             echo "| Linux | \`tto-$version.deb\` — \`sudo apt install ./tto-$version.deb\` |"
             echo "| Windows | \`tto-$version.msi\` |"
             echo "| macOS | \`tto-$version.dmg\` |"
+            echo
+            echo "\`tto-web-$version.tar.gz\` is the browser game's build, deployed by tto-web —"
+            echo "there is nothing in it to install."
             echo
             echo "The desktop installers are **not code-signed** — there is no Apple or Windows"
             echo "certificate for this project. Windows shows a SmartScreen warning with"

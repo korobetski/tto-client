@@ -179,6 +179,27 @@ jobs:
           name: desktop-deb
           path: desktopApp/build/compose/binaries/main/deb/*.deb
 
+  # The browser game's bundle, on every push, for the reason the `.deb` is built above: webpack, the
+  # Compose resource copy and `index.html` are exercised by nothing else, and the release is the
+  # wrong place to learn that one of them broke. The wasm *tests* are not repeated — `shared` runs
+  # them as part of `:shared:build`.
+  web:
+    name: Browser bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v5
+      - run: ./gradlew :webApp:wasmJsBrowserDistribution -Ptto.lint=false --no-daemon
+      - name: Upload the bundle
+        uses: actions/upload-artifact@v6
+        with:
+          name: web-bundle
+          path: webApp/build/dist/wasmJs/productionExecutable/
+
   # The only job that can compile the Apple targets at all: Kotlin/Native silently skips
   # them on a Linux or Windows host, so a green build elsewhere says nothing about iOS.
   #

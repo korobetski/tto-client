@@ -1,0 +1,15 @@
+/* The canvas takes the whole window; Compose draws everything inside it. */
+html,
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #000;
+}
+
+#tto {
+    width: 100%;
+    height: 100%;
+}

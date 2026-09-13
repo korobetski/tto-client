@@ -108,6 +108,30 @@ kotlin {
         }
     }
 
+    // The browser game (`tto-server/docs/web-platform.md`, step 3.2). A library target only: the
+    // executable, its HTML and its bundle belong to `:webApp`, the way the window belongs to
+    // `:desktopApp`.
+    //
+    // Tested in real browsers and not in Node. `BrowserDocumentStore` is `localStorage`, which Node
+    // does not have, and the catalogues are read through a `fetch` against the page's own origin —
+    // the two things this target adds that the common tests cannot vouch for.
+    @OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
+    wasmJs {
+        browser {
+            testTask {
+                useKarma {
+                    useChromeHeadless()
+                    useFirefoxHeadless()
+                }
+            }
+        }
+        // For the tests, not for shipping. Compose refuses to run a wasm test bundle that webpack
+        // has not built — Skiko's runtime is loaded from it (CMP-4906) — and webpack only builds
+        // for a target with an executable. `:webApp` is still where the game's own entry point
+        // lives; `:shared` declares no `main`.
+        binaries.executable()
+    }
+
     sourceSets {
         // The one generated file, carrying `clientVersion` into code. See `buildVersion` above.
         commonMain {
@@ -174,6 +198,9 @@ kotlin {
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
+        }
+        getByName("wasmJsMain").dependencies {
+            implementation(libs.ktor.client.js)
         }
         // `getByName` and not `val desktopTest by getting`: Gradle 9 deprecated the delegate
         // syntax and removes it in Gradle 10. There is no generated `desktopTest` accessor

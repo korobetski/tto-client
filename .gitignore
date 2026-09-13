@@ -27,3 +27,4 @@ __pycache__/
 *.p12.b64
 *.b64
 /cards_en.html
+/docs/resources/

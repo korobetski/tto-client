@@ -76,17 +76,56 @@ class AccountUiTest {
 
     @Test
     fun signingInLandsOnTheAccountsDashboard() = runComposeUiTest {
-        setContent { TestApp(store = english(), server = connection()) }
+        setContent { TestApp(store = english(), server = connection(engine = signingInAs(dealt))) }
 
         openForm()
         submitCredentials()
 
         awaitDashboard()
         assertVisible("kuplu", "the dashboard did not show the account's character")
-        // And straight there: an account that already exists has a collection, so the step that
-        // follows a registration must not appear again on every sign-in.
+        // And straight there: this account already holds a collection, so the step that follows
+        // a registration must not appear again on every sign-in.
         check(!exists(STARTER_CONFIRM_TEST_TAG)) {
             "an existing account was asked to choose its collection again"
+        }
+    }
+
+    /**
+     * An account that owns nothing is asked for its box when it signs in, not only when it
+     * registers.
+     *
+     * The website creates accounts too, and `POST /accounts` deals no cards, so a player whose
+     * first contact with the game is this form holds a character with an empty collection. They
+     * used to land on the dashboard, where the shop's repair — the catalogue's first box, not a
+     * choice — was the only way to a playable hand.
+     */
+    @Test
+    fun signingInToAnAccountThatOwnsNothingAsksForAStarter() = runComposeUiTest {
+        val claimed = mutableListOf<String>()
+        val engine = MockEngine { request ->
+            when (request.url.encodedPath) {
+                "/server" -> respondJson(HttpStatusCode.OK, encode(serverInfo))
+                "/me/starter" -> {
+                    claimed += request.body.toByteArray().decodeToString()
+                    respondJson(HttpStatusCode.OK, encode(dealt))
+                }
+
+                else -> respondJson(HttpStatusCode.OK, encode(session))
+            }
+        }
+        setContent { TestApp(store = english(), server = connection(engine = engine)) }
+
+        openForm()
+        submitCredentials()
+
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(STARTER_CONFIRM_TEST_TAG) }
+        val ff8 = starterFor(FF8_BLOCK)
+        onNodeWithTag(starterChoiceTestTag(ff8.id)).performClick()
+        onNodeWithTag(STARTER_CONFIRM_TEST_TAG).performClick()
+        awaitDashboard()
+
+        check(claimed.any { it.contains("\"starterId\":\"${ff8.id}\"") }) {
+            "the chosen box never reached the server: $claimed"
         }
     }
 
@@ -346,6 +385,16 @@ class AccountUiTest {
             probe = ServerProbe(http) { 0L },
             reporter = MatchReporter.None,
         )
+    }
+
+    /** The default server, but signing in to [signedIn] rather than to the empty [player]. */
+    private fun signingInAs(signedIn: PlayerState) = MockEngine { request ->
+        val body = when (request.url.encodedPath) {
+            "/server" -> encode(serverInfo)
+            "/me" -> encode(signedIn)
+            else -> encode(session.copy(player = signedIn))
+        }
+        respondJson(HttpStatusCode.OK, body)
     }
 
     private fun english() = settingsFor(AppLocale.EN_US)

@@ -1,6 +1,6 @@
 [versions]
 agp = "9.4.0"
-kotlin = "2.4.10"
+kotlin = "2.4.20"
 
 # The rules engine, published from the `tto-core` repository — `:core` in this build until it left.
 # The server pins this same number, and a match is verified by replaying it with the engine both
@@ -11,7 +11,7 @@ kotlin = "2.4.10"
 # `tto-server`'s. A local `publishToMavenLocal` is how a change is tried before any of that — see
 # `settings.gradle.kts` for why the local copy wins over the published one.
 
-core = "0.8.4"
+core = "0.9.0"
 
 compose = "1.12.0"
 composeMaterial3 = "1.9.0"
@@ -116,6 +116,9 @@ ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
 # Declared so the iOS targets stay honest. They are compiled only on macOS, so this costs nothing
 # here and prevents `iosMain` becoming the one source set that does not build the day it is needed.
 ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
+# The browser's `fetch`, for the wasm build. A page cannot open a socket, so this is less a choice
+# than the name of the only transport there is.
+ktor-client-js = { module = "io.ktor:ktor-client-js", version.ref = "ktor" }
 # A fake engine that answers from a lambda. It makes the network layer testable in `commonTest`
 # with no socket, no server and no port — so these tests run on every target and in CI unchanged.
 ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }

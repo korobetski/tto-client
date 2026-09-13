@@ -1,0 +1,6 @@
+package com.tripletriad.net
+
+import io.ktor.client.engine.HttpClientEngineFactory
+import io.ktor.client.engine.js.Js
+
+internal actual fun defaultHttpEngineFactory(): HttpClientEngineFactory<*> = Js

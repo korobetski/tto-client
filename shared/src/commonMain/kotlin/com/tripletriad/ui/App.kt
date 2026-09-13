@@ -30,6 +30,7 @@ import com.tripletriad.data.FormatCatalog
 import com.tripletriad.data.NpcCatalog
 import com.tripletriad.data.PveMatches
 import com.tripletriad.data.StarterCatalog
+import com.tripletriad.data.StarterPack
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
@@ -785,8 +786,21 @@ private fun AccountDestination(
             // A new account is asked to confirm its address before anything else — while the
             // mail is arriving and the player is still on the screen that caused it. It is
             // skippable, and the collection step is what both answers lead to.
+            //
+            // An account that already exists goes to the dashboard **unless it owns nothing**,
+            // which is exactly what one created on the website does: `POST /accounts` deals no
+            // cards, and the choice is only ever asked here. Sent to the dashboard, that player's
+            // one way out was the shop's repair — the catalogue's first box, not the one they
+            // would have picked.
             onSignedIn = { isNew ->
-                onNavigate(if (isNew) Screen.ACCOUNT_CONFIRM else Screen.DASHBOARD)
+                val owesStarter = session.save?.let(StarterPack::isOwedBy) == true
+                onNavigate(
+                    when {
+                        isNew -> Screen.ACCOUNT_CONFIRM
+                        owesStarter -> Screen.COLLECTION_CHOICE
+                        else -> Screen.DASHBOARD
+                    },
+                )
             },
             onForgotPassword = { onNavigate(Screen.PASSWORD_RESET) },
             onBack = { onNavigate(Screen.TITLE) },

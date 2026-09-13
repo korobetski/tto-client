@@ -96,6 +96,8 @@ This repository contains a **Kotlin Multiplatform** client for Triple Triad, a s
 - **Android** — Full support with native UI
 - **Desktop (JVM)** — Complete implementation for development and testing
 - **iOS** — Framework compiles (SwiftUI host sources included, project setup pending)
+- **Browser (Wasm)** — `:shared` compiles for `wasmJs` and its tests pass in Chrome and Firefox; the
+  host that turns it into a page, `:webApp`, does not exist yet
 
 ---
 
@@ -260,6 +262,9 @@ adb shell am start -n com.tripletriad.android/.MainActivity
 
 # Fast test loop (856 tests, measured 2026-08-17)
 ./gradlew :shared:desktopTest
+
+# The common tests again under wasm, in headless Chrome and Firefox (both must be installed)
+./gradlew :shared:wasmJsBrowserTest
 
 # Static analysis
 ./gradlew ktlintCheck detekt

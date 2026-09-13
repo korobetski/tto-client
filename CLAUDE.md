@@ -58,6 +58,7 @@ Test tasks and what each proves:
 | `:shared:desktopTest` | `commonTest` + `desktopTest` — the only place Compose UI tests run |
 | `:shared:testAndroidHostTest` | `commonTest` again on the Android host JVM (**not** `testDebugUnitTest` — the module uses `com.android.kotlin.multiplatform.library`) |
 | `:shared:iosSimulatorArm64Test` | `commonTest` on Kotlin/Native — **macOS only, silently skipped elsewhere** |
+| `:shared:wasmJsBrowserTest` | `commonTest` + `wasmJsTest` under Karma in headless Chrome **and** Firefox — needs both installed; `shared/karma.config.d/` raises Mocha's 2 s budget and Karma's disconnect clocks, and serves the Compose resources |
 | `:androidApp:testDebugUnitTest` | the host module's own tests; `assembleDebug` does not run them |
 
 Other:
@@ -88,7 +89,9 @@ see Compose or I/O; `ui/` does no I/O and holds no rules.
 (in-memory store, stopped clock, silent audio, no server). That is why previews, screenshots and the
 UI tests run with no filesystem, no network and no machine locale bleeding in. `:androidApp` and
 `:desktopApp` are thin hosts that supply the real implementations; `iosApp/` has Swift sources but
-**no `.xcodeproj` — no iOS app has ever run**.
+**no `.xcodeproj` — no iOS app has ever run**. The browser is further behind still: `:shared` has
+its `wasmJs` actuals and a `BrowserDocumentStore`, but there is **no `:webApp` host yet** — that is
+step 3.3 of `tto-server/docs/web-platform.md`.
 
 `server == null` is a supported configuration, not a degraded one: the game plays off local `.sav`
 profiles. Adding a feature means keeping both paths working.

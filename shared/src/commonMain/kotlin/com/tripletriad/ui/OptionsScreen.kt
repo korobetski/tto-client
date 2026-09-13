@@ -31,6 +31,7 @@ import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.settings.MatchSpeed
+import com.tripletriad.settings.UnownedCards
 import com.tripletriad.settings.UserSettings
 import kotlinx.coroutines.launch
 
@@ -51,6 +52,8 @@ fun optionsLanguageTestTag(locale: AppLocale): String = "options-language-${loca
 fun optionsSpeedTestTag(speed: MatchSpeed): String = "options-speed-${speed.tag}"
 
 const val OPTIONS_CAPTURE_HINTS_TEST_TAG: String = "options-capture-hints"
+
+fun optionsUnownedTestTag(mode: UnownedCards): String = "options-unowned-${mode.tag}"
 
 /**
  * The settings, as a sheet over whatever asked for them.
@@ -143,6 +146,13 @@ internal fun OptionsBody(
                 checked = current.captureHints,
                 tag = OPTIONS_CAPTURE_HINTS_TEST_TAG,
             ) { on -> settings.update { it.copy(captureHints = on) } }
+
+            // Chips, as the speed is: three named answers to one question. No note, unlike the aid:
+            // at double text size the audio group must stay in view, see `TextScalingTest`.
+            Label(strings[StringKeys.UNOWNED_CARDS])
+            UnownedChoice(current) { mode ->
+                settings.update { it.copy(unownedCards = mode.tag) }
+            }
         }
 
         SettingsGroup(strings[StringKeys.AUDIO_SETTINGS]) {
@@ -307,6 +317,22 @@ private fun SpeedChoice(settings: UserSettings, onPick: (MatchSpeed) -> Unit) {
                 tag = optionsSpeedTestTag(speed),
                 selected = speed == selected,
                 onClick = { onPick(speed) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun UnownedChoice(settings: UserSettings, onPick: (UnownedCards) -> Unit) {
+    val strings = LocalStrings.current
+    val selected = settings.unowned
+    Row(horizontalArrangement = Arrangement.spacedBy(SpaceSm)) {
+        for (mode in UnownedCards.entries) {
+            TtoFilterChip(
+                label = strings[mode.labelKey],
+                tag = optionsUnownedTestTag(mode),
+                selected = mode == selected,
+                onClick = { onPick(mode) },
             )
         }
     }

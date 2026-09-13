@@ -7,15 +7,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -38,13 +34,9 @@ import com.tripletriad.data.CardCatalog
 import com.tripletriad.data.NpcCatalog
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
-import com.tripletriad.model.Achievement
-import com.tripletriad.model.AchievementCatalog
-import com.tripletriad.model.Card
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.MatchRecord
 import com.tripletriad.model.XpTable
-import com.tripletriad.time.isoDate
 import com.tripletriad.ui.theme.LocalTtoColors
 import kotlin.math.roundToInt
 
@@ -110,7 +102,15 @@ internal fun CharacterScreen(
     val strings = LocalStrings.current
     var tab by remember { mutableStateOf(initial) }
 
-    CharacterScaffold(profile = profile, title = strings[StringKeys.PROFILE], onBack = onBack) {
+    CharacterScaffold(
+        profile = profile,
+        title = strings[StringKeys.PROFILE],
+        onBack = onBack,
+        // Only the achievements: the rail, the grid and the ladder want the room, and a summary
+        // or a history stretched to a desktop window is lines too long to read.
+        wide = tab == CharacterTab.ACHIEVEMENTS,
+        wideMaxWidth = CollectionMaxWidth,
+    ) {
         ScreenTabs(
             tabs = listOf(
                 strings[StringKeys.SUMMARY] to screenTabTestTag("summary"),
@@ -424,211 +424,9 @@ private fun SetRow(label: String, tag: String, owned: Int, total: Int) {
     }
 }
 
-/**
- * Twenty-two families as medallions, two to a row.
- *
- * The icon was already being drawn at 28 dp on the end of a line of prose; given the width the
- * prose was taking, the whole catalogue fits in an screen and a half rather than six.
- */
-@Composable
-private fun ColumnScope.AchievementsBody(profile: GameSave, cards: Map<Int, Card>) {
-    val strings = LocalStrings.current
-    val families = remember(profile) { rankedFamilies(profile) }
-
-    if (families.isEmpty()) {
-        // Unreachable while [AchievementCatalog] has 22 members, and asserted anyway: an empty
-        // catalogue should say so rather than render as a tab that lost its content.
-        EmptyNote(strings[StringKeys.NO_ACHIEVEMENT], STATS_NO_ACHIEVEMENT_TEST_TAG)
-        return
-    }
-
-    LazyVerticalGrid(
-        columns = GridCells.Adaptive(MedallionMinWidth),
-        modifier = Modifier.testTag(STATS_ACHIEVEMENTS_TEST_TAG).fillMaxWidth().weight(1f),
-        verticalArrangement = Arrangement.spacedBy(SpaceSm),
-        horizontalArrangement = Arrangement.spacedBy(SpaceSm),
-    ) {
-        items(families, key = { it.key }) { family ->
-            Medallion(family = family, profile = profile, cards = cards)
-        }
-    }
-}
-
-/**
- * One family's medallion — a **fixed height**, whatever it has to say.
- *
- * What a medallion holds varies: a date only once the family is started, a reward line only where
- * the next rung pays one, a bar only while there is a rung left. Left to wrap, the twenty-two
- * cards came out at half a dozen different heights and the grid read as a wall of misaligned
- * boxes. So the height is [MedallionHeight] for all of them and the slack goes between the name
- * and the footer, which keeps the bars of a row on one line.
- */
-@Composable
-private fun Medallion(family: AchievementFamily, profile: GameSave, cards: Map<Int, Card>) {
-    val strings = LocalStrings.current
-    val earned = family.earned
-    val next = family.next
-
-    Column(
-        modifier = Modifier
-            .testTag(achievementFamilyTestTag(family.key))
-            .fillMaxWidth()
-            .height(MedallionHeight)
-            .rowSurface(selected = earned != null)
-            .padding(SpaceSm),
-        verticalArrangement = Arrangement.spacedBy(SpaceXs),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(SpaceSm),
-        ) {
-            AchievementIcon(
-                iconId = family.face.iconId,
-                description = strings[family.face.labelKey],
-                size = MedallionIconSize,
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = strings[family.face.labelKey],
-                    color = MaterialTheme.colorScheme.onSurface
-                        .copy(alpha = if (earned != null) 1f else DISABLED_TEXT),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                // Only where there is something to count. `ac-fob` is one achievement, and
-                // "1 / 1" beside its name would be a tier ladder it does not have.
-                if (family.tiers.size > 1) {
-                    Text(
-                        text = "${family.earnedCount} / ${family.tiers.size}",
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
-                        style = MaterialTheme.typography.labelSmall,
-                        maxLines = 1,
-                        softWrap = false,
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        if (earned != null) {
-            Text(
-                text = isoDate(profile.achievements.getValue(earned.id)),
-                color = LocalTtoColors.current.transient,
-                style = MaterialTheme.typography.labelSmall,
-                maxLines = 1,
-                softWrap = false,
-                modifier = Modifier.testTag(achievementRowTestTag(earned.id)),
-            )
-        }
-
-        // The reward of whatever the player can still reach — the *next* rung, not the face.
-        // Showing the face's would tell someone who has just earned tier I what they have already
-        // been paid, and leave the 5 000 MGP at the top of the ladder invisible until they are all
-        // but standing on it. Once the family is finished there is no next rung and the face's own
-        // reward is the right thing to show, as a record of what it paid.
-        RewardNote(achievement = next ?: family.face, cards = cards)
-
-        // Absent once every tier is earned: there is nothing left to aim at, and a bar at 100%
-        // under a completed family says less than the date above it already does.
-        if (next != null) {
-            val progress = next.progressFor(profile)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(SpaceXs),
-            ) {
-                Text(
-                    text = strings.format(StringKeys.NEXT_TIER, strings[next.labelKey]),
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    text = "${progress.current} / ${progress.target}",
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1,
-                    softWrap = false,
-                    modifier = Modifier.testTag(achievementRowTestTag(next.id)),
-                )
-            }
-            Meter(fraction = progress.fraction, colour = MaterialTheme.colorScheme.tertiary)
-        }
-    }
-}
-
-/**
- * "Reward: Tozol Huatotl", or nothing at all.
- *
- * A card reward is named from the card table, so it reads as the card and not as an id; MGP is
- * formatted through its own key because the currency's name is translated (PGS in French) and a
- * bare number would say nothing.
- */
-@Composable
-private fun RewardNote(achievement: Achievement, cards: Map<Int, Card>) {
-    if (!achievement.hasReward) return
-    val strings = LocalStrings.current
-
-    val parts = buildList {
-        achievement.reward?.let { add(itemName(strings, it, cards)) }
-        if (achievement.mgpReward > 0) {
-            add(strings.format(StringKeys.ACHIEVEMENT_REWARD_MGP, "${achievement.mgpReward}"))
-        }
-    }
-
-    Text(
-        text = strings.format(StringKeys.ACHIEVEMENT_REWARD, parts.joinToString(DOT_SEPARATOR)),
-        color = LocalTtoColors.current.transient,
-        style = MaterialTheme.typography.labelSmall,
-        maxLines = 2,
-        overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.testTag(achievementRewardTestTag(achievement.id)),
-    )
-}
-
-private data class AchievementFamily(
-    val key: String,
-    val tiers: List<Achievement>,
-    val earned: Achievement?,
-    val next: Achievement?,
-) {
-    val face: Achievement get() = earned ?: next ?: tiers.first()
-
-    val earnedCount: Int get() = tiers.indexOf(earned) + 1
-}
-
-private fun rankedFamilies(profile: GameSave): List<AchievementFamily> {
-    val families = AchievementCatalog.all
-        .groupBy { it.id.trimEnd { character -> character.isDigit() } }
-        .map { (key, tiers) ->
-            AchievementFamily(
-                key = key,
-                tiers = tiers,
-                earned = tiers.lastOrNull { profile.hasAchievement(it.id) },
-                next = tiers.firstOrNull { !profile.hasAchievement(it.id) },
-            )
-        }
-    val (started, untouched) = families.partition { it.earned != null }
-    return started.sortedByDescending { profile.achievements[it.earned?.id] ?: 0L } +
-        untouched.sortedByDescending { it.face.progressFor(profile).fraction }
-}
-
 private const val PERCENT = 100
-
-/** How faded an unearned family's name is — legible, but plainly not yours yet. */
-private const val DISABLED_TEXT = 0.65f
 
 private const val TRACK = 0.25f
 
 private val BarHeight = 10.dp
 private val DotSize = 8.dp
-private val MedallionIconSize = 32.dp
-private val MedallionMinWidth = 150.dp
-
-/** Room for the tallest medallion there is: a two-line name, a date, a reward and a bar. */
-private val MedallionHeight = 136.dp

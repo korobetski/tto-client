@@ -361,7 +361,12 @@ private fun ColumnScope.SellPicker(
 ) {
     val strings = LocalStrings.current
     val filters = rememberCardFilters(sellable, sets)
-    val shown = remember(sellable, filters.set, filters.type, filters.rarity) {
+    val shown = remember(
+        sellable,
+        filters.pickedSets,
+        filters.pickedTypes,
+        filters.pickedRarities,
+    ) {
         sellable.filter(filters::matches)
     }
 

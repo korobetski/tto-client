@@ -71,6 +71,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.tripletriad.audio.LocalAudio
 import com.tripletriad.audio.Sound
@@ -236,6 +237,8 @@ internal fun ScreenScaffold(
     snackbar: NoteHost? = null,
     bottomBar: (@Composable () -> Unit)? = null,
     wide: Boolean = false,
+    // The cap [wide] lifts the column to. Only the card list asks for more than the default.
+    wideMaxWidth: Dp = WideContentMaxWidth,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val strings = LocalStrings.current
@@ -246,7 +249,7 @@ internal fun ScreenScaffold(
     // and "there is something to put in it" cannot disagree: the rail *replaces* the bar, and two
     // sets of the same four entries is the one thing an adaptive layout must not do.
     val rail = navigation.takeIf { isWide }
-    val columnWidth = if (wide && isWide) WideContentMaxWidth else ContentMaxWidth
+    val columnWidth = if (wide && isWide) wideMaxWidth else ContentMaxWidth
 
     Row(modifier = Modifier.fillMaxSize()) {
         rail?.let { SideNavigation(it) }
@@ -515,6 +518,7 @@ internal fun CharacterScaffold(
     snackbar: NoteHost? = null,
     bottomBar: (@Composable () -> Unit)? = null,
     wide: Boolean = false,
+    wideMaxWidth: Dp = WideContentMaxWidth,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     ScreenScaffold(
@@ -527,6 +531,7 @@ internal fun CharacterScaffold(
         snackbar = snackbar,
         bottomBar = bottomBar,
         wide = wide,
+        wideMaxWidth = wideMaxWidth,
         content = content,
     )
 }

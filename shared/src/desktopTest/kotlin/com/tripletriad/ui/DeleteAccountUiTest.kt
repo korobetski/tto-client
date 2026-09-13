@@ -1,12 +1,17 @@
 package com.tripletriad.ui
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.i18n.AppLocale
@@ -148,7 +153,7 @@ class DeleteAccountUiTest {
     private fun ComposeUiTest.deleteWith(password: String) {
         onNodeWithTag(OPTIONS_DELETE_ACCOUNT_TEST_TAG).performClick()
         onNodeWithTag(OPTIONS_DELETE_PASSWORD_TEST_TAG).performTextInput(password)
-        onNodeWithTag(OPTIONS_DELETE_CONFIRM_TEST_TAG).performClick()
+        onNodeWithTag(OPTIONS_DELETE_CONFIRM_TEST_TAG).performScrollTo().performClick()
     }
 
     @Composable
@@ -157,11 +162,15 @@ class DeleteAccountUiTest {
             TripleTriadTheme {
                 // The body rather than the sheet: a `ModalBottomSheet` draws in its own
                 // `Popup`, and what is under test here is the account group inside it.
-                OptionsBody(
-                    settings = SettingsHolder(UserSettings(language = AppLocale.EN_US.tag)) {},
-                    account = account,
-                    onDeleted = onDeleted,
-                )
+                // Scrolled, as the sheet is: the body outgrew the test window, and a tap on a
+                // button below its edge lands on nothing.
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    OptionsBody(
+                        settings = SettingsHolder(UserSettings(language = AppLocale.EN_US.tag)) {},
+                        account = account,
+                        onDeleted = onDeleted,
+                    )
+                }
             }
         }
     }

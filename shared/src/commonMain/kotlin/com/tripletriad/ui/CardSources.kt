@@ -121,6 +121,60 @@ internal fun cardSources(cardId: Int, opponents: NpcCatalog?): List<CardSource> 
 }
 
 /**
+ * The four tables a [CardSource] is read from, without the row — what the collection's filter
+ * panel asks. In the order [cardSources] lists them: the certain kinds first.
+ *
+ * Labelled with the word each table already has in all four bundles. The roster alone had none:
+ * `STR_OPPONENTS` is singular in English and missing from the German and Japanese bundles.
+ */
+internal enum class SourceKind(val slug: String, val labelKey: String) {
+    SHOP("shop", StringKeys.CARD_SHOP),
+    ACHIEVEMENT("achievement", StringKeys.ACHIEVEMENTS),
+    OPPONENT("opponent", StringKeys.SOURCE_OPPONENTS),
+    BOOSTER("booster", StringKeys.BOOSTERS),
+}
+
+internal val CardSource.kind: SourceKind
+    get() = when (this) {
+        is CardSource.Shelf -> SourceKind.SHOP
+        is CardSource.Reward -> SourceKind.ACHIEVEMENT
+        is CardSource.Opponent -> SourceKind.OPPONENT
+        is CardSource.Booster -> SourceKind.BOOSTER
+    }
+
+/**
+ * Which kinds of table offer each card, for every card at once. A card nothing offers has no entry.
+ *
+ * The tables [cardSources] reads, read from the other end: that function walks the roster, every
+ * pack and both catalogues for one card, and a filter asking it of 565 cards would do so 565 times
+ * per pass. This walks each table once, when the filters are built. The two must agree, and
+ * `CardSourceIndexTest` holds them to it card by card over the shipped tables.
+ */
+internal fun sourceKindsByCard(opponents: NpcCatalog?): Map<Int, Set<SourceKind>> {
+    val kinds = mutableMapOf<Int, MutableSet<SourceKind>>()
+    fun offer(cardId: Int, kind: SourceKind) {
+        kinds.getOrPut(cardId) { mutableSetOf() } += kind
+    }
+
+    for (entry in ShopCatalog.shelf) {
+        (entry.item as? CardItem)?.let { offer(it.cardId, SourceKind.SHOP) }
+    }
+    for (achievement in AchievementCatalog.all) {
+        (achievement.reward as? CardItem)?.let { offer(it.cardId, SourceKind.ACHIEVEMENT) }
+    }
+    for (npc in opponents?.all.orEmpty()) {
+        for (reward in npc.itemRewards) {
+            val cardId = reward.cardId
+            if (cardId != null && reward.item() is CardItem) offer(cardId, SourceKind.OPPONENT)
+        }
+    }
+    for (type in BoosterType.entries) {
+        type.pool.forEach { offer(it, SourceKind.BOOSTER) }
+    }
+    return kinds
+}
+
+/**
  * The sources under a card, or the sentence that says there are none.
  *
  * **The empty case is not nothing to say.** Most of the 565 cards are drops from opponents this

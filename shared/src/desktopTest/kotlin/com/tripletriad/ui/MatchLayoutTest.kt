@@ -39,21 +39,93 @@ class MatchLayoutTest {
     @Test
     fun theArrangementAlwaysFitsInTheSpaceItWasGiven() {
         for ((width, height) in VIEWPORTS) {
-            val layout = matchLayout(width, height)
-            // Only meaningful above the floor: below it the cards are already as small as they
-            // are allowed to get and overflow is preferred to illegible cards.
-            if (layout.scale <= MIN_TESTED_SCALE) continue
+            assertFits(width, height, matchLayout(width, height))
+        }
+    }
 
-            val (usedWidth, usedHeight) = footprint(layout)
+    /** The same, with the seat headers counted — they are fixed height, and cards are not. */
+    @Test
+    fun theArenaAlwaysFitsInTheSpaceItWasGivenSeatsIncluded() {
+        for ((width, height) in VIEWPORTS) {
+            val layout = matchLayout(width, height, arena = true)
+            assertFits(width, height, layout)
             assertTrue(
-                usedWidth <= width + TOLERANCE,
-                "$width x $height: needs $usedWidth across, has $width",
-            )
-            assertTrue(
-                usedHeight <= height + TOLERANCE,
-                "$width x $height: needs $usedHeight down, has $height",
+                layout.boardScale >= layout.scale,
+                "$width x $height: board tiles must never be smaller than hand cards",
             )
         }
+    }
+
+    @Test
+    fun theArenaDrawsPastTheAuthoredSizeWhereTheWindowHasRoom() {
+        val plain = matchLayout(FULL_HD_PLAY_WIDTH, FULL_HD_PLAY_HEIGHT)
+        val arena = matchLayout(FULL_HD_PLAY_WIDTH, FULL_HD_PLAY_HEIGHT, arena = true)
+
+        assertEquals(1f, plain.boardScale, "outside the arena the cards stop at the authored size")
+        assertTrue(arena.scale > 1f, "a 1080p arena should draw hand cards past it: ${arena.scale}")
+        assertTrue(
+            arena.boardScale > arena.scale,
+            "and the board larger again: ${arena.boardScale} vs ${arena.scale}",
+        )
+    }
+
+    @Test
+    fun theArenaStopsAtTheHighDefinitionArtWithTheHandsBelowIt() {
+        val huge = matchLayout(4000.dp, 2000.dp, arena = true)
+
+        assertEquals(2f, huge.boardScale, "208x256 is the largest art there is to draw")
+        assertTrue(huge.scale < huge.boardScale, "the hands stay smaller than the board")
+    }
+
+    @Test
+    fun onlyTheArenaReservesRoomForSeats() {
+        assertEquals(0.dp, matchLayout(FULL_HD_PLAY_WIDTH, FULL_HD_PLAY_HEIGHT).seatHeight)
+        assertEquals(
+            SeatHeaderHeight + SeatGap,
+            matchLayout(FULL_HD_PLAY_WIDTH, FULL_HD_PLAY_HEIGHT, arena = true).seatHeight,
+        )
+    }
+
+    @Test
+    fun theChromeFollowsTheWindowsSizeAndShape() {
+        assertEquals(MatchChrome.ARENA, matchChrome(wide = true, 1920.dp, 1080.dp))
+        assertEquals(
+            MatchChrome.PANEL,
+            matchChrome(wide = true, 1100.dp, 768.dp),
+            "every UI test's window keeps the panel",
+        )
+        assertEquals(
+            MatchChrome.PANEL,
+            matchChrome(wide = true, 1920.dp, 600.dp),
+            "too short for seats over the hands",
+        )
+        assertEquals(
+            MatchChrome.PANEL,
+            matchChrome(wide = true, 1280.dp, 1920.dp),
+            "large but upright would stack the seats",
+        )
+        assertEquals(
+            MatchChrome.COMPACT,
+            matchChrome(wide = true, 890.dp, 411.dp),
+            "a phone on its side has height for neither",
+        )
+        assertEquals(MatchChrome.COMPACT, matchChrome(wide = false, 1920.dp, 1080.dp))
+    }
+
+    private fun assertFits(width: Dp, height: Dp, layout: MatchLayout) {
+        // Only meaningful above the floor: below it the cards are already as small as they
+        // are allowed to get and overflow is preferred to illegible cards.
+        if (layout.scale <= MIN_TESTED_SCALE) return
+
+        val (usedWidth, usedHeight) = footprint(layout)
+        assertTrue(
+            usedWidth <= width + TOLERANCE,
+            "$width x $height: needs $usedWidth across, has $width",
+        )
+        assertTrue(
+            usedHeight <= height + TOLERANCE,
+            "$width x $height: needs $usedHeight down, has $height",
+        )
     }
 
     @Test
@@ -89,10 +161,11 @@ class MatchLayoutTest {
         val boardWidth = (CardSpriteWidth * BOARD_SIDE + BoardGapTotal) * layout.boardScale
         val boardHeight = (CardSpriteHeight * BOARD_SIDE + BoardGapTotal) * layout.boardScale
         val breaks = HandBoardGap * 2
+        val seated = layout.handHeight + layout.seatHeight
         return if (layout.landscape) {
-            (layout.handWidth * 2 + boardWidth + breaks) to maxOf(layout.handHeight, boardHeight)
+            (layout.handWidth * 2 + boardWidth + breaks) to maxOf(seated, boardHeight)
         } else {
-            maxOf(layout.handWidth, boardWidth) to (layout.handHeight * 2 + boardHeight + breaks)
+            maxOf(layout.handWidth, boardWidth) to (seated * 2 + boardHeight + breaks)
         }
     }
 
@@ -105,6 +178,10 @@ class MatchLayoutTest {
         val TOLERANCE = 0.5.dp
 
         const val MIN_TESTED_SCALE = 0.23f
+
+        /** What a 1920x1080 window leaves the cards once the arena's header is drawn, roughly. */
+        val FULL_HD_PLAY_WIDTH = 1904.dp
+        val FULL_HD_PLAY_HEIGHT = 880.dp
 
         val VIEWPORTS = listOf(
             411.dp to 890.dp,

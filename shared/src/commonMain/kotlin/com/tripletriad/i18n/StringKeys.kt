@@ -84,6 +84,9 @@ object StringKeys {
     // ---- Match.
     const val OPPONENT_TURN: String = "APP_OPPONENT_TURN"
 
+    /** Over the player's own hand in the arena, where the opponent's carries their name. */
+    const val MATCH_YOUR_HAND: String = "APP_MATCH_YOUR_HAND"
+
     const val ACHIEVEMENT_EARNED: String = "APP_ACHIEVEMENT_EARNED"
 
     const val REMATCH: String = "STR_REMATCH"
@@ -951,6 +954,14 @@ object StringKeys {
     /** What a ringed cell is, read out. The ring's only other channel is its colour. */
     const val CAPTURE_HINT_CELL: String = "APP_CAPTURE_HINT_CELL"
 
+    // ---- How the collection draws a card never owned. See `UnownedCards`; its three labels are
+    // reached through `UnownedCards.labelKey`, as the speed's crans are. No note under the row,
+    // unlike the aid's: the sheet had no height left for one at double text size.
+    const val UNOWNED_CARDS: String = "APP_UNOWNED_CARDS"
+    const val UNOWNED_UNKNOWN: String = "APP_UNOWNED_UNKNOWN"
+    const val UNOWNED_DIMMED: String = "APP_UNOWNED_DIMMED"
+    const val UNOWNED_HIDDEN: String = "APP_UNOWNED_HIDDEN"
+
     // ---- Reaching one card out of 565.
     const val SEARCH_CARDS: String = "APP_SEARCH_CARDS"
 
@@ -966,6 +977,48 @@ object StringKeys {
      * had to ask and a closed menu does.
      */
     const val CARD_SET: String = "APP_CARD_SET"
+
+    // ---- The landscape filter panel — see `CardFilterPanel`. `FILTERS_RESET` carries the number
+    // of narrowings it undoes as `{0}`; `SORT` heads the order chips the menu names by its answer.
+    const val FILTERS: String = "APP_FILTERS"
+    const val FILTERS_RESET: String = "APP_FILTERS_RESET"
+    const val SORT: String = "APP_SORT"
+    const val SORT_REVERSE: String = "APP_SORT_REVERSE"
+
+    // ---- The panel's two questions the menus do not ask — see `CardFilterPanel`. The source
+    // chips name themselves out of `STR_CARD_SHOP`, `STR_ACHIEVEMENTS`, `APP_BOOSTERS` and
+    // `SOURCE_OPPONENTS` (see `SourceKind`). `SIDE_MINIMUM` reads a side's name and its least power
+    // as `{0}` and `{1}`; `SIDE_ANY`, `SIDE_RAISE` and `SIDE_LOWER` take the side's name as `{0}`.
+    const val FILTER_SOURCES: String = "APP_FILTER_SOURCES"
+    const val SOURCE_OPPONENTS: String = "APP_SOURCE_OPPONENTS"
+    const val FILTER_SIDES: String = "APP_FILTER_SIDES"
+    const val SIDE_TOP: String = "APP_SIDE_TOP"
+    const val SIDE_RIGHT: String = "APP_SIDE_RIGHT"
+    const val SIDE_BOTTOM: String = "APP_SIDE_BOTTOM"
+    const val SIDE_LEFT: String = "APP_SIDE_LEFT"
+    const val SIDE_MINIMUM: String = "APP_SIDE_MINIMUM"
+    const val SIDE_ANY: String = "APP_SIDE_ANY"
+    const val SIDE_RAISE: String = "APP_SIDE_RAISE"
+    const val SIDE_LOWER: String = "APP_SIDE_LOWER"
+
+    // ---- The achievements tab's filters and ladder — see `AchievementsBody`. `ALL` is its
+    // own key and not `APP_ALL`, which French writes "Toutes" for cards; a succès is
+    // masculine. The four standings head the chips, the two badges are the singular a card
+    // wears. `CURRENCY_EARNED` takes the currency's name as `{0}`, `EARNED_ON` a date.
+    const val ACHIEVEMENT_ALL: String = "APP_ACHIEVEMENT_ALL"
+    const val ACHIEVEMENT_CATEGORIES: String = "APP_ACHIEVEMENT_CATEGORIES"
+    const val ACHIEVEMENT_IN_PROGRESS: String = "APP_ACHIEVEMENT_IN_PROGRESS"
+    const val ACHIEVEMENT_ALMOST: String = "APP_ACHIEVEMENT_ALMOST"
+    const val ACHIEVEMENT_COMPLETED: String = "APP_ACHIEVEMENT_COMPLETED"
+    const val ACHIEVEMENT_NOT_STARTED: String = "APP_ACHIEVEMENT_NOT_STARTED"
+    const val ACHIEVEMENT_ALMOST_BADGE: String = "APP_ACHIEVEMENT_ALMOST_BADGE"
+    const val ACHIEVEMENT_DONE_BADGE: String = "APP_ACHIEVEMENT_DONE_BADGE"
+    const val ACHIEVEMENT_TIERS_EARNED: String = "APP_ACHIEVEMENT_TIERS_EARNED"
+    const val ACHIEVEMENT_CURRENCY_EARNED: String = "APP_ACHIEVEMENT_CURRENCY_EARNED"
+    const val ACHIEVEMENT_CARDS_EARNED: String = "APP_ACHIEVEMENT_CARDS_EARNED"
+    const val ACHIEVEMENT_TIERS: String = "APP_ACHIEVEMENT_TIERS"
+    const val ACHIEVEMENT_EARNED_ON: String = "APP_ACHIEVEMENT_EARNED_ON"
+    const val ACHIEVEMENT_NO_MATCH: String = "APP_ACHIEVEMENT_NO_MATCH"
 
     // ---- Decks.
     const val DECK_COPY: String = "APP_DECK_COPY"
@@ -1008,6 +1061,17 @@ object StringKeys {
     const val CARD_SOURCES_MORE: String = "APP_CARD_SOURCES_MORE"
     const val NO_CARD_SOURCE: String = "APP_NO_CARD_SOURCE"
 
+    /**
+     * A card the collection draws as "?" because the profile has never owned it — see
+     * `UnknownCardTile`. The name is a key rather than a literal because it is not the same
+     * three characters everywhere: `ja` writes it full-width, `？？？`.
+     */
+    const val UNKNOWN_CARD_NAME: String = "APP_UNKNOWN_CARD_NAME"
+    const val UNKNOWN_CARD: String = "APP_UNKNOWN_CARD"
+
+    /** A card's number in its set; `{0}` arrives zero-padded, so "No. 044" and "N° 044". */
+    const val CARD_NUMBER: String = "APP_CARD_NUMBER"
+
     // ---- What this character has played. `STR_*` is not reused for the tally words: the profile
     // screen's `WINS`/`DEFEATS`/`DRAWS` are column headings and read as counts, which is exactly
     // what a history row is not.
@@ -1035,7 +1099,7 @@ object StringKeys {
         LEVEL, MGP, WINS, DEFEATS, DRAWS,
         DELETE, DELETE_CONFIRM, CANCEL, START, NO_PROFILE, AVATAR,
         OPPONENTS, RULES, MATCH_FEE, REWARDS, CHALLENGE, NO_OPPONENT, RANDOM_OPPONENT,
-        XP, DIFFICULTY, OPPONENT_TURN, ACHIEVEMENT_EARNED, REMATCH,
+        XP, DIFFICULTY, OPPONENT_TURN, MATCH_YOUR_HAND, ACHIEVEMENT_EARNED, REMATCH,
         MULTIPLAYER, CARD_LIST, CARDS, HOME, CARD_DECKS, INVENTORY, SHOP, HELP, LOGOUT,
         CARD_INFOS, TOTAL, SIDES, RARITY, CARD_TYPE, PICK_CARD, OWNED,
         DECK, DECK_POWER, RESET_DECK, SAVE, CHOOSE_DECK, RANDOM_DECK, NO_FULL_DECK,
@@ -1159,13 +1223,24 @@ object StringKeys {
         ERROR_EMAIL_TAKEN, ERROR_BAD_EMAIL, ERROR_UNVERIFIED, ERROR_BAD_CODE,
         MATCH_SPEED, SPEED_NORMAL, SPEED_FAST, SPEED_FASTER, SPEED_INSTANT,
         CAPTURE_HINTS, CAPTURE_HINTS_NOTE, CAPTURE_HINT_CELL,
+        UNOWNED_CARDS, UNOWNED_UNKNOWN, UNOWNED_DIMMED, UNOWNED_HIDDEN,
         SEARCH_CARDS, SORT_NUMBER, MISSING, NO_CARD_MATCH, CARD_SET,
+        FILTERS, FILTERS_RESET, SORT, SORT_REVERSE,
+        FILTER_SOURCES, SOURCE_OPPONENTS, FILTER_SIDES,
+        SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM, SIDE_LEFT,
+        SIDE_MINIMUM, SIDE_ANY, SIDE_RAISE, SIDE_LOWER,
+        ACHIEVEMENT_ALL, ACHIEVEMENT_CATEGORIES,
+        ACHIEVEMENT_IN_PROGRESS, ACHIEVEMENT_ALMOST, ACHIEVEMENT_COMPLETED, ACHIEVEMENT_NOT_STARTED,
+        ACHIEVEMENT_ALMOST_BADGE, ACHIEVEMENT_DONE_BADGE,
+        ACHIEVEMENT_TIERS_EARNED, ACHIEVEMENT_CURRENCY_EARNED, ACHIEVEMENT_CARDS_EARNED,
+        ACHIEVEMENT_TIERS, ACHIEVEMENT_EARNED_ON, ACHIEVEMENT_NO_MATCH,
         DECK_COPY, DECK_FILL,
         DECK_PLAYABLE, DECK_INCOMPLETE, DECK_OUT_OF_LIMITS,
         DECK_NEW, DECK_FREE_SLOTS, DECK_NONE, DECK_REORDER, DECK_ACTIONS,
         LEAVE_MATCH, LEAVE_MATCH_PVE, LEAVE_MATCH_CONFIRM,
         HISTORY, NO_HISTORY, HISTORY_FORM, HISTORY_KEPT,
         CARD_SOURCES, CARD_SOURCES_MORE, NO_CARD_SOURCE,
+        UNKNOWN_CARD_NAME, UNKNOWN_CARD, CARD_NUMBER,
         LESSON_CHAPTER_BASICS, LESSON_CHAPTER_CAPTURES, LESSON_CHAPTER_MATCHES,
         HELP_SEARCH, HELP_NO_MATCH, HELP_LAST_MATCH,
         HELP_CAPTURES, HELP_HOLDS, HELP_FAILS,

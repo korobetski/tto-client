@@ -78,6 +78,22 @@ internal val BoardTileOutline = Color(0xFF3A4152)
 
 internal val SelectionRing = Color(0xFFF2C14E)
 
+/*
+ * A card the profile has never owned, as FFXIV's own card list draws it: a teal card outline and a
+ * green "?" on a near-black ground. Artwork colours for the same reason the card sides are — they
+ * are what an unknown card looks like in the game, not a theme's opinion of it. See
+ * `UnknownCardTile`.
+ */
+
+internal val UnknownCardGround = Color(0xFF10161A)
+
+/** The ground's centre, where the radial gradient starts. */
+internal val UnknownCardGlow = Color(0xFF1F2C2F)
+
+internal val UnknownCardOutline = Color(0xFF5FE3D3)
+
+internal val UnknownCardMark = Color(0xFFA6EC6C)
+
 @Immutable
 data class TtoColors(
     val cardBlue: Color = CardBlue,
@@ -91,6 +107,10 @@ data class TtoColors(
     val boardTile: Color = BoardTile,
     val boardTileOutline: Color = BoardTileOutline,
     val selectionRing: Color = SelectionRing,
+    val unknownCardGround: Color = UnknownCardGround,
+    val unknownCardGlow: Color = UnknownCardGlow,
+    val unknownCardOutline: Color = UnknownCardOutline,
+    val unknownCardMark: Color = UnknownCardMark,
     val backdrop: Color = Neutral4,
     val positive: Color = Green80,
     val onPositive: Color = Green20,

@@ -109,31 +109,46 @@ internal fun PlayArea(
     // revealed cards face down until they have; the default is for every caller with no intro to
     // wait for — a preview, a screenshot, a board resumed mid-match.
     revealed: Boolean = true,
+    // Who sits behind each hand, drawn over it where the layout left room — see `SeatHeader`.
+    seats: MatchSeats? = null,
 ) {
     val drag = rememberBoardDragState()
     val hand: @Composable (Boolean) -> Unit = { own ->
-        HandArea(
-            // Positional both ways: `opponentHand` keeps a null where a card is hidden, and the own
-            // hand is mapped into the same shape so one row renders both. The nulls are what make
-            // Three Open "five cards, three of them face up" rather than "three cards".
-            cards = if (own) view.ownHand else view.opponentHand,
-            owner = if (own) view.side else view.opponent,
-            own = own,
-            active = view.currentPlayer == (if (own) view.side else view.opponent),
-            selected = selected,
-            // The same two the board is given, and for the same reason: under Bonus or Malus a
-            // card in hand is already worth the board's tally, so it says so before it is played
-            // rather than after. No element travels with them — a hand card stands on no cell, so
-            // `powerModifier` returns 0 under Elemental and the badge stays a board-only mark.
-            rules = view.rules,
-            tally = view.tally,
-            layout = layout,
-            playableSlots = if (own) view.playableHandIndices else emptyList(),
-            revealed = revealed,
-            drag = drag,
-            onSelect = onSelect,
-            onDrop = onDrop,
-        )
+        val owner = if (own) view.side else view.opponent
+        val cards: @Composable () -> Unit = {
+            HandArea(
+                // Positional both ways: `opponentHand` keeps a null where a card is hidden, and the
+                // own hand is mapped into the same shape so one row renders both. The nulls are
+                // what make Three Open "five cards, three of them face up" rather than "three
+                // cards".
+                cards = if (own) view.ownHand else view.opponentHand,
+                owner = owner,
+                own = own,
+                active = view.currentPlayer == (if (own) view.side else view.opponent),
+                selected = selected,
+                // The same two the board is given, and for the same reason: under Bonus or Malus a
+                // card in hand is already worth the board's tally, so it says so before it is
+                // played rather than after. No element travels with them — a hand card stands on no
+                // cell, so `powerModifier` returns 0 under Elemental and the badge stays a
+                // board-only mark.
+                rules = view.rules,
+                tally = view.tally,
+                layout = layout,
+                playableSlots = if (own) view.playableHandIndices else emptyList(),
+                revealed = revealed,
+                drag = drag,
+                onSelect = onSelect,
+                onDrop = onDrop,
+            )
+        }
+        if (seats != null && layout.seatHeight > 0.dp) {
+            Column(verticalArrangement = Arrangement.spacedBy(SeatGap)) {
+                SeatHeader(own = own, color = owner, seats = seats, width = layout.handWidth)
+                cards()
+            }
+        } else {
+            cards()
+        }
     }
     // What the aimed card would take, or nothing — see [capturePreview]. Computed here rather
     // than in the grid because the *player's side* is a fact about the match and not about nine
@@ -883,6 +898,8 @@ internal data class MatchLayout(
     val handRows: Int,
     val scale: Float,
     val boardScale: Float,
+    // Reserved above each hand for its seat header and the gap under it; zero outside the arena.
+    val seatHeight: Dp = 0.dp,
 ) {
     val handWidth: Dp
         get() = (CardSpriteWidth * handColumns + HandGap * (handColumns + 1)) * scale
@@ -896,6 +913,15 @@ private const val LANDSCAPE_HAND_COLUMNS = 2
 private const val MIN_CARD_SCALE = 0.22f
 
 private const val MAX_CARD_SCALE = 1f
+
+/*
+ * The arena's ceilings. The board stops at twice the authored size because that is the size of the
+ * game's own high-definition card art (208x256): past it every pixel of any art would be a guess.
+ * The hands stop lower, so that the board stays the larger of the three however much room there is.
+ */
+private const val ARENA_HAND_SCALE = 1.7f
+private const val ARENA_BOARD_SCALE = 2f
+
 private const val ELEMENT_LABEL_CHARS = 3
 
 private const val ELEMENT_ALPHA = 0.55f
@@ -953,7 +979,7 @@ internal val PlayAreaInset = 8.dp
 
 internal val MatchHeaderTopInset = 12.dp
 
-internal fun matchLayout(width: Dp, height: Dp): MatchLayout {
+internal fun matchLayout(width: Dp, height: Dp, arena: Boolean = false): MatchLayout {
     val landscape = width >= height
     val columns = if (landscape) LANDSCAPE_HAND_COLUMNS else HAND_SIZE
     val rows = (HAND_SIZE + columns - 1) / columns
@@ -974,22 +1000,28 @@ internal fun matchLayout(width: Dp, height: Dp): MatchLayout {
     // overflow at 640x360. `MatchLayoutTest.theArrangementAlwaysFitsInTheSpaceItWasGiven` is what
     // said so.
     val breaks = HandBoardGap.value * 2
+    // A seat header over each hand, in the arena. Fixed like the breaks, and taken off the room for
+    // the same reason. Beside the board it costs the hands their height and leaves the board's
+    // alone; stacked, it is two more breaks.
+    val seat = if (arena) SeatHeaderHeight.value + SeatGap.value else 0f
     val roomWidth = if (landscape) width.value - breaks else width.value
-    val roomHeight = if (landscape) height.value else height.value - breaks
+    val roomHeight = if (landscape) height.value else height.value - breaks - seat * 2
 
     val neededWidth = if (landscape) handWidth * 2 + boardWidth else maxOf(handWidth, boardWidth)
-    val neededHeight =
-        if (landscape) maxOf(handHeight, boardHeight) else handHeight * 2 + boardHeight
+    val fit = if (landscape) {
+        minOf(roomWidth / neededWidth, (roomHeight - seat) / handHeight, roomHeight / boardHeight)
+    } else {
+        minOf(roomWidth / neededWidth, roomHeight / (handHeight * 2 + boardHeight))
+    }
 
-    val scale = minOf(roomWidth / neededWidth, roomHeight / neededHeight)
-        .coerceIn(MIN_CARD_SCALE, MAX_CARD_SCALE)
+    val scale = fit.coerceIn(MIN_CARD_SCALE, if (arena) ARENA_HAND_SCALE else MAX_CARD_SCALE)
 
     // Whatever the hands did not need, out of the room the breaks left.
     val boardWidthBudget = if (landscape) roomWidth - handWidth * 2 * scale else roomWidth
     val boardHeightBudget =
         if (landscape) roomHeight else roomHeight - handHeight * 2 * scale
     val boardScale = minOf(boardWidthBudget / boardWidth, boardHeightBudget / boardHeight)
-        .coerceIn(scale, MAX_CARD_SCALE)
+        .coerceIn(scale, if (arena) ARENA_BOARD_SCALE else MAX_CARD_SCALE)
 
-    return MatchLayout(landscape, columns, rows, scale, boardScale)
+    return MatchLayout(landscape, columns, rows, scale, boardScale, seatHeight = seat.dp)
 }

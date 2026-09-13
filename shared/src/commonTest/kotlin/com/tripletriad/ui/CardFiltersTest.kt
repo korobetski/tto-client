@@ -1,7 +1,9 @@
 package com.tripletriad.ui
 
+import com.tripletriad.model.ACE_POWER
 import com.tripletriad.model.Card
 import com.tripletriad.model.CardType
+import com.tripletriad.model.Side
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -79,6 +81,66 @@ class CardFiltersTest {
     }
 
     @Test
+    fun aNumberFindsTheCardWithThatNumberWithOrWithoutItsZeros() {
+        val filters = filters()
+
+        filters.query = "003"
+        assertEquals(listOf(TONBERRY), cards.filter(filters::matches).map { it.id })
+        filters.query = "3"
+        assertEquals(listOf(TONBERRY), cards.filter(filters::matches).map { it.id })
+    }
+
+    @Test
+    fun aNameTheRoomIsHidingDoesNotFindItsCard() {
+        // The collection draws a card nobody owns as "?". Found by name, it would be the one
+        // tile left in the grid — the name, read out.
+        val filters = filters()
+        filters.query = "ifrit"
+
+        assertTrue(cards.none { filters.matches(it, known = false) }, "the name was matched")
+        filters.query = "1"
+        assertEquals(
+            listOf(IFRIT),
+            cards.filter { filters.matches(it, known = false) }.map { it.id },
+            "the number is still searchable",
+        )
+    }
+
+    @Test
+    fun anElementTheRoomIsHidingDoesNotAnswerTheElementMenu() {
+        // Ifrit is the one fire card. Left in the grid under "Fire", the "?" would be read as one.
+        val filters = filters()
+        filters.pickedTypes = setOf(CardType.FIRE)
+
+        assertEquals(listOf(IFRIT), cards.filter(filters::matches).map { it.id })
+        assertTrue(cards.none { filters.matches(it, known = false) }, "the element was matched")
+
+        // The rarity is printed on the "?" itself, so that filter still answers.
+        filters.pickedTypes = emptySet()
+        filters.pickedRarities = setOf(5)
+        assertEquals(
+            listOf(IFRIT),
+            cards.filter { filters.matches(it, known = false) }.map { it.id },
+            "the rarity stopped answering",
+        )
+    }
+
+    @Test
+    fun aCardWhoseSidesAreHiddenIsRankedAfterTheRestAndNotByThem() {
+        // Only Dodo, the weakest, is known. Ranked by their own totals, Ifrit and Tonberry would
+        // come in the order their sides put them in, which is those sides read out.
+        val known: (Card) -> Boolean = { it.id == DODO }
+        val filters = filters()
+
+        filters.sort = CardSort.POWER
+        assertEquals(listOf(DODO, IFRIT, TONBERRY), filters.sorted(cards, known).map { it.id })
+
+        // The stars still lead, because the "?" prints them; within one star the power does not.
+        filters.sort = CardSort.RARITY
+        assertEquals(listOf(IFRIT, DODO, TONBERRY), filters.sorted(cards, known).map { it.id })
+    }
+
+    @Test
     fun theDefaultOrderIsTheCatalogueOrder() {
         val filters = filters()
 
@@ -142,19 +204,141 @@ class CardFiltersTest {
         filters.sort = CardSort.POWER
         assertFalse(filters.isNarrowed, "a sort is not a narrowing")
 
-        filters.rarity = 1
+        filters.pickedRarities = setOf(1)
         assertTrue(filters.isNarrowed)
     }
 
-    private fun filters(nameOf: (Card) -> String = { it.name }) = CardFilters(
+    @Test
+    fun severalAnswersToOneQuestionAdmitEitherButTheQuestionsStillCombine() {
+        val filters = filters()
+
+        filters.pickedRarities = setOf(1)
+        assertEquals(listOf(DODO, TONBERRY), cards.filter(filters::matches).map { it.id })
+
+        filters.pickedRarities = setOf(1, 5)
+        assertEquals(listOf(IFRIT, DODO, TONBERRY), cards.filter(filters::matches).map { it.id })
+
+        // Fire *and* one star: Ifrit is the only fire card and has five.
+        filters.pickedTypes = setOf(CardType.FIRE)
+        filters.pickedRarities = setOf(1)
+        assertEquals(emptyList(), cards.filter(filters::matches).map { it.id })
+    }
+
+    @Test
+    fun resetUndoesEveryNarrowingItCountsAndLeavesTheOrder() {
+        val filters = filters()
+        filters.pickedRarities = setOf(1, 5)
+        filters.pickedTypes = setOf(CardType.FIRE)
+        filters.query = "if"
+        filters.pickedSources = setOf(SourceKind.SHOP)
+        filters.setMinimum(Side.TOP, 5)
+        filters.sort = CardSort.POWER
+        filters.reversed = true
+
+        assertEquals(6, filters.narrowings, "two rarities, an element, a query, a source, a side")
+
+        filters.reset()
+
+        assertEquals(0, filters.narrowings)
+        assertEquals(emptyMap(), filters.minimums)
+        assertEquals(cards.map { it.id }, cards.filter(filters::matches).map { it.id })
+        assertEquals(CardSort.POWER, filters.sort, "the order is not a narrowing")
+        assertTrue(filters.reversed, "nor is its direction")
+    }
+
+    @Test
+    fun aReversedOrderReadsFromTheOtherEndAndStillKeepsTheQuestionMarksLast() {
+        val filters = filters()
+        filters.reversed = true
+
+        filters.sort = CardSort.NUMBER
+        assertEquals(listOf(TONBERRY, DODO, IFRIT), filters.sorted(cards).map { it.id })
+
+        filters.sort = CardSort.POWER
+        assertEquals(listOf(DODO, TONBERRY, IFRIT), filters.sorted(cards).map { it.id })
+
+        // Dodo, the weakest, is a "?". Weakest-first would put it on top by its own sides — or,
+        // ranked below every total and then flipped, on top for being hidden. Neither: it is last.
+        val known: (Card) -> Boolean = { it.id != DODO }
+        assertEquals(listOf(TONBERRY, IFRIT, DODO), filters.sorted(cards, known).map { it.id })
+
+        filters.sort = CardSort.RARITY
+        assertEquals(listOf(TONBERRY, DODO, IFRIT), filters.sorted(cards, known).map { it.id })
+    }
+
+    @Test
+    fun aSourceAdmitsWhatAnyLitTableOffersAndStillAnswersUnderTheQuestionMark() {
+        val offers = mapOf(
+            IFRIT to setOf(SourceKind.SHOP),
+            DODO to setOf(SourceKind.OPPONENT, SourceKind.BOOSTER),
+        )
+        val filters = filters(offers = offers)
+
+        filters.pickedSources = setOf(SourceKind.SHOP)
+        assertEquals(listOf(IFRIT), cards.filter(filters::matches).map { it.id })
+
+        filters.pickedSources = setOf(SourceKind.SHOP, SourceKind.BOOSTER)
+        assertEquals(listOf(IFRIT, DODO), cards.filter(filters::matches).map { it.id })
+        // The "?" panel lists where its card is found, so this is not an answer the "?" hides.
+        assertEquals(
+            listOf(IFRIT, DODO),
+            cards.filter { filters.matches(it, known = false) }.map { it.id },
+        )
+    }
+
+    @Test
+    fun aMinimumIsAskedOfTheSideItIsSetOnAndOfNoQuestionMark() {
+        // An ace on top and ones elsewhere: a filter that summed the sides, or took their best,
+        // would let it through on the left as well.
+        val lopsided = Card(
+            id = Card.idFor(block = 1, number = 4),
+            nameKey = "STR_TEST_4",
+            name = "Lopsided",
+            top = ACE_POWER,
+            right = 1,
+            bottom = 1,
+            left = 1,
+            rarity = 1,
+            type = null,
+        )
+        val table = cards + lopsided
+        val filters = filters()
+
+        filters.setMinimum(Side.TOP, 7)
+        assertEquals(listOf(IFRIT, lopsided.id), table.filter(filters::matches).map { it.id })
+
+        filters.setMinimum(Side.LEFT, 7)
+        assertEquals(listOf(IFRIT), table.filter(filters::matches).map { it.id })
+        assertEquals(2, filters.narrowings)
+
+        // Left in the grid under "top 7 or more", a "?" would be its top read out.
+        assertTrue(table.none { filters.matches(it, known = false) }, "a hidden side answered")
+
+        filters.setMinimum(Side.LEFT, 0)
+        assertEquals(1, filters.narrowings, "a side lowered to nothing is still counted")
+        filters.setMinimum(Side.TOP, ACE_POWER + 1)
+        assertEquals(ACE_POWER, filters.minimumOf(Side.TOP), "no side carries more than an ace")
+    }
+
+    private fun filters(
+        nameOf: (Card) -> String = { it.name },
+        offers: Map<Int, Set<SourceKind>> = emptyMap(),
+    ) = CardFilters(
         blockGroups = mapOf(1 to 1),
         sets = listOf(1),
         types = CardType.entries,
         rarities = listOf(1, 5),
         nameOf = nameOf,
+        offers = offers,
     )
 
-    private fun card(number: Int, power: Int, rarity: Int, name: String = "Test $number") = Card(
+    private fun card(
+        number: Int,
+        power: Int,
+        rarity: Int,
+        name: String = "Test $number",
+        type: CardType? = null,
+    ) = Card(
         id = Card.idFor(block = 1, number = number),
         nameKey = "STR_TEST_$number",
         name = name,
@@ -163,15 +347,18 @@ class CardFiltersTest {
         bottom = power,
         left = power,
         rarity = rarity,
+        type = type,
     )
 
     private val cards: List<Card> = listOf(
-        card(1, power = 9, rarity = 5, name = "Ifrit"),
+        card(1, power = 9, rarity = 5, name = "Ifrit", type = CardType.FIRE),
         card(2, power = 4, rarity = 1, name = "Dodo"),
         card(3, power = 6, rarity = 1, name = "Tonberry"),
     )
 
     private companion object {
         val IFRIT = Card.idFor(block = 1, number = 1)
+        val DODO = Card.idFor(block = 1, number = 2)
+        val TONBERRY = Card.idFor(block = 1, number = 3)
     }
 }

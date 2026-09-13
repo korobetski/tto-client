@@ -412,7 +412,7 @@ private fun CardThumb(painter: Painter?, size: Dp, selected: Boolean, modifier: 
  * picture instead would be the frame's border plus a second one.
  */
 @Composable
-private fun CardFrame(selected: Boolean) {
+internal fun CardFrame(selected: Boolean) {
     LocalUiArt.current?.icon(CARD_FRAME_ICON)?.let { frame ->
         Image(
             bitmap = frame,

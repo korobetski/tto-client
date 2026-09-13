@@ -2,19 +2,29 @@ package com.tripletriad.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.SkikoComposeUiTest
 import androidx.compose.ui.test.assertHeightIsEqualTo
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.v2.runComposeUiTest
+import androidx.compose.ui.test.v2.runSkikoComposeUiTest
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.height
 import com.tripletriad.FF14_BLOCK
@@ -25,9 +35,14 @@ import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.loadStrings
+import com.tripletriad.model.ACE_POWER
 import com.tripletriad.model.Card
 import com.tripletriad.model.CardType
 import com.tripletriad.model.GameSave
+import com.tripletriad.model.Side
+import com.tripletriad.settings.InMemorySettingsStore
+import com.tripletriad.settings.SettingsStore
+import com.tripletriad.settings.UnownedCards
 import com.tripletriad.ui.theme.TripleTriadTheme
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -113,16 +128,43 @@ class CollectionUiTest {
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(CARD_DETAIL_EMPTY_TEST_TAG) }
     }
 
+    /**
+     * A card nobody has is a "?" in the grid and `???` in the detail: still listed, still opened,
+     * still saying where it comes from — but not what it is. See [UnknownCardTile].
+     *
+     * The name is looked for in content descriptions as well as in text, because that is where
+     * [CardFace] would leak it: its semantics label is the name and the four sides.
+     */
     @Test
-    fun anUnownedCardIsStillListedAndStillReadable() = runComposeUiTest {
+    fun anUnownedCardIsAQuestionMarkThatOpensWithoutItsName() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openCards()
+        val card = catalog.byId.getValue(UNOWNED_CARD)
+        val name = strings[card.nameKey]
 
         assertFalse(UNOWNED_CARD in STARTER_CARDS, "the fixture assumes this is unowned")
         onNodeWithTag(CARD_GRID_TEST_TAG)
             .performScrollToNode(hasTestTag(cardCellTestTag(UNOWNED_CARD)))
+        assertTrue(existsUnmerged(unknownCardTestTag(UNOWNED_CARD)), "the cell is not a \"?\"")
+        assertFalse(
+            existsUnmerged(thumbTestTag(card.textureId)),
+            "the cell drew the card's picture",
+        )
+
         onNodeWithTag(cardCellTestTag(UNOWNED_CARD)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(CARD_DETAIL_TEST_TAG) }
+
+        assertTrue(isVisible("???"), "the detail should stand ??? in for the name")
+        assertTrue(isVisible("No. 044"), "the detail should give the card's number")
+        assertTrue(isVisible("Rarity"), "and its rarity")
+        onNodeWithTag(CARD_SOURCES_TEST_TAG).assertExists()
+        assertFalse(isVisible(name), "the detail printed the name")
+        assertTrue(
+            onAllNodes(hasContentDescription(name, substring = true), useUnmergedTree = true)
+                .fetchSemanticsNodes().isEmpty(),
+            "the detail read the name out",
+        )
+        assertFalse(isVisible("Sides"), "the detail gave the four sides away")
     }
 
     @Test
@@ -172,16 +214,35 @@ class CollectionUiTest {
      */
     @Test
     fun aCellCarriesTheElementTheRestOfTheAppPutsOnACard() = runComposeUiTest {
-        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
-        openCards()
-
         // Read off the table rather than named: the starter deck happens to be elementless, and
         // an element is a fact about the *catalogue* this assertion should not hard-code a card of.
+        // Owned, because a card that is not is a "?" — see the next test.
         val elemental = catalog.all.first { it.type != null && it.block == FF14_BLOCK }.id
+        val save = freshSave()
+        val documents = seeded(save.copy(cards = save.cards + (elemental to 1)))
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openFromBar("cards", CARD_GRID_TEST_TAG)
+
         onNodeWithTag(CARD_GRID_TEST_TAG)
             .performScrollToNode(hasTestTag(cardCellTestTag(elemental)))
 
         assertTrue(existsUnmerged(cardTypeTestTag(elemental)), "no element on the cell")
+    }
+
+    @Test
+    fun anUnownedCellKeepsItsElementToItself() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        openCards()
+
+        val elemental = catalog.all
+            .first { it.type != null && it.block == FF14_BLOCK && it.id !in STARTER_CARDS }.id
+        onNodeWithTag(CARD_GRID_TEST_TAG)
+            .performScrollToNode(hasTestTag(cardCellTestTag(elemental)))
+
+        waitForIdle()
+        assertTrue(existsUnmerged(unknownCardTestTag(elemental)), "the cell is not a \"?\"")
+        assertFalse(existsUnmerged(cardTypeTestTag(elemental)), "the \"?\" wears the element")
     }
 
     @Test
@@ -316,7 +377,8 @@ class CollectionUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         openCards()
 
-        onNodeWithTag(CARD_SEARCH_TEST_TAG).performTextInput(strings[unobtainable.nameKey])
+        // By number, not by name: the card is not owned, so its name is what the "?" is hiding.
+        onNodeWithTag(CARD_SEARCH_TEST_TAG).performTextInput("${unobtainable.number}")
         waitForIdle()
         onNodeWithTag(cardCellTestTag(unobtainable.id)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(CARD_DETAIL_TEST_TAG) }
@@ -335,6 +397,252 @@ class CollectionUiTest {
         assertTrue(isVisible("Où la trouver"), "the heading is not in French")
     }
 
+    @Test
+    fun anUnownedCardIsFoundByItsNumberAndNotByTheNameItHides() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        openCards()
+        val chocobo = catalog.byId.getValue(CHOCOBO)
+
+        assertFalse(CHOCOBO in STARTER_CARDS, "the fixture assumes this is unowned")
+        onNodeWithTag(CARD_SEARCH_TEST_TAG).performTextInput(strings[chocobo.nameKey])
+        waitForIdle()
+        assertFalse(exists(cardCellTestTag(CHOCOBO)), "the name found the card it is hidden on")
+
+        onNodeWithTag(CARD_SEARCH_CLEAR_TEST_TAG).performClick()
+        waitForIdle()
+        onNodeWithTag(CARD_SEARCH_TEST_TAG).performTextInput(catalogueNumber(chocobo))
+        waitForIdle()
+        onNodeWithTag(cardCellTestTag(CHOCOBO)).assertExists()
+    }
+
+    @Test
+    fun aDimmedCardIsItsOwnPictureAndOpensWithItsName() = runComposeUiTest {
+        setContent { TestApp(store = unownedAs(UnownedCards.DIMMED)) }
+        openCards()
+        val card = catalog.byId.getValue(UNOWNED_CARD)
+
+        onNodeWithTag(CARD_GRID_TEST_TAG)
+            .performScrollToNode(hasTestTag(cardCellTestTag(UNOWNED_CARD)))
+        assertTrue(existsUnmerged(thumbTestTag(card.textureId)), "the cell is not the picture")
+        assertFalse(existsUnmerged(unknownCardTestTag(UNOWNED_CARD)), "the cell is still a \"?\"")
+
+        onNodeWithTag(cardCellTestTag(UNOWNED_CARD)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(CARD_DETAIL_TEST_TAG) }
+        assertTrue(isVisible(strings[card.nameKey]), "the detail kept the name back")
+        assertTrue(isVisible("Sides"), "the detail kept the sides back")
+    }
+
+    @Test
+    fun hiddenCardsLeaveTheGridButNotTheCount() = runComposeUiTest {
+        setContent { TestApp(store = unownedAs(UnownedCards.HIDDEN)) }
+        openCards()
+
+        // Every cell composed, and not only the ones on screen: five owned cards fit in one row.
+        val cells = onAllNodes(
+            SemanticsMatcher("is a card cell") {
+                it.config.getOrNull(SemanticsProperties.TestTag)?.startsWith("card-cell-") == true
+            },
+        ).fetchSemanticsNodes()
+        assertEquals(STARTER_CARDS.size, cells.size, "the grid is not only the owned cards")
+        onNodeWithTag(CARD_TOTAL_TEST_TAG).assertTextEquals(
+            "Owned$DOT_SEPARATOR${STARTER_CARDS.size} / $ALL_CARDS",
+        )
+        // "Missing" would be an empty grid by definition.
+        assertFalse(exists(CARD_MISSING_FILTER_TEST_TAG), "the segments are still drawn")
+    }
+
+    // ---- The landscape panel ---------------------------------------------------
+
+    /** A window the panel fits in — see `FilterPanelMinWidth`. Density 1, so its pixels are dp. */
+    private fun wideWindow(block: suspend SkikoComposeUiTest.() -> Unit) = runSkikoComposeUiTest(
+        size = Size(WIDE_WINDOW_WIDTH, WIDE_WINDOW_HEIGHT),
+        density = Density(1f),
+        block = block,
+    )
+
+    /** Scrolled to first: the panel scrolls on its own, and a chip below its fold takes no tap. */
+    private fun ComposeUiTest.tapInPanel(tag: String) {
+        onNodeWithTag(tag).performScrollTo().performClick()
+        waitForIdle()
+    }
+
+    /** [ids]' cells, top row first and left to right within a row. */
+    private fun ComposeUiTest.cellsInReadingOrder(ids: List<Int>): List<Int> {
+        val bounds = ids.associateWith { onNodeWithTag(cardCellTestTag(it)).getBoundsInRoot() }
+        return ids.sortedWith(
+            compareBy({ bounds.getValue(it).top }, { bounds.getValue(it).left }),
+        )
+    }
+
+    @Test
+    fun aWideWindowKeepsTheFiltersOpenBesideTheGridRatherThanInMenus() = wideWindow {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        openCards()
+
+        onNodeWithTag(CARD_FILTER_PANEL_TEST_TAG).assertExists()
+        assertFalse(exists(CARD_FILTERS_TEST_TAG), "the menus are drawn as well")
+        // What the panel does not carry stays over the grid.
+        onNodeWithTag(CARD_SEARCH_TEST_TAG).assertExists()
+        onNodeWithTag(CARD_OWNED_FILTER_TEST_TAG).assertExists()
+    }
+
+    @Test
+    fun aWindowTooNarrowForThePanelKeepsTheMenus() = runComposeUiTest {
+        // The default test window, 1024 wide: room for the rail and the detail pane, not for this.
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        openCards()
+
+        onNodeWithTag(CARD_FILTERS_TEST_TAG).assertExists()
+        assertFalse(exists(CARD_FILTER_PANEL_TEST_TAG), "the panel squeezed in")
+    }
+
+    @Test
+    fun twoElementsLitTogetherAdmitTheCardsOfEither() = wideWindow {
+        // Dimmed, as in the menu's test: under the "?" an element only answers for owned cards.
+        setContent { TestApp(store = unownedAs(UnownedCards.DIMMED)) }
+        openCards()
+
+        tapInPanel(typeFilterTestTag(CardType.FIRE))
+        tapInPanel(typeFilterTestTag(CardType.ICE))
+
+        val picked = setOf(CardType.FIRE, CardType.ICE)
+        val either = catalog.all.count { it.type in picked }
+        val held = STARTER_CARDS.count { catalog.byId[it]?.type in picked }
+        val fire = catalog.all.count { it.type == CardType.FIRE }
+        assertTrue(either > fire, "the fixture assumes some ice cards")
+        onNodeWithTag(CARD_TOTAL_TEST_TAG).assertTextEquals(
+            "Owned$DOT_SEPARATOR" + "$held / $either",
+        )
+    }
+
+    @Test
+    fun theResetSaysHowMuchItUndoesAndPutsTheWholeTableBack() = wideWindow {
+        setContent { TestApp(store = unownedAs(UnownedCards.DIMMED)) }
+        openCards()
+        onNodeWithTag(CARD_FILTER_RESET_TEST_TAG).assertIsNotEnabled()
+
+        tapInPanel(rarityFilterTestTag(1))
+        tapInPanel(rarityFilterTestTag(2))
+        tapInPanel(typeFilterTestTag(CardType.FIRE))
+        onNodeWithTag(CARD_FILTER_RESET_TEST_TAG).assertTextEquals("Reset (3)")
+
+        tapInPanel(CARD_FILTER_RESET_TEST_TAG)
+
+        onNodeWithTag(CARD_TOTAL_TEST_TAG).assertTextEquals(
+            "Owned$DOT_SEPARATOR${STARTER_CARDS.size} / $ALL_CARDS",
+        )
+        onNodeWithTag(CARD_FILTER_RESET_TEST_TAG).assertIsNotEnabled()
+    }
+
+    @Test
+    fun theReverseChipReadsTheGridFromTheOtherEnd() = wideWindow {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        openCards()
+        // Owned only, as in the menu's test: cells few enough to state their order here.
+        onNodeWithTag(CARD_OWNED_FILTER_TEST_TAG).performClick()
+        waitForIdle()
+        // What this character owns. Not all of [STARTER_CARDS], which is another starter's deck.
+        val owned = catalog.all.filter { exists(cardCellTestTag(it.id)) }
+        assertTrue(owned.size > 1, "one cell has no order to reverse")
+
+        // Read once the right way round first, so the reversed reading is not true of any order.
+        assertEquals(
+            owned.sortedWith(CardSort.NUMBER.comparator()).map { it.id },
+            cellsInReadingOrder(owned.map { it.id }),
+        )
+
+        tapInPanel(CARD_SORT_REVERSE_TEST_TAG)
+
+        assertEquals(
+            owned.sortedWith(CardSort.NUMBER.comparator(reversed = true)).map { it.id },
+            cellsInReadingOrder(owned.map { it.id }),
+        )
+    }
+
+    /** "Owned · 3 / 21" read back as its two numbers: what is owned of what the filters let by. */
+    private fun ComposeUiTest.ownedAndShown(): Pair<Int, Int> {
+        val text = onNodeWithTag(CARD_TOTAL_TEST_TAG).fetchSemanticsNode()
+            .config[SemanticsProperties.Text]
+            .joinToString("") { it.text }
+        val (owned, shown) = text.substringAfterLast(DOT_SEPARATOR)
+            .split(" / ")
+            .map { it.trim().toInt() }
+        return owned to shown
+    }
+
+    @Test
+    fun twoSourcesLitTogetherAdmitTheCardsEitherTableOffers() = wideWindow {
+        setContent { TestApp(store = unownedAs(UnownedCards.DIMMED)) }
+        openCards()
+        val kinds = sourceKindsByCard(opponents)
+        fun offeredBy(vararg lit: SourceKind) =
+            catalog.all.count { card -> kinds[card.id].orEmpty().any { it in lit } }
+
+        tapInPanel(sourceFilterTestTag(SourceKind.SHOP))
+        assertEquals(offeredBy(SourceKind.SHOP), ownedAndShown().second)
+
+        tapInPanel(sourceFilterTestTag(SourceKind.BOOSTER))
+        val either = offeredBy(SourceKind.SHOP, SourceKind.BOOSTER)
+        assertTrue(either > offeredBy(SourceKind.SHOP), "the fixture assumes packs the shop lacks")
+        assertEquals(either, ownedAndShown().second)
+    }
+
+    @Test
+    fun aSideMinimumKeepsTheCardsReachingItOnThatSideAndStopsAtTheAce() = wideWindow {
+        setContent { TestApp(store = unownedAs(UnownedCards.DIMMED)) }
+        openCards()
+
+        repeat(TOP_MINIMUM) { tapInPanel(sideRaiseTestTag(Side.TOP)) }
+
+        onNodeWithTag(sideMinimumTestTag(Side.TOP)).assertTextEquals("$TOP_MINIMUM")
+        assertEquals(catalog.all.count { it.top >= TOP_MINIMUM }, ownedAndShown().second)
+        onNodeWithTag(CARD_FILTER_RESET_TEST_TAG).assertTextEquals("Reset (1)")
+
+        repeat(ACE_POWER - TOP_MINIMUM) { tapInPanel(sideRaiseTestTag(Side.TOP)) }
+        onNodeWithTag(sideMinimumTestTag(Side.TOP)).assertTextEquals("A")
+        onNodeWithTag(sideRaiseTestTag(Side.TOP)).assertIsNotEnabled()
+    }
+
+    @Test
+    fun underTheQuestionMarkASideMinimumLeavesOnlyCardsShowingTheirSides() = wideWindow {
+        setContent { TestApp(store = unownedAs(UnownedCards.UNKNOWN)) }
+        openCards()
+        val (owned, shown) = ownedAndShown()
+        assertTrue(shown > owned, "the fixture assumes cards drawn as a question mark")
+
+        // One on the left: every side of every card reaches it, so all it takes away is the "?".
+        tapInPanel(sideRaiseTestTag(Side.LEFT))
+
+        assertEquals(owned to owned, ownedAndShown())
+    }
+
+    @Test
+    fun aWindowNarrowedPastThePanelStillOffersToLiftWhatOnlyThePanelSets() = runComposeUiTest {
+        val filters = CardFilters(
+            blockGroups = emptyMap(),
+            sets = emptyList(),
+            types = emptyList(),
+            rarities = emptyList(),
+        )
+        setContent {
+            CompositionLocalProvider(LocalStrings provides strings) {
+                TripleTriadTheme { CardFilterMenus(filters) }
+            }
+        }
+        assertFalse(exists(CARD_FILTER_RESET_TEST_TAG), "a reset with nothing to undo")
+
+        filters.setMinimum(Side.RIGHT, ACE_POWER)
+        waitForIdle()
+        onNodeWithTag(CARD_FILTER_RESET_TEST_TAG).assertTextEquals("Reset (1)").performClick()
+        waitForIdle()
+
+        assertEquals(0, filters.narrowings)
+        assertFalse(exists(CARD_FILTER_RESET_TEST_TAG), "the reset outlived what it undid")
+    }
+
+    private fun unownedAs(mode: UnownedCards): SettingsStore =
+        InMemorySettingsStore("""{"language":"en_US","unowned_cards":"${mode.tag}"}""")
+
     private companion object {
         // 153 FF14 + 110 FF8 before the FF14 set completed to its full 454 across two blocks.
         // Still 564, not 565, now that FF8 carries a 111th card: Mooba is secret, and a secret
@@ -342,6 +650,13 @@ class CollectionUiTest {
         // filter that hides it from the grid hides it from the count under it. See
         // `SECRET_CARD_IDS` in `CardListBody.kt`.
         const val ALL_CARDS = 564
+
+        /** Past `FilterPanelMinWidth` with the rail up — a 1600 × 1000 browser window. */
+        const val WIDE_WINDOW_WIDTH = 1600f
+        const val WIDE_WINDOW_HEIGHT = 1000f
+
+        /** High enough that most of the table falls short of it, and short of an ace. */
+        const val TOP_MINIMUM = 8
 
         /** Two fifths of the stage: a floor under a regression, not a measure of the layout. */
         const val GRID_TOP_CEILING = 0.4f
@@ -369,7 +684,9 @@ class CollectionUiTest {
 
     @Test
     fun filteringByTypeNarrowsTheGridAndItsTotal() = runComposeUiTest {
-        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        // Dimmed, so every card's element is on show and the menu can answer with all of them.
+        // Under the "?" it cannot — see the next test.
+        setContent { TestApp(store = unownedAs(UnownedCards.DIMMED)) }
         openCards()
 
         onNodeWithTag(CARD_FILTERS_TEST_TAG).assertExists()
@@ -380,6 +697,21 @@ class CollectionUiTest {
         assertTrue(fire in 1 until ALL_CARDS, "the fixture assumes some cards are fire")
         onNodeWithTag(CARD_TOTAL_TEST_TAG).assertTextEquals(
             "Owned$DOT_SEPARATOR" + "$held / $fire",
+        )
+    }
+
+    @Test
+    fun underTheQuestionMarkAnElementOnlyAnswersWithTheCardsThatShowIt() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        openCards()
+
+        pickFilter(CARD_TYPE_MENU_TEST_TAG, typeFilterTestTag(CardType.FIRE))
+
+        val fire = catalog.all.count { it.type == CardType.FIRE }
+        val held = STARTER_CARDS.count { catalog.byId[it]?.type == CardType.FIRE }
+        assertTrue(fire > held, "the fixture assumes some fire cards are not owned")
+        onNodeWithTag(CARD_TOTAL_TEST_TAG).assertTextEquals(
+            "Owned$DOT_SEPARATOR" + "$held / $held",
         )
     }
 

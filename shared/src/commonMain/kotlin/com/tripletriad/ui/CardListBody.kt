@@ -2,11 +2,14 @@ package com.tripletriad.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -27,6 +30,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -40,6 +44,7 @@ import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.Strings
 import com.tripletriad.model.Card
 import com.tripletriad.model.GameSave
+import com.tripletriad.settings.UnownedCards
 import kotlinx.coroutines.launch
 
 const val CARD_GRID_TEST_TAG: String = "card-grid"
@@ -59,6 +64,15 @@ const val CARD_OWNED_FILTER_TEST_TAG: String = "card-filter-owned"
 const val CARD_MISSING_FILTER_TEST_TAG: String = "card-filter-missing"
 
 const val CARD_NO_MATCH_TEST_TAG: String = "card-no-match"
+
+/**
+ * The player's [UnownedCards], which `App` provides from the settings file.
+ *
+ * `static` for the reason `LocalCaptureHints` is: the settings sheet is the only thing that moves
+ * it, and nothing gains from tracking reads of it. The default is the shipped mode, so a preview
+ * or a test that mounts the collection without `App` draws the "?" the player would.
+ */
+val LocalUnownedCards = staticCompositionLocalOf { UnownedCards.Default }
 
 /**
  * Whether the grid is showing the collection, what is in it, or what is not.
@@ -103,6 +117,7 @@ internal fun ColumnScope.CardListBody(
     val scope = rememberCoroutineScope()
     val admitted = remember(catalog, format) { catalog.admittedBy(format) }
     val owned = profile.cards
+    val unowned = LocalUnownedCards.current
     var selected by remember(format) { mutableStateOf<Card?>(null) }
     var held by remember(format) { mutableStateOf(Held.ANY) }
     val sheet = rememberModalBottomSheetState()
@@ -110,38 +125,64 @@ internal fun ColumnScope.CardListBody(
     // Set, element, rarity, name and order, asked the way the auction's consignment picker asks
     // the first three — see [CardFilters]. What stays here is what only this room admits: a secret
     // card nobody owns, and the All / Owned / Missing segments beside the menus.
-    val filters = rememberCardFilters(admitted, catalog.sets)
-    val cards = remember(
+    val filters = rememberCardFilters(admitted, catalog.sets, opponents)
+    // With the cards not owned left out, "Missing" is an empty grid by definition and "Owned" is
+    // what "All" already shows — so the segments are not drawn, and a lit one stops counting.
+    val shownHeld = if (unowned == UnownedCards.HIDDEN) Held.ANY else held
+    val answering = remember(
         admitted,
-        filters.set,
-        filters.type,
-        filters.rarity,
+        filters.pickedSets,
+        filters.pickedTypes,
+        filters.pickedRarities,
+        filters.pickedSources,
+        filters.minimums,
         filters.query,
         filters.sort,
-        held,
+        filters.reversed,
+        shownHeld,
         owned,
+        unowned,
     ) {
+        // A card drawn as "?" is neither found by what it is hiding nor ranked by it — see
+        // [CardFilters.matches] and [CardSort.comparator].
+        val known = { card: Card -> unowned != UnownedCards.UNKNOWN || (owned[card.id] ?: 0) > 0 }
         filters.sorted(
             admitted.filter {
                 (it.id !in SECRET_CARD_IDS || owned.containsKey(it.id)) &&
-                    held.admits(owned[it.id] ?: 0) &&
-                    filters.matches(it)
+                    shownHeld.admits(owned[it.id] ?: 0) &&
+                    filters.matches(it, known(it))
             },
+            known,
         )
     }
+    // Out of the grid and not out of the count: "Owned · 5 / 564" is still the collection's
+    // progress, and a player who hid the rest asked for less to scroll past, not for that.
+    val cards = remember(answering, unowned) {
+        if (unowned != UnownedCards.HIDDEN) {
+            answering
+        } else {
+            answering.filter { (owned[it.id] ?: 0) > 0 }
+        }
+    }
 
-    // Two bands of controls where there were five — see [CardFilterMenus]. The count rides under
-    // the search field rather than on a line of its own, because it is a fact about what the field
-    // and the menus have narrowed the list to: counted over what is **on screen**, so filtered to
-    // fire it reads "Owned · 3 / 21", a fact about fire cards.
-    CardSearchRow(
-        filters = filters,
-        count = "${strings[StringKeys.OWNED]}$DOT_SEPARATOR" +
-            "${cards.count { owned.containsKey(it.id) }} / ${cards.size}",
-    )
-
-    CardFilterMenus(filters) {
-        HeldSegments(held) { held = it }
+    // The count rides beside the search field rather than on a line of its own, because it is a
+    // fact about what the field and the filters have narrowed the list to: counted over what is
+    // **on screen**, so filtered to fire it reads "Owned · 3 / 21", a fact about fire cards.
+    val searchRow: @Composable (Modifier) -> Unit = { modifier ->
+        CardSearchRow(
+            filters = filters,
+            count = "${strings[StringKeys.OWNED]}$DOT_SEPARATOR" +
+                "${answering.count { owned.containsKey(it.id) }} / ${answering.size}",
+            modifier = modifier,
+        )
+    }
+    val segments: @Composable () -> Unit = {
+        if (unowned != UnownedCards.HIDDEN) HeldSegments(held) { held = it }
+    }
+    // Two bands of controls where there were five — see [CardFilterMenus].
+    val controls: @Composable () -> Unit = {
+        searchRow(Modifier)
+        CardFilterMenus(filters, segments)
     }
 
     // Selling takes the copy out of the collection and pays for it. Asked rather than computed:
@@ -181,24 +222,26 @@ internal fun ColumnScope.CardListBody(
             }
         } else {
             CardGrid(cards = cards, tag = CARD_GRID_TEST_TAG, modifier = modifier) { card ->
+                val copies = owned[card.id] ?: 0
                 CardCell(
                     card = card,
-                    copies = owned[card.id] ?: 0,
+                    copies = copies,
                     selected = selected?.id == card.id,
                     modifier = Modifier.testTag(cardCellTestTag(card.id)),
                     copiesTag = cardCopiesTestTag(card.id),
+                    unknown = copies < 1 && unowned == UnownedCards.UNKNOWN,
                     onClick = { selected = if (selected?.id == card.id) null else card },
                 )
             }
         }
     }
 
-    if (LocalWideLayout.current) {
-        // The grid and the card side by side — `card_list.jpg`'s own arrangement, which the
-        // original could take for granted on a 1024-wide stage. The detail is fixed-width and the
-        // grid takes the rest, so widening the window adds columns rather than stretching a card.
+    // The grid and the card side by side — `card_list.jpg`'s own arrangement, which the original
+    // could take for granted on a 1024-wide stage. The detail is fixed-width and the grid takes the
+    // rest, so widening the window adds columns rather than stretching a card.
+    val panes: @Composable (Modifier) -> Unit = { modifier ->
         Row(
-            modifier = Modifier.fillMaxWidth().weight(1f),
+            modifier = modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             grid(Modifier.weight(1f).fillMaxHeight())
@@ -210,7 +253,40 @@ internal fun ColumnScope.CardListBody(
                 modifier = Modifier.width(DetailPaneWidth).fillMaxHeight(),
             )
         }
+    }
+
+    if (LocalWideLayout.current) {
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            if (maxWidth >= FilterPanelMinWidth) {
+                // Wide enough for the filters to stay open down the left — see [CardFilterPanel].
+                // The search and the segments stay over the grid: they are about what it shows,
+                // and the panel would wrap three segments onto a line each.
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    CardFilterPanel(filters, Modifier.width(FilterPanelWidth).fillMaxHeight())
+                    Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(SpaceSm),
+                        ) {
+                            searchRow(Modifier.weight(1f))
+                            segments()
+                        }
+                        panes(Modifier.weight(1f))
+                    }
+                }
+            } else {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    controls()
+                    panes(Modifier.weight(1f))
+                }
+            }
+        }
     } else {
+        controls()
+
         // The grid keeps the screen and the card arrives over it. The panel used to sit above the
         // grid at a fixed height whether or not anything was selected — a third of a phone screen
         // spent on the words "pick a card", and five rows of cards left under it. A sheet costs
@@ -289,6 +365,7 @@ private fun CardDetail(
     modifier: Modifier = Modifier.fillMaxWidth().height(CardPanelHeight),
 ) {
     val strings = LocalStrings.current
+    val unowned = LocalUnownedCards.current
     // Recomputed only when the card or the roster does, which is once per selection: the walk is
     // over 158 opponents, 15 booster pools and two catalogues, and the panel recomposes on every
     // scroll frame behind it.
@@ -300,12 +377,18 @@ private fun CardDetail(
         modifier = modifier.rowSurface().padding(8.dp),
         contentAlignment = if (card == null) Alignment.Center else Alignment.TopStart,
     ) {
-        if (card == null) {
-            EmptyNote(strings[StringKeys.PICK_CARD], CARD_DETAIL_EMPTY_TEST_TAG)
-        } else {
+        when {
+            card == null -> EmptyNote(strings[StringKeys.PICK_CARD], CARD_DETAIL_EMPTY_TEST_TAG)
+
+            // The same landmark as an owned card's panel, so "a card is open" is one fact to a
+            // test and to the sheet — but none of what the grid's "?" is keeping back. Only in
+            // that mode: a dimmed card is one the player chose to be able to read.
+            (profile.cards[card.id] ?: 0) < 1 && unowned == UnownedCards.UNKNOWN ->
+                UnknownCardPanel(card = card, tag = CARD_DETAIL_TEST_TAG, sources = sources)
+
             // The panel the auction's lectern reads a card in too — see [CardPanel] for why the
             // sprite is at full size and why the height has to come from here.
-            CardPanel(card = card, tag = CARD_DETAIL_TEST_TAG, sources = sources) {
+            else -> CardPanel(card = card, tag = CARD_DETAIL_TEST_TAG, sources = sources) {
                 SellButton(card, profile, onSell)
             }
         }
@@ -359,3 +442,12 @@ private fun ColumnScope.SellButton(card: Card, profile: GameSave, onSell: (Card)
 private val SECRET_CARD_IDS = setOf(0x086f)
 
 private val DetailPaneWidth = 260.dp
+
+private val FilterPanelWidth = 240.dp
+
+/**
+ * The body width at which the filters come out of their menus: the panel and the detail take
+ * 524 dp between them, and below this the grid left over is narrower than the panel that
+ * displaced it. A 1280-wide window clears it with the rail up; the 1024-wide one does not.
+ */
+private val FilterPanelMinWidth = 1000.dp

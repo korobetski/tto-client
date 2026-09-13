@@ -61,12 +61,14 @@ internal fun CardGrid(
  *
  * ### Every card is tappable, owned or not
  *
- * The original made unowned thumbs untouchable, which meant the description of a card you were
- * hunting for was the one thing you could not read. Not owning one is said by dimming it.
+ * The original made unowned thumbs untouchable, which meant where to find a card you were hunting
+ * for was the one thing you could not read. Not owning one is said by the tile instead.
  *
  * @param copies how many the player has of it *for this screen's purposes*: the collection counts
  *   what is owned, the consignment desk what is spare. Zero dims the tile; the badge appears past
  *   one, because `×1` on two hundred cells is noise.
+ * @param unknown draws the "?" instead of the card — see [UnknownCardTile]. The room's call rather
+ *   than `copies < 1`, because the consignment desk's zero means *none spare*, not *never seen*.
  */
 @Composable
 internal fun CardCell(
@@ -75,8 +77,20 @@ internal fun CardCell(
     selected: Boolean,
     modifier: Modifier = Modifier,
     copiesTag: String? = null,
+    unknown: Boolean = false,
     onClick: () -> Unit,
 ) {
+    if (unknown) {
+        UnknownCardTile(
+            card = card,
+            selected = selected,
+            modifier = modifier
+                .size(FramedThumbSide)
+                .ttoClickable(selected = selected, onClick = onClick),
+        )
+        return
+    }
+
     CardTile(
         card = card,
         selected = selected,

@@ -1,7 +1,5 @@
 package com.tripletriad.ui
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -58,7 +56,7 @@ import com.tripletriad.model.MatchResult
 import com.tripletriad.model.MatchState
 import com.tripletriad.model.MatchView
 import com.tripletriad.model.Npc
-import com.tripletriad.platform.rememberReducedMotion
+import com.tripletriad.model.PlayResult
 import com.tripletriad.ui.theme.LocalTtoColors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -127,7 +125,7 @@ fun handModifierTestTag(owner: CardColor, slot: Int): String =
  * side's playable slots are never computed, and demanding them would mean the opponent never has a
  * turn at all.
  */
-private fun MatchView.turnTag(): String? = currentPlayer
+internal fun MatchView.turnTag(): String? = currentPlayer
     ?.takeIf { it != side || playableHandIndices.isNotEmpty() }
     ?.let(::turnTestTag)
 
@@ -380,18 +378,20 @@ internal fun MatchScreen(
                 log = log,
             )
         },
-    ) { panelShown ->
+    ) { chrome ->
+        val arena = chrome == MatchChrome.ARENA
         StatusBar(
             view = view,
             selected = selected,
             face = OpponentFace.Program(npc),
             opponentName = strings[npc.nameKey],
             turnFraction = turnFraction,
-            // With a panel the opponent has a whole column of their own, and drawing a 26 dp face
-            // beside a 50 dp one is the sort of duplicate that looks like a bug. Keyed on whether
-            // the panel was *drawn* rather than on the width — a phone in landscape is wide and
-            // has no panel, and for a while that left the rules strip nowhere at all.
-            showOpponent = !panelShown,
+            // With a panel the opponent has a whole column of their own, and in the arena a seat
+            // over their hand; drawing a 26 dp face beside a 50 dp one is the sort of duplicate
+            // that looks like a bug. Keyed on the chrome that was *drawn* rather than on the width
+            // — a phone in landscape is wide and has no panel, and for a while that left the rules
+            // strip nowhere at all.
+            showOpponent = chrome == MatchChrome.COMPACT,
             // A lesson names itself here as well as on the panel — see [TurnLine].
             outcomeTitle = script.outcomeTitle,
             onExit = onExit,
@@ -400,8 +400,10 @@ internal fun MatchScreen(
             // pays nothing back. A counted local match would want the sentence the refereed board
             // uses, less the half about resuming — nothing here survives being walked away from.
             exitWarning = null,
+            arena = arena,
+            log = log,
         )
-        BoardRules(match.rules, panelShown)
+        BoardRules(match.rules, chrome)
 
         // The play area takes whatever the status bar leaves and sizes every card to what it
         // actually got. Nothing below this line guesses at a screen size or a "chrome"
@@ -416,7 +418,11 @@ internal fun MatchScreen(
                 selected = selected,
                 // Less the padding `PlayArea` applies, so the scale is derived from the space
                 // the cards actually get rather than from the space before the margin.
-                layout = matchLayout(maxWidth - PlayAreaInset * 2, maxHeight - PlayAreaInset * 2),
+                layout = matchLayout(
+                    maxWidth - PlayAreaInset * 2,
+                    maxHeight - PlayAreaInset * 2,
+                    arena = arena,
+                ),
                 // The two facing digits that decided the last capture, in a lesson. Recomputed
                 // with the state rather than remembered: it *is* a projection of the state, and
                 // one that changes on every placement.
@@ -429,6 +435,8 @@ internal fun MatchScreen(
                 onPlace = { position -> selected?.let { place(it, position) } },
                 onDrop = place,
                 revealed = revealed,
+                seats = MatchSeats(OpponentFace.Program(npc), strings[npc.nameKey])
+                    .takeIf { arena },
             )
             reward?.let {
                 OutcomePanel(
@@ -494,20 +502,39 @@ internal fun StatusBar(
     outcomeTitle: String?,
     onExit: () -> Unit,
     exitWarning: String? = null,
+    arena: Boolean = false,
+    // Read only by the arena's header; the other two layouts list the moves in the panel or not
+    // at all.
+    log: List<PlayResult> = emptyList(),
 ) {
     var asking by remember { mutableStateOf(false) }
+    val exit = { if (exitWarning == null) onExit() else asking = true }
 
-    Column(modifier = Modifier.fillMaxWidth().padding(top = MatchHeaderTopInset)) {
-        StatusRow(
+    if (arena) {
+        ArenaStatus(
             view = view,
             selected = selected,
             face = face,
             opponentName = opponentName,
+            turnFraction = turnFraction,
             showOpponent = showOpponent,
             outcomeTitle = outcomeTitle,
-            onExit = { if (exitWarning == null) onExit() else asking = true },
+            log = log,
+            onExit = exit,
         )
-        TurnTimerBar(fraction = turnFraction)
+    } else {
+        Column(modifier = Modifier.fillMaxWidth().padding(top = MatchHeaderTopInset)) {
+            StatusRow(
+                view = view,
+                selected = selected,
+                face = face,
+                opponentName = opponentName,
+                showOpponent = showOpponent,
+                outcomeTitle = outcomeTitle,
+                onExit = exit,
+            )
+            TurnTimerBar(fraction = turnFraction)
+        }
     }
 
     if (asking && exitWarning != null) {
@@ -646,31 +673,15 @@ private fun StatusRow(
  * The two digits always add to ten, so a capture moves both of them and neither by much: 5—5 to
  * 6—4 is the difference between winning and losing and it looks like a font glitch. Everything
  * else on the board announces itself — the card flips, the chain staggers, a caption names the
- * rule — and the one number that says who is ahead was the quietest thing on screen.
- *
- * ### It fires on the change, not on arrival
- *
- * `LaunchedEffect(score)` would also run on the first composition, so a board would open by
- * throbbing at a score nobody has moved. The remembered previous value is what tells a change from
- * a beginning, and it is why this is not simply keyed on the score.
+ * rule — and the one number that says who is ahead was the quietest thing on screen. See
+ * [rememberScorePulse].
  */
 @Composable
 private fun Score(view: MatchView) {
     // Computable from a view because both hand *sizes* are public even when their contents are not
     // — see `MatchView.score`. The total is still ten at every placement.
     val score = view.score
-    val pacing = LocalPacing.current
-    val reduced = rememberReducedMotion()
-    val pulse = remember { Animatable(1f) }
-    var previous by remember { mutableStateOf(score) }
-
-    LaunchedEffect(score, reduced, pacing) {
-        val moved = score != previous
-        previous = score
-        if (!moved || reduced) return@LaunchedEffect
-        pulse.snapTo(SCORE_PULSE_PEAK)
-        pulse.animateTo(1f, tween(pacing * SCORE_PULSE_MS))
-    }
+    val pulse = rememberScorePulse(score)
 
     Text(
         text = buildAnnotatedString {
@@ -691,7 +702,7 @@ private fun Score(view: MatchView) {
 }
 
 @Composable
-private fun TurnLine(
+internal fun TurnLine(
     view: MatchView,
     selected: Card?,
     opponentName: String,
@@ -814,15 +825,15 @@ private val DEFAULT_TURN_LIMIT = 30.seconds
  * portrait, and anything that made it *large* would be a second thing happening at the same moment
  * as the flip it is reporting. It has to be seen out of the corner of an eye that is on the board.
  */
-private const val SCORE_PULSE_PEAK = 1.1f
+internal const val SCORE_PULSE_PEAK = 1.1f
 
-private const val SCORE_PULSE_MS = 280
+internal const val SCORE_PULSE_MS = 280
 
 private val TIMER_TICK = 100.milliseconds
 
-private const val TIMER_URGENT = 0.25f
+internal const val TIMER_URGENT = 0.25f
 
-private const val TIMER_TRACK_ALPHA = 0.4f
+internal const val TIMER_TRACK_ALPHA = 0.4f
 
 private const val CHAOS_SEED = 20260802
 
@@ -840,7 +851,7 @@ private const val LESSON_SEED = 20260817
 private val TurnTimerHeight = 3.dp
 private val TurnTimerShape = RoundedCornerShape(2.dp)
 
-private val ExitButtonSize = 34.dp
+internal val ExitButtonSize = 34.dp
 
 private fun HandVisibility.reindexedFor(played: MatchState): HandVisibility =
     played.lastPlay

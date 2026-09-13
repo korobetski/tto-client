@@ -17,10 +17,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import com.tripletriad.data.CardSet
+import com.tripletriad.data.NpcCatalog
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
+import com.tripletriad.model.ACE_POWER
 import com.tripletriad.model.Card
 import com.tripletriad.model.CardType
+import com.tripletriad.model.Side
+import com.tripletriad.model.power
 
 const val CARD_FILTERS_TEST_TAG: String = "card-filters"
 
@@ -59,15 +63,28 @@ internal enum class CardSort(val slug: String, val labelKey: String) {
     /**
      * Ties broken by the catalogue order in every case, so the grid is stable: two cards of equal
      * total that swapped places between recompositions would be two cards that flicker.
+     *
+     * @param known false for a card whose sides the room is not showing. It ranks after every
+     *   known card whichever way the order runs — ranked by its own total, a "?" at the head of
+     *   "by power" would be its sides read out, and at the head of the same order reversed it would
+     *   be a column of "?" before the first card worth reading — and among the unknown ones the
+     *   catalogue order decides.
+     * @param reversed the same order read from its other end. The tie-break is not reversed with
+     *   it: the catalogue only decides between cards the order itself cannot tell apart.
      */
-    internal val comparator: Comparator<Card>
-        get() = when (this) {
-            NUMBER -> CATALOGUE
-            POWER -> compareByDescending<Card> { it.total }.then(CATALOGUE)
-            RARITY -> compareByDescending<Card> { it.rarity }
-                .thenByDescending { it.total }
-                .then(CATALOGUE)
+    internal fun comparator(
+        known: (Card) -> Boolean = { true },
+        reversed: Boolean = false,
+    ): Comparator<Card> {
+        fun Comparator<Card>.facing(): Comparator<Card> = if (reversed) this.reversed() else this
+        val power = compareBy<Card> { !known(it) }
+            .then(compareByDescending<Card> { if (known(it)) it.total else 0 }.facing())
+        return when (this) {
+            NUMBER -> CATALOGUE.facing()
+            POWER -> power.then(CATALOGUE)
+            RARITY -> compareByDescending<Card> { it.rarity }.facing().then(power).then(CATALOGUE)
         }
+    }
 
     private companion object {
         val CATALOGUE: Comparator<Card> = compareBy({ it.block }, { it.number })
@@ -81,8 +98,15 @@ fun typeFilterTestTag(type: CardType?): String = "card-filter-type-${type?.name 
 fun rarityFilterTestTag(rarity: Int?): String = "card-filter-rarity-${rarity ?: "all"}"
 
 /**
- * The three questions a list of cards is narrowed by — which set, which element, how good — and
- * the state of the answers.
+ * The questions a list of cards is narrowed by — which set, which element, how good, where from,
+ * how strong on which side — and the state of the answers.
+ *
+ * ### Each answer is a set
+ *
+ * Nothing picked admits everything; several picked admit any of them — "FFVIII or FFIX", "four or
+ * five stars". The questions still combine by *and*. The menus pick one answer at a time because
+ * they close on a tap; the landscape panel, which shows every answer at once, can light several.
+ * See [CardFilterPanel].
  *
  * ### Why this is an object and not three `remember`s per screen
  *
@@ -117,30 +141,93 @@ internal class CardFilters(
      * without a bundle.
      */
     private val nameOf: (Card) -> String = { it.name },
+    /**
+     * The kinds of table offering each card, by id — see [sourceKindsByCard]. No entry for a card
+     * nothing offers, and none at all where the room was built without the tables.
+     */
+    private val offers: Map<Int, Set<SourceKind>> = emptyMap(),
 ) {
-    var set: Int? by mutableStateOf(null)
+    /** The kinds offering at least one card here, as [sets] is the sets among them. */
+    val sources: List<SourceKind> =
+        SourceKind.entries.filter { kind -> offers.values.any { kind in it } }
 
-    var type: CardType? by mutableStateOf(null)
+    /** Representative blocks, as in [sets]. */
+    var pickedSets: Set<Int> by mutableStateOf(emptySet())
 
-    var rarity: Int? by mutableStateOf(null)
+    var pickedTypes: Set<CardType> by mutableStateOf(emptySet())
+
+    var pickedRarities: Set<Int> by mutableStateOf(emptySet())
+
+    var pickedSources: Set<SourceKind> by mutableStateOf(emptySet())
+
+    /**
+     * The least power wanted on each side. A side with no entry admits any, and a minimum lowered
+     * to nothing is removed rather than kept at zero, so the entries are exactly what
+     * [narrowings] counts.
+     */
+    var minimums: Map<Side, Int> by mutableStateOf(emptyMap())
+        private set
+
+    fun minimumOf(side: Side): Int = minimums[side] ?: 0
+
+    /** Clamped to an ace; zero or less lifts the side's minimum. */
+    fun setMinimum(side: Side, power: Int) {
+        minimums = if (power <= 0) {
+            minimums - side
+        } else {
+            minimums + (side to power.coerceAtMost(ACE_POWER))
+        }
+    }
 
     /** What the player has typed, verbatim. Trimmed and folded only at the point of comparison. */
     var query: String by mutableStateOf("")
 
     var sort: CardSort by mutableStateOf(CardSort.NUMBER)
 
-    /** True while any of the five is narrowing the list — what a "clear" control would undo. */
+    var reversed: Boolean by mutableStateOf(false)
+
+    /**
+     * One per answer picked, one per side given a minimum, and one for a query. What the reset
+     * control prints, so the number beside it is the number of things it is about to undo.
+     */
+    val narrowings: Int
+        get() = pickedSets.size + pickedTypes.size + pickedRarities.size + pickedSources.size +
+            minimums.size + if (query.isBlank()) 0 else 1
+
     val isNarrowed: Boolean
-        get() = set != null || type != null || rarity != null || query.isNotBlank()
+        get() = narrowings > 0
 
-    fun matches(card: Card): Boolean =
-        (set == null || blockGroups[card.block] == set) &&
-            (type == null || card.type == type) &&
-            (rarity == null || card.rarity == rarity) &&
-            matchesQuery(card)
+    /** Every narrowing undone, and not the order: an order hides nothing. */
+    fun reset() {
+        pickedSets = emptySet()
+        pickedTypes = emptySet()
+        pickedRarities = emptySet()
+        pickedSources = emptySet()
+        minimums = emptyMap()
+        query = ""
+    }
 
-    /** [cards] in the order [sort] asks for. */
-    fun sorted(cards: List<Card>): List<Card> = cards.sortedWith(sort.comparator)
+    /**
+     * @param known false where the room draws [card] without its name, element and sides — the
+     *   collection's "?". A filter that narrows the grid to one tile reads that tile's answer out,
+     *   so such a card answers the query by its number only and no element at all; the set and
+     *   the rarity still apply, because the "?" prints both, and so does where it is found, which
+     *   its panel lists. No side minimum admits it: left under "top 7 or more", it is its top.
+     */
+    fun matches(card: Card, known: Boolean = true): Boolean =
+        (pickedSets.isEmpty() || blockGroups[card.block]?.let { it in pickedSets } == true) &&
+            (pickedTypes.isEmpty() || known && card.type in pickedTypes) &&
+            (pickedRarities.isEmpty() || card.rarity in pickedRarities) &&
+            (pickedSources.isEmpty() || offers[card.id]?.any { it in pickedSources } == true) &&
+            (minimums.isEmpty() || known && reachesMinimums(card)) &&
+            matchesQuery(card, known)
+
+    private fun reachesMinimums(card: Card): Boolean =
+        minimums.all { (side, least) -> card.power(side) >= least }
+
+    /** [cards] in the order [sort] and [reversed] ask for. [known] as in [CardSort.comparator]. */
+    fun sorted(cards: List<Card>, known: (Card) -> Boolean = { true }): List<Card> =
+        cards.sortedWith(sort.comparator(known, reversed))
 
     /**
      * Whether a card answers to what has been typed.
@@ -154,12 +241,16 @@ internal class CardFilters(
      *
      * Case-folded and no more. Accents are **not** folded: doing it properly needs a table this
      * does not have, and a half-done job that folds é and not ö would be worse than none.
+     *
+     * A query that is a number also matches the card's number in its set, `044` and `44` alike —
+     * the one thing the collection still prints on a card nobody owns, and so the only way to
+     * search for one.
      */
-    private fun matchesQuery(card: Card): Boolean {
+    private fun matchesQuery(card: Card, known: Boolean): Boolean {
         val needle = query.trim()
-        if (needle.isEmpty()) return true
-        return nameOf(card).contains(needle, ignoreCase = true) ||
-            card.name.contains(needle, ignoreCase = true)
+        val named = known &&
+            listOf(nameOf(card), card.name).any { it.contains(needle, ignoreCase = true) }
+        return needle.isEmpty() || needle.toIntOrNull() == card.number || named
     }
 }
 
@@ -170,24 +261,34 @@ internal class CardFilters(
  * selects a set no longer on offer is a grid that reads as empty for a reason nothing on screen
  * states. A caller whose list is rebuilt on every recomposition must `remember` it first, which
  * both callers already do.
+ *
+ * @param opponents the roster whose drop tables answer "from an opponent". Null leaves that answer
+ *   off the offer — the consignment picker's case, which draws no panel to offer it in.
  */
 @Composable
-internal fun rememberCardFilters(cards: List<Card>, sets: List<CardSet>): CardFilters {
+internal fun rememberCardFilters(
+    cards: List<Card>,
+    sets: List<CardSet>,
+    opponents: NpcCatalog? = null,
+): CardFilters {
     val strings = LocalStrings.current
     // Keyed on the bundle as well as on the cards, so a card searched for by name is searched for
     // in the language on screen. It resets the chips when the language changes, which is the right
     // trade: the alternative is a filter object holding a resolver for a locale nobody is reading.
-    return remember(cards, sets, strings) {
+    return remember(cards, sets, opponents, strings) {
         // A card's block folds down to the block that speaks for its whole *set* before it is
         // grouped or compared — FFXIV spans two blocks and a filter should still offer one
         // "FFXIV" chip, not one per block it happens to occupy. See `representativeBlocks`.
         val blockGroups = representativeBlocks(sets)
+        val kinds = sourceKindsByCard(opponents)
         CardFilters(
             blockGroups = blockGroups,
             sets = cards.mapNotNull { blockGroups[it.block] }.distinct().sorted(),
             types = CardType.entries.filter { candidate -> cards.any { it.type == candidate } },
             rarities = cards.map { it.rarity }.distinct().sorted(),
             nameOf = { strings[it.nameKey] },
+            // This room's cards only: a chip for a kind offering none would empty the grid.
+            offers = cards.mapNotNull { card -> kinds[card.id]?.let { card.id to it } }.toMap(),
         )
     }
 }
@@ -217,9 +318,13 @@ internal fun rememberCardFilters(cards: List<Card>, sets: List<CardSet>): CardFi
  *   a room that has not got a count to give rather than a count that came out zero.
  */
 @Composable
-internal fun CardSearchRow(filters: CardFilters, count: String? = null) {
+internal fun CardSearchRow(
+    filters: CardFilters,
+    count: String? = null,
+    modifier: Modifier = Modifier,
+) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(bottom = SpaceXs),
+        modifier = modifier.fillMaxWidth().padding(bottom = SpaceXs),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(SpaceSm),
     ) {

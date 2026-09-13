@@ -50,6 +50,9 @@ internal fun CollectionScreen(
         // The one screen that lays out two panes, so the one that asks for the wider column. See
         // [WideContentMaxWidth] for why the other screens do not get it for free.
         wide = true,
+        // Wider again for the cards, whose filters come out of their menus once there is room —
+        // see [CardListBody]. The decks keep the default: a list of eight decks does not fill it.
+        wideMaxWidth = if (tab == CollectionTab.CARDS) CollectionMaxWidth else WideContentMaxWidth,
     ) {
         ScreenTabs(
             tabs = listOf(

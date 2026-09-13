@@ -243,14 +243,16 @@ internal fun PvpMatchScreen(
                 log = log,
             )
         },
-    ) { panelShown ->
+    ) { chrome ->
         StatusBar(
             view = view,
             selected = selected,
             face = face,
             opponentName = wire.opponentName,
             turnFraction = turnFraction,
-            showOpponent = !panelShown,
+            // In the arena as well as on a compact board: this board's hands are rows of its own
+            // with no seat over them, so the header is the only place left to name the opponent.
+            showOpponent = chrome != MatchChrome.PANEL,
             outcomeTitle = null,
             // Navigates, and deliberately does **not** concede. The two modes part company here
             // and should: leaving a solo board costs nothing, while conceding a wagered match
@@ -258,8 +260,13 @@ internal fun PvpMatchScreen(
             // do the second by mistake. Conceding stays the labelled button below the board, which
             // is the only control on this screen that says what it does.
             onExit = onExit,
+            // The header only. `PvpPlayArea` stacks its hands above and below the board whatever
+            // the window's shape, so the arena's larger cards and seats — sized for hands beside
+            // the board — would overflow it.
+            arena = chrome == MatchChrome.ARENA,
+            log = log,
         )
-        BoardRules(view.rules, panelShown)
+        BoardRules(view.rules, chrome)
 
         BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth()) {
             // See `MatchScreen`: less what `PvpPlayArea` pads with.

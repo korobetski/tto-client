@@ -10,11 +10,13 @@ import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.settings.InMemorySettingsStore
 import com.tripletriad.settings.MatchSpeed
+import com.tripletriad.settings.UnownedCards
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -180,6 +182,26 @@ class OptionsUiTest {
         // the thing this deliberately is not.
         assertTrue(isVisible("aiming at"), "the note does not say which cell it answers about")
         assertTrue(isVisible("wager"), "the note does not say where it stops")
+    }
+
+    @Test
+    fun cardsNotOwnedAreAQuestionMarkUntilAnotherModeIsChosen() = runComposeUiTest {
+        val store = InMemorySettingsStore("""{"language":"en_US"}""")
+        setContent { TestApp(store = store) }
+        openOptions()
+        val hidden = optionsUnownedTestTag(UnownedCards.HIDDEN)
+
+        onNodeWithTag(optionsUnownedTestTag(UnownedCards.UNKNOWN)).assertIsSelected()
+        onNodeWithTag(hidden).performScrollTo().performClick()
+        waitForIdle()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { store.writes > 0 }
+
+        onNodeWithTag(hidden).assertIsSelected()
+        onNodeWithTag(optionsUnownedTestTag(UnownedCards.UNKNOWN)).assertIsNotSelected()
+        assertTrue(
+            store.stored.orEmpty().contains("\"unowned_cards\": \"hidden\""),
+            "the store still holds: ${store.stored.orEmpty()}",
+        )
     }
 
     private fun ComposeUiTest.openOptions() {

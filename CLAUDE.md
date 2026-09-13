@@ -58,7 +58,7 @@ Test tasks and what each proves:
 | `:shared:desktopTest` | `commonTest` + `desktopTest` — the only place Compose UI tests run |
 | `:shared:testAndroidHostTest` | `commonTest` again on the Android host JVM (**not** `testDebugUnitTest` — the module uses `com.android.kotlin.multiplatform.library`) |
 | `:shared:iosSimulatorArm64Test` | `commonTest` on Kotlin/Native — **macOS only, silently skipped elsewhere** |
-| `:shared:wasmJsBrowserTest` | `commonTest` + `wasmJsTest` under Karma in headless Chrome **and** Firefox — needs both installed; `shared/karma.config.d/` raises Mocha's 2 s budget and Karma's disconnect clocks, and serves the Compose resources |
+| `:shared:wasmJsBrowserTest` | `commonTest` + `wasmJsTest` under Karma in headless Chrome **and** Firefox — needs both installed; `shared/karma.config.d/compose-resources.js` serves the Compose resources. Mocha's 2 s budget and Karma's ping clocks are left at their defaults, unlike `tto-core`: no test here is long and synchronous (slowest ~1 s, 2026-09-13) |
 | `:androidApp:testDebugUnitTest` | the host module's own tests; `assembleDebug` does not run them |
 
 Other:

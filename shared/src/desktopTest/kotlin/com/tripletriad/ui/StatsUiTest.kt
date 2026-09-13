@@ -19,6 +19,11 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
+/**
+ * A family's card is a button now — it opens the family's ladder — so it merges what it holds: the
+ * date and the progress it carries are found in the unmerged tree, and scrolled to by the card's
+ * own tag.
+ */
 @OptIn(ExperimentalTestApi::class)
 class StatsUiTest {
     private fun ComposeUiTest.openStats() {
@@ -67,7 +72,7 @@ class StatsUiTest {
         openAchievements()
 
         onNodeWithTag(STATS_ACHIEVEMENTS_TEST_TAG)
-            .performScrollToNode(hasTestTag(achievementRowTestTag(HOARDER_I)))
+            .performScrollToNode(hasTestTag(achievementFamilyTestTag(MGP_POT)))
         assertTrue(
             isVisible("${GameSave.STARTING_MGP} / $MGP_POT_I"),
             "a hundred of the thousand it wants",
@@ -90,8 +95,8 @@ class StatsUiTest {
         openAchievements()
 
         onNodeWithTag(STATS_ACHIEVEMENTS_TEST_TAG)
-            .performScrollToNode(hasTestTag(achievementRowTestTag(COLLECTOR_I)))
-        onNodeWithTag(achievementRowTestTag(COLLECTOR_I))
+            .performScrollToNode(hasTestTag(achievementFamilyTestTag(COLLECTOR)))
+        onNodeWithTag(achievementRowTestTag(COLLECTOR_I), useUnmergedTree = true)
             .assertTextEquals("${STARTER_CARDS.size} / $COLLECTOR_I_TARGET")
     }
 
@@ -106,7 +111,7 @@ class StatsUiTest {
         openAchievements()
 
         assertTrue(
-            exists(achievementRowTestTag(FIRST_WIN)),
+            existsUnmerged(achievementRowTestTag(FIRST_WIN)),
             "an earned achievement should be composed without scrolling",
         )
     }
@@ -122,7 +127,8 @@ class StatsUiTest {
         loadCharacter(documents)
         openAchievements()
 
-        onNodeWithTag(achievementRowTestTag(FIRST_WIN)).assertTextEquals(UNLOCKED_ON)
+        onNodeWithTag(achievementRowTestTag(FIRST_WIN), useUnmergedTree = true)
+            .assertTextEquals(UNLOCKED_ON)
     }
 
     @Test
@@ -141,7 +147,8 @@ class StatsUiTest {
         // one is named, and only as the line under the family.
         assertFalse(exists(achievementFamilyTestTag(FIRST_WIN)), "a tier is not a family")
         assertTrue(isVisible("Next:"), "the row says what is being worked towards")
-        onNodeWithTag(achievementRowTestTag(SECOND_TIER)).assertTextEquals("1 / 30")
+        onNodeWithTag(achievementRowTestTag(SECOND_TIER), useUnmergedTree = true)
+            .assertTextEquals("1 / 30")
     }
 
     /**
@@ -183,12 +190,12 @@ class StatsUiTest {
     }
 
     private companion object {
+        const val COLLECTOR = "ac-td"
         const val COLLECTOR_I = "ac-td1"
 
         /** What `ac-td1` asks for — `Achievement.collector("ac-td1", …, 10, …)`. */
         const val COLLECTOR_I_TARGET = 10
 
-        const val HOARDER_I = "ac-mp1"
         const val MGP_POT_I = 1_000
 
         const val FIRST_WIN = "ac-tt1"

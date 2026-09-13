@@ -78,21 +78,26 @@ internal fun CardFilterMenus(filters: CardFilters, trailing: @Composable () -> U
         if (filters.sets.size > 1) {
             FilterMenu(
                 tag = CARD_SET_MENU_TEST_TAG,
-                label = filters.set?.let { setLabel(strings, it) }
-                    ?: strings[StringKeys.CARD_SET],
-                on = filters.set != null,
+                label = menuLabel(strings[StringKeys.CARD_SET], filters.pickedSets) {
+                    setLabel(strings, it)
+                },
+                on = filters.pickedSets.isNotEmpty(),
             ) { close ->
-                MenuChoice(strings[StringKeys.ALL], setFilterTestTag(null), filters.set == null) {
-                    filters.set = null
+                MenuChoice(
+                    strings[StringKeys.ALL],
+                    setFilterTestTag(null),
+                    filters.pickedSets.isEmpty(),
+                ) {
+                    filters.pickedSets = emptySet()
                     close()
                 }
                 for (block in filters.sets) {
                     MenuChoice(
                         label = setLabel(strings, block),
                         tag = setFilterTestTag(block),
-                        chosen = filters.set == block,
+                        chosen = block in filters.pickedSets,
                     ) {
-                        filters.set = block
+                        filters.pickedSets = setOf(block)
                         close()
                     }
                 }
@@ -103,21 +108,25 @@ internal fun CardFilterMenus(filters: CardFilters, trailing: @Composable () -> U
             tag = CARD_TYPE_MENU_TEST_TAG,
             // The enum's own name, because nothing translates the elements yet — `app-*.json` has
             // no key for any of the twelve. The same word the chip's description carried.
-            label = filters.type?.name ?: strings[StringKeys.CARD_TYPE],
-            on = filters.type != null,
+            label = menuLabel(strings[StringKeys.CARD_TYPE], filters.pickedTypes) { it.name },
+            on = filters.pickedTypes.isNotEmpty(),
         ) { close ->
-            MenuChoice(strings[StringKeys.ALL], typeFilterTestTag(null), filters.type == null) {
-                filters.type = null
+            MenuChoice(
+                strings[StringKeys.ALL],
+                typeFilterTestTag(null),
+                filters.pickedTypes.isEmpty(),
+            ) {
+                filters.pickedTypes = emptySet()
                 close()
             }
             for (candidate in filters.types) {
                 MenuChoice(
                     label = candidate.name,
                     tag = typeFilterTestTag(candidate),
-                    chosen = filters.type == candidate,
+                    chosen = candidate in filters.pickedTypes,
                     leading = { TypeIcon(candidate) },
                 ) {
-                    filters.type = candidate
+                    filters.pickedTypes = setOf(candidate)
                     close()
                 }
             }
@@ -126,24 +135,24 @@ internal fun CardFilterMenus(filters: CardFilters, trailing: @Composable () -> U
         if (filters.rarities.size > 1) {
             FilterMenu(
                 tag = CARD_RARITY_MENU_TEST_TAG,
-                label = filters.rarity?.let { starsOf(it) } ?: strings[StringKeys.RARITY],
-                on = filters.rarity != null,
+                label = menuLabel(strings[StringKeys.RARITY], filters.pickedRarities, ::starsOf),
+                on = filters.pickedRarities.isNotEmpty(),
             ) { close ->
                 MenuChoice(
                     strings[StringKeys.ALL],
                     rarityFilterTestTag(null),
-                    filters.rarity == null,
+                    filters.pickedRarities.isEmpty(),
                 ) {
-                    filters.rarity = null
+                    filters.pickedRarities = emptySet()
                     close()
                 }
                 for (candidate in filters.rarities) {
                     MenuChoice(
                         label = starsOf(candidate),
                         tag = rarityFilterTestTag(candidate),
-                        chosen = filters.rarity == candidate,
+                        chosen = candidate in filters.pickedRarities,
                     ) {
-                        filters.rarity = candidate
+                        filters.pickedRarities = setOf(candidate)
                         close()
                     }
                 }
@@ -170,9 +179,33 @@ internal fun CardFilterMenus(filters: CardFilters, trailing: @Composable () -> U
             }
         }
 
+        // Where from and each side's least power are set in the panel alone, and a window narrowed
+        // past the panel still applies them: without this, a grid narrowed by a control no longer
+        // drawn, and no way back but to widen the window.
+        if (filters.pickedSources.isNotEmpty() || filters.minimums.isNotEmpty()) {
+            TtoFilterChip(
+                label = strings.format(StringKeys.FILTERS_RESET, filters.narrowings.toString()),
+                tag = CARD_FILTER_RESET_TEST_TAG,
+                selected = true,
+                onClick = filters::reset,
+            )
+        }
+
         trailing()
     }
 }
+
+/**
+ * The word while nothing is picked, the answer while one is, and the word with a count while
+ * several are — which only [CardFilterPanel] can pick, and a window narrowed afterwards still has
+ * to own up to.
+ */
+private fun <T> menuLabel(word: String, picked: Set<T>, answer: (T) -> String): String =
+    when (picked.size) {
+        0 -> word
+        1 -> answer(picked.single())
+        else -> "$word (${picked.size})"
+    }
 
 /**
  * One closed menu, and what it opens.
@@ -181,7 +214,7 @@ internal fun CardFilterMenus(filters: CardFilters, trailing: @Composable () -> U
  *   open" — an open menu is transient, and a lit chip is the state the row is read for.
  */
 @Composable
-private fun FilterMenu(
+internal fun FilterMenu(
     tag: String,
     label: String,
     on: Boolean,
@@ -199,7 +232,7 @@ private fun FilterMenu(
 
 /** One line of a filter menu: what it selects, and a tick when it is what is selected. */
 @Composable
-private fun MenuChoice(
+internal fun MenuChoice(
     label: String,
     tag: String,
     chosen: Boolean,
@@ -225,7 +258,7 @@ private fun MenuChoice(
 
 /** The element's own badge, at the size the card itself wears it. Absent when the art is not. */
 @Composable
-private fun TypeIcon(type: CardType) {
+internal fun TypeIcon(type: CardType) {
     val icon = LocalCardArt.current?.typeIcon(type) ?: return
 
     Image(

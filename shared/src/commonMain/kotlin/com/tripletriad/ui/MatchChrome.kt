@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -81,7 +82,7 @@ fun matchRewardTestTag(item: Item): String = "match-reward-${itemSlug(item)}"
 internal fun MatchFrame(
     wide: Boolean,
     side: @Composable () -> Unit,
-    content: @Composable ColumnScope.(panelShown: Boolean) -> Unit,
+    content: @Composable ColumnScope.(chrome: MatchChrome) -> Unit,
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         // **Width is not enough, and a phone held sideways is why.** A 890x411 window clears the
@@ -93,13 +94,15 @@ internal fun MatchFrame(
         //
         // So the panel asks for height as well, and a phone in landscape now gets the whole width
         // for the board — which is what it wanted the width for.
-        val roomForPanel = wide && maxHeight >= SidePanelMinHeight
+        //
+        // And past a certain size the panel goes again, for the opposite reason — see `MatchArena`.
+        val chrome = matchChrome(wide, maxWidth, maxHeight)
 
-        if (!roomForPanel) {
+        if (chrome != MatchChrome.PANEL) {
             Column(
                 modifier = Modifier.fillMaxSize(),
                 horizontalAlignment = Alignment.CenterHorizontally,
-            ) { content(false) }
+            ) { content(chrome) }
             return@BoxWithConstraints
         }
 
@@ -112,12 +115,12 @@ internal fun MatchFrame(
             Column(
                 modifier = Modifier.weight(1f).fillMaxHeight(),
                 horizontalAlignment = Alignment.CenterHorizontally,
-            ) { content(true) }
+            ) { content(chrome) }
         }
     }
 }
 
-private val SidePanelMinHeight = 560.dp
+internal val SidePanelMinHeight = 560.dp
 
 @Composable
 internal fun MatchSidePanel(
@@ -166,8 +169,14 @@ internal fun MatchSidePanel(
 }
 
 @Composable
-internal fun BoardRules(rules: GameRules, wide: Boolean) {
-    if (!wide) RulesStrip(rules)
+internal fun BoardRules(rules: GameRules, chrome: MatchChrome) {
+    when (chrome) {
+        MatchChrome.COMPACT -> RulesStrip(rules)
+        // The panel draws its own.
+        MatchChrome.PANEL -> Unit
+        // Under the score, which is centred on the board.
+        MatchChrome.ARENA -> RulesStrip(rules, centered = true)
+    }
 }
 
 @Composable
@@ -197,8 +206,6 @@ internal fun rememberViewMoveLog(key: Any, view: MatchView): List<PlayResult> {
 
 @Composable
 private fun ColumnScope.MoveLog(log: List<PlayResult>, strings: Strings) {
-    val game = LocalTtoColors.current
-
     Column(
         modifier = Modifier
             .testTag(MATCH_LOG_TEST_TAG)
@@ -208,34 +215,43 @@ private fun ColumnScope.MoveLog(log: List<PlayResult>, strings: Strings) {
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         for (play in log) {
-            Text(
-                text = buildString {
-                    append(strings[play.card.nameKey])
-                    append(" → ")
-                    // Named by the cell the player can point at rather than by an index: `A1` is
-                    // the row and column, which is how the board reads.
-                    append(cellName(play.position))
-                    if (play.captures.isNotEmpty()) append("  +${play.captures.size}")
-                },
-                color = if (play.player == CardColor.BLUE) {
-                    CardColor.BLUE.edge
-                } else {
-                    CardColor.RED.edge
-                },
-                style = MaterialTheme.typography.labelSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            // A combo is marked rather than counted: `wave >= 1` means the capture cascaded,
-            // which is the thing a player wants to know happened and cannot see afterwards.
-            if (play.captures.any { it.wave >= 1 }) {
-                Text(
-                    text = COMBO_MARK,
-                    color = game.selectionRing,
-                    style = MaterialTheme.typography.labelSmall,
-                )
-            }
+            MoveLogEntry(play, strings, MaterialTheme.typography.labelSmall)
         }
+    }
+}
+
+/** One placement, as the panel's log and the arena's header both list it. */
+@Composable
+internal fun MoveLogEntry(
+    play: PlayResult,
+    strings: Strings,
+    style: TextStyle,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text = buildString {
+            append(strings[play.card.nameKey])
+            append(" → ")
+            // Named by the cell the player can point at rather than by an index: `A1` is
+            // the row and column, which is how the board reads.
+            append(cellName(play.position))
+            if (play.captures.isNotEmpty()) append("  +${play.captures.size}")
+        },
+        color = play.player.edge,
+        style = style,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = modifier,
+    )
+    // A combo is marked rather than counted: `wave >= 1` means the capture cascaded,
+    // which is the thing a player wants to know happened and cannot see afterwards.
+    if (play.captures.any { it.wave >= 1 }) {
+        Text(
+            text = COMBO_MARK,
+            color = LocalTtoColors.current.selectionRing,
+            style = style,
+            modifier = modifier,
+        )
     }
 }
 
@@ -247,6 +263,7 @@ internal fun RulesStrip(
     rules: GameRules,
     roulette: Boolean = false,
     tag: String? = MATCH_RULES_TEST_TAG,
+    centered: Boolean = false,
 ) {
     val keys = rules.activeRuleKeys()
     if (keys.isEmpty() && !roulette) return
@@ -260,9 +277,14 @@ internal fun RulesStrip(
             .clickable { open = !open }
             .padding(horizontal = SpaceSm, vertical = 2.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
+        horizontalAlignment = if (centered) Alignment.CenterHorizontally else Alignment.Start,
     ) {
         FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(SpaceXs),
+            horizontalArrangement = if (centered) {
+                Arrangement.spacedBy(SpaceXs, Alignment.CenterHorizontally)
+            } else {
+                Arrangement.spacedBy(SpaceXs)
+            },
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             for (key in keys) {

@@ -21,6 +21,7 @@ import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.Strings
 import com.tripletriad.model.Card
 import com.tripletriad.model.powerLabel
+import com.tripletriad.ui.theme.LocalTtoColors
 
 /**
  * A card read rather than picked out: the sprite at the size it was drawn, its name, its four
@@ -128,6 +129,72 @@ internal fun CardPanel(
             }
 
             actions()
+        }
+    }
+}
+
+/**
+ * [CardPanel] for a card the profile has never owned: the "?" where the sprite goes, `???` where
+ * the name goes, and under them only what helps find it — its number, its rarity, its sources.
+ *
+ * A composable of its own rather than a flag on [CardPanel], because what it leaves out is most of
+ * that panel: [CardFace] reads the name and all four sides out to a screen reader, and the
+ * description names the card more often than not. A panel that is never handed them cannot leak
+ * them. Rarity stays because it is part of *where do I get this* — it is what decides the card's
+ * price on a shelf and how seldom a pack gives it.
+ *
+ * No actions: the only one the collection has is selling a spare copy, and there is none.
+ */
+@Composable
+internal fun UnknownCardPanel(
+    card: Card,
+    tag: String,
+    sources: List<CardSource>,
+    modifier: Modifier = Modifier,
+) {
+    val strings = LocalStrings.current
+
+    Row(
+        modifier = modifier.testTag(tag).fillMaxSize(),
+        horizontalArrangement = Arrangement.spacedBy(SpaceMd),
+    ) {
+        UnknownCardFace()
+
+        Column(
+            modifier = Modifier.fillMaxHeight().weight(1f),
+            verticalArrangement = Arrangement.spacedBy(SpaceXs),
+        ) {
+            Text(
+                text = strings[StringKeys.UNKNOWN_CARD_NAME],
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.titleSmall,
+                maxLines = 1,
+            )
+            Text(
+                text = listOf(
+                    strings.format(StringKeys.CARD_NUMBER, catalogueNumber(card)),
+                    "${strings[StringKeys.RARITY]} ${starsOf(card.rarity)}",
+                ).joinToString(DOT_SEPARATOR),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = strings[StringKeys.UNKNOWN_CARD],
+                color = LocalTtoColors.current.unknownCardOutline,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                CardSources(sources)
+            }
         }
     }
 }

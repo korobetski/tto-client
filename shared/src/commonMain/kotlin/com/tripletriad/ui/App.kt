@@ -49,6 +49,7 @@ import com.tripletriad.protocol.Unlocks
 import com.tripletriad.settings.InMemorySettingsStore
 import com.tripletriad.settings.MatchSpeed
 import com.tripletriad.settings.SettingsStore
+import com.tripletriad.settings.UnownedCards
 import com.tripletriad.settings.UserSettings
 import com.tripletriad.settings.UserSettingsRepository
 import com.tripletriad.storage.DocumentStore
@@ -281,6 +282,8 @@ fun App(
                 // and the board are the whole depth of the app apart, which is the case
                 // `LocalUnlocks` below was added for.
                 LocalCaptureHints provides (settingsValue?.captureHints ?: false),
+                // The collection's, on the same terms: the sheet and the grid are as far apart.
+                LocalUnownedCards provides (settingsValue?.unowned ?: UnownedCards.Default),
                 LocalMatchMix provides mix,
                 // Here rather than deeper, because the lobby and the auction house are three
                 // layers apart and the door they describe is the same one. Null server means

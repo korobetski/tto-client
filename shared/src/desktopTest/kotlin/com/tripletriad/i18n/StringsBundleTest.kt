@@ -398,13 +398,53 @@ class StringsBundleTest {
         // the same two and the four gaps stay where they were. Measured from a
         // `:shared:desktopTest --tests "*StringsBundleTest*"` run on 2026-09-07 and pasted.
 
-        const val UNION_KEYS = 1903
+        // +3 to every bundle since: the collection's "?" — see `UnknownCardTile`.
+        // `APP_UNKNOWN_CARD_NAME` stands in for the name (full-width in `ja`), `APP_UNKNOWN_CARD`
+        // is the line under it and what the tile says to a screen reader, and `APP_CARD_NUMBER`
+        // is the number the tile still prints. Authored in all four `app-*` bundles at once, so
+        // every count moves by the same three and the four gaps stay where they were.
+        //
+        // +4 to every bundle since: the setting that chooses between that and the two other ways
+        // to draw a card never owned — see `UnownedCards`. `APP_UNOWNED_CARDS` is the row, and
+        // `APP_UNOWNED_UNKNOWN`, `_DIMMED` and `_HIDDEN` its chips, reached through
+        // `UnownedCards.labelKey`. Authored in all four `app-*` bundles at once, so every count
+        // moves by the same four and the four gaps stay where they were. Both measured from a
+        // `:shared:desktopTest --tests "*StringsBundleTest*"` run on 2026-09-13 and pasted.
+        //
+        // +4 to every bundle since: the landscape filter panel — see `CardFilterPanel`.
+        // `APP_FILTERS` heads it, `APP_FILTERS_RESET` is its reset with the count as `{0}`, and
+        // `APP_SORT` and `APP_SORT_REVERSE` head the order chips and flip them. Authored in all
+        // four `app-*` bundles at once, so every count moves by the same four and the four gaps
+        // stay where they were. Measured on 2026-09-13 as above.
+        //
+        // +11 to every bundle since: the panel's two questions the menus do not ask — see
+        // `SourceKind` and `CardFilterPanel`. `APP_FILTER_SOURCES` and `APP_FILTER_SIDES` head the
+        // sections, `APP_SOURCE_OPPONENTS` is the one kind of table no bundle had a plural word
+        // for, `APP_SIDE_TOP`, `_RIGHT`, `_BOTTOM` and `_LEFT` name the sides to a screen reader,
+        // and `APP_SIDE_MINIMUM`, `_ANY`, `_RAISE` and `_LOWER` are what it reads on the steppers.
+        // Authored in all four `app-*` bundles at once, so every count moves by the same eleven
+        // and the four gaps stay where they were. Measured on 2026-09-13 as above.
+        //
+        // +14 to every bundle since: the achievements tab's filters and ladder — see
+        // `AchievementsBody`. `APP_ACHIEVEMENT_ALL` and `_CATEGORIES` head the rail and the menu,
+        // `_IN_PROGRESS`, `_ALMOST`, `_COMPLETED` and `_NOT_STARTED` the chips, `_ALMOST_BADGE` and
+        // `_DONE_BADGE` are what a card wears, `_TIERS_EARNED`, `_CURRENCY_EARNED` and
+        // `_CARDS_EARNED` title the totals, `_TIERS` heads the ladder, `_EARNED_ON` dates a rung
+        // and `_NO_MATCH` stands in for an empty grid. Authored in all four `app-*` bundles at
+        // once, so every count moves by the same fourteen and the four gaps stay where they were.
+        // Measured on 2026-09-13 as above.
+        //
+        // +1 to every bundle since: `APP_MATCH_YOUR_HAND`, the arena's label over the player's own
+        // hand — see `SeatHeader`. Authored in all four `app-*` bundles at once. Measured on
+        // 2026-09-13 as above.
+
+        const val UNION_KEYS = 1940
 
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 1899,
-            AppLocale.FR_FR to 1900,
-            AppLocale.DE_DE to 1828,
-            AppLocale.JA_JA to 1860,
+            AppLocale.EN_US to 1936,
+            AppLocale.FR_FR to 1937,
+            AppLocale.DE_DE to 1865,
+            AppLocale.JA_JA to 1897,
         )
 
         val EXPECTED_GAPS = mapOf(

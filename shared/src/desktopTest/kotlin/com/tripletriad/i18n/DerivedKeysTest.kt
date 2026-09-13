@@ -8,6 +8,7 @@ import com.tripletriad.model.NpcLevel
 import com.tripletriad.model.PotionType
 import com.tripletriad.model.PouchItem
 import com.tripletriad.settings.MatchSpeed
+import com.tripletriad.settings.UnownedCards
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -53,6 +54,14 @@ class DerivedKeysTest {
     fun everyMatchSpeedNamesItself() {
         for (speed in MatchSpeed.entries) {
             assertTrue(strings.has(speed.labelKey), "no label for ${speed.labelKey}")
+        }
+    }
+
+    /** The same gap as the crans': `UnownedCards.labelKey` is not in [StringKeys.all]. */
+    @Test
+    fun everyUnownedModeNamesItself() {
+        for (mode in UnownedCards.entries) {
+            assertTrue(strings.has(mode.labelKey), "no label for ${mode.labelKey}")
         }
     }
 

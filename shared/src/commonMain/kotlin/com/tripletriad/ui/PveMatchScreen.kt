@@ -262,14 +262,16 @@ internal fun PveMatchScreen(
                 log = log,
             )
         },
-    ) { panelShown ->
+    ) { chrome ->
+        val arena = chrome == MatchChrome.ARENA
         StatusBar(
             view = view,
             selected = selected,
             face = OpponentFace.Program(npc),
             opponentName = strings[npc.nameKey],
             turnFraction = turnFraction,
-            showOpponent = !panelShown,
+            // See `MatchScreen`: the panel and the arena's seat both name the opponent already.
+            showOpponent = chrome == MatchChrome.COMPACT,
             outcomeTitle = script?.outcomeTitle,
             onExit = onExit,
             // Only while the match is still live. Once the result panel is up the match is
@@ -281,15 +283,17 @@ internal fun PveMatchScreen(
             // roster offers it back by name. What it costs meanwhile is the forfeit count, which
             // is the gap between a match begun and a match finished.
             exitWarning = strings[StringKeys.LEAVE_MATCH_PVE].takeIf { reward == null },
+            arena = arena,
+            log = log,
         )
-        BoardRules(view.rules, panelShown)
+        BoardRules(view.rules, chrome)
 
         BoxWithConstraints(
             modifier = Modifier.weight(1f).fillMaxWidth(),
             contentAlignment = Alignment.Center,
         ) {
             val layout =
-                matchLayout(maxWidth - PlayAreaInset * 2, maxHeight - PlayAreaInset * 2)
+                matchLayout(maxWidth - PlayAreaInset * 2, maxHeight - PlayAreaInset * 2, arena)
 
             PlayArea(
                 view = view,
@@ -309,6 +313,8 @@ internal fun PveMatchScreen(
                 onPlace = { position -> selected?.let { place(it, position) } },
                 onDrop = place,
                 revealed = revealed,
+                seats = MatchSeats(OpponentFace.Program(npc), strings[npc.nameKey])
+                    .takeIf { arena },
             )
             reward?.let {
                 OutcomePanel(

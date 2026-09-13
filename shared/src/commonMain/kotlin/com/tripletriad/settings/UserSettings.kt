@@ -29,6 +29,8 @@ data class UserSettings(
      * has not found it yet.
      */
     @SerialName("capture_hints") val captureHints: Boolean = true,
+    /** How the collection draws a card never owned — see [UnownedCards]. A tag, as [matchSpeed]. */
+    @SerialName("unowned_cards") val unownedCards: String = UnownedCards.Default.tag,
 ) {
     val locale: AppLocale get() = AppLocale.forTag(language) ?: AppLocale.match(language)
 
@@ -37,6 +39,9 @@ data class UserSettings(
      */
     val speed: MatchSpeed get() = MatchSpeed.forTag(matchSpeed) ?: MatchSpeed.Default
 
+    /** The stored [unownedCards], or the default where the file names a mode this build lacks. */
+    val unowned: UnownedCards get() = UnownedCards.forTag(unownedCards) ?: UnownedCards.Default
+
     fun sane(): UserSettings = copy(
         backgroundVolume = backgroundVolume.coerceIn(0f, FULL_VOLUME),
         noiseVolume = noiseVolume.coerceIn(0f, FULL_VOLUME),
@@ -44,6 +49,7 @@ data class UserSettings(
         // unknown tag reads as the default every time it is asked for, and leaving it in the file
         // would mean the settings screen and the file disagree about what is selected.
         matchSpeed = speed.tag,
+        unownedCards = unowned.tag,
         // Only the floor is enforced. A count above the course length is what a *downgrade* looks
         // like — a file written by a build with more lessons in it — and clamping it here would
         // quietly reopen lessons the player has finished if they went back to that build.

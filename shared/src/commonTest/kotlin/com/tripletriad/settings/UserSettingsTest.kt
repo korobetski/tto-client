@@ -118,6 +118,34 @@ class UserSettingsTest {
     }
 
     @Test
+    fun aFileWithNoUnownedModeDrawsTheQuestionMark() = runTest {
+        // Every file written before the setting existed, so what every upgrading player gets.
+        val store = InMemorySettingsStore("""{"language":"en_US"}""")
+
+        assertEquals(
+            UnownedCards.UNKNOWN,
+            UserSettingsRepository(store).load(AppLocale.EN_US).unowned,
+        )
+    }
+
+    @Test
+    fun aChosenUnownedModeComesBackAndOneThisBuildLacksIsNormalised() = runTest {
+        val store = InMemorySettingsStore()
+        UserSettingsRepository(store).save(UserSettings(unownedCards = UnownedCards.HIDDEN.tag))
+
+        val written = store.read().orEmpty()
+        assertTrue(written.contains("\"unowned_cards\": \"hidden\""), "not written: $written")
+        assertEquals(
+            UnownedCards.HIDDEN,
+            UserSettingsRepository(store).load(AppLocale.EN_US).unowned,
+        )
+
+        val odd = UserSettings(unownedCards = "blurred")
+        assertEquals(UnownedCards.Default, odd.unowned)
+        assertEquals(UnownedCards.Default.tag, odd.sane().unownedCards, "the odd tag was kept")
+    }
+
+    @Test
     fun aFileWithNoMatchSpeedPlaysAtTheShippedPace() = runTest {
         // Every profile written before the setting existed is this file, so the fallback is not an
         // edge case: it is what every upgrading player gets.

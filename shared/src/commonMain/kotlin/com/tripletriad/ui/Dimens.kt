@@ -28,6 +28,13 @@ internal val ContentMaxWidth = 520.dp
 
 internal val WideContentMaxWidth = 920.dp
 
+/**
+ * The card list's column on a wide window: the filter panel, the grid and the card side by side.
+ * Wide enough for a 1920 browser window to be filled rather than framed; past it the grid stops
+ * gaining columns, since a row of thirty cards is not read as a row.
+ */
+internal val CollectionMaxWidth = 1680.dp
+
 internal const val DOT_SEPARATOR = "  ·  "
 
 /*

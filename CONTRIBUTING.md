@@ -82,7 +82,8 @@ what would change your mind.
 once from the AS3 original by scripts that are not in this repository and cannot be re-run. They are
 ordinary source files now: edit them in place, and say in the commit what changed and against which
 source. The provenance of each is in
-[project-setup.md § 7](docs/development/project-setup.md#7-where-the-data-files-came-from).
+[project-setup.md § 7](docs/development/project-setup.md#7-where-the-data-files-came-from), including
+the one exception: the FFXIV card faces now come from the game's own high-definition icons.
 
 ### 6. `tto-*.json` is the exception, and `app-<tag>.json` is how it is corrected
 

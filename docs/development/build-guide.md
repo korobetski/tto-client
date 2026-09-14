@@ -64,6 +64,10 @@ default would have analysed nothing and reported success.
 | `:shared:desktopTest` | `shared/build/reports/tests/desktopTest/index.html` | |
 | `ktlintCheck` / `detekt` | `*/build/reports/ktlint/`, `*/build/reports/detekt/` | |
 
+**Stale since 2026-09-14:** both sizes were measured before the FFXIV card faces were replaced by
+the game's 208x256 art, which took those 454 files from 9.2 MB to 26.1 MB of source. The APKs have
+not been rebuilt and measured since; expect roughly 17 MB more.
+
 About 7 MB of that APK is card artwork and 1.1 MB is audio, packaged as Compose resources and
 `res/raw` respectively — both already-compressed formats, so the APK carries them at roughly their
 source size. [README § Card artwork](../../README.md#card-artwork) records why the

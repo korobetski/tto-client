@@ -75,7 +75,7 @@ class DeleteAccountUiTest {
         val account = session(calls = calls)
         setContent { Fixture(account = account) }
 
-        onNodeWithTag(OPTIONS_DELETE_ACCOUNT_TEST_TAG).performClick()
+        onNodeWithTag(OPTIONS_DELETE_ACCOUNT_TEST_TAG).performScrollTo().performClick()
         waitForIdle()
 
         assertTrue(exists(OPTIONS_DELETE_PASSWORD_TEST_TAG), "no password was asked for")
@@ -87,10 +87,10 @@ class DeleteAccountUiTest {
     fun backingOutForgetsTheTypedPassword() = runComposeUiTest {
         setContent { Fixture(account = session()) }
 
-        onNodeWithTag(OPTIONS_DELETE_ACCOUNT_TEST_TAG).performClick()
+        onNodeWithTag(OPTIONS_DELETE_ACCOUNT_TEST_TAG).performScrollTo().performClick()
         onNodeWithTag(OPTIONS_DELETE_PASSWORD_TEST_TAG).performTextInput(PASSWORD)
-        onNodeWithTag(OPTIONS_DELETE_ACCOUNT_TEST_TAG).performClick()
-        onNodeWithTag(OPTIONS_DELETE_ACCOUNT_TEST_TAG).performClick()
+        onNodeWithTag(OPTIONS_DELETE_ACCOUNT_TEST_TAG).performScrollTo().performClick()
+        onNodeWithTag(OPTIONS_DELETE_ACCOUNT_TEST_TAG).performScrollTo().performClick()
         waitForIdle()
 
         // Nothing typed means nothing to confirm with, which is the observable form of "cleared".
@@ -151,7 +151,7 @@ class DeleteAccountUiTest {
     // ---- Harness -----------------------------------------------------------
 
     private fun ComposeUiTest.deleteWith(password: String) {
-        onNodeWithTag(OPTIONS_DELETE_ACCOUNT_TEST_TAG).performClick()
+        onNodeWithTag(OPTIONS_DELETE_ACCOUNT_TEST_TAG).performScrollTo().performClick()
         onNodeWithTag(OPTIONS_DELETE_PASSWORD_TEST_TAG).performTextInput(password)
         onNodeWithTag(OPTIONS_DELETE_CONFIRM_TEST_TAG).performScrollTo().performClick()
     }

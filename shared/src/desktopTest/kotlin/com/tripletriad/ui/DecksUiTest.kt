@@ -4,9 +4,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SkikoComposeUiTest
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -22,8 +24,11 @@ import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.v2.runComposeUiTest
+import androidx.compose.ui.test.v2.runSkikoComposeUiTest
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.height
+import androidx.compose.ui.unit.width
 import com.tripletriad.data.loadCardCatalog
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.StringKeys
@@ -32,7 +37,10 @@ import com.tripletriad.model.Card
 import com.tripletriad.model.Deck
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.HAND_SIZE
+import com.tripletriad.model.Side
+import com.tripletriad.model.power
 import kotlinx.coroutines.runBlocking
+import java.util.Locale
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -295,6 +303,10 @@ class DecksUiTest {
 
     private companion object {
         const val SECOND_DECK = "Second"
+
+        /** Past the editor's panes line with the rail up — see `DeckEditorPanesMinWidth`. */
+        const val WIDE_WINDOW_WIDTH = 1600f
+        const val WIDE_WINDOW_HEIGHT = 1000f
 
         /** Enough of a drag to cross the row below, and not enough to cross the one after it. */
         const val DRAG_OVERSHOOT = 1.4f
@@ -959,6 +971,79 @@ class DecksUiTest {
             cards = save.cards + hand.associate { it.id to 1 },
             decks = listOf(Deck(name = "Elements", cards = hand.map { it.id })),
         )
+    }
+
+    // ---- Search, and a wide window ------------------------------------------
+
+    @Test
+    fun theSearchFieldNarrowsThePickGridToTheCardsItNames() = runComposeUiTest {
+        val documents = seeded(freshSave())
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openDecks()
+        onNodeWithTag(deckSlotTestTag(0)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
+
+        val catalog = runBlocking { loadCardCatalog() }
+        val owned = storedSave(documents).cards.keys.mapNotNull(catalog.byId::get)
+        // A name no other owned card contains, so exactly one tile answers to it.
+        val wanted = owned.first { card ->
+            owned.none { it != card && it.name.contains(card.name, ignoreCase = true) }
+        }
+        val others = owned - wanted
+        assertTrue(others.any { exists(deckPickTestTag(it.id)) }, "nothing to hide to begin with")
+
+        onNodeWithTag(CARD_SEARCH_TEST_TAG).performTextInput(wanted.name)
+        waitForIdle()
+
+        onNodeWithTag(deckPickTestTag(wanted.id)).assertExists()
+        for (card in others) {
+            assertFalse(exists(deckPickTestTag(card.id)), "${card.name} is still offered")
+        }
+    }
+
+    /** Density 1, so the window's pixels are dp. */
+    private fun wideWindow(block: suspend SkikoComposeUiTest.() -> Unit) = runSkikoComposeUiTest(
+        size = Size(WIDE_WINDOW_WIDTH, WIDE_WINDOW_HEIGHT),
+        density = Density(1f),
+        block = block,
+    )
+
+    @Test
+    fun aWideWindowOpensTheFiltersAndTheAnalysisBesideALargerHand() = wideWindow {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        newCharacter()
+        openDecks()
+        onNodeWithTag(deckSlotTestTag(0)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
+
+        onNodeWithTag(CARD_FILTER_PANEL_TEST_TAG).assertExists()
+        onNodeWithTag(DECK_ANALYSIS_TEST_TAG).assertExists()
+        assertFalse(exists(CARD_FILTERS_TEST_TAG), "the menus are drawn as well as the panel")
+        val width = onNodeWithTag(deckPositionTestTag(0)).getUnclippedBoundsInRoot().width
+        assertTrue(width > CardSpriteWidth, "a position is $width, no wider than a sprite at 1:1")
+    }
+
+    @Test
+    fun theAnalysisAveragesEachSideOverTheCardsPickedInTheLocalesNotation() = wideWindow {
+        val hand = elementalHand()
+        val documents = seeded(handProfile(hand))
+        setContent { TestApp(store = settingsFor(AppLocale.FR_FR), documents = documents) }
+        loadCharacter(documents)
+        openDecks()
+        onNodeWithTag(deckSlotTestTag(0)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
+
+        // One card out, so an average taken over five positions rather than four cards shows.
+        onNodeWithTag(deckPositionTestTag(0)).performClick()
+        waitForIdle()
+
+        val rest = hand.drop(1)
+        for (side in Side.entries) {
+            val average = rest.sumOf { it.power(side) }.toDouble() / rest.size
+            onNodeWithTag(deckSideAverageTestTag(side))
+                .assertTextEquals(String.format(Locale.FRANCE, "%.1f", average))
+        }
     }
 
     // ---- Reaching the ⋮ ------------------------------------------------------

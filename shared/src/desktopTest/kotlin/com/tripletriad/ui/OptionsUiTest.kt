@@ -16,8 +16,10 @@ import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.settings.InMemorySettingsStore
 import com.tripletriad.settings.MatchSpeed
+import com.tripletriad.settings.UiScale
 import com.tripletriad.settings.UnownedCards
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
@@ -152,6 +154,25 @@ class OptionsUiTest {
         assertTrue(isVisible("Instantanée"), "the crans are not in French")
     }
 
+    /** On by default, like the board's aid, and written when turned off. See `CardHoverInfo`. */
+    @Test
+    fun theCardTooltipsAreOnUntilTheyAreTurnedOff() = runComposeUiTest {
+        val store = InMemorySettingsStore("""{"language":"en_US"}""")
+        setContent { TestApp(store = store) }
+        openOptions()
+
+        onNodeWithTag(OPTIONS_CARD_TOOLTIPS_TEST_TAG).performScrollTo().assertIsOn()
+        onNodeWithTag(OPTIONS_CARD_TOOLTIPS_TEST_TAG).performClick()
+        waitForIdle()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { store.writes > 0 }
+
+        onNodeWithTag(OPTIONS_CARD_TOOLTIPS_TEST_TAG).assertIsOff()
+        assertTrue(
+            store.stored.orEmpty().contains("\"card_tooltips\": false"),
+            "the store still holds: ${store.stored.orEmpty()}",
+        )
+    }
+
     @Test
     fun theBoardsAidIsOnUntilItIsTurnedOff() = runComposeUiTest {
         val store = InMemorySettingsStore("""{"language":"en_US"}""")
@@ -204,6 +225,37 @@ class OptionsUiTest {
         )
     }
 
+    /**
+     * The sheet is measured and not only the chip: a `ModalBottomSheet` draws in its own popup, and
+     * a density provided under the app that stopped at the popup would write the file and change
+     * nothing on the one screen the player is looking at.
+     *
+     * In pixels, unclipped. A node's bounds in dp are divided by its own density, which is the one
+     * that grew, so they would read the same before and after; and the button is below the fold.
+     */
+    @Test
+    fun aChosenInterfaceSizeIsWrittenAndTheSheetGrowsWithIt() = runComposeUiTest {
+        val store = InMemorySettingsStore("""{"language":"en_US"}""")
+        setContent { TestApp(store = store) }
+        openOptions()
+        val larger = optionsScaleTestTag(UiScale.LARGER)
+        val before = onNodeWithTag(OPTIONS_CLOSE_TEST_TAG).fetchSemanticsNode().size.height
+
+        onNodeWithTag(optionsScaleTestTag(UiScale.AUTO)).performScrollTo().assertIsSelected()
+        onNodeWithTag(larger).performScrollTo().performClick()
+        waitForIdle()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { store.writes > 0 }
+
+        onNodeWithTag(larger).assertIsSelected()
+        assertTrue(
+            store.stored.orEmpty().contains("\"ui_scale\": \"150\""),
+            "the store still holds: ${store.stored.orEmpty()}",
+        )
+        val after = onNodeWithTag(OPTIONS_CLOSE_TEST_TAG).fetchSemanticsNode().size.height
+        val grown = after.toFloat() / before
+        assertEquals(LARGER_FACTOR, grown, SCALE_TOLERANCE, "not grown: $before, $after")
+    }
+
     private fun ComposeUiTest.openOptions() {
         awaitTitleChoice("new")
         onNodeWithTag(TITLE_OPTIONS_TEST_TAG).performClick()
@@ -215,3 +267,6 @@ class OptionsUiTest {
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { !exists(OPTIONS_SHEET_TEST_TAG) }
     }
 }
+
+/** [UiScale.LARGER], as the factor the sheet is drawn at. */
+private const val LARGER_FACTOR = 1.5f

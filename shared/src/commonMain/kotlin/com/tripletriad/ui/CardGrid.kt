@@ -69,6 +69,8 @@ internal fun CardGrid(
  *   one, because `×1` on two hundred cells is noise.
  * @param unknown draws the "?" instead of the card — see [UnknownCardTile]. The room's call rather
  *   than `copies < 1`, because the consignment desk's zero means *none spare*, not *never seen*.
+ * @param copiesLine what [copies] is, in the room's words, for the tooltip — see [CardHoverInfo].
+ *   Null leaves the count to the badge: the desk has no word for *spare* worth a line of its own.
  */
 @Composable
 internal fun CardCell(
@@ -78,6 +80,7 @@ internal fun CardCell(
     modifier: Modifier = Modifier,
     copiesTag: String? = null,
     unknown: Boolean = false,
+    copiesLine: String? = null,
     onClick: () -> Unit,
 ) {
     if (unknown) {
@@ -91,19 +94,21 @@ internal fun CardCell(
         return
     }
 
-    CardTile(
-        card = card,
-        selected = selected,
-        dim = copies < 1,
-        // A badge and not a second cell. The grid answers "what is there, and what do I have",
-        // and two identical thumbnails answer it worse — the second one reads as a different card
-        // until you look twice.
-        count = copies.takeIf { it > 1 },
-        countTag = copiesTag,
-        modifier = modifier
-            .size(FramedThumbSide)
-            // Tapping a cell opens the card beside the grid, and tapping it again closes it — so
-            // it is a toggle, and the selected state is what the detail pane is showing.
-            .ttoClickable(selected = selected, onClick = onClick),
-    )
+    CardHoverInfo(card = card, copies = copiesLine) {
+        CardTile(
+            card = card,
+            selected = selected,
+            dim = copies < 1,
+            // A badge and not a second cell. The grid answers "what is there, and what do I have",
+            // and two identical thumbnails answer it worse — the second one reads as a different
+            // card until you look twice.
+            count = copies.takeIf { it > 1 },
+            countTag = copiesTag,
+            modifier = modifier
+                .size(FramedThumbSide)
+                // Tapping a cell opens the card beside the grid, and tapping it again closes it —
+                // so it is a toggle, and the selected state is what the detail pane is showing.
+                .ttoClickable(selected = selected, onClick = onClick),
+        )
+    }
 }

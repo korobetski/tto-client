@@ -70,6 +70,7 @@ internal fun ColumnScope.DecksBody(
             profile = profile,
             slot = editing,
             cards = cards,
+            sets = catalog.sets,
             onPersist = onPersist,
             onDone = { onEdit(null) },
         )

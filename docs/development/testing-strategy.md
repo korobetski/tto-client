@@ -154,7 +154,8 @@ the test, the test is decoration.
 `CardFaceTest` had to prove a card is drawn with its own picture — a screenshot question. It
 does it by bitmap identity instead: `CardArt` caches one `ImageBitmap` per texture id, so "the
 right artwork" reduces to "the instance the cache hands out for this card". Cheap, exact, and
-it runs on the JVM.
+it runs on the JVM. The cache is bounded (`FACE_CACHE_SIZE`), so a test that reads more faces than
+that between two identity checks is comparing against a face that may have been dropped.
 
 That bug — `produceState` keeping a previous card's value because its state is remembered
 unkeyed — was live for a whole feature and the suite could not see it. It needs a *reused*

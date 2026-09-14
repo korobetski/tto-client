@@ -230,6 +230,7 @@ internal fun ColumnScope.CardListBody(
                     modifier = Modifier.testTag(cardCellTestTag(card.id)),
                     copiesTag = cardCopiesTestTag(card.id),
                     unknown = copies < 1 && unowned == UnownedCards.UNKNOWN,
+                    copiesLine = "${strings[StringKeys.OWNED]}$DOT_SEPARATOR$copies",
                     onClick = { selected = if (selected?.id == card.id) null else card },
                 )
             }

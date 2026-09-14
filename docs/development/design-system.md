@@ -304,7 +304,8 @@ Material's own track.
   game was the one place the artwork appeared *smaller* than everywhere else, and five evenly spaced
   slots said "compare these" about a screen that is for turning them over one at a time. It is a
   pile now: cards overlapped with a slight rotation and offset, which is what buys the resolution
-  back, and they are drawn 1:1 against art authored at exactly 104x128.
+  back, and they are drawn 1:1 against art authored at exactly 104x128. (Since 2026-09-14 an FFXIV
+  face is a 208x256 bitmap drawn into those 104x128 dp, so on a 1x screen it is halved, not 1:1.)
 - **The outcome panel** said `Rewards: 1`. A dropped item exists nowhere but that line until the
   player goes looking in the bag, so counting them was the one thing it should not do. Each is named
   now, with the shop's own `itemName`, so a Bronze Pack is called the same thing where it is won as
@@ -385,6 +386,79 @@ count the gap.
 
 The panel also moved to the **left**. It is context — who is being played, what the rules do, what
 has happened — and context belongs where reading starts.
+
+### The deck editor on a wide window (2026-09-14)
+
+At 1920x1080 the editor was the phone's column stretched: a five-card hand at `HAND_CARD_SCALE`
+lost in the middle, the filters behind menus, and a pick grid with no search. From 1000 dp of
+width (and `LocalWideLayout`) it is three panes. `CardFilterPanel` goes on the left, the same one
+the collection uses. The name, the hand, the search and the grid sit in the middle. The new
+`DeckAnalysisPanel` goes on the right, with the rule counters, Fill, Save and Reset under it.
+
+- **The hand scales with the room.** `wideHandScale` takes the smaller of what fits across the
+  middle pane and 30 % of the height. It is capped at 1.5 and never drops below the narrow scale.
+- **The analysis averages the edges; it does not total them.** "Deck power" already names the
+  stars on this screen, and a second number called power beside it would read as a contradiction.
+  The average is taken over the cards picked, not over five, so a half-built deck is not reported
+  as weak on every side.
+- **Everything stacks in the 300 dp column.** Side by side, "Réinitialiser" and "Sauvegarder" both
+  ellipsise. Fill beside the power line broke "4 / 5" across two lines in French. Both were seen on
+  a 1920 capture and fixed.
+- **Fill ignores the filters.** A filtered grid is a view; it does not narrow what Fill may deal.
+
+Checked against desktop captures at 1280x720, 1920x1080 and 2560x1440 (density 1), and at 411x890
+for the unchanged narrow layout. **Not verified:** the browser, a real Android tablet, iOS.
+
+### Interface size (2026-09-14)
+
+A maximised window on a 2560x1440 monitor at a system scale of 100 % is 2560 dp wide, and the
+board, the text and the controls were drawn there at a phone's sizes. The options sheet now has a
+Display group with **Interface size**: Auto, 100 %, 125 %, 150 % and 175 % (`UiScale`, stored as
+`ui_scale`). The unowned-cards choice moved into the same group.
+
+- **One density, not a factor per token.** `App` multiplies `LocalDensity` inside the
+  `BoxWithConstraints` that measures the window, so every dp and sp under it grows together: text,
+  cards, touch targets, and the popups (the options sheet, the menus), which inherit the density.
+  No screen had to change.
+- **Auto enlarges only a window that is large in both directions.** 125 % from 1800x900 dp, 150 %
+  from 2400x1200 dp (`factor`, in `InterfaceScale.kt`). Phones, tablets and laptop windows stay at
+  100 %. The thresholds are in dp, so a 4K screen the system already scales to 200 % is a 1920 dp
+  window and gets 125 %, not a second doubling.
+- **The wide layout is decided in the scaled dp.** A 1000 dp window at 175 % is 571 dp for the
+  screens, so it gets the bottom bar and not the rail.
+- **Tests read sizes in pixels.** A node's bounds in dp are divided by the density it was laid out
+  with — the enlarged one — so they come back unchanged whatever the size.
+
+Checked against desktop captures of the options sheet at 1920x1080 and 411x891, and of the
+collection at 2560x1400 in Auto and at 100 %. **Not verified:** the browser, Android, iOS, and a
+real monitor with a system scale other than 100 %.
+
+### Card tooltips (2026-09-14)
+
+A grid thumbnail draws the powers at a size nobody reads and the name not at all. With the mouse
+over one, `CardHoverInfo` now shows the name, the sides and rarity (`cardFacts`, the detail
+panel's own line) and, in the collection, `Owned · n`. The deck editor wears it too, without the
+count: its badge already counts what the draft has left. A switch in the options' Display group
+turns it off (`card_tooltips`, on by default).
+
+- **Material's `TooltipBox`, persistent.** It opens on a mouse `Enter` and closes on `Exit`; the
+  plain default fades after 1.5 s, which is shorter than reading a name and four digits.
+- **Phones keep their taps.** The box answers a *long* press on touch and lets a short one through
+  to the cell, so selecting a card is unchanged.
+- **Never on the "?".** `CardCell` returns the unknown tile before the tooltip is wrapped round
+  anything: the tile exists to keep the name and sides back.
+- **The panel's surface, not Material's inverted chip** (`surfaceContainerHighest`): a black label
+  over the warm grid read as a system hint rather than a piece of the card.
+
+The mockup's full-width switch was not built in this pass. The caps it would lift are real —
+`ContentMaxWidth` (520 dp) on most screens, `WideContentMaxWidth` (920 dp) where `wide` is asked,
+`CollectionMaxWidth` for the card list and the deck editor — but most of what they hold is a
+single column of rows and text, which a full-width window would stretch into lines too long to
+read; the screens that gain from width already ask for it.
+
+Verified by `CardHoverInfoUiTest` (hover opens and names, leaving closes, the "?" and the switch
+say nothing) and `OptionsUiTest.theCardTooltipsAreOnUntilTheyAreTurnedOff`. **Not verified:** the
+browser, a touch long press on a real phone, and a keyboard focus showing it.
 
 ### `TtoSlider` — the third control that was two controls
 

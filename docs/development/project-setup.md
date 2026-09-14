@@ -169,6 +169,15 @@ repository and cannot be re-run:
 | `androidApp/src/main/res/` (icon) | the source icon |
 | `androidApp/src/main/res/raw/` (sounds) | the original's sound bank |
 
+**One exception inside `art/`:** since 2026-09-14 the 454 FFXIV card faces (`art/cards/01xx.png`,
+`02xx.png`) are no longer the AS3 atlases' 104x128 frames but the game's own 208x256 files from an
+FFXIV client extract, `ui/icon/087000/~*.png` (the high-definition twin of each `087NNN.tex.png`).
+Each card was paired with its icon by image comparison — every card to a distinct icon, the closest
+runner-up always at least twice as far — and the doubtful pairs were checked by eye. 272 of the old
+faces were pixel-identical to the icon; the rest differ in tone or frame detail but show the same
+card. The FF8 faces (`08xx.png`), the thumbnails and every other file under `art/` are unchanged.
+The matching script is not in this repository either.
+
 They are ordinary source files now — edit them in place, and say in the commit what changed and
 against which source. Two of them carry rules of their own: `npcs.json` stores each opponent's
 measured `difficulty` and nothing else about its balance (`NpcRatingBundleTest` re-measures it), and

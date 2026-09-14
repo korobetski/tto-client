@@ -14,8 +14,10 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
@@ -149,6 +151,14 @@ class CollectionUiTest {
         assertFalse(
             existsUnmerged(thumbTestTag(card.textureId)),
             "the cell drew the card's picture",
+        )
+        assertTrue(
+            onAllNodes(
+                hasText(catalogueNumber(card)) and
+                    hasAnyAncestor(hasTestTag(cardCellTestTag(UNOWNED_CARD))),
+                useUnmergedTree = true,
+            ).fetchSemanticsNodes().isEmpty(),
+            "the \"?\" printed the card's number, which the game's tile does not",
         )
 
         onNodeWithTag(cardCellTestTag(UNOWNED_CARD)).performClick()

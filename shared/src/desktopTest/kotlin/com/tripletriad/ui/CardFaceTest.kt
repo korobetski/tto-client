@@ -9,6 +9,8 @@ import com.tripletriad.model.Card
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertSame
 
 @OptIn(ExperimentalTestApi::class)
@@ -47,5 +49,20 @@ class CardFaceTest {
 
         waitForIdle()
         assertSame(art.cachedFace(card), frames.first(), "the very first frame is already drawn")
+    }
+
+    @Test
+    fun theFaceCacheDropsTheLeastRecentlyReadFaceFirst(): Unit = runBlocking {
+        val art = loadCardArt()
+        val faces = cards.take(FACE_CACHE_SIZE + 1)
+        val (reread, oldest) = faces[0] to faces[1]
+        faces.take(FACE_CACHE_SIZE).forEach { art.face(it) }
+
+        art.face(reread)
+        art.face(faces.last())
+
+        assertNotNull(art.cachedFace(faces.last()), "the face just read")
+        assertNotNull(art.cachedFace(reread), "a face read again is recent again, however old")
+        assertNull(art.cachedFace(oldest), "one over the limit, and the stalest face is gone")
     }
 }

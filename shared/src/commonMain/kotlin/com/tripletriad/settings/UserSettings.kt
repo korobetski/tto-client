@@ -31,6 +31,10 @@ data class UserSettings(
     @SerialName("capture_hints") val captureHints: Boolean = true,
     /** How the collection draws a card never owned — see [UnownedCards]. A tag, as [matchSpeed]. */
     @SerialName("unowned_cards") val unownedCards: String = UnownedCards.Default.tag,
+    /** How much larger the interface is drawn — see [UiScale]. A tag, as [matchSpeed]. */
+    @SerialName("ui_scale") val uiScale: String = UiScale.Default.tag,
+    /** Whether a thumbnail names its card under the mouse — see `LocalCardTooltips`. */
+    @SerialName("card_tooltips") val cardTooltips: Boolean = true,
 ) {
     val locale: AppLocale get() = AppLocale.forTag(language) ?: AppLocale.match(language)
 
@@ -42,6 +46,9 @@ data class UserSettings(
     /** The stored [unownedCards], or the default where the file names a mode this build lacks. */
     val unowned: UnownedCards get() = UnownedCards.forTag(unownedCards) ?: UnownedCards.Default
 
+    /** The stored [uiScale], or the default where the file names a size this build lacks. */
+    val interfaceScale: UiScale get() = UiScale.forTag(uiScale) ?: UiScale.Default
+
     fun sane(): UserSettings = copy(
         backgroundVolume = backgroundVolume.coerceIn(0f, FULL_VOLUME),
         noiseVolume = noiseVolume.coerceIn(0f, FULL_VOLUME),
@@ -50,6 +57,7 @@ data class UserSettings(
         // would mean the settings screen and the file disagree about what is selected.
         matchSpeed = speed.tag,
         unownedCards = unowned.tag,
+        uiScale = interfaceScale.tag,
         // Only the floor is enforced. A count above the course length is what a *downgrade* looks
         // like — a file written by a build with more lessons in it — and clamping it here would
         // quietly reopen lessons the player has finished if they went back to that build.

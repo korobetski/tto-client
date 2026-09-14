@@ -28,6 +28,9 @@ class CardArt internal constructor(
     // Not synchronised. Two coroutines racing on the same card decode it twice and the
     // second write wins, which costs one redundant decode and is otherwise harmless; a
     // mutex here would be protecting nothing worth protecting.
+    //
+    // Bounded, and in recency order: `face` re-inserts on every read, so the first key of this
+    // insertion-ordered map is always the least recently used one — see [FACE_CACHE_SIZE].
     private val faces = mutableMapOf<String, ImageBitmap>()
 
     fun starsFor(rarity: Int): ImageBitmap? = stars[rarity]
@@ -45,7 +48,10 @@ class CardArt internal constructor(
         // Card faces live in their own directory now that they are named by id alone: 263 files
         // called `013e.png` beside `back.png` and `digits.png` would be a directory nobody can
         // read.
-        return faces.getOrPut(id) { loadImage("$CARDS_DIR/$id.png") }
+        val face = faces.remove(id) ?: loadImage("$CARDS_DIR/$id.png")
+        faces[id] = face
+        if (faces.size > FACE_CACHE_SIZE) faces.remove(faces.keys.first())
+        return face
     }
 }
 
@@ -121,6 +127,18 @@ suspend fun loadLogo(): ImageBitmap = loadImage("logo.png")
 internal const val ART_PATH = "files/art"
 
 internal const val CARDS_DIR = "cards"
+
+/**
+ * How many decoded faces [CardArt] keeps.
+ *
+ * The FFXIV faces are the game's 208x256 art, 213 KB each once decoded, and scrolling the deck
+ * editor's grid asks for every one of the 454: unbounded, that is ~97 MB of pictures held for the
+ * life of the app — a browser tab's or a small phone's whole budget. 96 is ~20 MB.
+ *
+ * Dropping a face that is still on screen costs nothing visible: `rememberCardFace` holds its own
+ * reference, so the bitmap only has to be decoded again once it has scrolled away and back.
+ */
+internal const val FACE_CACHE_SIZE = 96
 private const val PLATE_TEXTURE = "cdbg"
 
 private const val DIGIT_PX = 18

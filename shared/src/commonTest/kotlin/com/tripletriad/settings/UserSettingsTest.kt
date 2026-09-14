@@ -146,6 +146,33 @@ class UserSettingsTest {
     }
 
     @Test
+    fun aFileWithNoInterfaceSizeLetsTheWindowChoose() = runTest {
+        val store = InMemorySettingsStore("""{"language":"en_US"}""")
+
+        assertEquals(
+            UiScale.AUTO,
+            UserSettingsRepository(store).load(AppLocale.EN_US).interfaceScale,
+        )
+    }
+
+    @Test
+    fun aChosenInterfaceSizeComesBackAndOneThisBuildLacksIsNormalised() = runTest {
+        val store = InMemorySettingsStore()
+        UserSettingsRepository(store).save(UserSettings(uiScale = UiScale.LARGER.tag))
+
+        val written = store.read().orEmpty()
+        assertTrue(written.contains("\"ui_scale\": \"150\""), "not written: $written")
+        assertEquals(
+            UiScale.LARGER,
+            UserSettingsRepository(store).load(AppLocale.EN_US).interfaceScale,
+        )
+
+        val odd = UserSettings(uiScale = "200")
+        assertEquals(UiScale.Default, odd.interfaceScale)
+        assertEquals(UiScale.Default.tag, odd.sane().uiScale, "the odd tag was kept")
+    }
+
+    @Test
     fun aFileWithNoMatchSpeedPlaysAtTheShippedPace() = runTest {
         // Every profile written before the setting existed is this file, so the fallback is not an
         // edge case: it is what every upgrading player gets.

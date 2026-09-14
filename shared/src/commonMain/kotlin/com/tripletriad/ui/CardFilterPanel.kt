@@ -325,7 +325,7 @@ private fun StepButton(
     }
 }
 
-private val Side.labelKey: String
+internal val Side.labelKey: String
     get() = when (this) {
         Side.TOP -> StringKeys.SIDE_TOP
         Side.RIGHT -> StringKeys.SIDE_RIGHT

@@ -19,6 +19,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.backhandler.BackHandler
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import com.tripletriad.audio.AudioPlayer
 import com.tripletriad.audio.LocalAudio
@@ -49,6 +51,7 @@ import com.tripletriad.protocol.Unlocks
 import com.tripletriad.settings.InMemorySettingsStore
 import com.tripletriad.settings.MatchSpeed
 import com.tripletriad.settings.SettingsStore
+import com.tripletriad.settings.UiScale
 import com.tripletriad.settings.UnownedCards
 import com.tripletriad.settings.UserSettings
 import com.tripletriad.settings.UserSettingsRepository
@@ -284,6 +287,7 @@ fun App(
                 LocalCaptureHints provides (settingsValue?.captureHints ?: false),
                 // The collection's, on the same terms: the sheet and the grid are as far apart.
                 LocalUnownedCards provides (settingsValue?.unowned ?: UnownedCards.Default),
+                LocalCardTooltips provides (settingsValue?.cardTooltips ?: true),
                 LocalMatchMix provides mix,
                 // Here rather than deeper, because the lobby and the auction house are three
                 // layers apart and the door they describe is the same one. Null server means
@@ -323,67 +327,77 @@ fun App(
                         .windowInsetsPadding(WindowInsets.displayCutout)
                         .padding(4.dp),
                 ) {
-                    val isWide = maxWidth >= WideLayoutThreshold
+                    // The player's interface size, as a density rather than a factor on each token:
+                    // every dp and sp below grows with it, popups included, and no screen has to
+                    // know. Measured in the window's own dp first — see [factor].
+                    val base = LocalDensity.current
+                    val factor = (settingsValue?.interfaceScale ?: UiScale.Default)
+                        .factor(maxWidth, maxHeight)
+                    val scaled = Density(base.density * factor, base.fontScale)
+                    // In the dp the screens will see: a 1000 dp window at 175 % is a phone's width.
+                    val isWide = maxWidth / factor >= WideLayoutThreshold
 
-                    // A shared axis rather than a crossfade: going into a screen and coming back
-                    // out of it used to look identical, so the animation carried no information.
-                    // See [ScreenTransition], which also honours reduced motion.
-                    ScreenTransition(screen) { destination ->
-                        CompositionLocalProvider(LocalWideLayout provides isWide) {
-                            Destination(
-                                destination = destination,
-                                journal = journal,
-                                auctions = auctions,
+                    CompositionLocalProvider(LocalDensity provides scaled) {
+                        // A shared axis rather than a crossfade: going into a screen and coming
+                        // back out of it used to look identical, so the animation carried no
+                        // information. See [ScreenTransition], which also honours reduced motion.
+                        ScreenTransition(screen) { destination ->
+                            CompositionLocalProvider(LocalWideLayout provides isWide) {
+                                Destination(
+                                    destination = destination,
+                                    journal = journal,
+                                    auctions = auctions,
+                                    pvp = pvp,
+                                    pve = pve,
+                                    startup = startup,
+                                    settings = settings,
+                                    session = session,
+                                    account = account,
+                                    connectivity = connectivity,
+                                    gate = gate,
+                                    choice = choice,
+                                    clock = clock,
+                                    reporter = reporter,
+                                    onNavigate = { screen = it },
+                                    onOptions = { optionsOpen = true },
+                                    onQuit = onQuit,
+                                )
+                            }
+                        }
+
+                        // Over the board rather than inside it, and outside the transition for the
+                        // reason the sheet is: it belongs to the app, not to the screen it is
+                        // covering, and it has to survive the navigation it offers.
+                        if (shouldOfferWaitingMatch(pvp, screen)) {
+                            PvpWaitingStrip(
                                 pvp = pvp,
-                                pve = pve,
-                                startup = startup,
-                                settings = settings,
-                                session = session,
-                                account = account,
-                                connectivity = connectivity,
-                                gate = gate,
-                                choice = choice,
                                 clock = clock,
-                                reporter = reporter,
-                                onNavigate = { screen = it },
-                                onOptions = { optionsOpen = true },
-                                onQuit = onQuit,
+                                strings = strings,
+                                onJoin = { screen = Screen.PVP_MATCH },
                             )
                         }
-                    }
 
-                    // Over the board rather than inside it, and outside the transition for the
-                    // reason the sheet is: it belongs to the app, not to the screen it is
-                    // covering, and it has to survive the navigation it offers.
-                    if (shouldOfferWaitingMatch(pvp, screen)) {
-                        PvpWaitingStrip(
-                            pvp = pvp,
-                            clock = clock,
-                            strings = strings,
-                            onJoin = { screen = Screen.PVP_MATCH },
-                        )
-                    }
-
-                    // Outside the transition, so the sheet is not slid off the edge with the
-                    // screen underneath it when the player navigates from inside it.
-                    if (optionsOpen) {
-                        settings?.let { holder ->
-                            OptionsSheet(
-                                settings = holder,
-                                // Null in local-profile mode, which hides the account group.
-                                account = account,
-                                onDeleted = {
-                                    optionsOpen = false
-                                    // Every screen behind this one is about a character that
-                                    // no longer exists.
-                                    screen = if (account != null) {
-                                        Screen.ACCOUNT
-                                    } else {
-                                        Screen.PROFILES
-                                    }
-                                },
-                                onDismiss = { optionsOpen = false },
-                            )
+                        // Outside the transition, so the sheet is not slid off the edge with the
+                        // screen underneath it when the player navigates from inside it.
+                        if (optionsOpen) {
+                            settings?.let { holder ->
+                                OptionsSheet(
+                                    settings = holder,
+                                    // Null in local-profile mode, which hides the account group.
+                                    account = account,
+                                    onDeleted = {
+                                        optionsOpen = false
+                                        // Every screen behind this one is about a character that
+                                        // no longer exists.
+                                        screen = if (account != null) {
+                                            Screen.ACCOUNT
+                                        } else {
+                                            Screen.PROFILES
+                                        }
+                                    },
+                                    onDismiss = { optionsOpen = false },
+                                )
+                            }
                         }
                     }
                 }

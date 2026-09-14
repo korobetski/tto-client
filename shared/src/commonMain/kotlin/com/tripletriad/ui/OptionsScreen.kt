@@ -3,6 +3,8 @@ package com.tripletriad.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -31,6 +33,7 @@ import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.settings.MatchSpeed
+import com.tripletriad.settings.UiScale
 import com.tripletriad.settings.UnownedCards
 import com.tripletriad.settings.UserSettings
 import kotlinx.coroutines.launch
@@ -54,6 +57,10 @@ fun optionsSpeedTestTag(speed: MatchSpeed): String = "options-speed-${speed.tag}
 const val OPTIONS_CAPTURE_HINTS_TEST_TAG: String = "options-capture-hints"
 
 fun optionsUnownedTestTag(mode: UnownedCards): String = "options-unowned-${mode.tag}"
+
+fun optionsScaleTestTag(scale: UiScale): String = "options-scale-${scale.tag}"
+
+const val OPTIONS_CARD_TOOLTIPS_TEST_TAG: String = "options-card-tooltips"
 
 /**
  * The settings, as a sheet over whatever asked for them.
@@ -146,13 +153,6 @@ internal fun OptionsBody(
                 checked = current.captureHints,
                 tag = OPTIONS_CAPTURE_HINTS_TEST_TAG,
             ) { on -> settings.update { it.copy(captureHints = on) } }
-
-            // Chips, as the speed is: three named answers to one question. No note, unlike the aid:
-            // at double text size the audio group must stay in view, see `TextScalingTest`.
-            Label(strings[StringKeys.UNOWNED_CARDS])
-            UnownedChoice(current) { mode ->
-                settings.update { it.copy(unownedCards = mode.tag) }
-            }
         }
 
         SettingsGroup(strings[StringKeys.AUDIO_SETTINGS]) {
@@ -171,6 +171,34 @@ internal fun OptionsBody(
                 value = current.noiseVolume,
                 tag = OPTIONS_NOISE_VOLUME_TEST_TAG,
             ) { volume -> settings.update { it.copy(noiseVolume = volume) } }
+        }
+
+        // After the audio and not before it: at double text size the language and both volumes
+        // must still be on screen when the sheet opens, see `TextScalingTest`.
+        SettingsGroup(strings[StringKeys.DISPLAY_SETTINGS]) {
+            Label(strings[StringKeys.UI_SCALE])
+            Text(
+                text = strings[StringKeys.UI_SCALE_NOTE],
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+                style = MaterialTheme.typography.labelSmall,
+            )
+            ScaleChoice(current) { scale ->
+                settings.update { it.copy(uiScale = scale.tag) }
+            }
+
+            // Chips, as the speed is: three named answers to one question. No note, unlike the
+            // size: the row names what it changes, and the sheet is already long.
+            Label(strings[StringKeys.UNOWNED_CARDS])
+            UnownedChoice(current) { mode ->
+                settings.update { it.copy(unownedCards = mode.tag) }
+            }
+
+            ToggleRow(
+                label = strings[StringKeys.CARD_TOOLTIPS],
+                hint = strings[StringKeys.CARD_TOOLTIPS_NOTE],
+                checked = current.cardTooltips,
+                tag = OPTIONS_CARD_TOOLTIPS_TEST_TAG,
+            ) { on -> settings.update { it.copy(cardTooltips = on) } }
         }
 
         // Signed in only, and last. A destructive control at the top of a list is a control the
@@ -333,6 +361,31 @@ private fun UnownedChoice(settings: UserSettings, onPick: (UnownedCards) -> Unit
                 tag = optionsUnownedTestTag(mode),
                 selected = mode == selected,
                 onClick = { onPick(mode) },
+            )
+        }
+    }
+}
+
+/**
+ * Chips, as the speeds are: each size is one the player can name and come back to, which a
+ * slider's position is not. Wrapped, because five chips do not fit across a phone at 100 %, let
+ * alone at 175 %.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ScaleChoice(settings: UserSettings, onPick: (UiScale) -> Unit) {
+    val strings = LocalStrings.current
+    val selected = settings.interfaceScale
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(SpaceSm),
+        verticalArrangement = Arrangement.spacedBy(SpaceSm),
+    ) {
+        for (scale in UiScale.entries) {
+            TtoFilterChip(
+                label = scale.percent?.let { "$it%" } ?: strings[StringKeys.UI_SCALE_AUTO],
+                tag = optionsScaleTestTag(scale),
+                selected = scale == selected,
+                onClick = { onPick(scale) },
             )
         }
     }

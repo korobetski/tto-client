@@ -962,6 +962,17 @@ object StringKeys {
     const val UNOWNED_DIMMED: String = "APP_UNOWNED_DIMMED"
     const val UNOWNED_HIDDEN: String = "APP_UNOWNED_HIDDEN"
 
+    // ---- The options sheet's display group, and its interface size. See `UiScale`; the four
+    // sizes are percentages and print as numbers, so Auto is the only chip with a label.
+    const val DISPLAY_SETTINGS: String = "APP_DISPLAY_SETTINGS"
+    const val UI_SCALE: String = "APP_UI_SCALE"
+    const val UI_SCALE_NOTE: String = "APP_UI_SCALE_NOTE"
+    const val UI_SCALE_AUTO: String = "APP_UI_SCALE_AUTO"
+
+    /** A thumbnail's name and sides under the mouse. See `CardHoverInfo`. */
+    const val CARD_TOOLTIPS: String = "APP_CARD_TOOLTIPS"
+    const val CARD_TOOLTIPS_NOTE: String = "APP_CARD_TOOLTIPS_NOTE"
+
     // ---- Reaching one card out of 565.
     const val SEARCH_CARDS: String = "APP_SEARCH_CARDS"
 
@@ -1051,6 +1062,12 @@ object StringKeys {
 
     /** What the ⋮ opens: the three things a row does that are not "open it". */
     const val DECK_ACTIONS: String = "APP_DECK_ACTIONS"
+
+    /** The wide deck editor's right-hand column — see `DeckAnalysisPanel`. */
+    const val DECK_ANALYSIS: String = "APP_DECK_ANALYSIS"
+
+    /** Over the four edges' averages in that column. */
+    const val DECK_SIDE_AVERAGES: String = "APP_DECK_SIDE_AVERAGES"
 
     /**
      * Where a card comes from — the four tables that were shipped and unreadable. See
@@ -1224,6 +1241,7 @@ object StringKeys {
         MATCH_SPEED, SPEED_NORMAL, SPEED_FAST, SPEED_FASTER, SPEED_INSTANT,
         CAPTURE_HINTS, CAPTURE_HINTS_NOTE, CAPTURE_HINT_CELL,
         UNOWNED_CARDS, UNOWNED_UNKNOWN, UNOWNED_DIMMED, UNOWNED_HIDDEN,
+        DISPLAY_SETTINGS, UI_SCALE, UI_SCALE_NOTE, UI_SCALE_AUTO, CARD_TOOLTIPS, CARD_TOOLTIPS_NOTE,
         SEARCH_CARDS, SORT_NUMBER, MISSING, NO_CARD_MATCH, CARD_SET,
         FILTERS, FILTERS_RESET, SORT, SORT_REVERSE,
         FILTER_SOURCES, SOURCE_OPPONENTS, FILTER_SIDES,
@@ -1236,7 +1254,8 @@ object StringKeys {
         ACHIEVEMENT_TIERS, ACHIEVEMENT_EARNED_ON, ACHIEVEMENT_NO_MATCH,
         DECK_COPY, DECK_FILL,
         DECK_PLAYABLE, DECK_INCOMPLETE, DECK_OUT_OF_LIMITS,
-        DECK_NEW, DECK_FREE_SLOTS, DECK_NONE, DECK_REORDER, DECK_ACTIONS,
+        DECK_NEW, DECK_FREE_SLOTS, DECK_NONE, DECK_REORDER, DECK_ACTIONS, DECK_ANALYSIS,
+        DECK_SIDE_AVERAGES,
         LEAVE_MATCH, LEAVE_MATCH_PVE, LEAVE_MATCH_CONFIRM,
         HISTORY, NO_HISTORY, HISTORY_FORM, HISTORY_KEPT,
         CARD_SOURCES, CARD_SOURCES_MORE, NO_CARD_SOURCE,

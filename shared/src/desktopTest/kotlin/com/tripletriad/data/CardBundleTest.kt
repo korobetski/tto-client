@@ -82,6 +82,24 @@ class CardBundleTest {
         )
     }
 
+    /**
+     * The FFXIV faces are the game's own `ui/icon/087000` high-definition files, paired with each
+     * card by image comparison on 2026-09-14. FF8 has no such source and keeps its 104x128 faces,
+     * which is why the set is excluded rather than asserted on.
+     */
+    @Test
+    fun everyFf14FaceIsTheGamesHighDefinitionArt() = runBlocking {
+        val art = loadCardArt()
+        val wrong = catalog.all
+            .filter { it.block != FF8_BLOCK }
+            .filter { card -> art.face(card).let { it.width to it.height } != HIGH_DEFINITION }
+        assertTrue(
+            wrong.isEmpty(),
+            "${wrong.size} FF14 faces are not 208x256: " +
+                wrong.take(MISSING_TO_REPORT).joinToString { "${it.textureId} (${it.name})" },
+        )
+    }
+
     @Test
     fun everySharedTextureLoads() = runBlocking {
         val art = loadCardArt()
@@ -156,5 +174,7 @@ class CardBundleTest {
         const val MISSING_TO_REPORT = 10
 
         val PRINTED_POWERS = 1..10
+
+        val HIGH_DEFINITION = 208 to 256
     }
 }

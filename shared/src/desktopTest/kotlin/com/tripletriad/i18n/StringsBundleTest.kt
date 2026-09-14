@@ -437,14 +437,27 @@ class StringsBundleTest {
         // +1 to every bundle since: `APP_MATCH_YOUR_HAND`, the arena's label over the player's own
         // hand — see `SeatHeader`. Authored in all four `app-*` bundles at once. Measured on
         // 2026-09-13 as above.
+        //
+        // +2 to every bundle since: `APP_DECK_ANALYSIS` and `APP_DECK_SIDE_AVERAGES`, the wide deck
+        // editor's right-hand column — see `DeckAnalysisPanel`. Authored in all four `app-*`
+        // bundles at once. Measured on 2026-09-14 as above.
+        //
+        // +4 to every bundle since: the options sheet's display group — see `UiScale`.
+        // `APP_DISPLAY_SETTINGS` heads it, `APP_UI_SCALE` and `APP_UI_SCALE_NOTE` are the row and
+        // what Auto does, and `APP_UI_SCALE_AUTO` is the one chip that is not a percentage.
+        // Authored in all four `app-*` bundles at once. Measured on 2026-09-14 as above.
+        //
+        // +2 to every bundle since: `APP_CARD_TOOLTIPS` and its note, the same group's switch for
+        // a thumbnail's name under the mouse — see `CardHoverInfo`. Authored in all four `app-*`
+        // bundles at once. Measured on 2026-09-14 as above.
 
-        const val UNION_KEYS = 1940
+        const val UNION_KEYS = 1948
 
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 1936,
-            AppLocale.FR_FR to 1937,
-            AppLocale.DE_DE to 1865,
-            AppLocale.JA_JA to 1897,
+            AppLocale.EN_US to 1944,
+            AppLocale.FR_FR to 1945,
+            AppLocale.DE_DE to 1873,
+            AppLocale.JA_JA to 1905,
         )
 
         val EXPECTED_GAPS = mapOf(

@@ -92,6 +92,24 @@ internal fun CardBack(color: CardColor, scale: Float = 1f, modifier: Modifier = 
     }
 }
 
+/**
+ * A card with no face yet: the side's colour inside the empty frame. What the coin toss deals — its
+ * three cards say *which side*, and [CardBack] hides exactly that under an opaque back.
+ */
+@Composable
+internal fun CardFrame(color: CardColor, scale: Float = 1f, modifier: Modifier = Modifier) {
+    val art = LocalCardArt.current
+    Box(modifier = modifier.size(CardSpriteWidth * scale, CardSpriteHeight * scale)) {
+        Box(
+            modifier = Modifier
+                .offset(x = CardFaceOffsetX * scale, y = CardFaceOffsetY * scale)
+                .size(CardWidth * scale, CardHeight * scale)
+                .background(color.background),
+        )
+        Layer(art?.frame, 0.dp, 0.dp, CardSpriteWidth, CardSpriteHeight, scale)
+    }
+}
+
 @Composable
 private fun CardDigits(
     card: Card,

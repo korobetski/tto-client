@@ -37,7 +37,7 @@ const val CARD_SORT_TEST_TAG: String = "card-sort"
 internal fun cardSortTestTag(sort: CardSort): String = "card-sort-${sort.slug}"
 
 /**
- * The orders 565 cards can be read in.
+ * The orders 586 cards can be read in.
  *
  * Three, and each answers a different question a player actually has. [NUMBER] is the catalogue's
  * own order and therefore the one the gaps are visible in — a collection read for what is *missing*
@@ -323,6 +323,8 @@ internal fun CardSearchRow(
     count: String? = null,
     modifier: Modifier = Modifier,
 ) {
+    val strings = LocalStrings.current
+
     Row(
         modifier = modifier.fillMaxWidth().padding(bottom = SpaceXs),
         verticalAlignment = Alignment.CenterVertically,
@@ -333,6 +335,8 @@ internal fun CardSearchRow(
             onValueChange = { filters.query = it },
             tag = CARD_SEARCH_TEST_TAG,
             clearTag = CARD_SEARCH_CLEAR_TEST_TAG,
+            // The count already says what is searched, and leaves a phone too little for more.
+            placeholder = strings[StringKeys.SEARCH],
             modifier = Modifier.weight(1f),
         )
 

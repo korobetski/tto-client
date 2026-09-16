@@ -40,7 +40,7 @@ fun cardSourceTestTag(slug: String): String = "card-source-$slug"
  * Every fact in here was already shipped and none of it was reachable. `npcs.json` says who drops
  * what and at what rate, `BoosterType` carries a weighted pool, `ShopCatalog` a price and
  * `AchievementCatalog` a reward — four tables, all loaded at startup, none of them readable from
- * the one screen where a player is looking at a card they do not own. A collection of 565 tiles
+ * the one screen where a player is looking at a card they do not own. A collection of 586 tiles
  * with gaps in it is a list of things to want; the same collection with this is a list of things
  * to *do*.
  *
@@ -146,7 +146,7 @@ internal val CardSource.kind: SourceKind
  * Which kinds of table offer each card, for every card at once. A card nothing offers has no entry.
  *
  * The tables [cardSources] reads, read from the other end: that function walks the roster, every
- * pack and both catalogues for one card, and a filter asking it of 565 cards would do so 565 times
+ * pack and both catalogues for one card, and a filter asking it of 586 cards would do so 586 times
  * per pass. This walks each table once, when the filters are built. The two must agree, and
  * `CardSourceIndexTest` holds them to it card by card over the shipped tables.
  */
@@ -177,7 +177,7 @@ internal fun sourceKindsByCard(opponents: NpcCatalog?): Map<Int, Set<SourceKind>
 /**
  * The sources under a card, or the sentence that says there are none.
  *
- * **The empty case is not nothing to say.** Most of the 565 cards are drops from opponents this
+ * **The empty case is not nothing to say.** Most of the 586 cards are drops from opponents this
  * port has not finished authoring, and a card with no source is a fact worth stating plainly —
  * a blank space there reads as a panel that failed to load.
  */

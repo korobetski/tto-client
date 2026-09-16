@@ -3,10 +3,12 @@ package com.tripletriad.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -19,6 +21,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.tripletriad.data.CardCatalog
 import com.tripletriad.data.Format
+import com.tripletriad.data.Inventory
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.Strings
@@ -47,6 +50,12 @@ const val INVENTORY_SHOP_TEST_TAG: String = "inventory-shop"
  * row asked for it.
  */
 const val INVENTORY_NOTE_TEST_TAG: String = "inventory-note"
+
+/** Adds one copy of every card the collection lacks. Absent below two such cards. */
+const val INVENTORY_ADD_NEW_TEST_TAG: String = "inventory-add-new"
+
+/** Sells every copy of every card the collection holds, on a second tap. Absent below two. */
+const val INVENTORY_SELL_DUPLICATES_TEST_TAG: String = "inventory-sell-duplicates"
 
 /** The header above each group of the bag. */
 fun inventoryGroupTestTag(group: String): String = "inventory-group-$group"
@@ -98,14 +107,15 @@ internal fun ColumnScope.InventoryBody(
      * moving onto the rows is where it is *seen* — the row that asked wears it (`acting`), and
      * every other row's controls go quiet (`locked`).
      *
-     * Held as an [itemKey] rather than the item, so the row keeps its lock while its stack shrinks.
+     * Held as an [itemKey] rather than the item, so the row keeps its lock while its stack shrinks
+     * — or as [BULK_KEY], for the two actions over the whole Cards group that no one row owns.
      */
-    var busyKey by remember(format) { mutableStateOf<Item?>(null) }
+    var busyKey by remember(format) { mutableStateOf<Any?>(null) }
 
     // The answer to that operation, and the item it belongs to. Paired rather than a bare string
     // because it is drawn on a row now: a line left over a different row reads as being about
     // that row.
-    var note by remember(format) { mutableStateOf<Pair<Item, String>?>(null) }
+    var note by remember(format) { mutableStateOf<Pair<Any, String>?>(null) }
 
     // The cards a pack just dealt, while the player is turning them over. Held here rather than
     // navigated to because the reveal is a *moment inside using an item*, not a destination: the
@@ -132,8 +142,7 @@ internal fun ColumnScope.InventoryBody(
 
     // One operation at a time, and the note is cleared as it starts: a line left standing while
     // the next request is out is an answer to the previous tap being read as an answer to this one.
-    val start: (Item, suspend () -> String?) -> Unit = { item, work ->
-        val key = itemKey(item)
+    val run: (Any, suspend () -> String?) -> Unit = { key, work ->
         note = null
         busyKey = key
         scope.launch {
@@ -144,6 +153,7 @@ internal fun ColumnScope.InventoryBody(
             }
         }
     }
+    val start: (Item, suspend () -> String?) -> Unit = { item, work -> run(itemKey(item), work) }
 
     val use: (Item) -> Unit = { item ->
         // Suspending, and it has to be: on an account the answer is a round trip, and there is
@@ -183,6 +193,37 @@ internal fun ColumnScope.InventoryBody(
                 )
             }
 
+            if (group == BagGroup.CARDS) {
+                item(key = "cards-bulk") {
+                    CardsBulkBar(
+                        held = held,
+                        cards = cards,
+                        owned = owned,
+                        locked = busyKey != null,
+                        onAddNew = { fresh ->
+                            run(BULK_KEY) {
+                                // One at a time and stopping at the first failure: the rows already
+                                // added stay added, and the note says the rest did not happen.
+                                fresh.firstNotNullOfOrNull { item ->
+                                    when (onUse(item)) {
+                                        null -> strings[StringKeys.ACTION_FAILED]
+                                        is ItemEffect.NotUseable -> strings[StringKeys.ITEM_REFUSED]
+                                        else -> null
+                                    }
+                                }
+                            }
+                        },
+                        onSellSpare = { spare ->
+                            run(BULK_KEY) {
+                                spare.firstNotNullOfOrNull { item ->
+                                    sellNote(strings, onIntent(Intent.SellAllItems(item)))
+                                }
+                            }
+                        },
+                    )
+                }
+            }
+
             items(held, key = { itemSlug(it) }) { item ->
                 BagItemRow(
                     item = item,
@@ -202,6 +243,74 @@ internal fun ColumnScope.InventoryBody(
                     ),
                 )
             }
+        }
+    }
+}
+
+/** What [busyKey][InventoryBody] holds while an action over the whole Cards group is out. */
+private const val BULK_KEY = "cards-bulk"
+
+/**
+ * Add every new card, and sell every duplicate, from the head of the Cards group.
+ *
+ * A pack opened ten times leaves ten rows, and sorting them was ten taps on ten rows. Each button
+ * is drawn only when it would act on two or more — at one it is the row's own button a second
+ * time. Selling asks twice, as the row's Sell all does, naming the copies and the payout.
+ *
+ * Adding takes **one** copy per card: the second copy of a card nobody owned is a duplicate the
+ * moment the first lands, and is left for the other button.
+ */
+@Composable
+private fun CardsBulkBar(
+    held: List<Item>,
+    cards: Map<Int, Card>,
+    owned: Map<Int, Int>,
+    locked: Boolean,
+    onAddNew: (List<Item>) -> Unit,
+    onSellSpare: (List<Item>) -> Unit,
+) {
+    val strings = LocalStrings.current
+    val fresh = held.filterIsInstance<CardItem>()
+        .filterNot { isDuplicate(it, owned) }
+        .distinctBy { it.cardId }
+    val spare = held.filter { isDuplicate(it, owned) }
+    val copies = spare.sumOf { it.stack }
+    val payout = spare.sumOf { Inventory.priceOf(it, cards) * it.stack }
+    var armed by remember(copies, payout) { mutableStateOf(false) }
+
+    if (fresh.size < 2 && copies < 2) return
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(SpaceSm, Alignment.End),
+    ) {
+        if (fresh.size >= 2) {
+            RowButton(
+                label = strings.format(StringKeys.ADD_NEW_CARDS, "${fresh.size}"),
+                tag = INVENTORY_ADD_NEW_TEST_TAG,
+                enabled = !locked,
+                color = MaterialTheme.colorScheme.primary,
+                onClick = { onAddNew(fresh) },
+            )
+        }
+        if (copies >= 2) {
+            RowButton(
+                label = if (armed) {
+                    strings.format(StringKeys.SELL_ALL_CONFIRM, "$copies", "$payout")
+                } else {
+                    "${strings.format(StringKeys.SELL_DUPLICATES, "$copies")}$DOT_SEPARATOR$payout"
+                },
+                tag = INVENTORY_SELL_DUPLICATES_TEST_TAG,
+                enabled = !locked && payout > 0,
+                onClick = {
+                    if (armed) {
+                        armed = false
+                        onSellSpare(spare)
+                    } else {
+                        armed = true
+                    }
+                },
+            )
         }
     }
 }

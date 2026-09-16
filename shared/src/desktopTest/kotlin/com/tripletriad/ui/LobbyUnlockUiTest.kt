@@ -44,7 +44,7 @@ class LobbyUnlockUiTest {
         // used to carry said the same thing one tap earlier; the tab is the tap.
         openAuction()
 
-        assertTrue(isVisible("Auction house"), "the tab did not name what it is")
+        assertTrue(isVisible("Auctions"), "the tab did not name what it is")
         assertTrue(exists(AUCTION_LOCK_TEST_TAG), "the requirement was not stated on the page")
         assertTrue(
             isVisible("Unlocks at level ${Unlocks.DEFAULT_AUCTION}"),

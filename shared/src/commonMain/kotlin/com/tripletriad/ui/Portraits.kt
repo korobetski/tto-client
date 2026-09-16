@@ -172,7 +172,7 @@ internal fun ItemIcon(
             Image(
                 bitmap = image,
                 contentDescription = description,
-                filterQuality = FilterQuality.None,
+                filterQuality = image.iconFilter,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.size(size),
             )
@@ -188,12 +188,15 @@ internal fun ItemGlyph(
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalTtoColors.current
+    val art = LocalUiArt.current
     val boon = boonOf(item)
     val drawn = when {
         boon == BoonType.XP -> TtoIcons.XpBoon to colors.experience
         boon == BoonType.MGP -> TtoIcons.MgpBoon to colors.currency
-        // Neither of the earned-thing colours: a pack is not MGP and not XP, it is what they buy.
-        item is BoosterItem -> TtoIcons.Booster to MaterialTheme.colorScheme.onSurface
+        // The game's 80 px pack wherever it loaded. The vector is for a missing bitmap only: in
+        // neither of the earned-thing colours, as a pack is not MGP and not XP but what they buy.
+        item is BoosterItem && art?.icon(itemIconId(item)) == null ->
+            TtoIcons.Booster to MaterialTheme.colorScheme.onSurface
         else -> null
     }
 
@@ -234,7 +237,7 @@ internal fun AchievementIcon(
             bitmap != null -> Image(
                 bitmap = bitmap,
                 contentDescription = description,
-                filterQuality = FilterQuality.None,
+                filterQuality = bitmap.iconFilter,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.size(size),
             )
@@ -268,7 +271,8 @@ private const val HEX_WIDTH = 4
  *
  * @param size the **picture's** size, not the widget's. The frame adds [FrameMargin] on every
  *   side, so this composable measures `size + 2 * FrameMargin` — [FramedThumbSide] at the
- *   authored size. Both images are then drawn at the size they were authored.
+ *   authored size. The frame and the FF8 pictures are drawn at the size they were authored; an
+ *   FFXIV picture is the game's 80x80 icon, halved on a 1x screen — see `AUTHORED_THUMB_PX`.
  * @param selected draws the wider stroke over the frame. Selection is the caller's state, so it
  *   stays the caller's parameter; what is shared is what selection *looks like*.
  */

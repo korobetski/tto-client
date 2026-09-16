@@ -364,7 +364,7 @@ internal fun deckLabel(strings: Strings, deck: Deck, index: Int): String =
     deck.name.ifBlank { "${strings[StringKeys.DECK]} ${index + 1}" }
 
 /**
- * The caps as counters, highest rank first — `★5 1 / 1  ·  ★4 0 / 2`.
+ * The caps as counters, highest rank first — `★5 1 / 1  ·  ★4+ 1 / 2`.
  *
  * Built out of [DeckLimits.MAX_BY_RARITY] rather than written out, so a cap that changes changes
  * here too. Stars rather than the word "rank" because the tiles the player is choosing between are
@@ -376,7 +376,7 @@ internal fun limitsText(deck: Deck, cards: Map<Int, Card>): String {
     return DeckLimits.MAX_BY_RARITY.entries
         .sortedByDescending { it.key }
         .joinToString(DOT_SEPARATOR) { (rarity, limit) ->
-            "★$rarity ${tally[rarity] ?: 0} / $limit"
+            "★${capLabel(rarity)} ${tally[rarity] ?: 0} / $limit"
         }
 }
 
@@ -386,10 +386,20 @@ internal fun overLimitText(strings: Strings, overLimit: Map<Int, Int>): String =
         strings.format(
             StringKeys.DECK_OVER_LIMIT,
             "$used",
-            "$rarity",
+            capLabel(rarity),
             "${DeckLimits.limitOf(rarity)}",
         )
     }
+
+/**
+ * A cap's floor as the player reads it: `4+` for every cap but the highest.
+ *
+ * The caps count a rank *and above*, so a bare `★4 1 / 2` beside a deck holding one four-star and
+ * one five-star would read as a miscount. The highest floor keeps its bare number: no rank lies
+ * above it, and `★5+` would suggest one did.
+ */
+internal fun capLabel(rarity: Int): String =
+    if (rarity == DeckLimits.MAX_BY_RARITY.keys.max()) "$rarity" else "$rarity+"
 
 internal fun deckPower(deck: Deck, cards: Map<Int, Card>): Int =
     deck.cards.sumOf { cards[it]?.rarity ?: 0 }

@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
@@ -239,6 +240,10 @@ internal fun ScreenScaffold(
     wide: Boolean = false,
     // The cap [wide] lifts the column to. Only the card list asks for more than the default.
     wideMaxWidth: Dp = WideContentMaxWidth,
+    // Drawn in the bar after the title, in the room the title does not use. The store's tabs go
+    // here on a wide window, where a bar and a tab row stacked cost a quarter of a landscape
+    // phone's height before the first offer.
+    besideTitle: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val strings = LocalStrings.current
@@ -264,12 +269,18 @@ internal fun ScreenScaffold(
                     TopAppBar(
                         modifier = Modifier.widthIn(max = columnWidth),
                         title = {
-                            Text(
-                                text = title,
-                                style = MaterialTheme.typography.titleLarge,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = title,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                besideTitle?.let { beside ->
+                                    Spacer(modifier = Modifier.width(SpaceLg))
+                                    Box(modifier = Modifier.weight(1f)) { beside() }
+                                }
+                            }
                         },
                         navigationIcon = {
                             onBack?.let { back ->
@@ -368,6 +379,8 @@ internal fun ScreenTabs(
     selected: Int,
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    // False in a top bar, where nothing starts under the indicator for it to run through.
+    gapBelow: Boolean = true,
 ) {
     val audio = LocalAudio.current
 
@@ -403,7 +416,7 @@ internal fun ScreenTabs(
                 )
             }
         }
-        Spacer(modifier = Modifier.height(SpaceMd))
+        if (gapBelow) Spacer(modifier = Modifier.height(SpaceMd))
     }
 }
 
@@ -519,6 +532,7 @@ internal fun CharacterScaffold(
     bottomBar: (@Composable () -> Unit)? = null,
     wide: Boolean = false,
     wideMaxWidth: Dp = WideContentMaxWidth,
+    besideTitle: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     ScreenScaffold(
@@ -532,6 +546,7 @@ internal fun CharacterScaffold(
         bottomBar = bottomBar,
         wide = wide,
         wideMaxWidth = wideMaxWidth,
+        besideTitle = besideTitle,
         content = content,
     )
 }

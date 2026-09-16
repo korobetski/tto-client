@@ -5,6 +5,7 @@ import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
@@ -33,9 +34,9 @@ class InventoryUiTest {
     private fun withBag(): GameSave = Inventory.addAll(
         freshSave(),
         listOf(
-            // Not one of the starter five, so Use is offered.
+            // Not one of the starter five, so the row calls it new.
             CardItem(SELLABLE_CARD, stack = 2),
-            // One of them, so Use is refused — `InventoryScreen.as:111`.
+            // One of them, so the row calls it a duplicate.
             CardItem(STARTER_CARDS.first()),
             BoosterItem(BoosterType.BRONZE),
             PotionItem(PotionType.MGP),
@@ -107,16 +108,24 @@ class InventoryUiTest {
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(SHOP_LIST_TEST_TAG) }
     }
 
+    /** One line on the row, the sentence behind the ⋮ — a phone row had it wrap into three. */
     @Test
-    fun aPotionSaysWhatDrinkingItBuys() = runComposeUiTest {
+    fun aPotionSaysHowLongOnItsRowAndWhatItBuysInItsMenu() = runComposeUiTest {
         val documents = seeded(withBag())
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openBag(documents)
+        val potion = PotionItem(PotionType.MGP)
+        val matches = PotionType.MGP.modifier.value
 
+        assertEquals("next $matches matches", lineOf(inventoryGistTestTag(potion)))
+        assertFalse(existsUnmerged(inventoryEffectTestTag(potion)), "the sentence is on the row")
+
+        onNodeWithTag(inventoryMenuTestTag(potion)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { existsUnmerged(inventoryEffectTestTag(potion)) }
         assertEquals(
-            "MGP boosted for your next ${PotionType.MGP.modifier.value} matches",
-            lineOf(inventoryEffectTestTag(PotionItem(PotionType.MGP))),
-            "the row does not say what the potion does",
+            "MGP boosted for your next $matches matches",
+            lineOf(inventoryEffectTestTag(potion)),
+            "the menu does not say what the potion does",
         )
     }
 
@@ -130,8 +139,8 @@ class InventoryUiTest {
         val missing = pool.count { !storedSave(documents).ownsCard(it) }
         check(missing > 0) { "the fixture needs a pack with something new in it" }
         assertTrue(
-            lineOf(inventoryEffectTestTag(BoosterItem(BoosterType.BRONZE)))
-                .endsWith("$missing still missing"),
+            lineOf(inventoryGistTestTag(BoosterItem(BoosterType.BRONZE)))
+                .endsWith("$missing missing"),
             "the pack row does not count what the collection lacks",
         )
     }
@@ -234,14 +243,138 @@ class InventoryUiTest {
         assertFalse(exists(UNLOCKED_CARD_TEST_TAG), "a pack unlocked nothing to show")
     }
 
+    /**
+     * **A duplicate is sold from its row and still added from its menu.**
+     *
+     * The row's face carries the likelier act, and a copy of a card already held is almost always
+     * sold. Adding it is not taken away \u2014 it is one tap further.
+     */
     @Test
-    fun useIsOfferedForACardAlreadyInTheCollectionAndSaysHowMany() = runComposeUiTest {
+    fun aDuplicateIsSoldFromItsRowAndAddedFromItsMenu() = runComposeUiTest {
         val documents = seeded(withBag())
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openBag(documents)
 
-        onNodeWithTag(inventoryUseTestTag(CardItem(STARTER_CARDS.first()))).assertIsEnabled()
+        val duplicate = CardItem(STARTER_CARDS.first())
+        assertEquals("Duplicate", lineOf(inventoryBadgeTestTag(duplicate)))
         assertTrue(isVisible("already owned \u00d71"), "the row still says it is not the first")
+        onNodeWithTag(inventorySellTestTag(duplicate)).assertIsEnabled().assertTextEquals("Sell")
+        assertFalse(exists(inventoryUseTestTag(duplicate)), "add is on the face of a duplicate")
+
+        openMenu(duplicate)
+        onNodeWithTag(inventoryUseTestTag(duplicate)).assertIsEnabled()
+    }
+
+    @Test
+    fun aNewCardIsAddedFromItsRowAndSoldFromItsMenu() = runComposeUiTest {
+        val documents = seeded(withBag())
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openBag(documents)
+
+        val fresh = CardItem(SELLABLE_CARD, stack = 2)
+        assertEquals("New", lineOf(inventoryBadgeTestTag(fresh)))
+        onNodeWithTag(inventoryUseTestTag(fresh)).assertTextEquals("Add")
+        assertFalse(exists(inventorySellTestTag(fresh)), "sell is on the face of a new card")
+        openMenu(fresh)
+        onNodeWithTag(inventorySellTestTag(fresh)).assertIsEnabled()
+    }
+
+    /** Each kind of item is used by its own verb; the fixture holds a pack and a potion. */
+    @Test
+    fun aPackIsOpenedAndAPotionActivated() = runComposeUiTest {
+        val documents = seeded(withBag())
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openBag(documents)
+
+        onNodeWithTag(inventoryUseTestTag(BoosterItem(BoosterType.BRONZE))).assertTextEquals("Open")
+        onNodeWithTag(inventoryUseTestTag(PotionItem(PotionType.MGP))).assertTextEquals("Activate")
+        assertFalse(
+            exists(inventoryBadgeTestTag(BoosterItem(BoosterType.BRONZE))),
+            "a pack is neither new nor a duplicate",
+        )
+    }
+
+    /** Below two of either, the bar would be a row's own button said a second time. */
+    @Test
+    fun theBulkActionsWaitForTwoOfSomething() = runComposeUiTest {
+        // One new card (a stack of two is still one card) and one duplicate copy.
+        val documents = seeded(withBag())
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openBag(documents)
+
+        assertFalse(exists(INVENTORY_ADD_NEW_TEST_TAG))
+        assertFalse(exists(INVENTORY_SELL_DUPLICATES_TEST_TAG))
+    }
+
+    /** Two duplicate copies earn the sale on their own; one new card beside them earns no add. */
+    @Test
+    fun oneNewCardBesideTwoDuplicatesIsOfferedOnlyTheSale() = runComposeUiTest {
+        val documents = seeded(
+            Inventory.addAll(
+                freshSave(),
+                listOf(CardItem(SELLABLE_CARD), CardItem(STARTER_CARDS.first(), stack = 2)),
+            ),
+        )
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openBag(documents)
+
+        assertTrue(exists(INVENTORY_SELL_DUPLICATES_TEST_TAG), "two duplicates are not offered")
+        assertFalse(exists(INVENTORY_ADD_NEW_TEST_TAG), "a single new card is offered in bulk")
+    }
+
+    /**
+     * **"Add the new ones" adds one copy of each card the collection lacks, and nothing else.**
+     *
+     * The second copy of a new card stays in the bag: it is a duplicate the moment the first lands.
+     */
+    @Test
+    fun addingTheNewOnesAddsOneCopyOfEach() = runComposeUiTest {
+        val documents = seeded(withCards())
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openBag(documents)
+
+        onNodeWithTag(INVENTORY_ADD_NEW_TEST_TAG).assertTextEquals("Add the new ones (2)")
+            .performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
+            storedSave(documents).copiesOf(SECOND_NEW_CARD) == 1
+        }
+
+        val save = storedSave(documents)
+        assertEquals(1, save.copiesOf(SELLABLE_CARD))
+        assertEquals(1, Inventory.count(save, CardItem(SELLABLE_CARD)), "the second copy was added")
+        assertEquals(
+            2,
+            Inventory.count(save, CardItem(STARTER_CARDS.first())),
+            "a duplicate was added",
+        )
+    }
+
+    @Test
+    fun sellingTheDuplicatesTakesASecondTapAndSellsOnlyThem() = runComposeUiTest {
+        val documents = seeded(withCards())
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openBag(documents)
+
+        val duplicate = CardItem(STARTER_CARDS.first())
+        val payout = Inventory.priceOf(duplicate, cards) * 2
+        val before = storedSave(documents).mgp
+
+        onNodeWithTag(INVENTORY_SELL_DUPLICATES_TEST_TAG)
+            .assertTextEquals("Sell duplicates (2)$DOT_SEPARATOR$payout")
+            .performClick()
+        waitForIdle()
+        assertEquals(2, Inventory.count(storedSave(documents), duplicate), "one tap sold them")
+
+        onNodeWithTag(INVENTORY_SELL_DUPLICATES_TEST_TAG)
+            .assertTextEquals("Confirm: sell 2 for $payout")
+            .performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
+            Inventory.count(storedSave(documents), duplicate) == 0
+        }
+
+        val save = storedSave(documents)
+        assertEquals(before + payout, save.mgp)
+        assertEquals(2, Inventory.count(save, CardItem(SELLABLE_CARD)), "a new card was sold")
     }
 
     @Test
@@ -360,7 +493,18 @@ class InventoryUiTest {
         )
     }
 
+    /** Two new cards, one of them twice, and two copies of a card the collection holds. */
+    private fun withCards(): GameSave = Inventory.addAll(
+        freshSave(),
+        listOf(
+            CardItem(SELLABLE_CARD, stack = 2),
+            CardItem(SECOND_NEW_CARD),
+            CardItem(STARTER_CARDS.first(), stack = 2),
+        ),
+    )
+
     private companion object {
         val SELLABLE_CARD = Card.idFor(block = 1, number = 44)
+        val SECOND_NEW_CARD = Card.idFor(block = 1, number = 45)
     }
 }

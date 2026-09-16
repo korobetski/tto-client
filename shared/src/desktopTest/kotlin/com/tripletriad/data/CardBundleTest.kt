@@ -1,5 +1,6 @@
 package com.tripletriad.data
 
+import androidx.compose.ui.graphics.toPixelMap
 import com.tripletriad.FF8_BLOCK
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.loadStrings
@@ -21,7 +22,7 @@ class CardBundleTest {
     @Test
     fun theBundledCatalogHoldsBothCollectionsInFull() {
         // FF14 spans two blocks since the set outgrew 255 cards: block 1 holds the first 255,
-        // block 2 the remaining 199. See `CardSet`.
+        // block 2 the remaining 220. See `CardSet`.
         assertEquals(FF14_CARDS_BLOCK_1, catalog.block(1).size, "the FF14 set's first block")
         assertEquals(FF14_CARDS_BLOCK_2, catalog.block(2).size, "the FF14 set's second block")
         assertEquals(FF8_CARDS, catalog.block(FF8_BLOCK).size, "the FF8 set")
@@ -116,6 +117,20 @@ class CardBundleTest {
         }
     }
 
+    /**
+     * The coin toss colours a card by drawing the side's fill *under* this frame, so the frame has
+     * to be see-through inside and solid on its rim. Loading the opaque back in its place — the
+     * texture it sits beside in the game's sheet — would hide the toss again.
+     */
+    @Test
+    fun theEmptyFrameIsSeeThroughInsideItsRim() = runBlocking {
+        val frame = loadCardArt().frame.toPixelMap()
+
+        assertEquals(HIGH_DEFINITION, frame.width to frame.height)
+        assertEquals(0f, frame[frame.width / 2, frame.height / 2].alpha, "the middle is covered")
+        assertEquals(1f, frame[frame.width / 2, FRAME_RIM_Y].alpha, "the top rim is missing")
+    }
+
     @Test
     fun theTribeSetsAreExactlyWhatTheTableTypes() {
         // `AchievementCatalog` hard-codes four lists of card ids because `:core` cannot read a
@@ -165,7 +180,7 @@ class CardBundleTest {
         )
 
         const val FF14_CARDS_BLOCK_1 = 255
-        const val FF14_CARDS_BLOCK_2 = 199
+        const val FF14_CARDS_BLOCK_2 = 220
 
         // 110 shipped, plus the one secret card the collection screen hides until it is owned —
         // see `SECRET_CARD_IDS` in `CardListBody.kt`. It is still in the catalog and in this count:
@@ -176,5 +191,8 @@ class CardBundleTest {
         val PRINTED_POWERS = 1..10
 
         val HIGH_DEFINITION = 208 to 256
+
+        /** A row where `frame.png`'s middle column is solid rim, not the see-through inside. */
+        const val FRAME_RIM_Y = 12
     }
 }

@@ -225,11 +225,12 @@ class DeckSelectorUiTest {
         /**
          * A second complete deck, heavy enough to be told apart from the starter one by name.
          *
-         * One five-star and two four-stars, which is `DeckLimits` to the card: a fixture over the
+         * One five-star and one four-star, which is `DeckLimits` to the card: a fixture over the
          * caps is dropped by `PveMatches.playableDecks` and the row this file counts on stops
-         * existing. `74` — a second five-star — is what it used to hold.
+         * existing. `74` — a second five-star — is what it used to hold, and `51` — a second
+         * four-star beside the five-star — until the five-star came to spend a four-star's slot.
          */
-        val EXTRA = listOf(44, 45, 51, 52, 63).map { Card.idFor(block = 1, number = it) }
+        val EXTRA = listOf(44, 45, 46, 52, 63).map { Card.idFor(block = 1, number = it) }
 
         const val RANDOM_OPPONENT = "ma-dincht"
 

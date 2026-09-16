@@ -460,6 +460,81 @@ Verified by `CardHoverInfoUiTest` (hover opens and names, leaving closes, the "?
 say nothing) and `OptionsUiTest.theCardTooltipsAreOnUntilTheyAreTurnedOff`. **Not verified:** the
 browser, a touch long press on a real phone, and a keyboard focus showing it.
 
+### HQ card thumbnails (2026-09-15)
+
+The 454 FFXIV thumbnails in `art/thumbs/ff14_*.png` are now the game's own 80x80 icons
+(`ui/icon/088000`, the hashed hr1 files) where they were 40x40, the same step the faces took on
+2026-09-14. Each card was matched to its `088NNN` icon by image distance, and every one of the 454
+landed on the same number as its face's `087NNN`; each icon has exactly one hr1 counterpart. The
+sheets keep their packing at twice the coordinates, so `thumbs.json` changed only the FFXIV frames'
+`x`, `y`, `width` and `height`. The 111 FF8 thumbnails are untouched: there is no HQ source.
+
+- **Smoothed when halved, not when authored.** `ThumbFrame.painterOn` picks
+  `FilterQuality.Medium` for a frame wider than `AUTHORED_THUMB_PX` and keeps `None` for the rest,
+  so an FFXIV icon does not shimmer at 40 dp on a 1x screen and FF8's pixel art does not blur as
+  the interface size enlarges it.
+- **The cost is memory, held for good.** 1.55 MB of PNG became 5.39 MB, and the decoded sheets
+  3.6 MB became 14.6 MB. They stay loaded, unlike the faces' bounded cache, because every grid wants
+  all of them at once.
+
+Verified by `ThumbQualityTest` (454 frames at 80 px and 111 at 40; a halved FFXIV thumbnail is
+smoothed, a doubled FF8 one is not) and `ThumbAtlasTest`, whose frames-cover-the-sheet check passed
+on the rebuilt sheets. **Not verified:** the browser's load time and memory with the larger sheets,
+and a real Android device.
+
+### FFXIV cards #455-475 and the tribe icons (2026-09-15)
+
+The FFXIV set grew from 454 cards to 475: the cards of patches 7.4 to 7.51, ids 712-732 (block 2,
+numbers 200-220). Their numbers, names, stars, sides and type come from ffxivcollect.com's
+`/api/triad/cards` in `en`, `fr`, `de` and `ja`, fetched the same day. The same API agreed with every
+one of the 454 cards already in `cards.json` on name, stars, sides and type, which is what it was
+trusted on. Their faces and thumbnails are the game's hr1 icons (`ui/icon/087000` and `088000`),
+matched to their numbers the way the rest were, and the block-2 thumbnail sheet grew from 960x1360
+to 960x1520 to hold them.
+
+- **Names and descriptions are the official text in all four languages**, joined to one paragraph
+  the way the bundles hold them. The Japanese quotes lose the speaker line the game signs them with
+  (`光明の戦士：ゼロ`), because none of the 84 Japanese quotes already there has one, and the French
+  ones take guillemets like the rest. This makes the new cards' French, German and Japanese
+  descriptions official where most of the older ones are translations of the English.
+- **Four names are English in a translation**, because ffxivcollect has no translation for them:
+  *Shantotto the Demon* and *Alexander Resurrected*, in French and in Japanese.
+- **None of the 21 has a source in the game.** They drop from dungeons, raids, Cosmic Exploration and
+  NPCs this port does not have, so the card panel says so. The Queen of Cards' pool, which is every
+  FFXIV card, took all 21. *Tiisol Ja* is a `beast` card, so `AchievementCatalog.BEAST_CARDS` in
+  `tto-core` took its id and the beast ladder's top rung moved from 35 to 36 (core 0.9.1).
+- **The four tribe icons (`art/type-{beast,primals,garlean,scions}.png`) are ffxivcollect's 40x40
+  drawings** where they were the AS3's 20x20. The eight element icons are unchanged: there is no
+  better source. `typeIconFilter` smooths an icon wider than 20 px, for the thumbnails' reason.
+- **The card back, the five star icons and the booster packs are the game's own textures at twice
+  the size**, from game files the user put in `docs/resources` (git-ignored). `art/back.png` is
+  the 208x256 back of the double-size battle sheet, where it was the same back at 104x128; the
+  `card_r{1-5}_icon` and `booster_pack_icon` are the 80x80 icons that were 40x40. The four tribe
+  packs have no icon of their own in the game, so theirs are that pack with the tribe icon above
+  laid over its corner at 36 px, where the 40 px ones had the AS3's emblem. `iconFilter` smooths an
+  icon wider than 44 px, and `ItemGlyph` draws a pack's bitmap again, the vector only if none
+  loaded. The silver card icons, the "?" card and the empty frame in the same folder are unused.
+- **An opponent's difficulty is the game's level where the game gives one.** The 21 cards moved the
+  simulated rating (the middle ten cards of `free-play` are its yardstick) and renumbered 105 of 158
+  opponents. Checked against the `Level` column of arrtripletriad.com/en/npcs (read 2026-09-15), the
+  simulation had never matched the game: a Spearman correlation of 0.43 over the 122 FFXIV
+  opponents the site levels, 0.45 for card power alone, and 0.22 with the FFXIV starter as the
+  yardstick — which would also have left a level-1 character 2 opponents. So `npcs.json` now
+  carries the site's level for the 124 FFXIV opponents it gives one (Guhtwint and King Elmer
+  matched by hand), the Triple Triad Master a 1. The other 34 — FFVIII's 25, the five 7.x
+  opponents the site lists at 0, Moogle Momo, Tataru, Papalymo and the Queen of Cards — are still
+  simulated, then placed on the game's scale by `NpcRating.calibratedDifficulty` (core 0.9.1): an
+  isotonic fit of level on win rate over the 124. They land between 2 and 7.
+  - Bands 1-10 went from 11/11/15/12/26/26/20/22/11/4 to 22/23/57/19/11/4/12/8/1/1; 127 of 158
+    opponents changed, and fees and payouts, derived from the difficulty, moved with them.
+  - A level-1 character (difficulty up to 2) meets 36 of 133 FFXIV opponents and 9 of 25 FFVIII.
+  - The 17 campaign rungs copy their opponent's difficulty; 7 were brought back in step.
+
+Verified by `CardBundleTest` (block 2 holds 220; every card has a face; the tribes match the core's
+lists), `NpcBundleTest` (475 cards in the Queen's pool), `ThumbQualityTest` (475 frames at 80 px),
+`ThumbAtlasTest`, `StringsBundleTest` and `TypeIconQualityTest`. **Not verified:** the new cards
+in a real match against the Queen of Cards, and the server with this catalogue.
+
 ### `TtoSlider` — the third control that was two controls
 
 Same story as the chips, found the same way: `OptionsScreen` hand-wrote three colours,

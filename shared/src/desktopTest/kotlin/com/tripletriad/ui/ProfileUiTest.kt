@@ -38,12 +38,25 @@ class ProfileUiTest {
     }
 
     /**
+     * The four drawn cards too, which is what lets a collection test call a card unowned: 31
+     * commons to draw 4 from, so an unseeded box took the one it picked 1 run in 8.
+     */
+    @Test
+    fun aTestCharacterIsDealtTheSeededBox() = runComposeUiTest {
+        val documents = store()
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        newCharacter(FF14_BLOCK)
+
+        assertEquals(STARTER_CARDS.toSet(), stored(documents).single().cards.keys)
+    }
+
+    /**
      * [save] holds the box authored for [block], and nothing else.
      *
      * Only five of the nine are authored — the other four are drawn from the block's commons by
      * `StarterPack.drawn`, with the app's own generator — so what can be asserted is the shape: the
-     * count, the deck, and that every card came out of the right block. Pinning the four would mean
-     * pinning a seed the UI does not take.
+     * count, the deck, and that every card came out of the right block. The four themselves are the
+     * seed's, and pinned by [aTestCharacterIsDealtTheSeededBox].
      */
     private fun assertOpenedWith(save: GameSave, block: Int) {
         val starter = starterFor(block)

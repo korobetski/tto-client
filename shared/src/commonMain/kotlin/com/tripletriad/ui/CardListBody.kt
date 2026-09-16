@@ -34,6 +34,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tripletriad.data.CardCatalog
 import com.tripletriad.data.CardValue
@@ -63,6 +64,17 @@ const val CARD_OWNED_FILTER_TEST_TAG: String = "card-filter-owned"
 
 const val CARD_MISSING_FILTER_TEST_TAG: String = "card-filter-missing"
 
+const val CARD_DUPLICATES_FILTER_TEST_TAG: String = "card-filter-duplicates"
+
+/** Owned, kept by a deck, free to sell — over the Sell button, on any card the player holds. */
+const val CARD_COPIES_LINE_TEST_TAG: String = "card-copies-line"
+
+const val CARD_SELL_FEWER_TEST_TAG: String = "card-sell-fewer"
+const val CARD_SELL_MORE_TEST_TAG: String = "card-sell-more"
+
+/** How many copies the Sell button will sell. Drawn only when there is more than one to choose. */
+const val CARD_SELL_COUNT_TEST_TAG: String = "card-sell-count"
+
 const val CARD_NO_MATCH_TEST_TAG: String = "card-no-match"
 
 /**
@@ -75,14 +87,14 @@ const val CARD_NO_MATCH_TEST_TAG: String = "card-no-match"
 val LocalUnownedCards = staticCompositionLocalOf { UnownedCards.Default }
 
 /**
- * Whether the grid is showing the collection, what is in it, or what is not.
+ * Whether the grid is showing the collection, what is in it, what is not, or what is in it twice.
  *
  * Three states and not two booleans: "owned" and "missing" are answers to one question, and holding
  * them apart would admit a fourth state — both on — that means an empty grid for no reason the
  * player could see. [MISSING] is the half that was absent, and it is the one a collection is read
- * for once it is mostly full: 564 tiles with 30 gaps in them is not a list of what is left to find.
+ * for once it is mostly full: 585 tiles with 30 gaps in them is not a list of what is left to find.
  *
- * All three are on screen together. Drawn as two chips, [ANY] had no control of its own — it was
+ * All of them are on screen together. Drawn as two chips, [ANY] had no control of its own — it was
  * whatever was left when neither of the other two was lit, which is a state a player reaches by
  * undoing rather than by choosing.
  */
@@ -90,12 +102,20 @@ private enum class Held(val tag: String, val labelKey: String) {
     ANY(CARD_ANY_FILTER_TEST_TAG, StringKeys.ALL),
     OWNED(CARD_OWNED_FILTER_TEST_TAG, StringKeys.OWNED),
     MISSING(CARD_MISSING_FILTER_TEST_TAG, StringKeys.MISSING),
+
+    /**
+     * Held more than once — what a player opens the list for before selling. Counted on copies and
+     * not on `spareCopiesOf`: a second copy a deck keeps is still a duplicate, and hiding it would
+     * make the filter disagree with the badge on its cell.
+     */
+    DUPLICATES(CARD_DUPLICATES_FILTER_TEST_TAG, StringKeys.DUPLICATES),
     ;
 
     fun admits(copies: Int): Boolean = when (this) {
         ANY -> true
         OWNED -> copies > 0
         MISSING -> copies <= 0
+        DUPLICATES -> copies > 1
     }
 }
 
@@ -120,11 +140,15 @@ internal fun ColumnScope.CardListBody(
     val unowned = LocalUnownedCards.current
     var selected by remember(format) { mutableStateOf<Card?>(null) }
     var held by remember(format) { mutableStateOf(Held.ANY) }
+    // Ticking cards for one sale. A mode rather than a long press, because a long press is a
+    // gesture nothing on screen admits to, and the desktop has no such gesture to begin with.
+    var picking by remember(format) { mutableStateOf(false) }
+    var picked by remember(format) { mutableStateOf(emptySet<Int>()) }
     val sheet = rememberModalBottomSheetState()
 
     // Set, element, rarity, name and order, asked the way the auction's consignment picker asks
     // the first three — see [CardFilters]. What stays here is what only this room admits: a secret
-    // card nobody owns, and the All / Owned / Missing segments beside the menus.
+    // card nobody owns, and the All / Owned / Missing / Duplicates segments beside the menus.
     val filters = rememberCardFilters(admitted, catalog.sets, opponents)
     // With the cards not owned left out, "Missing" is an empty grid by definition and "Owned" is
     // what "All" already shows — so the segments are not drawn, and a lit one stops counting.
@@ -155,7 +179,7 @@ internal fun ColumnScope.CardListBody(
             known,
         )
     }
-    // Out of the grid and not out of the count: "Owned · 5 / 564" is still the collection's
+    // Out of the grid and not out of the count: "Owned · 5 / 585" is still the collection's
     // progress, and a player who hid the rest asked for less to scroll past, not for that.
     val cards = remember(answering, unowned) {
         if (unowned != UnownedCards.HIDDEN) {
@@ -178,6 +202,11 @@ internal fun ColumnScope.CardListBody(
     }
     val segments: @Composable () -> Unit = {
         if (unowned != UnownedCards.HIDDEN) HeldSegments(held) { held = it }
+        SelectToggle(picking) {
+            picking = !picking
+            picked = emptySet()
+            selected = null
+        }
     }
     // Two bands of controls where there were five — see [CardFilterMenus].
     val controls: @Composable () -> Unit = {
@@ -192,8 +221,14 @@ internal fun ColumnScope.CardListBody(
     // One at a time, and answered. Both for the reasons the bag's buttons are — see the `busy` flag
     // in [InventoryBody]: two taps were two sales of two copies, and `perform` answered `Unit`, so
     // a sale the server declined took the tap and said nothing at all.
+    //
+    // Several copies are several `SellCard` intents, one after the other, and the first that is not
+    // applied ends the run: the protocol sells one copy per request, and a refusal halfway says the
+    // count the stepper offered is no longer true.
+    //
+    // A bulk sale is the same run over several cards, and stops at the same first refusal.
     var selling by remember(format) { mutableStateOf(false) }
-    val sell: (Card) -> Unit = { card ->
+    val sellAll: (List<Pair<Card, Int>>) -> Unit = { run ->
         if (!selling) {
             selling = true
             scope.launch {
@@ -201,12 +236,29 @@ internal fun ColumnScope.CardListBody(
                 // for as long as the line is on screen, and a button held disabled for those four
                 // seconds would look like the refusal had also broken it.
                 val outcome = try {
-                    onIntent(Intent.SellCard(card.id))
+                    var last = IntentOutcome.APPLIED
+                    for ((card, count) in run) {
+                        repeat(count) {
+                            if (last == IntentOutcome.APPLIED) {
+                                last = onIntent(Intent.SellCard(card.id))
+                            }
+                        }
+                    }
+                    last
                 } finally {
                     selling = false
                 }
                 sellCardNote(strings, outcome)?.let { note.show(it) }
             }
+        }
+    }
+    val sell: (Card, Int) -> Unit = { card, count -> sellAll(listOf(card to count)) }
+    // Re-read against the profile on every change, so a ticked card a deck has since claimed
+    // drops out of the count instead of being sold from under the deck.
+    val sale = remember(picked, profile) {
+        picked.sorted().mapNotNull { id ->
+            val count = profile.bulkSaleOf(id)
+            catalog.byId[id]?.takeIf { count > 0 }?.let { it to count }
         }
     }
 
@@ -223,16 +275,32 @@ internal fun ColumnScope.CardListBody(
         } else {
             CardGrid(cards = cards, tag = CARD_GRID_TEST_TAG, modifier = modifier) { card ->
                 val copies = owned[card.id] ?: 0
-                CardCell(
-                    card = card,
-                    copies = copies,
-                    selected = selected?.id == card.id,
-                    modifier = Modifier.testTag(cardCellTestTag(card.id)),
-                    copiesTag = cardCopiesTestTag(card.id),
-                    unknown = copies < 1 && unowned == UnownedCards.UNKNOWN,
-                    copiesLine = "${strings[StringKeys.OWNED]}$DOT_SEPARATOR$copies",
-                    onClick = { selected = if (selected?.id == card.id) null else card },
-                )
+                val tickable = picking && profile.bulkSaleOf(card.id) > 0
+                Box {
+                    CardCell(
+                        card = card,
+                        copies = copies,
+                        selected = if (picking) card.id in picked else selected?.id == card.id,
+                        modifier = Modifier.testTag(cardCellTestTag(card.id)),
+                        copiesTag = cardCopiesTestTag(card.id),
+                        unknown = copies < 1 && unowned == UnownedCards.UNKNOWN,
+                        copiesLine = "${strings[StringKeys.OWNED]}$DOT_SEPARATOR$copies",
+                        onClick = {
+                            when {
+                                !picking -> selected = if (selected?.id == card.id) null else card
+                                tickable -> picked = picked.toggled(card.id)
+                            }
+                        },
+                    )
+                    if (tickable) {
+                        PickMark(
+                            picked = card.id in picked,
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .testTag(cardPickTestTag(card.id)),
+                        )
+                    }
+                }
             }
         }
     }
@@ -314,7 +382,25 @@ internal fun ColumnScope.CardListBody(
             }
         }
     }
+
+    if (picking) {
+        BulkSellBar(
+            sale = sale,
+            busy = selling,
+            onCancel = {
+                picking = false
+                picked = emptySet()
+            },
+            onSell = {
+                sellAll(sale)
+                picking = false
+                picked = emptySet()
+            },
+        )
+    }
 }
+
+private fun Set<Int>.toggled(id: Int): Set<Int> = if (id in this) this - id else this + id
 
 /**
  * All / Owned / Missing, as one control with three positions.
@@ -362,7 +448,7 @@ private fun CardDetail(
     card: Card?,
     profile: GameSave,
     opponents: NpcCatalog?,
-    onSell: (Card) -> Unit,
+    onSell: (Card, Int) -> Unit,
     modifier: Modifier = Modifier.fillMaxWidth().height(CardPanelHeight),
 ) {
     val strings = LocalStrings.current
@@ -390,23 +476,74 @@ private fun CardDetail(
             // The panel the auction's lectern reads a card in too — see [CardPanel] for why the
             // sprite is at full size and why the height has to come from here.
             else -> CardPanel(card = card, tag = CARD_DETAIL_TEST_TAG, sources = sources) {
-                SellButton(card, profile, onSell)
+                SellControls(card, profile, onSell)
             }
         }
     }
 }
 
+/**
+ * What the collection holds of this card and what may leave it, then the way out.
+ *
+ * The copies line is drawn on every card held, sellable or not: a card with nothing to sell used
+ * to show no button and no reason, and "2 owned · 2 in a deck" is the reason. "In a deck" is
+ * copies less spares, which is the reservation [GameSave.spareCopiesOf] makes — the most any one
+ * deck lists, not the sum over decks.
+ *
+ * The stepper appears only when there are two spares or more, and its count is keyed on the card
+ * and on the spare count, so a sale that shrinks the spares starts it over at one rather than
+ * leaving it pointing past the end.
+ */
 @Composable
-private fun ColumnScope.SellButton(card: Card, profile: GameSave, onSell: (Card) -> Unit) {
+private fun ColumnScope.SellControls(card: Card, profile: GameSave, onSell: (Card, Int) -> Unit) {
     val strings = LocalStrings.current
-    if (profile.spareCopiesOf(card.id) < 1) return
+    val copies = profile.copiesOf(card.id)
+    val spare = profile.spareCopiesOf(card.id)
+    if (copies < 1) return
+
+    Text(
+        text = strings.format(StringKeys.CARD_COPIES, "$copies", "${copies - spare}", "$spare"),
+        modifier = Modifier.testTag(CARD_COPIES_LINE_TEST_TAG),
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
+        style = MaterialTheme.typography.labelSmall,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
+    )
+    if (spare < 1) return
+
+    var count by remember(card.id, spare) { mutableStateOf(1) }
+    if (spare > 1) {
+        Row(
+            modifier = Modifier.align(Alignment.End),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            StepButton(
+                glyph = "−",
+                tag = CARD_SELL_FEWER_TEST_TAG,
+                description = strings[StringKeys.SELL_FEWER],
+                enabled = count > 1,
+            ) { count -= 1 }
+            Text(
+                text = "$count / $spare",
+                modifier = Modifier.testTag(CARD_SELL_COUNT_TEST_TAG),
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.labelLarge,
+            )
+            StepButton(
+                glyph = "+",
+                tag = CARD_SELL_MORE_TEST_TAG,
+                description = strings[StringKeys.SELL_MORE],
+                enabled = count < spare,
+            ) { count += 1 }
+        }
+    }
 
     // Compact, and not the full-width [WideButton] this used to be. A 56 dp bar across a 184 dp
     // panel is the loudest thing on a screen whose subject is the card beside it, and every dp it
     // spans is a dp the description does not get. Selling is an occasional action on a duplicate,
     // not the reason anybody opened the collection.
     FilledTonalButton(
-        onClick = { onSell(card) },
+        onClick = { onSell(card, count) },
         modifier = Modifier.testTag(CARD_SELL_TEST_TAG).align(Alignment.End),
         shape = MaterialTheme.shapes.large,
         contentPadding = PaddingValues(horizontal = SpaceLg, vertical = SpaceSm),
@@ -421,9 +558,10 @@ private fun ColumnScope.SellButton(card: Card, profile: GameSave, onSell: (Card)
         // The coin, so the number reads as money. "Sell 16" was sixteen of something the button
         // did not name — and the same coin is what the purse in the top bar shows, which is the
         // number this one is about to change. [PriceTag] is that pairing, drawn here in the
-        // button's own colour: this is the one price in the app that is money coming *in*.
+        // button's own colour: this is the one price in the app that is money coming *in*. The
+        // total for the count, so the stepper's effect is read where the tap lands.
         PriceTag(
-            price = CardValue.resaleOf(card.id, mapOf(card.id to card)),
+            price = CardValue.resaleOf(card.id, mapOf(card.id to card)) * count,
             color = LocalContentColor.current,
             style = MaterialTheme.typography.labelLarge,
             coinSize = IconSm,

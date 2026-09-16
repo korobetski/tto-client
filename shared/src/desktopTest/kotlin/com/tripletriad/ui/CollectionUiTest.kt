@@ -131,6 +131,29 @@ class CollectionUiTest {
     }
 
     /**
+     * The window here is 1024 × 768 at density 1, which fits the card five times over; what stops
+     * it at 208 dp is the ceiling — the art's own 208 px — and that is the number worth pinning.
+     */
+    @Test
+    fun tappingThePictureShowsTheCardAtItsOwnResolutionUntilTappedAgain() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        openCards()
+
+        onNodeWithTag(cardCellTestTag(STARTER_CARDS.first())).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(CARD_DETAIL_TEST_TAG) }
+        assertFalse(existsUnmerged(CARD_ZOOM_TEST_TAG))
+
+        onNodeWithTag(CARD_PANEL_FACE_TEST_TAG, useUnmergedTree = true).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { existsUnmerged(CARD_ZOOM_TEST_TAG) }
+        val zoomed = onNodeWithTag(CARD_ZOOM_FACE_TEST_TAG, useUnmergedTree = true)
+            .getBoundsInRoot()
+        assertEquals(208.dp, zoomed.right - zoomed.left, "not the art pixel for pixel")
+
+        onNodeWithTag(CARD_ZOOM_TEST_TAG, useUnmergedTree = true).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { !existsUnmerged(CARD_ZOOM_TEST_TAG) }
+    }
+
+    /**
      * A card nobody has is a "?" in the grid and `???` in the detail: still listed, still opened,
      * still saying where it comes from — but not what it is. See [UnknownCardTile].
      *
@@ -351,7 +374,7 @@ class CollectionUiTest {
         openCards()
 
         // Narrowed to what is owned first, so the assertion is about five cards whose order can be
-        // computed here rather than about 564 whose first row depends on the whole table.
+        // computed here rather than about 585 whose first row depends on the whole table.
         onNodeWithTag(CARD_OWNED_FILTER_TEST_TAG).performClick()
         waitForIdle()
 
@@ -654,12 +677,16 @@ class CollectionUiTest {
         InMemorySettingsStore("""{"language":"en_US","unowned_cards":"${mode.tag}"}""")
 
     private companion object {
-        // 153 FF14 + 110 FF8 before the FF14 set completed to its full 454 across two blocks.
-        // Still 564, not 565, now that FF8 carries a 111th card: Mooba is secret, and a secret
-        // card the fixture's profile does not own does not widen this total either — the same
-        // filter that hides it from the grid hides it from the count under it. See
+        /** Copies of a card no deck holds: enough for the stepper to have a middle. */
+        const val SPARES = 3
+
+        // 153 FF14 + 110 FF8 before the FF14 set completed to 454 across two blocks, and 475
+        // with the cards of patches 7.4-7.51. Still 585, not 586, now that FF8 carries a 111th
+        // card: Mooba is secret, and a secret card the fixture's profile does not own does not
+        // widen this total either — the same filter that hides it from the grid hides it from the
+        // count under it. See
         // `SECRET_CARD_IDS` in `CardListBody.kt`.
-        const val ALL_CARDS = 564
+        const val ALL_CARDS = 585
 
         /** Past `FilterPanelMinWidth` with the rail up — a 1600 × 1000 browser window. */
         const val WIDE_WINDOW_WIDTH = 1600f
@@ -688,6 +715,9 @@ class CollectionUiTest {
          * another card that is both bought and dropped.
          */
         const val CHOCOBO = 269
+
+        const val TWO_COPIES = 2
+        const val THREE_COPIES = 3
     }
 
     // ---- Filters -----------------------------------------------------------
@@ -828,6 +858,49 @@ class CollectionUiTest {
         assertFalse(exists(CARD_SELL_TEST_TAG), "a deck's own card must not be sellable")
     }
 
+    /**
+     * Three cards, three answers: three loose copies give two, two copies a deck fields one of
+     * give one, and a single loose copy is not tickable at all — the one-card Sell button would
+     * sell it, and the bar says one of each is kept.
+     */
+    @Test
+    fun aBulkSaleSellsTheTickedDuplicatesAndKeepsOneOfEach() = runComposeUiTest {
+        val loose = STARTER_CARDS.filter { it !in STARTER_DECK }
+        val triple = loose[0]
+        val single = loose[1]
+        val decked = STARTER_DECK.first()
+        val start = freshSave().copy(mgp = 0)
+        val held = mapOf(triple to THREE_COPIES, decked to TWO_COPIES, single to 1)
+        val documents = seeded(start.copy(cards = start.cards + held))
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openFromBar("cards", CARD_GRID_TEST_TAG)
+
+        onNodeWithTag(CARD_SELECT_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(CARD_BULK_BAR_TEST_TAG) }
+        for (id in listOf(triple, decked)) {
+            onNodeWithTag(CARD_GRID_TEST_TAG).performScrollToNode(hasTestTag(cardCellTestTag(id)))
+            assertTrue(existsUnmerged(cardPickTestTag(id)), "card $id has copies to give")
+            onNodeWithTag(cardCellTestTag(id)).performClick()
+        }
+        onNodeWithTag(CARD_GRID_TEST_TAG).performScrollToNode(hasTestTag(cardCellTestTag(single)))
+        assertFalse(existsUnmerged(cardPickTestTag(single)), "the only copy was offered")
+        assertFalse(exists(CARD_SHEET_TEST_TAG), "a tick opened the card as well")
+
+        onNodeWithTag(CARD_BULK_COUNT_TEST_TAG, useUnmergedTree = true)
+            .assertTextEquals("2 card(s) selected")
+        onNodeWithTag(CARD_BULK_SELL_TEST_TAG).performClick()
+        val paid = CardValue.resaleOf(triple, catalog.byId) * TWO_COPIES +
+            CardValue.resaleOf(decked, catalog.byId)
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { storedSave(documents).mgp == paid }
+
+        val save = storedSave(documents)
+        assertEquals(1, save.copiesOf(triple))
+        assertEquals(1, save.copiesOf(decked), "the deck's copy stayed")
+        assertEquals(1, save.copiesOf(single))
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { !exists(CARD_BULK_BAR_TEST_TAG) }
+    }
+
     @Test
     fun aRefusedSaleIsSaidOutLoud() = runComposeUiTest {
         val spare = STARTER_CARDS.first { it !in STARTER_DECK }
@@ -843,6 +916,108 @@ class CollectionUiTest {
             isVisible(strings[StringKeys.NOTHING_HAPPENED]),
             "a refused sale said nothing",
         )
+    }
+
+    @Test
+    fun theDuplicatesSegmentKeepsOnlyCardsHeldTwice() = runComposeUiTest {
+        val twice = STARTER_CARDS.first { it !in STARTER_DECK }
+        val once = STARTER_CARDS.last { it !in STARTER_DECK && it != twice }
+        val profile = freshSave().let { it.copy(cards = it.cards + (twice to 2)) }
+        setContent { Cards(profile) { IntentOutcome.APPLIED } }
+
+        onNodeWithTag(CARD_DUPLICATES_FILTER_TEST_TAG).performClick()
+        waitForIdle()
+
+        assertTrue(exists(cardCellTestTag(twice)), "a card held twice is not listed")
+        assertFalse(exists(cardCellTestTag(once)), "a card held once is listed")
+        onNodeWithTag(CARD_TOTAL_TEST_TAG).assertTextEquals("Owned$DOT_SEPARATOR" + "1 / 1")
+    }
+
+    /**
+     * Three copies of a deck card: the deck keeps one, two are spare. Two copies would read "1 in a
+     * deck · 1 spare" whichever way round the line was built.
+     */
+    @Test
+    fun theDetailSaysHowManyCopiesADeckKeeps() = runComposeUiTest {
+        val inDeck = STARTER_DECK.first()
+        val profile = freshSave().let { it.copy(cards = it.cards + (inDeck to 3)) }
+        setContent { Cards(profile) { IntentOutcome.APPLIED } }
+
+        openDetail(inDeck)
+
+        onNodeWithTag(CARD_COPIES_LINE_TEST_TAG, useUnmergedTree = true)
+            .assertTextEquals("3 owned · 1 in a deck · 2 spare")
+        onNodeWithTag(CARD_SELL_COUNT_TEST_TAG, useUnmergedTree = true).assertTextEquals("1 / 2")
+    }
+
+    @Test
+    fun aSingleSpareIsSoldWithoutAStepper() = runComposeUiTest {
+        val inDeck = STARTER_DECK.first()
+        val profile = freshSave().let { it.copy(cards = it.cards + (inDeck to 2)) }
+        setContent { Cards(profile) { IntentOutcome.APPLIED } }
+
+        openDetail(inDeck)
+
+        onNodeWithTag(CARD_COPIES_LINE_TEST_TAG, useUnmergedTree = true)
+            .assertTextEquals("2 owned · 1 in a deck · 1 spare")
+        assertTrue(exists(CARD_SELL_TEST_TAG), "the spare copy is not offered")
+        assertFalse(exists(CARD_SELL_COUNT_TEST_TAG), "a stepper is drawn for a single spare")
+    }
+
+    @Test
+    fun theStepperSellsAsManyCopiesAsItCounts() = runComposeUiTest {
+        val spare = STARTER_CARDS.first { it !in STARTER_DECK }
+        val profile = freshSave().let { it.copy(cards = it.cards + (spare to SPARES)) }
+        val sold = mutableListOf<Intent>()
+        setContent {
+            Cards(profile) {
+                sold += it
+                IntentOutcome.APPLIED
+            }
+        }
+
+        openDetail(spare)
+        onNodeWithTag(
+            CARD_SELL_COUNT_TEST_TAG,
+            useUnmergedTree = true,
+        ).assertTextEquals("1 / $SPARES")
+        onNodeWithTag(CARD_SELL_FEWER_TEST_TAG, useUnmergedTree = true).assertIsNotEnabled()
+        repeat(2) { onNodeWithTag(CARD_SELL_MORE_TEST_TAG, useUnmergedTree = true).performClick() }
+        onNodeWithTag(
+            CARD_SELL_COUNT_TEST_TAG,
+            useUnmergedTree = true,
+        ).assertTextEquals("$SPARES / $SPARES")
+        onNodeWithTag(CARD_SELL_MORE_TEST_TAG, useUnmergedTree = true).assertIsNotEnabled()
+
+        onNodeWithTag(CARD_SELL_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { sold.size == SPARES }
+        assertEquals(List(SPARES) { Intent.SellCard(spare) }, sold.toList())
+    }
+
+    @Test
+    fun aRefusalEndsTheRunOfSales() = runComposeUiTest {
+        val spare = STARTER_CARDS.first { it !in STARTER_DECK }
+        val profile = freshSave().let { it.copy(cards = it.cards + (spare to 3)) }
+        val asked = mutableListOf<Intent>()
+        setContent {
+            Cards(profile) {
+                asked += it
+                IntentOutcome.REFUSED
+            }
+        }
+
+        openDetail(spare)
+        repeat(2) { onNodeWithTag(CARD_SELL_MORE_TEST_TAG, useUnmergedTree = true).performClick() }
+        onNodeWithTag(CARD_SELL_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(COLLECTION_NOTE_TEST_TAG) }
+
+        assertEquals(1, asked.size, "the run went on after the server declined")
+    }
+
+    private fun ComposeUiTest.openDetail(cardId: Int) {
+        onNodeWithTag(CARD_GRID_TEST_TAG).performScrollToNode(hasTestTag(cardCellTestTag(cardId)))
+        onNodeWithTag(cardCellTestTag(cardId)).performClick()
+        waitForIdle()
     }
 
     @Composable

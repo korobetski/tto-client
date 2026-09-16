@@ -20,7 +20,8 @@ internal val STARTER_DECK: List<Int> = starterFor(FF14_BLOCK).deck
  * Four of a starter's nine cards are drawn (`StarterPack.drawn`), so a fixture without a seed would
  * be a different collection on every run and the tests reading [STARTER_CARDS] would be asserting
  * against whatever fell out. One fixed seed for the whole suite: the box is still the real box,
- * dealt by the real code, and it is the same box twice.
+ * dealt by the real code, and it is the same box twice — through the screens too, since [TestApp]
+ * hands the app this seed.
  */
 internal const val STARTER_SEED: Int = 20260904
 

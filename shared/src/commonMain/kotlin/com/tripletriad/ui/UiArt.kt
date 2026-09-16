@@ -94,7 +94,13 @@ private data class ThumbFrame(
         image = sheet,
         srcOffset = IntOffset(x, y),
         srcSize = IntSize(width, height),
-        filterQuality = FilterQuality.None,
+        // The FFXIV frames are the game's 80x80 icons in a 40 dp thumbnail: halved with point
+        // sampling they shimmer, so they are smoothed. The FF8 frames are pixel art authored at
+        // the drawn size, which smoothing would only blur as the interface size enlarges it.
+        filterQuality = when {
+            width > AUTHORED_THUMB_PX -> FilterQuality.Medium
+            else -> FilterQuality.None
+        },
     )
 }
 
@@ -120,6 +126,25 @@ private suspend fun loadOrNull(path: String): ImageBitmap? = try {
 val LocalUiArt = staticCompositionLocalOf<UiArt?> { null }
 
 private const val THUMBS_TABLE = "files/thumbs.json"
+
+/**
+ * The size, in pixels, of a thumbnail drawn 1:1 in `CardThumb`'s 40 dp on a 1x screen.
+ *
+ * The FFXIV sheets are packed at twice this since 2026-09-15, which costs 14.6 MB decoded where
+ * the 40 px sheets cost 3.6 MB — held for the life of the app, because every grid wants them at
+ * once and a bounded cache like `CardArt`'s would only decode them again while scrolling.
+ */
+internal const val AUTHORED_THUMB_PX = 40
+
+/**
+ * How a bag or achievement icon is sampled. The card and pack icons are the game's 80x80 since
+ * 2026-09-15 (`docs/resources`, the booster emblems composited on the pack) and are drawn at 32 or
+ * 44 dp; the rest are still the AS3's pixel art, none wider than 44 px. The thumbnails' rule.
+ */
+internal val ImageBitmap.iconFilter: FilterQuality
+    get() = if (width > AUTHORED_ICON_PX) FilterQuality.Medium else FilterQuality.None
+
+internal const val AUTHORED_ICON_PX = 44
 
 internal val AVATAR_NAMES: List<String> = listOf(
     "ffxiv_twi01001", "ffxiv_twi01002", "ffxiv_twi01003", "ffxiv_twi01004", "ffxiv_twi01005",

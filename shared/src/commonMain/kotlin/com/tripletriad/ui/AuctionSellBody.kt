@@ -64,7 +64,7 @@ fun auctionDurationTestTag(duration: AuctionDuration): String =
  * ### The card is chosen on its own screen, not off a strip
  *
  * This used to be a `LazyRow` of every spare copy, sorted by card id, at 0.6 of a card face. That
- * is a control for a handful of cards, and the collection holds 565: finding the one you meant to
+ * is a control for a handful of cards, and the collection holds 586: finding the one you meant to
  * sell was a horizontal drag through several hundred unlabelled pictures, past cards whose names
  * were nowhere on screen. Now the desk shows the *one* card being consigned — its name, its
  * rarity, how many copies are spare — and changing it opens [SellPicker], which is the same grid,

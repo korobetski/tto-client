@@ -1,6 +1,7 @@
 package com.tripletriad.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasTestTag
@@ -29,6 +30,7 @@ import com.tripletriad.storage.InMemoryDocumentStore
 import com.tripletriad.time.Clock
 import com.tripletriad.time.FixedClock
 import kotlinx.coroutines.runBlocking
+import kotlin.random.Random
 
 /**
  * The app under test, at a pace no one has to sit through.
@@ -59,6 +61,9 @@ internal fun TestApp(
     onQuit: () -> Unit = {},
     server: ServerConnection? = null,
     pacing: Pacing = TEST_PACING,
+    // So a character made through the screens holds [STARTER_CARDS]. Unseeded, its box drew 4 of
+    // 31 commons afresh each run, and a test counting on one of those unowned failed 1 run in 8.
+    random: Random = remember { Random(STARTER_SEED) },
 ) = App(
     store = store,
     documents = documents,
@@ -68,6 +73,7 @@ internal fun TestApp(
     onQuit = onQuit,
     server = server,
     pacing = pacing,
+    random = random,
 )
 
 /**
@@ -327,15 +333,22 @@ internal fun ComposeUiTest.openInventory() {
  */
 @OptIn(ExperimentalTestApi::class)
 internal fun ComposeUiTest.useItem(item: Item) {
+    // A duplicate card's row shows Sell and keeps Add in its menu. See `BagItemRow`.
+    if (!exists(inventoryUseTestTag(item))) {
+        onNodeWithTag(inventoryMenuTestTag(item)).performClick()
+        waitForIdle()
+    }
     onNodeWithTag(inventoryUseTestTag(item)).performClick()
     waitForIdle()
 }
 
-/** Sells one of a bag item, through the row's overflow menu. */
+/** Sells one of a bag item: the row's button on a duplicate card, the menu's entry otherwise. */
 @OptIn(ExperimentalTestApi::class)
 internal fun ComposeUiTest.sellItem(item: Item) {
-    onNodeWithTag(inventoryMenuTestTag(item)).performClick()
-    waitForIdle()
+    if (!exists(inventorySellTestTag(item))) {
+        onNodeWithTag(inventoryMenuTestTag(item)).performClick()
+        waitForIdle()
+    }
     onNodeWithTag(inventorySellTestTag(item)).performClick()
     waitForIdle()
 }

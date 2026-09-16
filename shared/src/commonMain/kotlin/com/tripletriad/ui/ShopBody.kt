@@ -1,17 +1,26 @@
 package com.tripletriad.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,11 +45,13 @@ import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.Strings
 import com.tripletriad.model.BoosterItem
+import com.tripletriad.model.BoosterType
 import com.tripletriad.model.Card
 import com.tripletriad.model.CardItem
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.Item
 import com.tripletriad.model.PotionItem
+import com.tripletriad.ui.theme.LocalTtoColors
 import kotlin.math.roundToInt
 
 const val SHOP_LIST_TEST_TAG: String = "shop-list"
@@ -49,14 +60,38 @@ const val SHOP_BUY_TEST_TAG: String = "shop-buy"
 /** The purchase sheet. Absent until an offer is picked — the buy button lives inside it. */
 const val SHOP_SHEET_TEST_TAG: String = "shop-sheet"
 
+/**
+ * What an offer holds and the button that buys it, in the sheet on a phone and in the pane beside
+ * the shelf on anything wider. The tag tests wait on, since only one of the two containers exists.
+ */
+const val SHOP_OFFER_DETAIL_TEST_TAG: String = "shop-offer-detail"
+
+/** The wide shop's right-hand pane, which is there with or without a pick. */
+const val SHOP_PANE_TEST_TAG: String = "shop-pane"
+
 const val SHOP_STARTER_TEST_TAG: String = "shop-starter"
 const val SHOP_STARTER_CLAIM_TEST_TAG: String = "shop-starter-claim"
 
 const val SHOP_NOTE_TEST_TAG: String = "shop-note"
 
+/** The boons brought to the head of the packs. Absent while any pack is affordable. */
+const val SHOP_WITHIN_REACH_TEST_TAG: String = "shop-within-reach"
+
 fun shopOfferTestTag(offer: ShopOffer): String = "shop-offer-${itemSlug(offer.item)}"
 
 fun shopOddsTestTag(offer: ShopOffer): String = "shop-odds-${itemSlug(offer.item)}"
+
+/** "5 of 8 missing", over the pool a picked pack draws from. */
+fun shopPoolCountTestTag(offer: ShopOffer): String = "shop-pool-count-${itemSlug(offer.item)}"
+
+/** One card of a picked pack's pool. */
+fun shopPoolCardTestTag(cardId: Int): String = "shop-pool-card-$cardId"
+
+/** The mark on a pool card the collection already holds. */
+fun shopPoolOwnedTestTag(cardId: Int): String = "shop-pool-owned-$cardId"
+
+/** The purse after the purchase, when it can be made. See [shopShortTestTag] for when it cannot. */
+fun shopBalanceAfterTestTag(offer: ShopOffer): String = "shop-balance-${itemSlug(offer.item)}"
 
 /** The chip that puts one shelf on show. Absent when only one shelf is stocked. */
 fun shopShelfTestTag(shelf: String): String = "shop-shelf-$shelf"
@@ -101,8 +136,10 @@ internal fun ColumnScope.ShopBody(
     starters: StarterCatalog,
     selectedTag: String?,
     onSelect: (String?) -> Unit,
+    onBuy: (ShopOffer) -> Unit,
     onClaimStarter: (() -> Unit)? = null,
 ) {
+    val wide = LocalWideLayout.current
     // Split once per shelf rather than filtered three times per frame. `Item` is sealed and has
     // four cases, so `others` can only ever be `MiscItem` — kept under the boons, at the foot of
     // the shelf of things that are neither packs nor cards, so an item nobody planned for still
@@ -131,21 +168,90 @@ internal fun ColumnScope.ShopBody(
         )
     }
 
+    // A phone's packs are rows, one to a line — see [BoosterRow]. Only the packs: a card cell is
+    // already a thumbnail and a price, and a boon is already a row.
+    val rows = !wide && shelf == Shelf.BOOSTERS
+    val grid: @Composable (Modifier) -> Unit = { modifier ->
+        ShelfGrid(
+            shelf = shelf,
+            shelves = shelves,
+            rows = rows,
+            cards = cards,
+            profile = profile,
+            selectedTag = selectedTag,
+            pick = pick,
+            modifier = modifier,
+        )
+    }
+
+    if (wide) {
+        // The pane is there before anything is picked, so picking does not reflow the shelf, and
+        // the purchase stays beside what it buys rather than over it. The sheet a phone gets
+        // covered half a landscape screen and the tile the player had just tapped.
+        Row(
+            modifier = Modifier.fillMaxWidth().weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(SpaceMd),
+        ) {
+            grid(Modifier.weight(1f).fillMaxHeight())
+            ShopOfferPane(
+                offer = offers.firstOrNull { shopOfferTestTag(it) == selectedTag },
+                cards = cards,
+                profile = profile,
+                onBuy = onBuy,
+                modifier = Modifier.width(ShopPaneWidth).fillMaxHeight(),
+            )
+        }
+    } else {
+        grid(Modifier.fillMaxWidth().weight(1f))
+    }
+}
+
+@Composable
+private fun ShelfGrid(
+    shelf: Shelf,
+    shelves: Shelves,
+    rows: Boolean,
+    cards: Map<Int, Card>,
+    profile: GameSave,
+    selectedTag: String?,
+    pick: (ShopOffer) -> Unit,
+    modifier: Modifier,
+) {
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = shelf.cell),
-        modifier = Modifier.testTag(SHOP_LIST_TEST_TAG).fillMaxWidth().weight(1f),
+        columns = if (rows) GridCells.Fixed(1) else GridCells.Adaptive(minSize = shelf.cell),
+        modifier = modifier.testTag(SHOP_LIST_TEST_TAG),
         horizontalArrangement = Arrangement.spacedBy(SpaceSm),
         verticalArrangement = Arrangement.spacedBy(SpaceSm),
     ) {
         when (shelf) {
-            Shelf.BOOSTERS -> items(shelves.boosters, key = ::shopOfferTestTag) { offer ->
-                BoosterTile(
-                    offer = offer,
-                    cards = cards,
-                    profile = profile,
-                    isSelected = shopOfferTestTag(offer) == selectedTag,
-                    onClick = { pick(offer) },
-                )
+            Shelf.BOOSTERS -> {
+                // A purse that reaches no pack is the purse of a player who needs MGP, and the
+                // boons are what makes more of it. They are a shelf away, so the ones it does
+                // reach are brought here rather than left for the player to go looking for.
+                val reachable = shelves.boons.filter { it.isAffordableBy(profile) }
+                val noPack = shelves.boosters.none { it.isAffordableBy(profile) }
+                if (reachable.isNotEmpty() && noPack) {
+                    fullWidth {
+                        WithinReach(profile = profile, boons = reachable) { offer ->
+                            BoonTile(
+                                offer = offer,
+                                cards = cards,
+                                profile = profile,
+                                isSelected = shopOfferTestTag(offer) == selectedTag,
+                                onClick = { pick(offer) },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    }
+                }
+                items(shelves.boosters, key = ::shopOfferTestTag) { offer ->
+                    val isSelected = shopOfferTestTag(offer) == selectedTag
+                    if (rows) {
+                        BoosterRow(offer, cards, profile, isSelected, onClick = { pick(offer) })
+                    } else {
+                        BoosterTile(offer, cards, profile, isSelected, onClick = { pick(offer) })
+                    }
+                }
             }
 
             Shelf.CARDS -> items(shelves.cards, key = ::shopOfferTestTag) { offer ->
@@ -220,6 +326,32 @@ private data class Shelves(
                 it.item !is BoosterItem && it.item !is PotionItem && it.item !is CardItem
             },
         )
+    }
+}
+
+/** The boons a purse too light for every pack can still buy, at the head of the packs. */
+@Composable
+private fun WithinReach(
+    profile: GameSave,
+    boons: List<ShopOffer>,
+    tile: @Composable (ShopOffer) -> Unit,
+) {
+    val strings = LocalStrings.current
+
+    Column(
+        modifier = Modifier.testTag(SHOP_WITHIN_REACH_TEST_TAG).fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(SpaceXs),
+    ) {
+        Text(
+            text = strings.format(
+                StringKeys.NO_PACK_AFFORDABLE,
+                grouped(profile.mgp),
+                strings[StringKeys.MGP],
+            ),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = SUBDUED),
+            style = MaterialTheme.typography.labelMedium,
+        )
+        boons.forEach { tile(it) }
     }
 }
 
@@ -373,6 +505,46 @@ private fun OfferRow(
 }
 
 /**
+ * The wide shop's right-hand column: [ShopOfferSheet] for the pick, or a line saying to make one.
+ *
+ * Wider than the card list's 260 dp detail pane: a pack's pool is a grid of 44 dp tiles, and at
+ * 320 dp it holds six to a line rather than four.
+ */
+@Composable
+private fun ShopOfferPane(
+    offer: ShopOffer?,
+    cards: Map<Int, Card>,
+    profile: GameSave,
+    onBuy: (ShopOffer) -> Unit,
+    modifier: Modifier,
+) {
+    Column(
+        modifier = modifier
+            .testTag(SHOP_PANE_TEST_TAG)
+            .rowSurface(selected = false)
+            .verticalScroll(rememberScrollState())
+            .padding(vertical = SpaceMd),
+    ) {
+        if (offer == null) {
+            Text(
+                text = LocalStrings.current[StringKeys.SHOP_PICK_OFFER],
+                modifier = Modifier.fillMaxWidth().padding(SpaceMd),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
+                style = MaterialTheme.typography.bodySmall,
+                textAlign = TextAlign.Center,
+            )
+        } else {
+            ShopOfferSheet(
+                offer = offer,
+                cards = cards,
+                profile = profile,
+                onBuy = { onBuy(offer) },
+            )
+        }
+    }
+}
+
+/**
  * What a picked offer opens: the thing itself, what it costs, and the one button that buys it.
  *
  * The button used to be a permanent 56 dp bar at the foot of the screen — disabled for as long as
@@ -394,6 +566,7 @@ internal fun ShopOfferSheet(
 
     Column(
         modifier = Modifier
+            .testTag(SHOP_OFFER_DETAIL_TEST_TAG)
             .fillMaxWidth()
             .padding(horizontal = SpaceMd)
             .padding(bottom = SpaceLg),
@@ -468,32 +641,161 @@ internal fun ShopOfferSheet(
             }
         }
 
+        (offer.item as? BoosterItem)?.let { pack ->
+            PackPool(type = pack.boosterType, offer = offer, cards = cards, profile = profile)
+        }
+
+        BalanceLine(offer = offer, profile = profile)
+
         WideButton(
             label = "${strings[StringKeys.BUY]}$DOT_SEPARATOR${grouped(offer.price)}",
             tag = SHOP_BUY_TEST_TAG,
             enabled = isAffordable,
             onClick = onBuy,
         )
+    }
+}
 
-        // The gap, said once and here rather than under every price on the shelf. A disabled
-        // button says "not this"; "you need 400 more" is a match away and "you need 2 760 more"
-        // is not, and only arithmetic over the price tells the two apart.
-        if (!isAffordable) {
+/**
+ * Every card a pack can hand over, the ones already held dimmed and ticked.
+ *
+ * The tile's "5 missing" is a count; this is the list it counts, which is what a player weighing
+ * a pack for one particular card wants to know. A card the collection lacks is the "?" the card
+ * list draws for it, not its picture: the list keeps an unseen card to be found, and a shop that
+ * showed the whole pool would give away every one of them a pack at a time.
+ *
+ * Out of [cards], the format's table — a pool card the format does not admit is left out of the
+ * grid but still counted, since the pack still draws it.
+ */
+@Composable
+private fun PackPool(
+    type: BoosterType,
+    offer: ShopOffer,
+    cards: Map<Int, Card>,
+    profile: GameSave,
+) {
+    val strings = LocalStrings.current
+    val facts = remember(type, cards, profile.cards) { packFacts(type, cards, profile.cards) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(SpaceXs)) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(SpaceSm),
+        ) {
             Text(
-                text = strings.format(
-                    StringKeys.PRICE_SHORT,
-                    grouped(offer.price - profile.mgp),
-                ),
-                modifier = Modifier.fillMaxWidth().testTag(shopShortTestTag(offer)),
+                text = strings[StringKeys.PACK_POOL],
+                modifier = Modifier.weight(1f),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = SUBDUED),
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            RarityRange(stars = facts.stars)
+        }
+        Text(
+            text = strings.format(
+                StringKeys.PACK_MISSING_OF,
+                facts.missing.toString(),
+                type.pool.size.toString(),
+            ),
+            modifier = Modifier.testTag(shopPoolCountTestTag(offer)),
+            color = MaterialTheme.colorScheme.tertiary,
+            style = MaterialTheme.typography.labelSmall,
+        )
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(SpaceXs),
+            verticalArrangement = Arrangement.spacedBy(SpaceXs),
+        ) {
+            for (card in type.pool.mapNotNull(cards::get)) {
+                val tag = Modifier.testTag(shopPoolCardTestTag(card.id))
+                if ((profile.cards[card.id] ?: 0) > 0) {
+                    Box(modifier = tag) {
+                        CardTile(card = card, dim = true)
+                        // Bottom corner, on a disc: the top one is the type icon's, and a green
+                        // tick over a green tribe emblem was not there to read.
+                        Icon(
+                            imageVector = TtoIcons.Done,
+                            contentDescription = null,
+                            tint = LocalTtoColors.current.positiveContainer,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(SpaceXs)
+                                .size(OwnedMarkSize)
+                                .background(LocalTtoColors.current.positive, CircleShape)
+                                .padding(OwnedMarkInset)
+                                .testTag(shopPoolOwnedTestTag(card.id)),
+                        )
+                    }
+                } else {
+                    UnknownCardTile(card = card, modifier = tag)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The purse now and after: `1 200 → 650`, or `100 → you need 450 more`.
+ *
+ * The gap used to be a red line under a disabled button. Beside the purse it is arithmetic the
+ * player can check, and a purse that reaches the price says what is left, which is the number the
+ * next purchase starts from.
+ */
+@Composable
+private fun BalanceLine(offer: ShopOffer, profile: GameSave) {
+    val strings = LocalStrings.current
+    val affordable = offer.isAffordableBy(profile)
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(SpaceXs),
+    ) {
+        Text(
+            text = strings[StringKeys.SHOP_BALANCE],
+            modifier = Modifier.weight(1f),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = SUBDUED),
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = "${grouped(profile.mgp)} $BALANCE_ARROW",
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
+            softWrap = false,
+        )
+        if (affordable) {
+            Text(
+                text = grouped(profile.mgp - offer.price),
+                modifier = Modifier.testTag(shopBalanceAfterTestTag(offer)),
+                color = MaterialTheme.colorScheme.tertiary,
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+                softWrap = false,
+            )
+        } else {
+            Text(
+                text = strings.format(StringKeys.PRICE_SHORT, grouped(offer.price - profile.mgp)),
+                modifier = Modifier.testTag(shopShortTestTag(offer)),
                 color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.labelSmall,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
     }
 }
+
+private const val BALANCE_ARROW = "→"
+
+private val OwnedMarkSize = 16.dp
+
+private val OwnedMarkInset = 2.dp
+
+/** [ShopOfferSheet] at its phone width, near enough: a card at scale 1 and its text beside it. */
+private val ShopPaneWidth = 320.dp
 private val SheetGlyphSize = 56.dp
 
 private const val PERCENT = 100

@@ -973,8 +973,11 @@ object StringKeys {
     const val CARD_TOOLTIPS: String = "APP_CARD_TOOLTIPS"
     const val CARD_TOOLTIPS_NOTE: String = "APP_CARD_TOOLTIPS_NOTE"
 
-    // ---- Reaching one card out of 565.
+    // ---- Reaching one card out of 586.
     const val SEARCH_CARDS: String = "APP_SEARCH_CARDS"
+
+    /** [SEARCH_CARDS] beside a count, where a 360 dp phone wrapped the long one onto two lines. */
+    const val SEARCH: String = "APP_SEARCH"
 
     /** The catalogue's own order. The other two sorts borrow `STR_TOTAL` and `STR_RARITY`. */
     const val SORT_NUMBER: String = "APP_SORT_NUMBER"
@@ -1104,6 +1107,57 @@ object StringKeys {
     const val LEAVE_MATCH: String = "APP_LEAVE_MATCH"
     const val LEAVE_MATCH_PVE: String = "APP_LEAVE_MATCH_PVE"
     const val LEAVE_MATCH_CONFIRM: String = "APP_LEAVE_MATCH_CONFIRM"
+
+    // ---- The store's tabs: short enough for three across a phone, and for the bar beside the
+    // title on a wide window. `STR_CARD_SHOP` and `STR_INVENTORY` stay the screens' long names.
+    const val TAB_SHOP: String = "APP_TAB_SHOP"
+    const val TAB_BAG: String = "APP_TAB_BAG"
+    const val TAB_AUCTION: String = "APP_TAB_AUCTION"
+
+    /** Over the boons the purse reaches when it reaches no pack: {0} the purse, {1} the coin. */
+    const val NO_PACK_AFFORDABLE: String = "APP_NO_PACK_AFFORDABLE"
+
+    // ---- The bag's verbs, one per kind of item, where `STR_USE` said nothing of what happens: a
+    // pack or a pouch is opened, a boon activated, a card added to the collection.
+    const val OPEN: String = "APP_OPEN"
+    const val ACTIVATE: String = "APP_ACTIVATE"
+    const val ADD_TO_COLLECTION: String = "APP_ADD_TO_COLLECTION"
+
+    // ---- A card in the bag the collection lacks, or already holds — and the two bulk actions
+    // over each kind, "{0}" the number of cards moved.
+    const val BADGE_NEW: String = "APP_BADGE_NEW"
+    const val BADGE_DUPLICATE: String = "APP_BADGE_DUPLICATE"
+    const val ADD_NEW_CARDS: String = "APP_ADD_NEW_CARDS"
+    const val SELL_DUPLICATES: String = "APP_SELL_DUPLICATES"
+
+    /** The card list's filter for a card held more than once. */
+    const val DUPLICATES: String = "APP_DUPLICATES"
+
+    /** {0} copies held, {1} of them kept by a deck, {2} free to sell — `spareCopiesOf`. */
+    const val CARD_COPIES: String = "APP_CARD_COPIES"
+
+    // ---- The card list's sell stepper, for a screen reader: its buttons are a minus and a plus.
+    const val SELL_FEWER: String = "APP_SELL_FEWER"
+    const val SELL_MORE: String = "APP_SELL_MORE"
+
+    /** A potion's row in the bag, which names the boon already: `next {0} matches`. */
+    const val ITEM_GIST_BOON: String = "APP_ITEM_GIST_BOON"
+
+    /** [PACK_MISSING] where a row has one line for three facts. */
+    const val PACK_MISSING_SHORT: String = "APP_PACK_MISSING_SHORT"
+
+    /** The purchase sheet's count over the pool it draws: `{0} of {1} missing`. */
+    const val PACK_MISSING_OF: String = "APP_PACK_MISSING_OF"
+    const val PACK_POOL: String = "APP_PACK_POOL"
+    const val SHOP_BALANCE: String = "APP_SHOP_BALANCE"
+
+    /** What the wide shop's detail pane says before an offer is picked. */
+    const val SHOP_PICK_OFFER: String = "APP_SHOP_PICK_OFFER"
+
+    // ---- The card list's bulk sale: the toggle, and the bar that counts the selection.
+    const val SELECT_CARDS: String = "APP_SELECT_CARDS"
+    const val CARDS_SELECTED: String = "APP_CARDS_SELECTED"
+    const val SELL_KEEPS_ONE: String = "APP_SELL_KEEPS_ONE"
 
     val all: List<String> = listOf(
         NEXT_MATCH, YOU_WIN, YOU_LOSE, DRAW, SUDDEN_DEATH,
@@ -1242,7 +1296,7 @@ object StringKeys {
         CAPTURE_HINTS, CAPTURE_HINTS_NOTE, CAPTURE_HINT_CELL,
         UNOWNED_CARDS, UNOWNED_UNKNOWN, UNOWNED_DIMMED, UNOWNED_HIDDEN,
         DISPLAY_SETTINGS, UI_SCALE, UI_SCALE_NOTE, UI_SCALE_AUTO, CARD_TOOLTIPS, CARD_TOOLTIPS_NOTE,
-        SEARCH_CARDS, SORT_NUMBER, MISSING, NO_CARD_MATCH, CARD_SET,
+        SEARCH_CARDS, SEARCH, SORT_NUMBER, MISSING, NO_CARD_MATCH, CARD_SET,
         FILTERS, FILTERS_RESET, SORT, SORT_REVERSE,
         FILTER_SOURCES, SOURCE_OPPONENTS, FILTER_SIDES,
         SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM, SIDE_LEFT,
@@ -1263,6 +1317,12 @@ object StringKeys {
         LESSON_CHAPTER_BASICS, LESSON_CHAPTER_CAPTURES, LESSON_CHAPTER_MATCHES,
         HELP_SEARCH, HELP_NO_MATCH, HELP_LAST_MATCH,
         HELP_CAPTURES, HELP_HOLDS, HELP_FAILS,
+        TAB_SHOP, TAB_BAG, TAB_AUCTION, NO_PACK_AFFORDABLE,
+        OPEN, ACTIVATE, ADD_TO_COLLECTION,
+        BADGE_NEW, BADGE_DUPLICATE, ADD_NEW_CARDS, SELL_DUPLICATES,
+        DUPLICATES, CARD_COPIES, SELL_FEWER, SELL_MORE,
+        ITEM_GIST_BOON, PACK_MISSING_SHORT, PACK_MISSING_OF, PACK_POOL, SHOP_BALANCE,
+        SHOP_PICK_OFFER, SELECT_CARDS, CARDS_SELECTED, SELL_KEEPS_ONE,
     )
 
     val appOwned: List<String> = all.filter { it.startsWith("APP_") }

@@ -19,7 +19,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.tripletriad.i18n.LocalStrings
@@ -265,7 +264,7 @@ internal fun TypeIcon(type: CardType) {
         bitmap = icon,
         contentDescription = null,
         modifier = Modifier.size(TypeIconSize),
-        filterQuality = FilterQuality.None,
+        filterQuality = icon.typeIconFilter,
     )
 }
 

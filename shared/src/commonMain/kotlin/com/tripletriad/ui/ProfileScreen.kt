@@ -35,6 +35,7 @@ import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.Card
 import com.tripletriad.model.GameSave
 import kotlinx.coroutines.launch
+import kotlin.random.Random
 
 const val PROFILE_LIST_TEST_TAG: String = "profile-list"
 const val PROFILE_NEW_TEST_TAG: String = "profile-new"
@@ -214,6 +215,7 @@ internal fun ProfileCreateScreen(
     session: ProfileSession,
     starters: StarterCatalog,
     cards: Map<Int, Card>,
+    random: Random,
     onCreated: (GameSave) -> Unit,
     onBack: () -> Unit,
 ) {
@@ -258,7 +260,7 @@ internal fun ProfileCreateScreen(
                     // The authored box, and there is nothing else: `GameSave.new` deals no cards
                     // at all now. Both creation paths go through the catalogue; see
                     // [StarterPack.opened] for why that had to be one place.
-                    session.create(name, chosen, cards)
+                    session.create(name, chosen, cards, random)
                     session.active?.let(onCreated)
                 }
             },

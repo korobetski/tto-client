@@ -69,7 +69,7 @@ const val DECK_PICK_GRID_TEST_TAG: String = "deck-pick-grid"
 
 const val DECK_MISSING_TEST_TAG: String = "deck-missing"
 
-/** The editor's live per-rank counters — `★5 1 / 1  ·  ★4 0 / 2`. */
+/** The editor's live per-rank counters — `★5 1 / 1  ·  ★4+ 1 / 2`. */
 const val DECK_LIMITS_TEST_TAG: String = "deck-limits"
 
 const val DECK_OVER_LIMIT_TEST_TAG: String = "deck-over-limit"
@@ -80,8 +80,6 @@ const val DECK_FILL_TEST_TAG: String = "deck-fill"
 fun deckPositionTestTag(index: Int): String = "deck-position-$index"
 
 fun deckPickTestTag(cardId: Int): String = "deck-pick-$cardId"
-
-fun deckRemainingTestTag(cardId: Int): String = "deck-remaining-$cardId"
 
 /** The handle a position is dragged by — absent where there is no card to move. */
 fun deckPositionDragTestTag(position: Int): String = "deck-position-drag-$position"
@@ -431,11 +429,13 @@ private fun DeckPickGrid(
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         items(shown, key = { it.id }) { card ->
-            // How many copies this deck has not spent yet. A card whose copies are all in the
-            // deck is dimmed and refuses the tap, because `Deck.isAffordable` would refuse the
-            // deck and the server would refuse the match — a rule the player meets as a
-            // rejection they cannot act on is worse than one they can see coming.
-            val remaining = profile.copiesOf(card.id) - draft.copiesUsed(card.id)
+            // How many copies this deck may still take: one for a card it does not hold yet,
+            // however many the collection has, because a deck names a card once
+            // (`DeckLimits.MAX_COPIES`). A card already in is dimmed and refuses the tap — a
+            // rule the player meets as a rejection they cannot act on is worse than one they can
+            // see coming.
+            val remaining =
+                minOf(profile.copiesOf(card.id), DeckLimits.MAX_COPIES) - draft.copiesUsed(card.id)
 
             // And whether the deck may hold another of this rank. Dimmed and inert exactly as
             // a spent copy is, because to the player the two are the same fact — this card
@@ -469,15 +469,13 @@ private fun DeckPickGrid(
                                 onDraft(draft.plusCard(card.id))
                             },
                     ) {
-                        // The same tile the collection and the shop draw. What the badge counts
-                        // here is what the *draft* has left, not what the profile owns — see
-                        // `remaining`.
+                        // The same tile the collection and the shop draw, without its copies badge:
+                        // the deck takes one copy whatever the collection holds, so a count here
+                        // would be a number the deck cannot spend.
                         CardTile(
                             card = card,
                             dim = remaining <= 0 || !admitted,
                             selected = card.id in draft.cards,
-                            count = remaining.takeIf { profile.copiesOf(card.id) > 1 },
-                            countTag = deckRemainingTestTag(card.id),
                         )
                     }
                 }

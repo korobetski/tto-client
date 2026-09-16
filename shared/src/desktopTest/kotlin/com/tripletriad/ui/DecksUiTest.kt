@@ -256,8 +256,9 @@ class DecksUiTest {
         assertEquals(listOf(single), storedSave(documents).decks.first().cards)
     }
 
+    /** A deck names a card once, so a second copy in the collection is not a second pick. */
     @Test
-    fun theEditorAcceptsASecondCopyWhenOneIsOwned() = runComposeUiTest {
+    fun theEditorRefusesASecondCopyEvenWhenOneIsOwned() = runComposeUiTest {
         val twin = STARTER_CARDS.first()
         val profile = GameSave.new(createdAt = 0L).copy(
             cards = STARTER_CARDS.associateWith { 1 } + (twin to 2),
@@ -270,14 +271,11 @@ class DecksUiTest {
 
         onNodeWithTag(deckSlotTestTag(0)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
-        // Unmerged: the badge sits inside the pick cell's `clickable`. See `existsUnmerged`.
-        onNodeWithTag(deckRemainingTestTag(twin), useUnmergedTree = true)
-            .assertTextEquals("\u00d71")
-        onNodeWithTag(deckPickTestTag(twin)).performClick()
+        onNodeWithTag(deckPickTestTag(twin)).assertIsNotEnabled().performClick()
         onNodeWithTag(DECK_SAVE_TEST_TAG).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_LIST_TEST_TAG) }
 
-        assertEquals(listOf(twin, twin), storedSave(documents).decks.first().cards)
+        assertEquals(listOf(twin), storedSave(documents).decks.first().cards)
     }
 
     /**
@@ -596,7 +594,7 @@ class DecksUiTest {
         onNodeWithTag(deckSlotTestTag(0)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(DECK_EDITOR_TEST_TAG) }
 
-        onNodeWithTag(DECK_LIMITS_TEST_TAG).assertTextEquals("Rank limits ★5 1 / 1  ·  ★4 0 / 2")
+        onNodeWithTag(DECK_LIMITS_TEST_TAG).assertTextEquals("Rank limits ★5 1 / 1  ·  ★4+ 1 / 2")
     }
 
     /** A second five-star cannot be picked, exactly as a copy that is already spent cannot. */

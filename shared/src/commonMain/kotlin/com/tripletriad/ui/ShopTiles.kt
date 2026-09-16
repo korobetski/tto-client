@@ -1,26 +1,35 @@
 package com.tripletriad.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.tripletriad.data.ShopOffer
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
-import com.tripletriad.i18n.Strings
 import com.tripletriad.model.BoosterItem
 import com.tripletriad.model.BoosterType
 import com.tripletriad.model.Card
@@ -36,6 +45,12 @@ fun shopShortTestTag(offer: ShopOffer): String = "shop-short-${itemSlug(offer.it
 
 /** What a pack holds, on the tile that sells it. Absent for anything that is not a pack. */
 fun shopPackFactsTestTag(offer: ShopOffer): String = "shop-pack-${itemSlug(offer.item)}"
+
+/** The rank a base pack is named after, over the corner of its art. Absent on themed packs. */
+fun shopRarityTestTag(offer: ShopOffer): String = "shop-rarity-${itemSlug(offer.item)}"
+
+/** What the purse is short of an offer, under its price on the shelf. Absent when affordable. */
+fun shopTileShortTestTag(offer: ShopOffer): String = "shop-tile-short-${itemSlug(offer.item)}"
 
 /** How much of a pack's pool the collection is still missing, on the tile that sells it. */
 fun shopPackMissingTestTag(offer: ShopOffer): String = "shop-missing-${itemSlug(offer.item)}"
@@ -92,6 +107,10 @@ internal fun starRange(stars: IntRange): String = if (stars.first == stars.last)
  * the question being asked — *is there anything in it I do not already have*. That number is
  * [PackFacts.missing], and it costs a `count` over a list the client already has in memory.
  *
+ * "1 card" is not on it: every pack hands over one, so a line that never differs from one tile to
+ * the next compared nothing. The ranks the pool spans are drawn with the game's rarity icons, where
+ * "★–★★★★" in a 152 dp column used to lose its tail.
+ *
  * The odds line stays off the shelf, by the same decision as before: [packTerms] computes it and
  * the purchase sheet is where a player weighing a bet reads it, once rather than eleven times.
  */
@@ -120,9 +139,7 @@ internal fun BoosterTile(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(SpaceXs),
     ) {
-        // The pack's own artwork at the size it was drawn — four of the eleven have one, and
-        // `ItemGlyph` falls back to the vector for those that do not.
-        ItemGlyph(item = offer.item, description = name, size = BoosterArtSize)
+        PackArt(offer = offer, profile = profile, type = type, name = name)
         Text(
             text = name,
             color = MaterialTheme.colorScheme.onSurface,
@@ -133,45 +150,155 @@ internal fun BoosterTile(
             minLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
-        facts?.let { PackFactLines(offer = offer, facts = it, strings = strings) }
-        OfferPrice(offer = offer, profile = profile)
+        facts?.let { PackFactLines(offer = offer, facts = it) }
+        OfferPrice(offer = offer, profile = profile, gapLine = true)
     }
 }
 
-/** [PackFacts] in words: what comes out of the pack, then what the collection still wants. */
+/**
+ * A pack's own artwork: the four tribe packs carry their emblem, the other eleven share the plain
+ * wrapper, and `ItemGlyph` falls back to the vector only if neither loaded.
+ *
+ * Five of those eleven are one series told apart by nothing but the name, so the wrapper is marked
+ * with the rank the name stands for.
+ */
 @Composable
-private fun PackFactLines(offer: ShopOffer, facts: PackFacts, strings: Strings) {
-    val contents = listOfNotNull(
-        strings.format(StringKeys.PACK_CARDS, facts.draws.toString()),
-        facts.stars?.let(::starRange),
-    ).joinToString(DOT_SEPARATOR)
+internal fun PackArt(offer: ShopOffer, profile: GameSave, type: BoosterType?, name: String) {
+    OfferArt(offer = offer, profile = profile) {
+        ItemGlyph(item = offer.item, description = name, size = BoosterArtSize)
+        type?.let(::baseRarity)?.let { rarity ->
+            RarityIcon(
+                rarity = rarity,
+                size = RarityBadgeSize,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .offset(x = SpaceXs, y = SpaceXs)
+                    .testTag(shopRarityTestTag(offer))
+                    .semantics { contentDescription = starsOf(rarity) },
+            )
+        }
+    }
+}
 
-    Text(
-        text = contents,
-        modifier = Modifier.testTag(shopPackFactsTestTag(offer)),
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
-        style = MaterialTheme.typography.labelSmall,
-        textAlign = TextAlign.Center,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
+/**
+ * An offer's picture, dimmed when the purse cannot reach it.
+ *
+ * Only the picture. Dimming the whole tile, which the shop did once, hid the name and the facts of
+ * everything expensive — and what is out of reach is still worth reading about.
+ */
+@Composable
+internal fun OfferArt(
+    offer: ShopOffer,
+    profile: GameSave,
+    content: @Composable BoxScope.() -> Unit,
+) {
+    Box(
+        modifier = Modifier.alpha(if (offer.isAffordableBy(profile)) 1f else FAINT),
+        content = content,
     )
+}
+
+/**
+ * The star rank a base pack is named after — Bronze one, Platinum five — or null for a themed pack.
+ *
+ * The pack's place in the series rather than a reading of its pool: the pool's own range is the
+ * line under the name, and a badge that repeated it would say one fact twice on one tile.
+ */
+internal fun baseRarity(type: BoosterType): Int? =
+    BASE_PACKS.indexOf(type).takeIf { it >= 0 }?.plus(1)
+
+private val BASE_PACKS = listOf(
+    BoosterType.BRONZE,
+    BoosterType.SILVER,
+    BoosterType.GOLD,
+    BoosterType.MITHRIL,
+    BoosterType.PLATINUM,
+)
+
+/** The game's icon for [rarity], or its stars as text when the icons did not load. */
+@Composable
+internal fun RarityIcon(rarity: Int, size: Dp, modifier: Modifier = Modifier) {
+    val icon = LocalUiArt.current?.icon("card_r${rarity}_icon")
+    if (icon == null) {
+        Text(
+            text = starsOf(rarity),
+            modifier = modifier,
+            color = MaterialTheme.colorScheme.tertiary,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            softWrap = false,
+        )
+    } else {
+        Image(bitmap = icon, contentDescription = null, modifier = modifier.size(size))
+    }
+}
+
+/** [PackFacts] drawn: the ranks the pool spans, then what the collection still wants. */
+@Composable
+private fun PackFactLines(offer: ShopOffer, facts: PackFacts) {
+    RarityRange(stars = facts.stars, tag = shopPackFactsTestTag(offer))
+    MissingLine(offer = offer, missing = facts.missing, short = false)
+}
+
+/**
+ * The ranks a pool spans, as the game's rarity icons.
+ *
+ * Laid out with or without a range, so a pool the format admits none of does not leave its tile
+ * one line shorter than its neighbours.
+ */
+@Composable
+internal fun RarityRange(
+    stars: IntRange?,
+    modifier: Modifier = Modifier,
+    tag: String? = null,
+) {
+    Row(
+        modifier = modifier
+            .height(RarityRangeSize)
+            .then(if (tag == null) Modifier else Modifier.testTag(tag))
+            .semantics(mergeDescendants = true) {
+                if (stars != null) contentDescription = starRange(stars)
+            },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(SpaceXs),
+    ) {
+        if (stars != null) {
+            RarityIcon(rarity = stars.first, size = RarityRangeSize)
+            if (stars.last != stars.first) {
+                Text(
+                    text = STAR_RANGE,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+                    style = MaterialTheme.typography.labelSmall,
+                )
+                RarityIcon(rarity = stars.last, size = RarityRangeSize)
+            }
+        }
+    }
+}
+
+/**
+ * How much of a pool the collection lacks: lit when there is something to gain, quiet when there
+ * is not. A pack whose pool the collection already holds is still for sale; it is just no longer
+ * an argument.
+ */
+@Composable
+internal fun MissingLine(offer: ShopOffer, missing: Int, short: Boolean) {
+    val strings = LocalStrings.current
     Text(
         modifier = Modifier.testTag(shopPackMissingTestTag(offer)),
-        text = if (facts.missing == 0) {
-            strings[StringKeys.PACK_COMPLETE]
-        } else {
-            strings.format(StringKeys.PACK_MISSING, facts.missing.toString())
+        text = when {
+            missing == 0 -> strings[StringKeys.PACK_COMPLETE]
+            short -> strings.format(StringKeys.PACK_MISSING_SHORT, missing.toString())
+            else -> strings.format(StringKeys.PACK_MISSING, missing.toString())
         },
-        // Lit when there is something to gain and quiet when there is not: a pack whose pool the
-        // collection already holds is still for sale, it is just no longer an argument.
-        color = if (facts.missing == 0) {
+        color = if (missing == 0) {
             MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT)
         } else {
             MaterialTheme.colorScheme.tertiary
         },
         style = MaterialTheme.typography.labelSmall,
         textAlign = TextAlign.Center,
-        maxLines = 2,
+        maxLines = if (short) 1 else 2,
         overflow = TextOverflow.Ellipsis,
     )
 }
@@ -198,7 +325,9 @@ internal fun BoonTile(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(SpaceSm),
     ) {
-        ItemGlyph(item = offer.item, description = name, size = IconMd)
+        OfferArt(offer = offer, profile = profile) {
+            ItemGlyph(item = offer.item, description = name, size = IconMd)
+        }
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = name,
@@ -216,7 +345,7 @@ internal fun BoonTile(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        OfferPrice(offer = offer, profile = profile)
+        OfferPrice(offer = offer, profile = profile, gapLine = true)
     }
 }
 
@@ -272,38 +401,60 @@ internal fun CardOffer(
 }
 
 /**
- * A price on the shelf, red when the purse cannot reach it.
+ * A price on the shelf, red when the purse cannot reach it — and, where there is room, by how much.
  *
- * **The line that named the gap is gone from the tile.** It said "you need 510 more" under every
- * price that was out of reach, which is the same fact the red already carries — and it carried it
- * at the cost of a second line on some tiles and not on others, so a shelf of eleven packs came
- * out at two heights. The number itself is not lost: the purchase sheet says it, once, where
- * there is one offer and nothing to line up with.
- *
- * Dimming the whole offer, which this did before the red, hid the name and the description of
- * everything expensive — and three cards on this shelf cost more than a character will hold for a
- * very long time.
+ * @param gapLine whether "you need 510 more" goes under the price. When it does, the line is laid
+ *   out on every tile, blank on the ones in reach: drawn only where it had something to say, it
+ *   once left a shelf of eleven packs at two heights. The 86 dp card cells have no room for it —
+ *   their red is the whole message, and the purchase sheet names the number.
  *
  * The coin and the grouped number themselves are [PriceTag], which is how every price in the app
  * is written; what belongs to the shop is the colour.
  */
 @Composable
-internal fun OfferPrice(offer: ShopOffer, profile: GameSave) {
+internal fun OfferPrice(offer: ShopOffer, profile: GameSave, gapLine: Boolean = false) {
     val affordable = offer.isAffordableBy(profile)
 
-    PriceTag(
-        price = offer.price,
-        color = if (affordable) {
-            MaterialTheme.colorScheme.tertiary
-        } else {
-            MaterialTheme.colorScheme.error
-        },
-        coin = if (affordable) {
-            LocalTtoColors.current.currency
-        } else {
-            MaterialTheme.colorScheme.error
-        },
-    )
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        PriceTag(
+            price = offer.price,
+            color = if (affordable) {
+                MaterialTheme.colorScheme.tertiary
+            } else {
+                MaterialTheme.colorScheme.error
+            },
+            coin = if (affordable) {
+                LocalTtoColors.current.currency
+            } else {
+                MaterialTheme.colorScheme.error
+            },
+        )
+        if (gapLine) {
+            Text(
+                text = if (affordable) {
+                    ""
+                } else {
+                    LocalStrings.current.format(
+                        StringKeys.PRICE_SHORT,
+                        grouped(offer.price - profile.mgp),
+                    )
+                },
+                modifier = if (affordable) {
+                    Modifier
+                } else {
+                    Modifier.testTag(
+                        shopTileShortTestTag(offer),
+                    )
+                },
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.labelSmall,
+                textAlign = TextAlign.Center,
+                minLines = 1,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
 }
 
 /** Wide enough for a pack's name, its contents line and its price without any of them wrapping. */
@@ -316,6 +467,12 @@ internal val CardOfferWidth = 86.dp
 internal val BoonTileWidth = 240.dp
 
 private val BoosterArtSize = 44.dp
+
+/** Over the corner of a 44 dp pack: large enough to count its stars, small enough to leave it. */
+private val RarityBadgeSize = 22.dp
+
+/** A `labelSmall` line tall, so the range takes the room the text it replaced took. */
+private val RarityRangeSize = 18.dp
 
 /** Tighter than [SpaceXs]: a card cell is 86 dp wide and every dp of it is the card. */
 private val CardCellPadding = 2.dp

@@ -196,7 +196,7 @@ class NpcBundleTest {
         const val FF8_NPCS = 25
 
         // The full FFXIV set, both of its blocks, now that it has grown past 153 — see `CardSet`.
-        const val FF14_CARDS = 454
+        const val FF14_CARDS = 475
         const val FF8_CARDS = 110 + 1
         const val HOURS = 24
     }

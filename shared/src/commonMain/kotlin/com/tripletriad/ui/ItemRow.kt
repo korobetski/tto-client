@@ -106,20 +106,41 @@ internal fun itemEffect(
     is MiscItem -> null
 }
 
+/**
+ * [itemEffect] cut to the one line a bag row has room for; the whole sentence moves to the row's ⋮.
+ *
+ * Each cut drops what the row already says elsewhere: a potion's name is its boon, so what is left
+ * is how long it lasts, and a card's New or Duplicate badge is what "enters your collection" was
+ * telling a player who could already see it. A pouch's `contains 500` is short enough as it is.
+ */
+internal fun itemGist(
+    strings: Strings,
+    item: Item,
+    cards: Map<Int, Card>,
+    owned: Map<Int, Int>,
+): String? = when (item) {
+    is BoosterItem -> packEffect(strings, item.boosterType, cards, owned, short = true)
+    is PotionItem ->
+        strings.format(StringKeys.ITEM_GIST_BOON, item.potionType.modifier.value.toString())
+    is CardItem, is MiscItem -> null
+    is PouchItem -> itemEffect(strings, item, cards, owned)
+}
+
 private fun packEffect(
     strings: Strings,
     type: BoosterType,
     cards: Map<Int, Card>,
     owned: Map<Int, Int>,
+    short: Boolean = false,
 ): String {
     val facts = packFacts(type, cards, owned)
     return listOfNotNull(
         strings.format(StringKeys.PACK_CARDS, facts.draws.toString()),
         facts.stars?.let(::starRange),
-        if (facts.missing == 0) {
-            strings[StringKeys.PACK_COMPLETE]
-        } else {
-            strings.format(StringKeys.PACK_MISSING, facts.missing.toString())
+        when {
+            facts.missing == 0 -> strings[StringKeys.PACK_COMPLETE]
+            short -> strings.format(StringKeys.PACK_MISSING_SHORT, facts.missing.toString())
+            else -> strings.format(StringKeys.PACK_MISSING, facts.missing.toString())
         },
     ).joinToString(DOT_SEPARATOR)
 }

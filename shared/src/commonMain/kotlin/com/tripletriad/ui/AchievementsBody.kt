@@ -651,8 +651,12 @@ private val DetailWidth = 340.dp
 
 private val MedallionMinWidth = 240.dp
 
-/** Room for the tallest card: a name, pips, a date, the next rung, a bar, two reward lines. */
-private val MedallionHeight = 164.dp
+/**
+ * Room for the tallest card and no more: a 45 dp head (name, pips, date), a 55 dp foot (the next
+ * rung, a bar, two reward lines), the gap between and the padding. Measured on 2026-09-16; it was
+ * 164 dp, which left the usual card — one reward line or none — with a third of itself empty.
+ */
+private val MedallionHeight = 132.dp
 private val MedallionIconSize = 40.dp
 private val PipSize = 6.dp
 private val PipGap = 2.dp

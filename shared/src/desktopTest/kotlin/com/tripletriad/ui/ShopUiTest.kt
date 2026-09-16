@@ -3,6 +3,7 @@ package com.tripletriad.ui
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
@@ -112,7 +113,7 @@ class ShopUiTest {
         // The button used to be a permanent bar at the foot of the screen, disabled for as long
         // as nothing was picked. It is in the purchase sheet now, so "nothing picked" is a
         // button that does not exist rather than one that cannot be pressed.
-        assertFalse(exists(SHOP_SHEET_TEST_TAG), "no sheet before anything is picked")
+        assertFalse(exists(SHOP_OFFER_DETAIL_TEST_TAG), "no sheet before anything is picked")
         assertFalse(exists(SHOP_BUY_TEST_TAG), "and so no buy button")
 
         shelf("boons")
@@ -143,15 +144,14 @@ class ShopUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openShop(documents)
 
-        // The sheet now closes itself on a buy — see `StoreScreen.buy` — so the second purchase
-        // reopens it on the same offer rather than pressing a button that is no longer there.
+        // This window is wide, so the pick stays in the pane after a buy — see `StoreScreen.buy`
+        // — and the second purchase is the same button pressed again. A phone's sheet closes
+        // itself instead, which `ShopLayoutUiTest` covers at a phone's width.
         shelf("boons")
         val potion = ShopCatalog.ff14.first { it.item == PotionItem(PotionType.MGP) }
         onNodeWithTag(shopOfferTestTag(potion)).performClick()
         onNodeWithTag(SHOP_BUY_TEST_TAG).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { storedSave(documents).bag.isNotEmpty() }
-        onNodeWithTag(shopOfferTestTag(potion)).performClick()
-        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(SHOP_BUY_TEST_TAG) }
         onNodeWithTag(SHOP_BUY_TEST_TAG).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
             Inventory.count(storedSave(documents), potion.item) == 2
@@ -249,7 +249,7 @@ class ShopUiTest {
         )
 
         onNodeWithTag(shopOfferTestTag(expensive)).performClick()
-        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(SHOP_SHEET_TEST_TAG) }
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(SHOP_OFFER_DETAIL_TEST_TAG) }
 
         val short = expensive.price - GameSave.STARTING_MGP
         assertEquals(
@@ -291,6 +291,77 @@ class ShopUiTest {
             onNodeWithTag(shopOfferTestTag(cheapest)).getUnclippedBoundsInRoot().height,
             "an unaffordable pack is drawn taller than one the purse can reach",
         )
+    }
+
+    /** The five packs of the series carry the rank they are named after; a themed pack does not. */
+    @Test
+    fun aBasePackWearsItsRankAndAThemedPackDoesNot() = runComposeUiTest {
+        val documents = seeded(profile(mgp = ENOUGH_FOR_ANY_PACK))
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openShop(documents)
+
+        val mithril = ShopOffer(BoosterItem(BoosterType.MITHRIL), price = 1)
+        val beast = ShopOffer(BoosterItem(BoosterType.BEAST), price = 1)
+        onNodeWithTag(SHOP_LIST_TEST_TAG).performScrollToNode(hasTestTag(shopOfferTestTag(mithril)))
+        onNodeWithTag(shopRarityTestTag(mithril), useUnmergedTree = true)
+            .assertContentDescriptionEquals("★★★★")
+        onNodeWithTag(SHOP_LIST_TEST_TAG).performScrollToNode(hasTestTag(shopOfferTestTag(beast)))
+        assertFalse(exists(shopRarityTestTag(beast)), "a themed pack has no rank in the series")
+    }
+
+    /** A pack out of reach says by how much under its price; one in reach says nothing there. */
+    @Test
+    fun aPackOutOfReachNamesTheGapOnItsTile() = runComposeUiTest {
+        val documents = seeded(profile(mgp = MID_PURSE))
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openShop(documents)
+
+        val packs = ShopCatalog.boosterOffers(pvpCards.all.associateBy { it.id })
+        val dearest = packs.maxBy { it.price }
+        val cheapest = packs.minBy { it.price }
+        onNodeWithTag(SHOP_LIST_TEST_TAG).performScrollToNode(hasTestTag(shopOfferTestTag(dearest)))
+        assertEquals(
+            "you need ${grouped(dearest.price - MID_PURSE)} more",
+            lineOf(shopTileShortTestTag(dearest)),
+        )
+        onNodeWithTag(
+            SHOP_LIST_TEST_TAG,
+        ).performScrollToNode(hasTestTag(shopOfferTestTag(cheapest)))
+        assertFalse(exists(shopTileShortTestTag(cheapest)), "a pack in reach was told it was short")
+    }
+
+    /**
+     * **A purse that reaches no pack is shown the boons it does reach, on the packs' shelf.**
+     *
+     * And only then: with one pack affordable, the strip is noise over the shelf it sits on.
+     */
+    @Test
+    fun aPurseShortOfEveryPackIsOfferedTheBoonsItReaches() = runComposeUiTest {
+        val cheapestPack = ShopCatalog.boosterOffers(pvpCards.all.associateBy { it.id })
+            .minOf { it.price }
+        val boons = ShopCatalog.ff14.filter { it.item is PotionItem }
+        val cheapestBoon = boons.minBy { it.price }
+        assertTrue(cheapestBoon.price < cheapestPack, "the fixture needs a boon under every pack")
+        val documents = seeded(profile(mgp = cheapestBoon.price))
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openShop(documents)
+
+        shelf("boosters")
+        onNodeWithTag(SHOP_WITHIN_REACH_TEST_TAG).assertExists()
+        onNodeWithTag(shopOfferTestTag(cheapestBoon)).assertExists()
+        boons.filter { it.price > cheapestBoon.price }.forEach {
+            assertFalse(exists(shopOfferTestTag(it)), "a boon out of reach was brought forward")
+        }
+    }
+
+    @Test
+    fun aPurseThatReachesAPackIsNotShownTheBoons() = runComposeUiTest {
+        val documents = seeded(profile(mgp = MID_PURSE))
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openShop(documents)
+
+        shelf("boosters")
+        assertFalse(exists(SHOP_WITHIN_REACH_TEST_TAG))
     }
 
     @Test

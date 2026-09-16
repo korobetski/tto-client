@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 
@@ -45,7 +46,15 @@ internal fun TtoSearchField(
     OutlinedTextField(
         value = value,
         onValueChange = { onValueChange(it.take(MAX_QUERY)) },
-        placeholder = { Text(placeholder ?: strings[StringKeys.SEARCH_CARDS]) },
+        placeholder = {
+            // One line whatever the language: a wrapped placeholder grows the field by a line,
+            // and pushes the whole grid down with it.
+            Text(
+                text = placeholder ?: strings[StringKeys.SEARCH_CARDS],
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
         singleLine = true,
         leadingIcon = {
             Icon(

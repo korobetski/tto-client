@@ -5,7 +5,7 @@ internal const val FF14_BLOCK: Int = 1
 /**
  * FFVIII sits at block 8, not 2, and the gap is deliberate.
  *
- * FFXIV has 454 cards against a block's 255, so it needs a second block and the natural one is the
+ * FFXIV has 475 cards against a block's 255, so it needs a second block and the natural one is the
  * block after its first. FFVIII moved out of the way rather than FFXIV skipping over it, which
  * leaves blocks 1..7 — 1785 cards — for FFXIV to keep growing into. See `CardSet` in `:core`.
  */

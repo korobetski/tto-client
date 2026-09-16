@@ -1,3182 +1,3329 @@
 {
   "frames": {
     "0101": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 2,
-      "y": 2
+      "width": 80,
+      "x": 4,
+      "y": 4
     },
     "0102": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 2,
-      "y": 44
+      "width": 80,
+      "x": 4,
+      "y": 88
     },
     "0103": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 2,
-      "y": 86
+      "width": 80,
+      "x": 4,
+      "y": 172
     },
     "0104": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 2,
-      "y": 128
+      "width": 80,
+      "x": 4,
+      "y": 256
     },
     "0105": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 2,
-      "y": 170
+      "width": 80,
+      "x": 4,
+      "y": 340
     },
     "0106": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 2,
-      "y": 212
+      "width": 80,
+      "x": 4,
+      "y": 424
     },
     "0107": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 2,
-      "y": 254
+      "width": 80,
+      "x": 4,
+      "y": 508
     },
     "0108": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 44,
-      "y": 2
+      "width": 80,
+      "x": 88,
+      "y": 4
     },
     "0109": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 44,
-      "y": 44
+      "width": 80,
+      "x": 88,
+      "y": 88
     },
     "010a": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 44,
-      "y": 86
+      "width": 80,
+      "x": 88,
+      "y": 172
     },
     "010b": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 44,
-      "y": 128
+      "width": 80,
+      "x": 88,
+      "y": 256
     },
     "010c": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 44,
-      "y": 170
+      "width": 80,
+      "x": 88,
+      "y": 340
     },
     "010d": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 44,
-      "y": 212
+      "width": 80,
+      "x": 88,
+      "y": 424
     },
     "010e": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 44,
-      "y": 254
+      "width": 80,
+      "x": 88,
+      "y": 508
     },
     "010f": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 86,
-      "y": 2
+      "width": 80,
+      "x": 172,
+      "y": 4
     },
     "0110": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 86,
-      "y": 44
+      "width": 80,
+      "x": 172,
+      "y": 88
     },
     "0111": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 86,
-      "y": 86
+      "width": 80,
+      "x": 172,
+      "y": 172
     },
     "0112": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 86,
-      "y": 128
+      "width": 80,
+      "x": 172,
+      "y": 256
     },
     "0113": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 86,
-      "y": 170
+      "width": 80,
+      "x": 172,
+      "y": 340
     },
     "0114": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 86,
-      "y": 212
+      "width": 80,
+      "x": 172,
+      "y": 424
     },
     "0115": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 86,
-      "y": 254
+      "width": 80,
+      "x": 172,
+      "y": 508
     },
     "0116": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 128,
-      "y": 2
+      "width": 80,
+      "x": 256,
+      "y": 4
     },
     "0117": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 128,
-      "y": 44
+      "width": 80,
+      "x": 256,
+      "y": 88
     },
     "0118": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 128,
-      "y": 86
+      "width": 80,
+      "x": 256,
+      "y": 172
     },
     "0119": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 128,
-      "y": 128
+      "width": 80,
+      "x": 256,
+      "y": 256
     },
     "011a": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 128,
-      "y": 170
+      "width": 80,
+      "x": 256,
+      "y": 340
     },
     "011b": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 128,
-      "y": 212
+      "width": 80,
+      "x": 256,
+      "y": 424
     },
     "011c": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 128,
-      "y": 254
+      "width": 80,
+      "x": 256,
+      "y": 508
     },
     "011d": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 170,
-      "y": 2
+      "width": 80,
+      "x": 340,
+      "y": 4
     },
     "011e": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 170,
-      "y": 44
+      "width": 80,
+      "x": 340,
+      "y": 88
     },
     "011f": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 170,
-      "y": 86
+      "width": 80,
+      "x": 340,
+      "y": 172
     },
     "0120": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 170,
-      "y": 128
+      "width": 80,
+      "x": 340,
+      "y": 256
     },
     "0121": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 170,
-      "y": 170
+      "width": 80,
+      "x": 340,
+      "y": 340
     },
     "0122": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 170,
-      "y": 212
+      "width": 80,
+      "x": 340,
+      "y": 424
     },
     "0123": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 170,
-      "y": 254
+      "width": 80,
+      "x": 340,
+      "y": 508
     },
     "0124": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 212,
-      "y": 2
+      "width": 80,
+      "x": 424,
+      "y": 4
     },
     "0125": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 212,
-      "y": 44
+      "width": 80,
+      "x": 424,
+      "y": 88
     },
     "0126": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 212,
-      "y": 86
+      "width": 80,
+      "x": 424,
+      "y": 172
     },
     "0127": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 212,
-      "y": 128
+      "width": 80,
+      "x": 424,
+      "y": 256
     },
     "0128": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 212,
-      "y": 170
+      "width": 80,
+      "x": 424,
+      "y": 340
     },
     "0129": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 212,
-      "y": 212
+      "width": 80,
+      "x": 424,
+      "y": 424
     },
     "012a": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 212,
-      "y": 254
+      "width": 80,
+      "x": 424,
+      "y": 508
     },
     "012b": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 254,
-      "y": 2
+      "width": 80,
+      "x": 508,
+      "y": 4
     },
     "012c": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 296,
-      "y": 2
+      "width": 80,
+      "x": 592,
+      "y": 4
     },
     "012d": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 338,
-      "y": 2
+      "width": 80,
+      "x": 676,
+      "y": 4
     },
     "012e": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 380,
-      "y": 2
+      "width": 80,
+      "x": 760,
+      "y": 4
     },
     "012f": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 422,
-      "y": 2
+      "width": 80,
+      "x": 844,
+      "y": 4
     },
     "0130": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 464,
-      "y": 2
+      "width": 80,
+      "x": 928,
+      "y": 4
     },
     "0131": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 254,
-      "y": 44
+      "width": 80,
+      "x": 508,
+      "y": 88
     },
     "0132": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 254,
-      "y": 86
+      "width": 80,
+      "x": 508,
+      "y": 172
     },
     "0133": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 254,
-      "y": 128
+      "width": 80,
+      "x": 508,
+      "y": 256
     },
     "0134": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 254,
-      "y": 170
+      "width": 80,
+      "x": 508,
+      "y": 340
     },
     "0135": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 254,
-      "y": 212
+      "width": 80,
+      "x": 508,
+      "y": 424
     },
     "0136": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 254,
-      "y": 254
+      "width": 80,
+      "x": 508,
+      "y": 508
     },
     "0137": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 296,
-      "y": 44
+      "width": 80,
+      "x": 592,
+      "y": 88
     },
     "0138": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 338,
-      "y": 44
+      "width": 80,
+      "x": 676,
+      "y": 88
     },
     "0139": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 380,
-      "y": 44
+      "width": 80,
+      "x": 760,
+      "y": 88
     },
     "013a": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 422,
-      "y": 44
+      "width": 80,
+      "x": 844,
+      "y": 88
     },
     "013b": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 464,
-      "y": 44
+      "width": 80,
+      "x": 928,
+      "y": 88
     },
     "013c": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 296,
-      "y": 86
+      "width": 80,
+      "x": 592,
+      "y": 172
     },
     "013d": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 296,
-      "y": 128
+      "width": 80,
+      "x": 592,
+      "y": 256
     },
     "013e": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 296,
-      "y": 170
+      "width": 80,
+      "x": 592,
+      "y": 340
     },
     "013f": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 296,
-      "y": 212
+      "width": 80,
+      "x": 592,
+      "y": 424
     },
     "0140": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 296,
-      "y": 254
+      "width": 80,
+      "x": 592,
+      "y": 508
     },
     "0141": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 338,
-      "y": 86
+      "width": 80,
+      "x": 676,
+      "y": 172
     },
     "0142": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 380,
-      "y": 86
+      "width": 80,
+      "x": 760,
+      "y": 172
     },
     "0143": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 422,
-      "y": 86
+      "width": 80,
+      "x": 844,
+      "y": 172
     },
     "0144": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 464,
-      "y": 86
+      "width": 80,
+      "x": 928,
+      "y": 172
     },
     "0145": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 338,
-      "y": 128
+      "width": 80,
+      "x": 676,
+      "y": 256
     },
     "0146": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 338,
-      "y": 170
+      "width": 80,
+      "x": 676,
+      "y": 340
     },
     "0147": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 338,
-      "y": 212
+      "width": 80,
+      "x": 676,
+      "y": 424
     },
     "0148": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 338,
-      "y": 254
+      "width": 80,
+      "x": 676,
+      "y": 508
     },
     "0149": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 380,
-      "y": 128
+      "width": 80,
+      "x": 760,
+      "y": 256
     },
     "014a": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 422,
-      "y": 128
+      "width": 80,
+      "x": 844,
+      "y": 256
     },
     "014b": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 464,
-      "y": 128
+      "width": 80,
+      "x": 928,
+      "y": 256
     },
     "014c": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 380,
-      "y": 170
+      "width": 80,
+      "x": 760,
+      "y": 340
     },
     "014d": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 380,
-      "y": 212
+      "width": 80,
+      "x": 760,
+      "y": 424
     },
     "014e": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 380,
-      "y": 254
+      "width": 80,
+      "x": 760,
+      "y": 508
     },
     "014f": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 422,
-      "y": 170
+      "width": 80,
+      "x": 844,
+      "y": 340
     },
     "0150": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_thumbs",
-      "width": 40,
-      "x": 464,
-      "y": 170
+      "width": 80,
+      "x": 928,
+      "y": 340
     },
     "0151": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 400,
-      "y": 120
+      "width": 80,
+      "x": 800,
+      "y": 240
     },
     "0152": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 440,
-      "y": 120
+      "width": 80,
+      "x": 880,
+      "y": 240
     },
     "0153": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 40,
-      "y": 160
+      "width": 80,
+      "x": 80,
+      "y": 320
     },
     "0154": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 80,
-      "y": 160
+      "width": 80,
+      "x": 160,
+      "y": 320
     },
     "0155": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 160,
-      "y": 160
+      "width": 80,
+      "x": 320,
+      "y": 320
     },
     "0156": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 200,
-      "y": 160
+      "width": 80,
+      "x": 400,
+      "y": 320
     },
     "0157": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 120,
-      "y": 160
+      "width": 80,
+      "x": 240,
+      "y": 320
     },
     "0158": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
+      "width": 80,
       "x": 0,
-      "y": 160
+      "y": 320
     },
     "0159": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 360,
-      "y": 120
+      "width": 80,
+      "x": 720,
+      "y": 240
     },
     "015a": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 40,
-      "y": 120
+      "width": 80,
+      "x": 80,
+      "y": 240
     },
     "015b": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 80,
-      "y": 120
+      "width": 80,
+      "x": 160,
+      "y": 240
     },
     "015c": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 160,
-      "y": 120
+      "width": 80,
+      "x": 320,
+      "y": 240
     },
     "015d": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 200,
-      "y": 120
+      "width": 80,
+      "x": 400,
+      "y": 240
     },
     "015e": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 280,
-      "y": 120
+      "width": 80,
+      "x": 560,
+      "y": 240
     },
     "015f": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 320,
-      "y": 120
+      "width": 80,
+      "x": 640,
+      "y": 240
     },
     "0160": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 240,
-      "y": 120
+      "width": 80,
+      "x": 480,
+      "y": 240
     },
     "0161": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 240,
-      "y": 160
+      "width": 80,
+      "x": 480,
+      "y": 320
     },
     "0162": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 360,
-      "y": 160
+      "width": 80,
+      "x": 720,
+      "y": 320
     },
     "0163": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 240,
-      "y": 200
+      "width": 80,
+      "x": 480,
+      "y": 400
     },
     "0164": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 280,
-      "y": 200
+      "width": 80,
+      "x": 560,
+      "y": 400
     },
     "0165": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 200,
-      "y": 200
+      "width": 80,
+      "x": 400,
+      "y": 400
     },
     "0166": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 320,
-      "y": 200
+      "width": 80,
+      "x": 640,
+      "y": 400
     },
     "0167": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 360,
-      "y": 200
+      "width": 80,
+      "x": 720,
+      "y": 400
     },
     "0168": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 440,
-      "y": 200
+      "width": 80,
+      "x": 880,
+      "y": 400
     },
     "0169": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
+      "width": 80,
+      "x": 0,
+      "y": 480
+    },
+    "016a": {
+      "height": 80,
+      "sheet": "ff14_card_addon_thumbs",
+      "width": 80,
+      "x": 800,
+      "y": 400
+    },
+    "016b": {
+      "height": 80,
+      "sheet": "ff14_card_addon_thumbs",
+      "width": 80,
+      "x": 320,
+      "y": 400
+    },
+    "016c": {
+      "height": 80,
+      "sheet": "ff14_card_addon_thumbs",
+      "width": 80,
+      "x": 240,
+      "y": 400
+    },
+    "016d": {
+      "height": 80,
+      "sheet": "ff14_card_addon_thumbs",
+      "width": 80,
+      "x": 560,
+      "y": 320
+    },
+    "016e": {
+      "height": 80,
+      "sheet": "ff14_card_addon_thumbs",
+      "width": 80,
+      "x": 640,
+      "y": 320
+    },
+    "016f": {
+      "height": 80,
+      "sheet": "ff14_card_addon_thumbs",
+      "width": 80,
+      "x": 800,
+      "y": 320
+    },
+    "0170": {
+      "height": 80,
+      "sheet": "ff14_card_addon_thumbs",
+      "width": 80,
+      "x": 880,
+      "y": 320
+    },
+    "0171": {
+      "height": 80,
+      "sheet": "ff14_card_addon_thumbs",
+      "width": 80,
+      "x": 80,
+      "y": 400
+    },
+    "0172": {
+      "height": 80,
+      "sheet": "ff14_card_addon_thumbs",
+      "width": 80,
+      "x": 160,
+      "y": 400
+    },
+    "0173": {
+      "height": 80,
+      "sheet": "ff14_card_addon_thumbs",
+      "width": 80,
+      "x": 0,
+      "y": 400
+    },
+    "0174": {
+      "height": 80,
+      "sheet": "ff14_card_addon_thumbs",
+      "width": 80,
+      "x": 240,
+      "y": 240
+    },
+    "0175": {
+      "height": 80,
+      "sheet": "ff14_card_addon_thumbs",
+      "width": 80,
       "x": 0,
       "y": 240
     },
-    "016a": {
-      "height": 40,
-      "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 400,
-      "y": 200
-    },
-    "016b": {
-      "height": 40,
-      "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 160,
-      "y": 200
-    },
-    "016c": {
-      "height": 40,
-      "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 120,
-      "y": 200
-    },
-    "016d": {
-      "height": 40,
-      "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 280,
-      "y": 160
-    },
-    "016e": {
-      "height": 40,
-      "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 320,
-      "y": 160
-    },
-    "016f": {
-      "height": 40,
-      "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 400,
-      "y": 160
-    },
-    "0170": {
-      "height": 40,
-      "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 440,
-      "y": 160
-    },
-    "0171": {
-      "height": 40,
-      "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 40,
-      "y": 200
-    },
-    "0172": {
-      "height": 40,
-      "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 80,
-      "y": 200
-    },
-    "0173": {
-      "height": 40,
-      "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 0,
-      "y": 200
-    },
-    "0174": {
-      "height": 40,
-      "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 120,
-      "y": 120
-    },
-    "0175": {
-      "height": 40,
-      "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 0,
-      "y": 120
-    },
     "0176": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 360,
+      "width": 80,
+      "x": 720,
       "y": 0
     },
     "0177": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 400,
+      "width": 80,
+      "x": 800,
       "y": 0
     },
     "0178": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
+      "width": 80,
       "x": 0,
-      "y": 40
+      "y": 80
     },
     "0179": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 40,
-      "y": 40
+      "width": 80,
+      "x": 80,
+      "y": 80
     },
     "017a": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 120,
-      "y": 40
+      "width": 80,
+      "x": 240,
+      "y": 80
     },
     "017b": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 160,
-      "y": 40
+      "width": 80,
+      "x": 320,
+      "y": 80
     },
     "017c": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 80,
-      "y": 40
+      "width": 80,
+      "x": 160,
+      "y": 80
     },
     "017d": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 440,
+      "width": 80,
+      "x": 880,
       "y": 0
     },
     "017e": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 320,
+      "width": 80,
+      "x": 640,
       "y": 0
     },
     "017f": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
+      "width": 80,
       "x": 0,
       "y": 0
     },
     "0180": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 40,
+      "width": 80,
+      "x": 80,
       "y": 0
     },
     "0181": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 120,
+      "width": 80,
+      "x": 240,
       "y": 0
     },
     "0182": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 160,
+      "width": 80,
+      "x": 320,
       "y": 0
     },
     "0183": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 240,
+      "width": 80,
+      "x": 480,
       "y": 0
     },
     "0184": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 280,
+      "width": 80,
+      "x": 560,
       "y": 0
     },
     "0185": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 200,
+      "width": 80,
+      "x": 400,
       "y": 0
     },
     "0186": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 200,
-      "y": 40
+      "width": 80,
+      "x": 400,
+      "y": 80
     },
     "0187": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 320,
-      "y": 40
+      "width": 80,
+      "x": 640,
+      "y": 80
     },
     "0188": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 200,
-      "y": 80
+      "width": 80,
+      "x": 400,
+      "y": 160
     },
     "0189": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 240,
-      "y": 80
+      "width": 80,
+      "x": 480,
+      "y": 160
     },
     "018a": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 160,
-      "y": 80
+      "width": 80,
+      "x": 320,
+      "y": 160
     },
     "018b": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 280,
-      "y": 80
+      "width": 80,
+      "x": 560,
+      "y": 160
     },
     "018c": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 320,
-      "y": 80
+      "width": 80,
+      "x": 640,
+      "y": 160
     },
     "018d": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 400,
-      "y": 80
+      "width": 80,
+      "x": 800,
+      "y": 160
     },
     "018e": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 440,
-      "y": 80
+      "width": 80,
+      "x": 880,
+      "y": 160
     },
     "018f": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 360,
-      "y": 80
+      "width": 80,
+      "x": 720,
+      "y": 160
     },
     "0190": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 120,
-      "y": 80
+      "width": 80,
+      "x": 240,
+      "y": 160
     },
     "0191": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 80,
-      "y": 80
+      "width": 80,
+      "x": 160,
+      "y": 160
     },
     "0192": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 240,
-      "y": 40
+      "width": 80,
+      "x": 480,
+      "y": 80
     },
     "0193": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 280,
-      "y": 40
+      "width": 80,
+      "x": 560,
+      "y": 80
     },
     "0194": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 360,
-      "y": 40
+      "width": 80,
+      "x": 720,
+      "y": 80
     },
     "0195": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 400,
-      "y": 40
+      "width": 80,
+      "x": 800,
+      "y": 80
     },
     "0196": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
+      "width": 80,
       "x": 0,
-      "y": 80
+      "y": 160
     },
     "0197": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 40,
-      "y": 80
+      "width": 80,
+      "x": 80,
+      "y": 160
     },
     "0198": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 440,
-      "y": 40
+      "width": 80,
+      "x": 880,
+      "y": 80
     },
     "0199": {
-      "height": 40,
+      "height": 80,
       "sheet": "ff14_card_addon_thumbs",
-      "width": 40,
-      "x": 80,
+      "width": 80,
+      "x": 160,
       "y": 0
     },
     "019a": {
       "sheet": "ff14_card_block1_ext_thumbs",
       "x": 0,
       "y": 0,
-      "width": 40,
-      "height": 40
+      "width": 80,
+      "height": 80
     },
     "019b": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 40,
+      "x": 80,
       "y": 0,
-      "width": 40,
-      "height": 40
+      "width": 80,
+      "height": 80
     },
     "019c": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 80,
+      "x": 160,
       "y": 0,
-      "width": 40,
-      "height": 40
+      "width": 80,
+      "height": 80
     },
     "019d": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 120,
+      "x": 240,
       "y": 0,
-      "width": 40,
-      "height": 40
+      "width": 80,
+      "height": 80
     },
     "019e": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 160,
+      "x": 320,
       "y": 0,
-      "width": 40,
-      "height": 40
+      "width": 80,
+      "height": 80
     },
     "019f": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 200,
+      "x": 400,
       "y": 0,
-      "width": 40,
-      "height": 40
+      "width": 80,
+      "height": 80
     },
     "01a0": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 240,
+      "x": 480,
       "y": 0,
-      "width": 40,
-      "height": 40
+      "width": 80,
+      "height": 80
     },
     "01a1": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 280,
+      "x": 560,
       "y": 0,
-      "width": 40,
-      "height": 40
+      "width": 80,
+      "height": 80
     },
     "01a2": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 320,
+      "x": 640,
       "y": 0,
-      "width": 40,
-      "height": 40
+      "width": 80,
+      "height": 80
     },
     "01a3": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 360,
+      "x": 720,
       "y": 0,
-      "width": 40,
-      "height": 40
+      "width": 80,
+      "height": 80
     },
     "01a4": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 400,
+      "x": 800,
       "y": 0,
-      "width": 40,
-      "height": 40
+      "width": 80,
+      "height": 80
     },
     "01a5": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 440,
+      "x": 880,
       "y": 0,
-      "width": 40,
-      "height": 40
+      "width": 80,
+      "height": 80
     },
     "01a6": {
       "sheet": "ff14_card_block1_ext_thumbs",
       "x": 0,
-      "y": 40,
-      "width": 40,
-      "height": 40
+      "y": 80,
+      "width": 80,
+      "height": 80
     },
     "01a7": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 40,
-      "y": 40,
-      "width": 40,
-      "height": 40
+      "x": 80,
+      "y": 80,
+      "width": 80,
+      "height": 80
     },
     "01a8": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 80,
-      "y": 40,
-      "width": 40,
-      "height": 40
+      "x": 160,
+      "y": 80,
+      "width": 80,
+      "height": 80
     },
     "01a9": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 120,
-      "y": 40,
-      "width": 40,
-      "height": 40
+      "x": 240,
+      "y": 80,
+      "width": 80,
+      "height": 80
     },
     "01aa": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 160,
-      "y": 40,
-      "width": 40,
-      "height": 40
+      "x": 320,
+      "y": 80,
+      "width": 80,
+      "height": 80
     },
     "01ab": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 200,
-      "y": 40,
-      "width": 40,
-      "height": 40
+      "x": 400,
+      "y": 80,
+      "width": 80,
+      "height": 80
     },
     "01ac": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 240,
-      "y": 40,
-      "width": 40,
-      "height": 40
+      "x": 480,
+      "y": 80,
+      "width": 80,
+      "height": 80
     },
     "01ad": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 280,
-      "y": 40,
-      "width": 40,
-      "height": 40
+      "x": 560,
+      "y": 80,
+      "width": 80,
+      "height": 80
     },
     "01ae": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 320,
-      "y": 40,
-      "width": 40,
-      "height": 40
+      "x": 640,
+      "y": 80,
+      "width": 80,
+      "height": 80
     },
     "01af": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 360,
-      "y": 40,
-      "width": 40,
-      "height": 40
+      "x": 720,
+      "y": 80,
+      "width": 80,
+      "height": 80
     },
     "01b0": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 400,
-      "y": 40,
-      "width": 40,
-      "height": 40
+      "x": 800,
+      "y": 80,
+      "width": 80,
+      "height": 80
     },
     "01b1": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 440,
-      "y": 40,
-      "width": 40,
-      "height": 40
+      "x": 880,
+      "y": 80,
+      "width": 80,
+      "height": 80
     },
     "01b2": {
       "sheet": "ff14_card_block1_ext_thumbs",
       "x": 0,
-      "y": 80,
-      "width": 40,
-      "height": 40
+      "y": 160,
+      "width": 80,
+      "height": 80
     },
     "01b3": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 40,
-      "y": 80,
-      "width": 40,
-      "height": 40
+      "x": 80,
+      "y": 160,
+      "width": 80,
+      "height": 80
     },
     "01b4": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 80,
-      "y": 80,
-      "width": 40,
-      "height": 40
+      "x": 160,
+      "y": 160,
+      "width": 80,
+      "height": 80
     },
     "01b5": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 120,
-      "y": 80,
-      "width": 40,
-      "height": 40
+      "x": 240,
+      "y": 160,
+      "width": 80,
+      "height": 80
     },
     "01b6": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 160,
-      "y": 80,
-      "width": 40,
-      "height": 40
+      "x": 320,
+      "y": 160,
+      "width": 80,
+      "height": 80
     },
     "01b7": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 200,
-      "y": 80,
-      "width": 40,
-      "height": 40
+      "x": 400,
+      "y": 160,
+      "width": 80,
+      "height": 80
     },
     "01b8": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 240,
-      "y": 80,
-      "width": 40,
-      "height": 40
+      "x": 480,
+      "y": 160,
+      "width": 80,
+      "height": 80
     },
     "01b9": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 280,
-      "y": 80,
-      "width": 40,
-      "height": 40
+      "x": 560,
+      "y": 160,
+      "width": 80,
+      "height": 80
     },
     "01ba": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 320,
-      "y": 80,
-      "width": 40,
-      "height": 40
+      "x": 640,
+      "y": 160,
+      "width": 80,
+      "height": 80
     },
     "01bb": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 360,
-      "y": 80,
-      "width": 40,
-      "height": 40
+      "x": 720,
+      "y": 160,
+      "width": 80,
+      "height": 80
     },
     "01bc": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 400,
-      "y": 80,
-      "width": 40,
-      "height": 40
+      "x": 800,
+      "y": 160,
+      "width": 80,
+      "height": 80
     },
     "01bd": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 440,
-      "y": 80,
-      "width": 40,
-      "height": 40
+      "x": 880,
+      "y": 160,
+      "width": 80,
+      "height": 80
     },
     "01be": {
       "sheet": "ff14_card_block1_ext_thumbs",
       "x": 0,
-      "y": 120,
-      "width": 40,
-      "height": 40
+      "y": 240,
+      "width": 80,
+      "height": 80
     },
     "01bf": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 40,
-      "y": 120,
-      "width": 40,
-      "height": 40
+      "x": 80,
+      "y": 240,
+      "width": 80,
+      "height": 80
     },
     "01c0": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 80,
-      "y": 120,
-      "width": 40,
-      "height": 40
+      "x": 160,
+      "y": 240,
+      "width": 80,
+      "height": 80
     },
     "01c1": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 120,
-      "y": 120,
-      "width": 40,
-      "height": 40
+      "x": 240,
+      "y": 240,
+      "width": 80,
+      "height": 80
     },
     "01c2": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 160,
-      "y": 120,
-      "width": 40,
-      "height": 40
+      "x": 320,
+      "y": 240,
+      "width": 80,
+      "height": 80
     },
     "01c3": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 200,
-      "y": 120,
-      "width": 40,
-      "height": 40
+      "x": 400,
+      "y": 240,
+      "width": 80,
+      "height": 80
     },
     "01c4": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 240,
-      "y": 120,
-      "width": 40,
-      "height": 40
+      "x": 480,
+      "y": 240,
+      "width": 80,
+      "height": 80
     },
     "01c5": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 280,
-      "y": 120,
-      "width": 40,
-      "height": 40
+      "x": 560,
+      "y": 240,
+      "width": 80,
+      "height": 80
     },
     "01c6": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 320,
-      "y": 120,
-      "width": 40,
-      "height": 40
+      "x": 640,
+      "y": 240,
+      "width": 80,
+      "height": 80
     },
     "01c7": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 360,
-      "y": 120,
-      "width": 40,
-      "height": 40
+      "x": 720,
+      "y": 240,
+      "width": 80,
+      "height": 80
     },
     "01c8": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 400,
-      "y": 120,
-      "width": 40,
-      "height": 40
+      "x": 800,
+      "y": 240,
+      "width": 80,
+      "height": 80
     },
     "01c9": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 440,
-      "y": 120,
-      "width": 40,
-      "height": 40
+      "x": 880,
+      "y": 240,
+      "width": 80,
+      "height": 80
     },
     "01ca": {
       "sheet": "ff14_card_block1_ext_thumbs",
       "x": 0,
-      "y": 160,
-      "width": 40,
-      "height": 40
+      "y": 320,
+      "width": 80,
+      "height": 80
     },
     "01cb": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 40,
-      "y": 160,
-      "width": 40,
-      "height": 40
+      "x": 80,
+      "y": 320,
+      "width": 80,
+      "height": 80
     },
     "01cc": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 80,
-      "y": 160,
-      "width": 40,
-      "height": 40
+      "x": 160,
+      "y": 320,
+      "width": 80,
+      "height": 80
     },
     "01cd": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 120,
-      "y": 160,
-      "width": 40,
-      "height": 40
+      "x": 240,
+      "y": 320,
+      "width": 80,
+      "height": 80
     },
     "01ce": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 160,
-      "y": 160,
-      "width": 40,
-      "height": 40
+      "x": 320,
+      "y": 320,
+      "width": 80,
+      "height": 80
     },
     "01cf": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 200,
-      "y": 160,
-      "width": 40,
-      "height": 40
+      "x": 400,
+      "y": 320,
+      "width": 80,
+      "height": 80
     },
     "01d0": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 240,
-      "y": 160,
-      "width": 40,
-      "height": 40
+      "x": 480,
+      "y": 320,
+      "width": 80,
+      "height": 80
     },
     "01d1": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 280,
-      "y": 160,
-      "width": 40,
-      "height": 40
+      "x": 560,
+      "y": 320,
+      "width": 80,
+      "height": 80
     },
     "01d2": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 320,
-      "y": 160,
-      "width": 40,
-      "height": 40
+      "x": 640,
+      "y": 320,
+      "width": 80,
+      "height": 80
     },
     "01d3": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 360,
-      "y": 160,
-      "width": 40,
-      "height": 40
+      "x": 720,
+      "y": 320,
+      "width": 80,
+      "height": 80
     },
     "01d4": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 400,
-      "y": 160,
-      "width": 40,
-      "height": 40
+      "x": 800,
+      "y": 320,
+      "width": 80,
+      "height": 80
     },
     "01d5": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 440,
-      "y": 160,
-      "width": 40,
-      "height": 40
+      "x": 880,
+      "y": 320,
+      "width": 80,
+      "height": 80
     },
     "01d6": {
       "sheet": "ff14_card_block1_ext_thumbs",
       "x": 0,
-      "y": 200,
-      "width": 40,
-      "height": 40
+      "y": 400,
+      "width": 80,
+      "height": 80
     },
     "01d7": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 40,
-      "y": 200,
-      "width": 40,
-      "height": 40
+      "x": 80,
+      "y": 400,
+      "width": 80,
+      "height": 80
     },
     "01d8": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 80,
-      "y": 200,
-      "width": 40,
-      "height": 40
+      "x": 160,
+      "y": 400,
+      "width": 80,
+      "height": 80
     },
     "01d9": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 120,
-      "y": 200,
-      "width": 40,
-      "height": 40
+      "x": 240,
+      "y": 400,
+      "width": 80,
+      "height": 80
     },
     "01da": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 160,
-      "y": 200,
-      "width": 40,
-      "height": 40
+      "x": 320,
+      "y": 400,
+      "width": 80,
+      "height": 80
     },
     "01db": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 200,
-      "y": 200,
-      "width": 40,
-      "height": 40
+      "x": 400,
+      "y": 400,
+      "width": 80,
+      "height": 80
     },
     "01dc": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 240,
-      "y": 200,
-      "width": 40,
-      "height": 40
+      "x": 480,
+      "y": 400,
+      "width": 80,
+      "height": 80
     },
     "01dd": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 280,
-      "y": 200,
-      "width": 40,
-      "height": 40
+      "x": 560,
+      "y": 400,
+      "width": 80,
+      "height": 80
     },
     "01de": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 320,
-      "y": 200,
-      "width": 40,
-      "height": 40
+      "x": 640,
+      "y": 400,
+      "width": 80,
+      "height": 80
     },
     "01df": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 360,
-      "y": 200,
-      "width": 40,
-      "height": 40
+      "x": 720,
+      "y": 400,
+      "width": 80,
+      "height": 80
     },
     "01e0": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 400,
-      "y": 200,
-      "width": 40,
-      "height": 40
+      "x": 800,
+      "y": 400,
+      "width": 80,
+      "height": 80
     },
     "01e1": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 440,
-      "y": 200,
-      "width": 40,
-      "height": 40
+      "x": 880,
+      "y": 400,
+      "width": 80,
+      "height": 80
     },
     "01e2": {
       "sheet": "ff14_card_block1_ext_thumbs",
       "x": 0,
-      "y": 240,
-      "width": 40,
-      "height": 40
+      "y": 480,
+      "width": 80,
+      "height": 80
     },
     "01e3": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 40,
-      "y": 240,
-      "width": 40,
-      "height": 40
+      "x": 80,
+      "y": 480,
+      "width": 80,
+      "height": 80
     },
     "01e4": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 80,
-      "y": 240,
-      "width": 40,
-      "height": 40
+      "x": 160,
+      "y": 480,
+      "width": 80,
+      "height": 80
     },
     "01e5": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 120,
-      "y": 240,
-      "width": 40,
-      "height": 40
+      "x": 240,
+      "y": 480,
+      "width": 80,
+      "height": 80
     },
     "01e6": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 160,
-      "y": 240,
-      "width": 40,
-      "height": 40
+      "x": 320,
+      "y": 480,
+      "width": 80,
+      "height": 80
     },
     "01e7": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 200,
-      "y": 240,
-      "width": 40,
-      "height": 40
+      "x": 400,
+      "y": 480,
+      "width": 80,
+      "height": 80
     },
     "01e8": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 240,
-      "y": 240,
-      "width": 40,
-      "height": 40
+      "x": 480,
+      "y": 480,
+      "width": 80,
+      "height": 80
     },
     "01e9": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 280,
-      "y": 240,
-      "width": 40,
-      "height": 40
+      "x": 560,
+      "y": 480,
+      "width": 80,
+      "height": 80
     },
     "01ea": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 320,
-      "y": 240,
-      "width": 40,
-      "height": 40
+      "x": 640,
+      "y": 480,
+      "width": 80,
+      "height": 80
     },
     "01eb": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 360,
-      "y": 240,
-      "width": 40,
-      "height": 40
+      "x": 720,
+      "y": 480,
+      "width": 80,
+      "height": 80
     },
     "01ec": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 400,
-      "y": 240,
-      "width": 40,
-      "height": 40
+      "x": 800,
+      "y": 480,
+      "width": 80,
+      "height": 80
     },
     "01ed": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 440,
-      "y": 240,
-      "width": 40,
-      "height": 40
+      "x": 880,
+      "y": 480,
+      "width": 80,
+      "height": 80
     },
     "01ee": {
       "sheet": "ff14_card_block1_ext_thumbs",
       "x": 0,
-      "y": 280,
-      "width": 40,
-      "height": 40
+      "y": 560,
+      "width": 80,
+      "height": 80
     },
     "01ef": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 40,
-      "y": 280,
-      "width": 40,
-      "height": 40
+      "x": 80,
+      "y": 560,
+      "width": 80,
+      "height": 80
     },
     "01f0": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 80,
-      "y": 280,
-      "width": 40,
-      "height": 40
+      "x": 160,
+      "y": 560,
+      "width": 80,
+      "height": 80
     },
     "01f1": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 120,
-      "y": 280,
-      "width": 40,
-      "height": 40
+      "x": 240,
+      "y": 560,
+      "width": 80,
+      "height": 80
     },
     "01f2": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 160,
-      "y": 280,
-      "width": 40,
-      "height": 40
+      "x": 320,
+      "y": 560,
+      "width": 80,
+      "height": 80
     },
     "01f3": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 200,
-      "y": 280,
-      "width": 40,
-      "height": 40
+      "x": 400,
+      "y": 560,
+      "width": 80,
+      "height": 80
     },
     "01f4": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 240,
-      "y": 280,
-      "width": 40,
-      "height": 40
+      "x": 480,
+      "y": 560,
+      "width": 80,
+      "height": 80
     },
     "01f5": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 280,
-      "y": 280,
-      "width": 40,
-      "height": 40
+      "x": 560,
+      "y": 560,
+      "width": 80,
+      "height": 80
     },
     "01f6": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 320,
-      "y": 280,
-      "width": 40,
-      "height": 40
+      "x": 640,
+      "y": 560,
+      "width": 80,
+      "height": 80
     },
     "01f7": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 360,
-      "y": 280,
-      "width": 40,
-      "height": 40
+      "x": 720,
+      "y": 560,
+      "width": 80,
+      "height": 80
     },
     "01f8": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 400,
-      "y": 280,
-      "width": 40,
-      "height": 40
+      "x": 800,
+      "y": 560,
+      "width": 80,
+      "height": 80
     },
     "01f9": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 440,
-      "y": 280,
-      "width": 40,
-      "height": 40
+      "x": 880,
+      "y": 560,
+      "width": 80,
+      "height": 80
     },
     "01fa": {
       "sheet": "ff14_card_block1_ext_thumbs",
       "x": 0,
-      "y": 320,
-      "width": 40,
-      "height": 40
+      "y": 640,
+      "width": 80,
+      "height": 80
     },
     "01fb": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 40,
-      "y": 320,
-      "width": 40,
-      "height": 40
+      "x": 80,
+      "y": 640,
+      "width": 80,
+      "height": 80
     },
     "01fc": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 80,
-      "y": 320,
-      "width": 40,
-      "height": 40
+      "x": 160,
+      "y": 640,
+      "width": 80,
+      "height": 80
     },
     "01fd": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 120,
-      "y": 320,
-      "width": 40,
-      "height": 40
+      "x": 240,
+      "y": 640,
+      "width": 80,
+      "height": 80
     },
     "01fe": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 160,
-      "y": 320,
-      "width": 40,
-      "height": 40
+      "x": 320,
+      "y": 640,
+      "width": 80,
+      "height": 80
     },
     "01ff": {
       "sheet": "ff14_card_block1_ext_thumbs",
-      "x": 200,
-      "y": 320,
-      "width": 40,
-      "height": 40
+      "x": 400,
+      "y": 640,
+      "width": 80,
+      "height": 80
     },
     "0201": {
       "sheet": "ff14_card_block2_thumbs",
       "x": 0,
       "y": 0,
-      "width": 40,
-      "height": 40
+      "width": 80,
+      "height": 80
     },
     "0202": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 40,
+      "x": 80,
       "y": 0,
-      "width": 40,
-      "height": 40
+      "width": 80,
+      "height": 80
     },
     "0203": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 80,
+      "x": 160,
       "y": 0,
-      "width": 40,
-      "height": 40
+      "width": 80,
+      "height": 80
     },
     "0204": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 120,
+      "x": 240,
       "y": 0,
-      "width": 40,
-      "height": 40
+      "width": 80,
+      "height": 80
     },
     "0205": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 160,
+      "x": 320,
       "y": 0,
-      "width": 40,
-      "height": 40
+      "width": 80,
+      "height": 80
     },
     "0206": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 200,
+      "x": 400,
       "y": 0,
-      "width": 40,
-      "height": 40
+      "width": 80,
+      "height": 80
     },
     "0207": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 240,
+      "x": 480,
       "y": 0,
-      "width": 40,
-      "height": 40
+      "width": 80,
+      "height": 80
     },
     "0208": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 280,
+      "x": 560,
       "y": 0,
-      "width": 40,
-      "height": 40
+      "width": 80,
+      "height": 80
     },
     "0209": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 320,
+      "x": 640,
       "y": 0,
-      "width": 40,
-      "height": 40
+      "width": 80,
+      "height": 80
     },
     "020a": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 360,
+      "x": 720,
       "y": 0,
-      "width": 40,
-      "height": 40
+      "width": 80,
+      "height": 80
     },
     "020b": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 400,
+      "x": 800,
       "y": 0,
-      "width": 40,
-      "height": 40
+      "width": 80,
+      "height": 80
     },
     "020c": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 440,
+      "x": 880,
       "y": 0,
-      "width": 40,
-      "height": 40
+      "width": 80,
+      "height": 80
     },
     "020d": {
       "sheet": "ff14_card_block2_thumbs",
       "x": 0,
-      "y": 40,
-      "width": 40,
-      "height": 40
+      "y": 80,
+      "width": 80,
+      "height": 80
     },
     "020e": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 40,
-      "y": 40,
-      "width": 40,
-      "height": 40
+      "x": 80,
+      "y": 80,
+      "width": 80,
+      "height": 80
     },
     "020f": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 80,
-      "y": 40,
-      "width": 40,
-      "height": 40
+      "x": 160,
+      "y": 80,
+      "width": 80,
+      "height": 80
     },
     "0210": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 120,
-      "y": 40,
-      "width": 40,
-      "height": 40
+      "x": 240,
+      "y": 80,
+      "width": 80,
+      "height": 80
     },
     "0211": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 160,
-      "y": 40,
-      "width": 40,
-      "height": 40
+      "x": 320,
+      "y": 80,
+      "width": 80,
+      "height": 80
     },
     "0212": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 200,
-      "y": 40,
-      "width": 40,
-      "height": 40
+      "x": 400,
+      "y": 80,
+      "width": 80,
+      "height": 80
     },
     "0213": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 240,
-      "y": 40,
-      "width": 40,
-      "height": 40
+      "x": 480,
+      "y": 80,
+      "width": 80,
+      "height": 80
     },
     "0214": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 280,
-      "y": 40,
-      "width": 40,
-      "height": 40
+      "x": 560,
+      "y": 80,
+      "width": 80,
+      "height": 80
     },
     "0215": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 320,
-      "y": 40,
-      "width": 40,
-      "height": 40
+      "x": 640,
+      "y": 80,
+      "width": 80,
+      "height": 80
     },
     "0216": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 360,
-      "y": 40,
-      "width": 40,
-      "height": 40
+      "x": 720,
+      "y": 80,
+      "width": 80,
+      "height": 80
     },
     "0217": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 400,
-      "y": 40,
-      "width": 40,
-      "height": 40
+      "x": 800,
+      "y": 80,
+      "width": 80,
+      "height": 80
     },
     "0218": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 440,
-      "y": 40,
-      "width": 40,
-      "height": 40
+      "x": 880,
+      "y": 80,
+      "width": 80,
+      "height": 80
     },
     "0219": {
       "sheet": "ff14_card_block2_thumbs",
       "x": 0,
-      "y": 80,
-      "width": 40,
-      "height": 40
+      "y": 160,
+      "width": 80,
+      "height": 80
     },
     "021a": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 40,
-      "y": 80,
-      "width": 40,
-      "height": 40
+      "x": 80,
+      "y": 160,
+      "width": 80,
+      "height": 80
     },
     "021b": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 80,
-      "y": 80,
-      "width": 40,
-      "height": 40
+      "x": 160,
+      "y": 160,
+      "width": 80,
+      "height": 80
     },
     "021c": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 120,
-      "y": 80,
-      "width": 40,
-      "height": 40
+      "x": 240,
+      "y": 160,
+      "width": 80,
+      "height": 80
     },
     "021d": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 160,
-      "y": 80,
-      "width": 40,
-      "height": 40
+      "x": 320,
+      "y": 160,
+      "width": 80,
+      "height": 80
     },
     "021e": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 200,
-      "y": 80,
-      "width": 40,
-      "height": 40
+      "x": 400,
+      "y": 160,
+      "width": 80,
+      "height": 80
     },
     "021f": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 240,
-      "y": 80,
-      "width": 40,
-      "height": 40
+      "x": 480,
+      "y": 160,
+      "width": 80,
+      "height": 80
     },
     "0220": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 280,
-      "y": 80,
-      "width": 40,
-      "height": 40
+      "x": 560,
+      "y": 160,
+      "width": 80,
+      "height": 80
     },
     "0221": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 320,
-      "y": 80,
-      "width": 40,
-      "height": 40
+      "x": 640,
+      "y": 160,
+      "width": 80,
+      "height": 80
     },
     "0222": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 360,
-      "y": 80,
-      "width": 40,
-      "height": 40
+      "x": 720,
+      "y": 160,
+      "width": 80,
+      "height": 80
     },
     "0223": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 400,
-      "y": 80,
-      "width": 40,
-      "height": 40
+      "x": 800,
+      "y": 160,
+      "width": 80,
+      "height": 80
     },
     "0224": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 440,
-      "y": 80,
-      "width": 40,
-      "height": 40
+      "x": 880,
+      "y": 160,
+      "width": 80,
+      "height": 80
     },
     "0225": {
       "sheet": "ff14_card_block2_thumbs",
       "x": 0,
-      "y": 120,
-      "width": 40,
-      "height": 40
+      "y": 240,
+      "width": 80,
+      "height": 80
     },
     "0226": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 40,
-      "y": 120,
-      "width": 40,
-      "height": 40
+      "x": 80,
+      "y": 240,
+      "width": 80,
+      "height": 80
     },
     "0227": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 80,
-      "y": 120,
-      "width": 40,
-      "height": 40
+      "x": 160,
+      "y": 240,
+      "width": 80,
+      "height": 80
     },
     "0228": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 120,
-      "y": 120,
-      "width": 40,
-      "height": 40
+      "x": 240,
+      "y": 240,
+      "width": 80,
+      "height": 80
     },
     "0229": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 160,
-      "y": 120,
-      "width": 40,
-      "height": 40
+      "x": 320,
+      "y": 240,
+      "width": 80,
+      "height": 80
     },
     "022a": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 200,
-      "y": 120,
-      "width": 40,
-      "height": 40
+      "x": 400,
+      "y": 240,
+      "width": 80,
+      "height": 80
     },
     "022b": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 240,
-      "y": 120,
-      "width": 40,
-      "height": 40
+      "x": 480,
+      "y": 240,
+      "width": 80,
+      "height": 80
     },
     "022c": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 280,
-      "y": 120,
-      "width": 40,
-      "height": 40
+      "x": 560,
+      "y": 240,
+      "width": 80,
+      "height": 80
     },
     "022d": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 320,
-      "y": 120,
-      "width": 40,
-      "height": 40
+      "x": 640,
+      "y": 240,
+      "width": 80,
+      "height": 80
     },
     "022e": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 360,
-      "y": 120,
-      "width": 40,
-      "height": 40
+      "x": 720,
+      "y": 240,
+      "width": 80,
+      "height": 80
     },
     "022f": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 400,
-      "y": 120,
-      "width": 40,
-      "height": 40
+      "x": 800,
+      "y": 240,
+      "width": 80,
+      "height": 80
     },
     "0230": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 440,
-      "y": 120,
-      "width": 40,
-      "height": 40
+      "x": 880,
+      "y": 240,
+      "width": 80,
+      "height": 80
     },
     "0231": {
       "sheet": "ff14_card_block2_thumbs",
       "x": 0,
-      "y": 160,
-      "width": 40,
-      "height": 40
+      "y": 320,
+      "width": 80,
+      "height": 80
     },
     "0232": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 40,
-      "y": 160,
-      "width": 40,
-      "height": 40
+      "x": 80,
+      "y": 320,
+      "width": 80,
+      "height": 80
     },
     "0233": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 80,
-      "y": 160,
-      "width": 40,
-      "height": 40
+      "x": 160,
+      "y": 320,
+      "width": 80,
+      "height": 80
     },
     "0234": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 120,
-      "y": 160,
-      "width": 40,
-      "height": 40
+      "x": 240,
+      "y": 320,
+      "width": 80,
+      "height": 80
     },
     "0235": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 160,
-      "y": 160,
-      "width": 40,
-      "height": 40
+      "x": 320,
+      "y": 320,
+      "width": 80,
+      "height": 80
     },
     "0236": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 200,
-      "y": 160,
-      "width": 40,
-      "height": 40
+      "x": 400,
+      "y": 320,
+      "width": 80,
+      "height": 80
     },
     "0237": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 240,
-      "y": 160,
-      "width": 40,
-      "height": 40
+      "x": 480,
+      "y": 320,
+      "width": 80,
+      "height": 80
     },
     "0238": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 280,
-      "y": 160,
-      "width": 40,
-      "height": 40
+      "x": 560,
+      "y": 320,
+      "width": 80,
+      "height": 80
     },
     "0239": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 320,
-      "y": 160,
-      "width": 40,
-      "height": 40
+      "x": 640,
+      "y": 320,
+      "width": 80,
+      "height": 80
     },
     "023a": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 360,
-      "y": 160,
-      "width": 40,
-      "height": 40
+      "x": 720,
+      "y": 320,
+      "width": 80,
+      "height": 80
     },
     "023b": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 400,
-      "y": 160,
-      "width": 40,
-      "height": 40
+      "x": 800,
+      "y": 320,
+      "width": 80,
+      "height": 80
     },
     "023c": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 440,
-      "y": 160,
-      "width": 40,
-      "height": 40
+      "x": 880,
+      "y": 320,
+      "width": 80,
+      "height": 80
     },
     "023d": {
       "sheet": "ff14_card_block2_thumbs",
       "x": 0,
-      "y": 200,
-      "width": 40,
-      "height": 40
+      "y": 400,
+      "width": 80,
+      "height": 80
     },
     "023e": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 40,
-      "y": 200,
-      "width": 40,
-      "height": 40
+      "x": 80,
+      "y": 400,
+      "width": 80,
+      "height": 80
     },
     "023f": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 80,
-      "y": 200,
-      "width": 40,
-      "height": 40
+      "x": 160,
+      "y": 400,
+      "width": 80,
+      "height": 80
     },
     "0240": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 120,
-      "y": 200,
-      "width": 40,
-      "height": 40
+      "x": 240,
+      "y": 400,
+      "width": 80,
+      "height": 80
     },
     "0241": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 160,
-      "y": 200,
-      "width": 40,
-      "height": 40
+      "x": 320,
+      "y": 400,
+      "width": 80,
+      "height": 80
     },
     "0242": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 200,
-      "y": 200,
-      "width": 40,
-      "height": 40
+      "x": 400,
+      "y": 400,
+      "width": 80,
+      "height": 80
     },
     "0243": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 240,
-      "y": 200,
-      "width": 40,
-      "height": 40
+      "x": 480,
+      "y": 400,
+      "width": 80,
+      "height": 80
     },
     "0244": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 280,
-      "y": 200,
-      "width": 40,
-      "height": 40
+      "x": 560,
+      "y": 400,
+      "width": 80,
+      "height": 80
     },
     "0245": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 320,
-      "y": 200,
-      "width": 40,
-      "height": 40
+      "x": 640,
+      "y": 400,
+      "width": 80,
+      "height": 80
     },
     "0246": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 360,
-      "y": 200,
-      "width": 40,
-      "height": 40
+      "x": 720,
+      "y": 400,
+      "width": 80,
+      "height": 80
     },
     "0247": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 400,
-      "y": 200,
-      "width": 40,
-      "height": 40
+      "x": 800,
+      "y": 400,
+      "width": 80,
+      "height": 80
     },
     "0248": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 440,
-      "y": 200,
-      "width": 40,
-      "height": 40
+      "x": 880,
+      "y": 400,
+      "width": 80,
+      "height": 80
     },
     "0249": {
       "sheet": "ff14_card_block2_thumbs",
       "x": 0,
-      "y": 240,
-      "width": 40,
-      "height": 40
+      "y": 480,
+      "width": 80,
+      "height": 80
     },
     "024a": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 40,
-      "y": 240,
-      "width": 40,
-      "height": 40
+      "x": 80,
+      "y": 480,
+      "width": 80,
+      "height": 80
     },
     "024b": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 80,
-      "y": 240,
-      "width": 40,
-      "height": 40
+      "x": 160,
+      "y": 480,
+      "width": 80,
+      "height": 80
     },
     "024c": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 120,
-      "y": 240,
-      "width": 40,
-      "height": 40
+      "x": 240,
+      "y": 480,
+      "width": 80,
+      "height": 80
     },
     "024d": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 160,
-      "y": 240,
-      "width": 40,
-      "height": 40
+      "x": 320,
+      "y": 480,
+      "width": 80,
+      "height": 80
     },
     "024e": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 200,
-      "y": 240,
-      "width": 40,
-      "height": 40
+      "x": 400,
+      "y": 480,
+      "width": 80,
+      "height": 80
     },
     "024f": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 240,
-      "y": 240,
-      "width": 40,
-      "height": 40
+      "x": 480,
+      "y": 480,
+      "width": 80,
+      "height": 80
     },
     "0250": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 280,
-      "y": 240,
-      "width": 40,
-      "height": 40
+      "x": 560,
+      "y": 480,
+      "width": 80,
+      "height": 80
     },
     "0251": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 320,
-      "y": 240,
-      "width": 40,
-      "height": 40
+      "x": 640,
+      "y": 480,
+      "width": 80,
+      "height": 80
     },
     "0252": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 360,
-      "y": 240,
-      "width": 40,
-      "height": 40
+      "x": 720,
+      "y": 480,
+      "width": 80,
+      "height": 80
     },
     "0253": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 400,
-      "y": 240,
-      "width": 40,
-      "height": 40
+      "x": 800,
+      "y": 480,
+      "width": 80,
+      "height": 80
     },
     "0254": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 440,
-      "y": 240,
-      "width": 40,
-      "height": 40
+      "x": 880,
+      "y": 480,
+      "width": 80,
+      "height": 80
     },
     "0255": {
       "sheet": "ff14_card_block2_thumbs",
       "x": 0,
-      "y": 280,
-      "width": 40,
-      "height": 40
+      "y": 560,
+      "width": 80,
+      "height": 80
     },
     "0256": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 40,
-      "y": 280,
-      "width": 40,
-      "height": 40
+      "x": 80,
+      "y": 560,
+      "width": 80,
+      "height": 80
     },
     "0257": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 80,
-      "y": 280,
-      "width": 40,
-      "height": 40
+      "x": 160,
+      "y": 560,
+      "width": 80,
+      "height": 80
     },
     "0258": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 120,
-      "y": 280,
-      "width": 40,
-      "height": 40
+      "x": 240,
+      "y": 560,
+      "width": 80,
+      "height": 80
     },
     "0259": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 160,
-      "y": 280,
-      "width": 40,
-      "height": 40
+      "x": 320,
+      "y": 560,
+      "width": 80,
+      "height": 80
     },
     "025a": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 200,
-      "y": 280,
-      "width": 40,
-      "height": 40
+      "x": 400,
+      "y": 560,
+      "width": 80,
+      "height": 80
     },
     "025b": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 240,
-      "y": 280,
-      "width": 40,
-      "height": 40
+      "x": 480,
+      "y": 560,
+      "width": 80,
+      "height": 80
     },
     "025c": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 280,
-      "y": 280,
-      "width": 40,
-      "height": 40
+      "x": 560,
+      "y": 560,
+      "width": 80,
+      "height": 80
     },
     "025d": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 320,
-      "y": 280,
-      "width": 40,
-      "height": 40
+      "x": 640,
+      "y": 560,
+      "width": 80,
+      "height": 80
     },
     "025e": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 360,
-      "y": 280,
-      "width": 40,
-      "height": 40
+      "x": 720,
+      "y": 560,
+      "width": 80,
+      "height": 80
     },
     "025f": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 400,
-      "y": 280,
-      "width": 40,
-      "height": 40
+      "x": 800,
+      "y": 560,
+      "width": 80,
+      "height": 80
     },
     "0260": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 440,
-      "y": 280,
-      "width": 40,
-      "height": 40
+      "x": 880,
+      "y": 560,
+      "width": 80,
+      "height": 80
     },
     "0261": {
       "sheet": "ff14_card_block2_thumbs",
       "x": 0,
-      "y": 320,
-      "width": 40,
-      "height": 40
+      "y": 640,
+      "width": 80,
+      "height": 80
     },
     "0262": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 40,
-      "y": 320,
-      "width": 40,
-      "height": 40
+      "x": 80,
+      "y": 640,
+      "width": 80,
+      "height": 80
     },
     "0263": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 80,
-      "y": 320,
-      "width": 40,
-      "height": 40
+      "x": 160,
+      "y": 640,
+      "width": 80,
+      "height": 80
     },
     "0264": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 120,
-      "y": 320,
-      "width": 40,
-      "height": 40
+      "x": 240,
+      "y": 640,
+      "width": 80,
+      "height": 80
     },
     "0265": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 160,
-      "y": 320,
-      "width": 40,
-      "height": 40
+      "x": 320,
+      "y": 640,
+      "width": 80,
+      "height": 80
     },
     "0266": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 200,
-      "y": 320,
-      "width": 40,
-      "height": 40
+      "x": 400,
+      "y": 640,
+      "width": 80,
+      "height": 80
     },
     "0267": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 240,
-      "y": 320,
-      "width": 40,
-      "height": 40
+      "x": 480,
+      "y": 640,
+      "width": 80,
+      "height": 80
     },
     "0268": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 280,
-      "y": 320,
-      "width": 40,
-      "height": 40
+      "x": 560,
+      "y": 640,
+      "width": 80,
+      "height": 80
     },
     "0269": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 320,
-      "y": 320,
-      "width": 40,
-      "height": 40
+      "x": 640,
+      "y": 640,
+      "width": 80,
+      "height": 80
     },
     "026a": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 360,
-      "y": 320,
-      "width": 40,
-      "height": 40
+      "x": 720,
+      "y": 640,
+      "width": 80,
+      "height": 80
     },
     "026b": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 400,
-      "y": 320,
-      "width": 40,
-      "height": 40
+      "x": 800,
+      "y": 640,
+      "width": 80,
+      "height": 80
     },
     "026c": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 440,
-      "y": 320,
-      "width": 40,
-      "height": 40
+      "x": 880,
+      "y": 640,
+      "width": 80,
+      "height": 80
     },
     "026d": {
       "sheet": "ff14_card_block2_thumbs",
       "x": 0,
-      "y": 360,
-      "width": 40,
-      "height": 40
+      "y": 720,
+      "width": 80,
+      "height": 80
     },
     "026e": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 40,
-      "y": 360,
-      "width": 40,
-      "height": 40
+      "x": 80,
+      "y": 720,
+      "width": 80,
+      "height": 80
     },
     "026f": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 80,
-      "y": 360,
-      "width": 40,
-      "height": 40
+      "x": 160,
+      "y": 720,
+      "width": 80,
+      "height": 80
     },
     "0270": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 120,
-      "y": 360,
-      "width": 40,
-      "height": 40
+      "x": 240,
+      "y": 720,
+      "width": 80,
+      "height": 80
     },
     "0271": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 160,
-      "y": 360,
-      "width": 40,
-      "height": 40
+      "x": 320,
+      "y": 720,
+      "width": 80,
+      "height": 80
     },
     "0272": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 200,
-      "y": 360,
-      "width": 40,
-      "height": 40
+      "x": 400,
+      "y": 720,
+      "width": 80,
+      "height": 80
     },
     "0273": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 240,
-      "y": 360,
-      "width": 40,
-      "height": 40
+      "x": 480,
+      "y": 720,
+      "width": 80,
+      "height": 80
     },
     "0274": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 280,
-      "y": 360,
-      "width": 40,
-      "height": 40
+      "x": 560,
+      "y": 720,
+      "width": 80,
+      "height": 80
     },
     "0275": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 320,
-      "y": 360,
-      "width": 40,
-      "height": 40
+      "x": 640,
+      "y": 720,
+      "width": 80,
+      "height": 80
     },
     "0276": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 360,
-      "y": 360,
-      "width": 40,
-      "height": 40
+      "x": 720,
+      "y": 720,
+      "width": 80,
+      "height": 80
     },
     "0277": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 400,
-      "y": 360,
-      "width": 40,
-      "height": 40
+      "x": 800,
+      "y": 720,
+      "width": 80,
+      "height": 80
     },
     "0278": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 440,
-      "y": 360,
-      "width": 40,
-      "height": 40
+      "x": 880,
+      "y": 720,
+      "width": 80,
+      "height": 80
     },
     "0279": {
       "sheet": "ff14_card_block2_thumbs",
       "x": 0,
-      "y": 400,
-      "width": 40,
-      "height": 40
+      "y": 800,
+      "width": 80,
+      "height": 80
     },
     "027a": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 40,
-      "y": 400,
-      "width": 40,
-      "height": 40
+      "x": 80,
+      "y": 800,
+      "width": 80,
+      "height": 80
     },
     "027b": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 80,
-      "y": 400,
-      "width": 40,
-      "height": 40
+      "x": 160,
+      "y": 800,
+      "width": 80,
+      "height": 80
     },
     "027c": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 120,
-      "y": 400,
-      "width": 40,
-      "height": 40
+      "x": 240,
+      "y": 800,
+      "width": 80,
+      "height": 80
     },
     "027d": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 160,
-      "y": 400,
-      "width": 40,
-      "height": 40
+      "x": 320,
+      "y": 800,
+      "width": 80,
+      "height": 80
     },
     "027e": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 200,
-      "y": 400,
-      "width": 40,
-      "height": 40
+      "x": 400,
+      "y": 800,
+      "width": 80,
+      "height": 80
     },
     "027f": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 240,
-      "y": 400,
-      "width": 40,
-      "height": 40
+      "x": 480,
+      "y": 800,
+      "width": 80,
+      "height": 80
     },
     "0280": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 280,
-      "y": 400,
-      "width": 40,
-      "height": 40
+      "x": 560,
+      "y": 800,
+      "width": 80,
+      "height": 80
     },
     "0281": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 320,
-      "y": 400,
-      "width": 40,
-      "height": 40
+      "x": 640,
+      "y": 800,
+      "width": 80,
+      "height": 80
     },
     "0282": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 360,
-      "y": 400,
-      "width": 40,
-      "height": 40
+      "x": 720,
+      "y": 800,
+      "width": 80,
+      "height": 80
     },
     "0283": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 400,
-      "y": 400,
-      "width": 40,
-      "height": 40
+      "x": 800,
+      "y": 800,
+      "width": 80,
+      "height": 80
     },
     "0284": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 440,
-      "y": 400,
-      "width": 40,
-      "height": 40
+      "x": 880,
+      "y": 800,
+      "width": 80,
+      "height": 80
     },
     "0285": {
       "sheet": "ff14_card_block2_thumbs",
       "x": 0,
-      "y": 440,
-      "width": 40,
-      "height": 40
+      "y": 880,
+      "width": 80,
+      "height": 80
     },
     "0286": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 40,
-      "y": 440,
-      "width": 40,
-      "height": 40
+      "x": 80,
+      "y": 880,
+      "width": 80,
+      "height": 80
     },
     "0287": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 80,
-      "y": 440,
-      "width": 40,
-      "height": 40
+      "x": 160,
+      "y": 880,
+      "width": 80,
+      "height": 80
     },
     "0288": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 120,
-      "y": 440,
-      "width": 40,
-      "height": 40
+      "x": 240,
+      "y": 880,
+      "width": 80,
+      "height": 80
     },
     "0289": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 160,
-      "y": 440,
-      "width": 40,
-      "height": 40
+      "x": 320,
+      "y": 880,
+      "width": 80,
+      "height": 80
     },
     "028a": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 200,
-      "y": 440,
-      "width": 40,
-      "height": 40
+      "x": 400,
+      "y": 880,
+      "width": 80,
+      "height": 80
     },
     "028b": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 240,
-      "y": 440,
-      "width": 40,
-      "height": 40
+      "x": 480,
+      "y": 880,
+      "width": 80,
+      "height": 80
     },
     "028c": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 280,
-      "y": 440,
-      "width": 40,
-      "height": 40
+      "x": 560,
+      "y": 880,
+      "width": 80,
+      "height": 80
     },
     "028d": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 320,
-      "y": 440,
-      "width": 40,
-      "height": 40
+      "x": 640,
+      "y": 880,
+      "width": 80,
+      "height": 80
     },
     "028e": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 360,
-      "y": 440,
-      "width": 40,
-      "height": 40
+      "x": 720,
+      "y": 880,
+      "width": 80,
+      "height": 80
     },
     "028f": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 400,
-      "y": 440,
-      "width": 40,
-      "height": 40
+      "x": 800,
+      "y": 880,
+      "width": 80,
+      "height": 80
     },
     "0290": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 440,
-      "y": 440,
-      "width": 40,
-      "height": 40
+      "x": 880,
+      "y": 880,
+      "width": 80,
+      "height": 80
     },
     "0291": {
       "sheet": "ff14_card_block2_thumbs",
       "x": 0,
-      "y": 480,
-      "width": 40,
-      "height": 40
+      "y": 960,
+      "width": 80,
+      "height": 80
     },
     "0292": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 40,
-      "y": 480,
-      "width": 40,
-      "height": 40
+      "x": 80,
+      "y": 960,
+      "width": 80,
+      "height": 80
     },
     "0293": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 80,
-      "y": 480,
-      "width": 40,
-      "height": 40
+      "x": 160,
+      "y": 960,
+      "width": 80,
+      "height": 80
     },
     "0294": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 120,
-      "y": 480,
-      "width": 40,
-      "height": 40
+      "x": 240,
+      "y": 960,
+      "width": 80,
+      "height": 80
     },
     "0295": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 160,
-      "y": 480,
-      "width": 40,
-      "height": 40
+      "x": 320,
+      "y": 960,
+      "width": 80,
+      "height": 80
     },
     "0296": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 200,
-      "y": 480,
-      "width": 40,
-      "height": 40
+      "x": 400,
+      "y": 960,
+      "width": 80,
+      "height": 80
     },
     "0297": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 240,
-      "y": 480,
-      "width": 40,
-      "height": 40
+      "x": 480,
+      "y": 960,
+      "width": 80,
+      "height": 80
     },
     "0298": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 280,
-      "y": 480,
-      "width": 40,
-      "height": 40
+      "x": 560,
+      "y": 960,
+      "width": 80,
+      "height": 80
     },
     "0299": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 320,
-      "y": 480,
-      "width": 40,
-      "height": 40
+      "x": 640,
+      "y": 960,
+      "width": 80,
+      "height": 80
     },
     "029a": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 360,
-      "y": 480,
-      "width": 40,
-      "height": 40
+      "x": 720,
+      "y": 960,
+      "width": 80,
+      "height": 80
     },
     "029b": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 400,
-      "y": 480,
-      "width": 40,
-      "height": 40
+      "x": 800,
+      "y": 960,
+      "width": 80,
+      "height": 80
     },
     "029c": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 440,
-      "y": 480,
-      "width": 40,
-      "height": 40
+      "x": 880,
+      "y": 960,
+      "width": 80,
+      "height": 80
     },
     "029d": {
       "sheet": "ff14_card_block2_thumbs",
       "x": 0,
-      "y": 520,
-      "width": 40,
-      "height": 40
+      "y": 1040,
+      "width": 80,
+      "height": 80
     },
     "029e": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 40,
-      "y": 520,
-      "width": 40,
-      "height": 40
+      "x": 80,
+      "y": 1040,
+      "width": 80,
+      "height": 80
     },
     "029f": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 80,
-      "y": 520,
-      "width": 40,
-      "height": 40
+      "x": 160,
+      "y": 1040,
+      "width": 80,
+      "height": 80
     },
     "02a0": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 120,
-      "y": 520,
-      "width": 40,
-      "height": 40
+      "x": 240,
+      "y": 1040,
+      "width": 80,
+      "height": 80
     },
     "02a1": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 160,
-      "y": 520,
-      "width": 40,
-      "height": 40
+      "x": 320,
+      "y": 1040,
+      "width": 80,
+      "height": 80
     },
     "02a2": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 200,
-      "y": 520,
-      "width": 40,
-      "height": 40
+      "x": 400,
+      "y": 1040,
+      "width": 80,
+      "height": 80
     },
     "02a3": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 240,
-      "y": 520,
-      "width": 40,
-      "height": 40
+      "x": 480,
+      "y": 1040,
+      "width": 80,
+      "height": 80
     },
     "02a4": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 280,
-      "y": 520,
-      "width": 40,
-      "height": 40
+      "x": 560,
+      "y": 1040,
+      "width": 80,
+      "height": 80
     },
     "02a5": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 320,
-      "y": 520,
-      "width": 40,
-      "height": 40
+      "x": 640,
+      "y": 1040,
+      "width": 80,
+      "height": 80
     },
     "02a6": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 360,
-      "y": 520,
-      "width": 40,
-      "height": 40
+      "x": 720,
+      "y": 1040,
+      "width": 80,
+      "height": 80
     },
     "02a7": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 400,
-      "y": 520,
-      "width": 40,
-      "height": 40
+      "x": 800,
+      "y": 1040,
+      "width": 80,
+      "height": 80
     },
     "02a8": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 440,
-      "y": 520,
-      "width": 40,
-      "height": 40
+      "x": 880,
+      "y": 1040,
+      "width": 80,
+      "height": 80
     },
     "02a9": {
       "sheet": "ff14_card_block2_thumbs",
       "x": 0,
-      "y": 560,
-      "width": 40,
-      "height": 40
+      "y": 1120,
+      "width": 80,
+      "height": 80
     },
     "02aa": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 40,
-      "y": 560,
-      "width": 40,
-      "height": 40
+      "x": 80,
+      "y": 1120,
+      "width": 80,
+      "height": 80
     },
     "02ab": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 80,
-      "y": 560,
-      "width": 40,
-      "height": 40
+      "x": 160,
+      "y": 1120,
+      "width": 80,
+      "height": 80
     },
     "02ac": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 120,
-      "y": 560,
-      "width": 40,
-      "height": 40
+      "x": 240,
+      "y": 1120,
+      "width": 80,
+      "height": 80
     },
     "02ad": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 160,
-      "y": 560,
-      "width": 40,
-      "height": 40
+      "x": 320,
+      "y": 1120,
+      "width": 80,
+      "height": 80
     },
     "02ae": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 200,
-      "y": 560,
-      "width": 40,
-      "height": 40
+      "x": 400,
+      "y": 1120,
+      "width": 80,
+      "height": 80
     },
     "02af": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 240,
-      "y": 560,
-      "width": 40,
-      "height": 40
+      "x": 480,
+      "y": 1120,
+      "width": 80,
+      "height": 80
     },
     "02b0": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 280,
-      "y": 560,
-      "width": 40,
-      "height": 40
+      "x": 560,
+      "y": 1120,
+      "width": 80,
+      "height": 80
     },
     "02b1": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 320,
-      "y": 560,
-      "width": 40,
-      "height": 40
+      "x": 640,
+      "y": 1120,
+      "width": 80,
+      "height": 80
     },
     "02b2": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 360,
-      "y": 560,
-      "width": 40,
-      "height": 40
+      "x": 720,
+      "y": 1120,
+      "width": 80,
+      "height": 80
     },
     "02b3": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 400,
-      "y": 560,
-      "width": 40,
-      "height": 40
+      "x": 800,
+      "y": 1120,
+      "width": 80,
+      "height": 80
     },
     "02b4": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 440,
-      "y": 560,
-      "width": 40,
-      "height": 40
+      "x": 880,
+      "y": 1120,
+      "width": 80,
+      "height": 80
     },
     "02b5": {
       "sheet": "ff14_card_block2_thumbs",
       "x": 0,
-      "y": 600,
-      "width": 40,
-      "height": 40
+      "y": 1200,
+      "width": 80,
+      "height": 80
     },
     "02b6": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 40,
-      "y": 600,
-      "width": 40,
-      "height": 40
+      "x": 80,
+      "y": 1200,
+      "width": 80,
+      "height": 80
     },
     "02b7": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 80,
-      "y": 600,
-      "width": 40,
-      "height": 40
+      "x": 160,
+      "y": 1200,
+      "width": 80,
+      "height": 80
     },
     "02b8": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 120,
-      "y": 600,
-      "width": 40,
-      "height": 40
+      "x": 240,
+      "y": 1200,
+      "width": 80,
+      "height": 80
     },
     "02b9": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 160,
-      "y": 600,
-      "width": 40,
-      "height": 40
+      "x": 320,
+      "y": 1200,
+      "width": 80,
+      "height": 80
     },
     "02ba": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 200,
-      "y": 600,
-      "width": 40,
-      "height": 40
+      "x": 400,
+      "y": 1200,
+      "width": 80,
+      "height": 80
     },
     "02bb": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 240,
-      "y": 600,
-      "width": 40,
-      "height": 40
+      "x": 480,
+      "y": 1200,
+      "width": 80,
+      "height": 80
     },
     "02bc": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 280,
-      "y": 600,
-      "width": 40,
-      "height": 40
+      "x": 560,
+      "y": 1200,
+      "width": 80,
+      "height": 80
     },
     "02bd": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 320,
-      "y": 600,
-      "width": 40,
-      "height": 40
+      "x": 640,
+      "y": 1200,
+      "width": 80,
+      "height": 80
     },
     "02be": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 360,
-      "y": 600,
-      "width": 40,
-      "height": 40
+      "x": 720,
+      "y": 1200,
+      "width": 80,
+      "height": 80
     },
     "02bf": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 400,
-      "y": 600,
-      "width": 40,
-      "height": 40
+      "x": 800,
+      "y": 1200,
+      "width": 80,
+      "height": 80
     },
     "02c0": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 440,
-      "y": 600,
-      "width": 40,
-      "height": 40
+      "x": 880,
+      "y": 1200,
+      "width": 80,
+      "height": 80
     },
     "02c1": {
       "sheet": "ff14_card_block2_thumbs",
       "x": 0,
-      "y": 640,
-      "width": 40,
-      "height": 40
+      "y": 1280,
+      "width": 80,
+      "height": 80
     },
     "02c2": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 40,
-      "y": 640,
-      "width": 40,
-      "height": 40
+      "x": 80,
+      "y": 1280,
+      "width": 80,
+      "height": 80
     },
     "02c3": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 80,
-      "y": 640,
-      "width": 40,
-      "height": 40
+      "x": 160,
+      "y": 1280,
+      "width": 80,
+      "height": 80
     },
     "02c4": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 120,
-      "y": 640,
-      "width": 40,
-      "height": 40
+      "x": 240,
+      "y": 1280,
+      "width": 80,
+      "height": 80
     },
     "02c5": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 160,
-      "y": 640,
-      "width": 40,
-      "height": 40
+      "x": 320,
+      "y": 1280,
+      "width": 80,
+      "height": 80
     },
     "02c6": {
       "sheet": "ff14_card_block2_thumbs",
-      "x": 200,
-      "y": 640,
-      "width": 40,
-      "height": 40
+      "x": 400,
+      "y": 1280,
+      "width": 80,
+      "height": 80
     },
     "02c7": {
       "sheet": "ff14_card_block2_thumbs",
+      "x": 480,
+      "y": 1280,
+      "width": 80,
+      "height": 80
+    },
+    "02c8": {
+      "sheet": "ff14_card_block2_thumbs",
+      "x": 560,
+      "y": 1280,
+      "width": 80,
+      "height": 80
+    },
+    "02c9": {
+      "sheet": "ff14_card_block2_thumbs",
+      "x": 640,
+      "y": 1280,
+      "width": 80,
+      "height": 80
+    },
+    "02ca": {
+      "sheet": "ff14_card_block2_thumbs",
+      "x": 720,
+      "y": 1280,
+      "width": 80,
+      "height": 80
+    },
+    "02cb": {
+      "sheet": "ff14_card_block2_thumbs",
+      "x": 800,
+      "y": 1280,
+      "width": 80,
+      "height": 80
+    },
+    "02cc": {
+      "sheet": "ff14_card_block2_thumbs",
+      "x": 880,
+      "y": 1280,
+      "width": 80,
+      "height": 80
+    },
+    "02cd": {
+      "sheet": "ff14_card_block2_thumbs",
+      "x": 0,
+      "y": 1360,
+      "width": 80,
+      "height": 80
+    },
+    "02ce": {
+      "sheet": "ff14_card_block2_thumbs",
+      "x": 80,
+      "y": 1360,
+      "width": 80,
+      "height": 80
+    },
+    "02cf": {
+      "sheet": "ff14_card_block2_thumbs",
+      "x": 160,
+      "y": 1360,
+      "width": 80,
+      "height": 80
+    },
+    "02d0": {
+      "sheet": "ff14_card_block2_thumbs",
       "x": 240,
-      "y": 640,
-      "width": 40,
-      "height": 40
+      "y": 1360,
+      "width": 80,
+      "height": 80
+    },
+    "02d1": {
+      "sheet": "ff14_card_block2_thumbs",
+      "x": 320,
+      "y": 1360,
+      "width": 80,
+      "height": 80
+    },
+    "02d2": {
+      "sheet": "ff14_card_block2_thumbs",
+      "x": 400,
+      "y": 1360,
+      "width": 80,
+      "height": 80
+    },
+    "02d3": {
+      "sheet": "ff14_card_block2_thumbs",
+      "x": 480,
+      "y": 1360,
+      "width": 80,
+      "height": 80
+    },
+    "02d4": {
+      "sheet": "ff14_card_block2_thumbs",
+      "x": 560,
+      "y": 1360,
+      "width": 80,
+      "height": 80
+    },
+    "02d5": {
+      "sheet": "ff14_card_block2_thumbs",
+      "x": 640,
+      "y": 1360,
+      "width": 80,
+      "height": 80
+    },
+    "02d6": {
+      "sheet": "ff14_card_block2_thumbs",
+      "x": 720,
+      "y": 1360,
+      "width": 80,
+      "height": 80
+    },
+    "02d7": {
+      "sheet": "ff14_card_block2_thumbs",
+      "x": 800,
+      "y": 1360,
+      "width": 80,
+      "height": 80
+    },
+    "02d8": {
+      "sheet": "ff14_card_block2_thumbs",
+      "x": 880,
+      "y": 1360,
+      "width": 80,
+      "height": 80
+    },
+    "02d9": {
+      "sheet": "ff14_card_block2_thumbs",
+      "x": 0,
+      "y": 1440,
+      "width": 80,
+      "height": 80
+    },
+    "02da": {
+      "sheet": "ff14_card_block2_thumbs",
+      "x": 80,
+      "y": 1440,
+      "width": 80,
+      "height": 80
+    },
+    "02db": {
+      "sheet": "ff14_card_block2_thumbs",
+      "x": 160,
+      "y": 1440,
+      "width": 80,
+      "height": 80
+    },
+    "02dc": {
+      "sheet": "ff14_card_block2_thumbs",
+      "x": 240,
+      "y": 1440,
+      "width": 80,
+      "height": 80
     },
     "0801": {
       "height": 40,

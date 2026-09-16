@@ -1,13 +1,17 @@
 package com.tripletriad.ui
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -20,12 +24,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import com.tripletriad.data.Inventory
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.Strings
+import com.tripletriad.model.BoosterItem
 import com.tripletriad.model.Card
+import com.tripletriad.model.CardItem
 import com.tripletriad.model.Item
+import com.tripletriad.model.MiscItem
+import com.tripletriad.model.PotionItem
+import com.tripletriad.model.PouchItem
 import com.tripletriad.ui.theme.LocalTtoColors
 
 fun inventoryRowTestTag(item: Item): String = "inventory-row-${itemSlug(item)}"
@@ -38,8 +48,14 @@ fun inventorySellTestTag(item: Item): String = "inventory-sell-${itemSlug(item)}
 
 fun inventorySellAllTestTag(item: Item): String = "inventory-sell-all-${itemSlug(item)}"
 
-/** What holding the item is worth, on the row. See [itemEffect]. */
+/** "New" or "Duplicate" beside a card's name. Absent on everything that is not a card. */
+fun inventoryBadgeTestTag(item: Item): String = "inventory-badge-${itemSlug(item)}"
+
+/** What holding the item is worth, in full, at the head of the row's ⋮. See [itemEffect]. */
 fun inventoryEffectTestTag(item: Item): String = "inventory-effect-${itemSlug(item)}"
+
+/** The same, cut to the row's one line. See [itemGist]. */
+fun inventoryGistTestTag(item: Item): String = "inventory-gist-${itemSlug(item)}"
 
 /** The three things a bag row does, so the row itself is not eight parameters of lambda. */
 internal data class BagActions(
@@ -120,20 +136,35 @@ internal fun BagItemRow(
             softWrap = false,
         )
 
-        RowButton(
-            label = strings[StringKeys.USE],
-            tag = inventoryUseTestTag(item),
-            enabled = item.useable && !locked,
-            color = MaterialTheme.colorScheme.primary,
-            onClick = actions.onUse,
-        )
+        // The likelier of add and sell on the row, the other in the menu. A card the collection
+        // lacks is kept; a copy of one it holds is almost always sold, and adding it anyway is
+        // one tap further away rather than gone.
+        val duplicate = isDuplicate(item, owned)
+        if (duplicate) {
+            RowButton(
+                label = strings[StringKeys.SELL],
+                tag = inventorySellTestTag(item),
+                enabled = price > 0 && !locked,
+                color = MaterialTheme.colorScheme.primary,
+                onClick = actions.onSell,
+            )
+        } else {
+            RowButton(
+                label = strings[useVerbOf(item)],
+                tag = inventoryUseTestTag(item),
+                enabled = item.useable && !locked,
+                color = MaterialTheme.colorScheme.primary,
+                onClick = actions.onUse,
+            )
+        }
 
         BagMenu(
             item = item,
+            effect = itemEffect(strings, item, cards, owned),
             price = price,
             enabled = !locked,
-            onSell = actions.onSell,
-            onSellAll = actions.onSellAll,
+            duplicate = duplicate,
+            actions = actions,
         )
     }
 }
@@ -150,21 +181,28 @@ private fun BagItemFacts(
     val strings = LocalStrings.current
 
     Column(modifier = modifier) {
-        Text(
-            text = itemName(strings, item, cards),
-            color = MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        itemEffect(strings, item, cards, owned)?.let { effect ->
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(SpaceXs),
+        ) {
             Text(
-                text = effect,
-                modifier = Modifier.testTag(inventoryEffectTestTag(item)),
+                text = itemName(strings, item, cards),
+                modifier = Modifier.weight(1f, fill = false),
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (item is CardItem) CardBadge(item = item, duplicate = isDuplicate(item, owned))
+        }
+        itemGist(strings, item, cards, owned)?.let { gist ->
+            Text(
+                text = gist,
+                modifier = Modifier.testTag(inventoryGistTestTag(item)),
                 color = MaterialTheme.colorScheme.tertiary,
                 style = MaterialTheme.typography.labelSmall,
-                maxLines = 2,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
@@ -193,6 +231,51 @@ private fun BagItemFacts(
 }
 
 /**
+ * Whether the collection already holds the card this item would add. Never true of anything else.
+ *
+ * Read off the collection, not the bag: two copies of a card nobody owns are both new until the
+ * first is added, and the row says so.
+ */
+internal fun isDuplicate(item: Item, owned: Map<Int, Int>): Boolean =
+    item is CardItem && (owned[item.cardId] ?: 0) > 0
+
+/** "Use" was one verb for four acts, and only a potion is used in any ordinary sense. */
+internal fun useVerbOf(item: Item): String = when (item) {
+    is BoosterItem, is PouchItem -> StringKeys.OPEN
+    is PotionItem -> StringKeys.ACTIVATE
+    is CardItem -> StringKeys.ADD_TO_COLLECTION
+    is MiscItem -> StringKeys.USE
+}
+
+/** New in the colour of a gain, Duplicate in the quiet of a leftover. */
+@Composable
+private fun CardBadge(item: CardItem, duplicate: Boolean) {
+    val strings = LocalStrings.current
+    val colour = if (duplicate) {
+        MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED)
+    } else {
+        LocalTtoColors.current.positive
+    }
+
+    Text(
+        text = strings[if (duplicate) StringKeys.BADGE_DUPLICATE else StringKeys.BADGE_NEW],
+        modifier = Modifier
+            .testTag(inventoryBadgeTestTag(item))
+            .border(1.dp, colour, RoundedCornerShape(BadgeCorner))
+            .padding(horizontal = SpaceXs),
+        color = colour,
+        style = MaterialTheme.typography.labelSmall,
+        maxLines = 1,
+        softWrap = false,
+    )
+}
+
+private val BadgeCorner = 4.dp
+
+/** Wide enough for the longest effect in two lines; a menu otherwise grows to its longest line. */
+private val EffectWidth = 240.dp
+
+/**
  * Sell, and sell all under a second tap.
  *
  * The confirmation is the menu item's own label rather than a dialog, which is the shape
@@ -205,10 +288,11 @@ private fun BagItemFacts(
 @Composable
 private fun BagMenu(
     item: Item,
+    effect: String?,
     price: Int,
     enabled: Boolean,
-    onSell: () -> Unit,
-    onSellAll: () -> Unit,
+    duplicate: Boolean,
+    actions: BagActions,
 ) {
     val strings = LocalStrings.current
     var open by remember(item) { mutableStateOf(false) }
@@ -227,15 +311,42 @@ private fun BagMenu(
             onClick = { open = true },
         )
         DropdownMenu(expanded = open, onDismissRequest = close) {
-            DropdownMenuItem(
-                text = { Text("${strings[StringKeys.SELL]} $price") },
-                enabled = price > 0,
-                onClick = {
-                    close()
-                    onSell()
-                },
-                modifier = Modifier.testTag(inventorySellTestTag(item)),
-            )
+            // The sentence the row cut to one line, above the verbs rather than in a dialog: the
+            // ⋮ is where a player already goes to ask what else a row can say.
+            effect?.let {
+                Text(
+                    text = it,
+                    modifier = Modifier
+                        .testTag(inventoryEffectTestTag(item))
+                        .widthIn(max = EffectWidth)
+                        .padding(horizontal = SpaceLg, vertical = SpaceSm),
+                    color = MaterialTheme.colorScheme.tertiary,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                HorizontalDivider()
+            }
+            // Whichever of add and sell the row did not put on its face. See [BagItemRow].
+            if (duplicate) {
+                DropdownMenuItem(
+                    text = { Text(strings[StringKeys.ADD_TO_COLLECTION]) },
+                    enabled = item.useable,
+                    onClick = {
+                        close()
+                        actions.onUse()
+                    },
+                    modifier = Modifier.testTag(inventoryUseTestTag(item)),
+                )
+            } else {
+                DropdownMenuItem(
+                    text = { Text("${strings[StringKeys.SELL]} $price") },
+                    enabled = price > 0,
+                    onClick = {
+                        close()
+                        actions.onSell()
+                    },
+                    modifier = Modifier.testTag(inventorySellTestTag(item)),
+                )
+            }
             DropdownMenuItem(
                 text = {
                     Text(
@@ -256,7 +367,7 @@ private fun BagMenu(
                 onClick = {
                     if (armed) {
                         close()
-                        onSellAll()
+                        actions.onSellAll()
                     } else {
                         armed = true
                     }

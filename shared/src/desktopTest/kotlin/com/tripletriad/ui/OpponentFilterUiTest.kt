@@ -6,6 +6,7 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.FF14_FORMAT
 import com.tripletriad.data.loadNpcCatalog
@@ -50,6 +51,10 @@ class OpponentFilterUiTest {
         scrollToOpponent(TEST_OPPONENT)
         assertTrue(exists(opponentRowTestTag(TEST_OPPONENT)), "$TEST_OPPONENT is listed")
 
+        // The chips are the grid's first item: 36 level-1 opponents are enough that scrolling
+        // down to the Triple Triad Master takes them out of composition.
+        onNodeWithTag(OPPONENT_LIST_TEST_TAG)
+            .performScrollToNode(hasTestTag(opponentReasonTestTag("timed")))
         onNodeWithTag(opponentReasonTestTag("timed")).performClick()
 
         assertFalse(

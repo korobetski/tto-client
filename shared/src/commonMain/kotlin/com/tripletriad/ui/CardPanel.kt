@@ -12,6 +12,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
@@ -56,7 +60,7 @@ import com.tripletriad.ui.theme.LocalTtoColors
  *   the desk, where the money is committed further down the lectern.
  * @param sources where the card can be come by, or **null** where the room does not ask. The
  *   distinction is load-bearing: an empty list means *asked, and there is nowhere* — which
- *   [CardSources] says in words, because most of the 565 cards are still without a source and a
+ *   [CardSources] says in words, because most of the 586 cards are still without a source and a
  *   blank there reads as a panel that failed to load. Null means the question was never put, which
  *   is the auction's lectern: a card at the desk is one somebody is already selling, and the answer
  *   would be the room it is being asked in.
@@ -75,7 +79,13 @@ internal fun CardPanel(
         modifier = modifier.testTag(tag).fillMaxSize(),
         horizontalArrangement = Arrangement.spacedBy(SpaceMd),
     ) {
-        CardFace(card = card, scale = PANEL_SCALE)
+        var zoomed by remember(card.id) { mutableStateOf(false) }
+        CardFace(
+            card = card,
+            scale = PANEL_SCALE,
+            modifier = Modifier.testTag(CARD_PANEL_FACE_TEST_TAG).ttoClickable { zoomed = true },
+        )
+        if (zoomed) CardZoom(card = card, onDismiss = { zoomed = false })
 
         Column(
             modifier = Modifier.fillMaxHeight().weight(1f),
@@ -222,3 +232,6 @@ internal fun cardFacts(strings: Strings, card: Card): String = listOf(
 internal val CardPanelHeight = 196.dp
 
 private const val PANEL_SCALE = 1f
+
+/** The sprite in [CardPanel], which opens [CardZoom]. */
+internal const val CARD_PANEL_FACE_TEST_TAG = "card-panel-face"

@@ -299,7 +299,7 @@ private fun SideStepper(filters: CardFilters, side: Side, vertical: Boolean) {
 }
 
 @Composable
-private fun StepButton(
+internal fun StepButton(
     glyph: String,
     tag: String,
     description: String,

@@ -450,14 +450,37 @@ class StringsBundleTest {
         // +2 to every bundle since: `APP_CARD_TOOLTIPS` and its note, the same group's switch for
         // a thumbnail's name under the mouse — see `CardHoverInfo`. Authored in all four `app-*`
         // bundles at once. Measured on 2026-09-14 as above.
+        //
+        // +1 to every bundle since: `APP_SEARCH`, the card search row's short placeholder, which
+        // a 360 dp phone no longer wraps — see `CardSearchRow`. Authored in all four `app-*`
+        // bundles at once. Measured on 2026-09-15 as above.
+        //
+        // +42 to every bundle since: the FFXIV cards #455-475, `STR_FF14_CARD_455`..`_475` and
+        // their `_DESC`, in the game's own wording in each language (ffxivcollect.com's API). All
+        // four `app-*` bundles at once, so the four gaps stay where they were. Measured on
+        // 2026-09-15 as above.
+        //
+        // +15 to every bundle since: the shop, bag and card-list pass. `APP_TAB_SHOP`, `_BAG` and
+        // `_AUCTION` are the short tab labels; `APP_NO_PACK_AFFORDABLE` heads the boons strip;
+        // `APP_OPEN`, `APP_ACTIVATE` and `APP_ADD_TO_COLLECTION` are the bag's verbs, with
+        // `APP_BADGE_NEW`, `APP_BADGE_DUPLICATE`, `APP_ADD_NEW_CARDS` and `APP_SELL_DUPLICATES`;
+        // `APP_DUPLICATES`, `APP_CARD_COPIES`, `APP_SELL_FEWER` and `APP_SELL_MORE` are the card
+        // list's. Authored in all four `app-*` bundles at once. Measured on 2026-09-16 as above.
+        //
+        // +9 to every bundle since: the second shop, bag and card-list pass. `APP_ITEM_GIST_BOON`
+        // and `APP_PACK_MISSING_SHORT` are the bag's one-line rows and the shop's; `_MISSING_OF`,
+        // `APP_PACK_POOL` and `APP_SHOP_BALANCE` are the purchase sheet's, `APP_SHOP_PICK_OFFER`
+        // the wide shop's empty pane; `APP_SELECT_CARDS`, `APP_CARDS_SELECTED` and
+        // `APP_SELL_KEEPS_ONE` are the card list's bulk sale. Authored in all four `app-*`
+        // bundles at once. Measured on 2026-09-16 as above.
 
-        const val UNION_KEYS = 1948
+        const val UNION_KEYS = 2015
 
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 1944,
-            AppLocale.FR_FR to 1945,
-            AppLocale.DE_DE to 1873,
-            AppLocale.JA_JA to 1905,
+            AppLocale.EN_US to 2011,
+            AppLocale.FR_FR to 2012,
+            AppLocale.DE_DE to 1940,
+            AppLocale.JA_JA to 1972,
         )
 
         val EXPECTED_GAPS = mapOf(

@@ -176,13 +176,16 @@ Each card was paired with its icon by image comparison — every card to a disti
 runner-up always at least twice as far — and the doubtful pairs were checked by eye. 272 of the old
 faces were pixel-identical to the icon; the rest differ in tone or frame detail but show the same
 card. The FF8 faces (`08xx.png`), the thumbnails and every other file under `art/` are unchanged.
+The 21 cards added on 2026-09-15 (`02c8.png`-`02dc.png`) came from the same folder, and the four
+tribe icons (`art/type-*.png`) from ffxivcollect.com — see `design-system.md`.
 The matching script is not in this repository either.
 
 They are ordinary source files now — edit them in place, and say in the commit what changed and
 against which source. Two of them carry rules of their own: `npcs.json` stores each opponent's
-measured `difficulty` and nothing else about its balance (`NpcRatingBundleTest` re-measures it), and
-`tto-*.json` is Square Enix's own wording, corrected through an override in the `app-*.json` file
-beside it rather than in place. [README § Localisation](../../README.md#localisation) explains that
+`difficulty` and nothing else about its balance — the game's level from arrtripletriad.com where
+it gives one, otherwise measured and calibrated to those (`NpcRatingBundleTest` re-measures it) —
+and `tto-*.json` is Square Enix's own wording, corrected through an override in the `app-*.json`
+file beside it rather than in place. [README § Localisation](../../README.md#localisation) explains that
 split.
 
 ## 8. Related

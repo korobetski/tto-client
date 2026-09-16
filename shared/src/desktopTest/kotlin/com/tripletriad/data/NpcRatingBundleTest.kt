@@ -17,9 +17,17 @@ import kotlin.test.assertTrue
  * `npcs.json` used to carry `difficulty`, `level`, `matchFee` and `MGPReward`, and this file
  * checked all four. It carries only the difficulty now: the other three are computed from it in
  * `:core` (`model/NpcBalance.kt`) and pinned there against literal curves, so asserting them here
- * would be asserting that a function returns what it returns. What is left is the assertion that
- * cannot be made anywhere else — that the number in the file is the number four hundred simulated
- * matches produce.
+ * would be asserting that a function returns what it returns.
+ *
+ * ### Two sources for that number
+ *
+ * Where the game gives a level, the file carries it: the `Level` column of
+ * arrtripletriad.com/en/npcs, read on 2026-09-15, for 124 FFXIV opponents — the Triple Triad Master
+ * a 1, as the game's first opponent should be. Nothing here can check those against the game, and
+ * nothing tries. They are what the rest are measured against: an [isMeasured] opponent carries the
+ * difficulty its win rate against the yardstick calibrates to among theirs
+ * (`NpcRating.calibratedDifficulty`). So a card or an opponent added can move a measured rating,
+ * and cannot move one the game gives.
  *
  * [writeRatings] still emits the whole table, derived columns included, because that file is how
  * the shipped one is regenerated when the rating moves and reading it is how one sees what moved.
@@ -33,9 +41,21 @@ class NpcRatingBundleTest {
 
     private val reference: GameSave = NpcRating.referenceProfile(cards, format)
 
+    private val winRates: Map<String, Double> by lazy {
+        npcs.npcs.associate { it.iconId to winRateOf(it) }
+    }
+
+    private val anchors: List<NpcRating.Anchor> by lazy {
+        npcs.npcs.filterNot { it.isMeasured }
+            .map { NpcRating.Anchor(winRates.getValue(it.iconId), it.difficulty) }
+    }
+
     @Test
-    fun everyOpponentCarriesTheDifficultyTheModelMeasures() {
-        val rated = npcs.npcs.map { npc -> npc to NpcRating.rated(npc, winRateOf(npc)) }
+    fun everyMeasuredOpponentCarriesTheDifficultyItsWinRateCalibratesTo() {
+        val rated = npcs.npcs.map { npc ->
+            val calibrated = NpcRating.calibratedDifficulty(winRates.getValue(npc.iconId), anchors)
+            npc to if (npc.isMeasured) npc.copy(difficulty = calibrated) else npc
+        }
         writeRatings(rated)
 
         for ((shipped, expected) in rated) {
@@ -51,6 +71,22 @@ class NpcRatingBundleTest {
                 "${npc.iconId} has difficulty ${npc.difficulty}, outside ${NpcRating.RANGE}",
             )
         }
+    }
+
+    /** The anchors, pinned: an opponent leaving the game's list is a decision, not a drift. */
+    @Test
+    fun theGameGivesTheLevelOfEveryFf14OpponentButNine() {
+        val measured = npcs.npcs.filter { it.isMeasured }
+
+        assertEquals(ANCHORS, npcs.npcs.size - measured.size)
+        assertEquals(
+            UNLEVELLED,
+            measured.filterNot { FF8_FORMAT in it.formats }.map { it.iconId }.toSet(),
+        )
+        assertEquals(
+            NpcRating.RANGE.first,
+            npcs.npcs.single { it.iconId == FIRST_OPPONENT }.difficulty,
+        )
     }
 
     @Test
@@ -90,8 +126,26 @@ class NpcRatingBundleTest {
         file.writeText("{\n  \"ratings\": [\n$rows\n  ]\n}\n")
     }
 
+    private val Npc.isMeasured: Boolean get() = FF8_FORMAT in formats || iconId in UNLEVELLED
+
     private companion object {
         const val SEED = 20260812
+
+        const val FF8_FORMAT = "ff8-standard"
+
+        const val FIRST_OPPONENT = "tt-master"
+
+        /** 133 FFXIV opponents less these nine. */
+        const val ANCHORS = 124
+
+        /**
+         * The FFXIV opponents arrtripletriad.com gave no level on 2026-09-15. The first five are
+         * listed at 0 — patches 7.1-7.3, not yet reported; the last four are not listed at all.
+         */
+        val UNLEVELLED = setOf(
+            "hume-black-mage", "pudeel-ja", "malevolent-weasel", "miitso", "pawkukwe",
+            "momo", "tataru", "papalymo", "queen-of-cards",
+        )
 
         const val MIN_BANDS = 3
     }

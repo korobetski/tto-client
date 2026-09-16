@@ -362,7 +362,7 @@ class AuctionUiTest {
     /**
      * The collection's own filters, over the seller's own spares.
      *
-     * The point of the picker is that a card can be *found*, and 565 pictures in id order is not
+     * The point of the picker is that a card can be *found*, and 586 pictures in id order is not
      * finding. One rarity is enough to prove the menu is wired to the grid; the menus themselves
      * are the card list's, and `CollectionUiTest` is where they are read.
      */

@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.Painter
@@ -21,6 +22,11 @@ import tripletriad.shared.generated.resources.Res
 
 class CardArt internal constructor(
     val back: ImageBitmap,
+    /**
+     * The gold frame of a face with no illustration inside it: transparent within, so the side's
+     * colour fill shows through. The game's own, from the battle sheet and cell grid of [back].
+     */
+    val frame: ImageBitmap,
     private val stars: Map<Int, ImageBitmap>,
     private val types: Map<CardType, ImageBitmap>,
     private val digits: Map<String, Painter>,
@@ -65,6 +71,17 @@ private const val HEX_WIDTH = 4
 
 internal val CardType.textureName: String get() = "type-${name.lowercase()}"
 
+/**
+ * How a type icon is sampled. The four FFXIV tribes' icons are 40x40, taken from ffxivcollect.com
+ * on 2026-09-15, and never drawn larger than 20 dp: point sampling would keep one pixel in four.
+ * The elements' are still the AS3's 20x20 pixel art, which smoothing would blur once the interface
+ * size enlarges it. The same rule, for the same reason, as `AUTHORED_THUMB_PX`.
+ */
+internal val ImageBitmap.typeIconFilter: FilterQuality
+    get() = if (width > AUTHORED_TYPE_ICON_PX) FilterQuality.Medium else FilterQuality.None
+
+internal const val AUTHORED_TYPE_ICON_PX = 20
+
 val LocalCardArt = staticCompositionLocalOf<CardArt?> { null }
 
 @Composable
@@ -81,6 +98,7 @@ internal fun rememberCardFace(art: CardArt?, card: Card): ImageBitmap? {
 
 suspend fun loadCardArt(): CardArt = CardArt(
     back = loadImage("back.png"),
+    frame = loadImage("frame.png"),
     stars = Card.RARITY_RANGE.associateWith { loadImage("${it}stars.png") },
     types = CardType.entries.associateWith { loadImage("${it.textureName}.png") },
     digits = sliceDigitAtlas(loadImage("digits.png")),
@@ -132,7 +150,7 @@ internal const val CARDS_DIR = "cards"
  * How many decoded faces [CardArt] keeps.
  *
  * The FFXIV faces are the game's 208x256 art, 213 KB each once decoded, and scrolling the deck
- * editor's grid asks for every one of the 454: unbounded, that is ~97 MB of pictures held for the
+ * editor's grid asks for every one of the 475: unbounded, that is ~101 MB of pictures held for the
  * life of the app — a browser tab's or a small phone's whole budget. 96 is ~20 MB.
  *
  * Dropping a face that is still on screen costs nothing visible: `rememberCardFace` holds its own

@@ -77,6 +77,7 @@ internal fun StoreScreen(
     // seen this card, and the note names it without showing it.
     var unlocked by remember(format) { mutableStateOf<Card?>(null) }
     val sheet = rememberModalBottomSheetState()
+    val wide = LocalWideLayout.current
 
     // Hoisted out of the bottom bar that used to hold it: the button now lives in the sheet, and
     // the sheet is not the only thing that will ever want to spend the money.
@@ -86,7 +87,9 @@ internal fun StoreScreen(
         // its own `Popup`, on top of the scaffold and everything in it, `snackbarHost` included —
         // so a note shown while the sheet stayed open was there, just hidden under it. Closing the
         // sheet is what lets the confirmation actually be seen.
-        selectedTag = null
+        // Kept on a wide screen: the pane is beside the shelf rather than over it, so nothing is
+        // hidden, and a second pack of the same kind is one tap rather than two.
+        if (!wide) selectedTag = null
         scope.launch {
             // Asked, not computed. On an account the price is the server's and the profile that
             // comes back is the one it wrote — see `BuyRequest`.
@@ -102,25 +105,33 @@ internal fun StoreScreen(
         }
     }
 
+    // Short words of the app's own rather than `STR_CARD_SHOP` / `STR_INVENTORY` / `APP_AUCTION`,
+    // which are the screens' names elsewhere: three of those in a phone's tab row were each cut
+    // to "Magasin de c…", and in the bar beside the title they would not fit at all.
+    val tabs: @Composable (Boolean) -> Unit = { inBar ->
+        ScreenTabs(
+            tabs = listOf(
+                strings[StringKeys.TAB_SHOP] to screenTabTestTag("shop"),
+                strings[StringKeys.TAB_BAG] to screenTabTestTag("bag"),
+                strings[StringKeys.TAB_AUCTION] to screenTabTestTag("auction"),
+            ),
+            selected = tab.ordinal,
+            onSelect = { index -> tab = StoreTab.entries[index] },
+            modifier = Modifier.testTag(STORE_TABS_TEST_TAG),
+            gapBelow = !inBar,
+        )
+    }
     CharacterScaffold(
         profile = profile,
         title = strings[StringKeys.SHOP],
         onBack = onBack,
         snackbar = note,
-        // The board lays two panes out and the shelf does not, so the column is only widened for
-        // the tab that has something to put in it.
-        wide = tab == StoreTab.AUCTION,
+        // Every tab, not only the auction board's two panes: the shelves are adaptive grids, and a
+        // 520 dp column on a landscape phone left 130 dp empty either side of three columns.
+        wide = true,
+        besideTitle = if (wide) ({ tabs(true) }) else null,
     ) {
-        ScreenTabs(
-            tabs = listOf(
-                strings[StringKeys.CARD_SHOP] to screenTabTestTag("shop"),
-                strings[StringKeys.INVENTORY] to screenTabTestTag("bag"),
-                strings[StringKeys.AUCTION] to screenTabTestTag("auction"),
-            ),
-            selected = tab.ordinal,
-            onSelect = { index -> tab = StoreTab.entries[index] },
-            modifier = Modifier.testTag(STORE_TABS_TEST_TAG),
-        )
+        if (!wide) tabs(false)
 
         when (tab) {
             StoreTab.SHOP -> ShopBody(
@@ -130,6 +141,7 @@ internal fun StoreScreen(
                 starters = starters,
                 selectedTag = selectedTag,
                 onSelect = { selectedTag = it },
+                onBuy = buy,
                 // Read from the profile rather than from a flag on it, so the panel disappears the
                 // moment the pack lands and comes back if a later build ever takes cards away.
                 onClaimStarter = if (!StarterPack.isOwedBy(profile)) {
@@ -180,7 +192,7 @@ internal fun StoreScreen(
     // Outside the scaffold for the same reason `unlocked` is: it covers the screen rather than
     // sitting in the column. Only on the shop tab — the bag has its own buttons and nothing to
     // sell.
-    if (tab == StoreTab.SHOP) {
+    if (tab == StoreTab.SHOP && !wide) {
         selected?.let { offer ->
             ModalBottomSheet(
                 onDismissRequest = { selectedTag = null },

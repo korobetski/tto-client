@@ -39,7 +39,7 @@ class DeckBuildingTest {
             ranks.count { it == FIVE },
             "the strongest cards are all five-star; only one may go in",
         )
-        assertEquals(DeckLimits.MAX_FOUR_STARS, ranks.count { it == FOUR })
+        assertEquals(DeckLimits.MAX_FOUR_STARS_OR_MORE, ranks.count { it >= FOUR })
     }
 
     @Test
@@ -66,15 +66,15 @@ class DeckBuildingTest {
     }
 
     @Test
-    fun asManyCopiesAsAreOwnedMayGoIn() {
-        // The mirror of the case above, and the reason the check counts rather than testing
-        // membership: three copies of a one-star card is three legal positions.
+    fun threeCopiesOwnedStillFillOnePosition() {
+        // The case above with copies to spare: a deck names a card once, so the fill stops at one
+        // however many the collection holds.
         val plain = pool.first { table.getValue(it.id).rarity == ONE }
         val three = mapOf(plain.id to 3).withDefault { 0 }
 
         val filled = Deck(name = "x").completedFrom(listOf(plain), table, three::getValue)
 
-        assertEquals(3, filled.cards.count { it == plain.id })
+        assertEquals(listOf(plain.id), filled.cards)
     }
 
     @Test

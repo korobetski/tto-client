@@ -63,6 +63,7 @@ import com.tripletriad.ui.theme.LocalTtoColors
 import com.tripletriad.ui.theme.TripleTriadTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.random.Random
 
 // `BackHandler` is still `@ExperimentalComposeUiApi` in Compose 1.9.3. Opted into here rather than
 // project-wide, so the day it moves or changes shape there is exactly one call site to fix.
@@ -95,6 +96,10 @@ fun App(
     // factor every scaled duration is the number its constant says, so this parameter changes
     // nothing for anyone but `:shared:desktopTest`.
     pacing: Pacing = Pacing.Default,
+    // What a local character's draws come out of, the four unauthored cards of its box first of
+    // all; an account's are the server's. Unseeded for a player. A test seeds it, so the box the
+    // UI deals is the box its assertions were written against — see `STARTER_SEED`.
+    random: Random = Random.Default,
 ) {
     TripleTriadTheme {
         Surface(modifier = Modifier.fillMaxSize(), color = LocalTtoColors.current.backdrop) {
@@ -191,7 +196,7 @@ fun App(
             var optionsOpen by remember { mutableStateOf(false) }
             val choice = remember { Choice() }
 
-            val gate = rememberGate(session, account, startup.catalog, clock)
+            val gate = rememberGate(session, account, startup.catalog, clock, random)
             val reporter = server?.reporter ?: MatchReporter.None
 
             StartupEffects(startup, server, account, session, pvp) {
@@ -357,6 +362,7 @@ fun App(
                                     gate = gate,
                                     choice = choice,
                                     clock = clock,
+                                    random = random,
                                     reporter = reporter,
                                     onNavigate = { screen = it },
                                     onOptions = { optionsOpen = true },
@@ -498,6 +504,7 @@ private fun rememberGate(
     account: AccountSession?,
     cards: CardCatalog?,
     clock: Clock,
+    random: Random,
 ): ProfileGate =
     if (account != null) {
         rememberAccountGate(account)
@@ -505,7 +512,7 @@ private fun rememberGate(
         // The card table, for the prices a local profile has to work out for itself — an account
         // asks the server instead. Empty before startup has read it, which is a gate nobody can
         // spend through yet because there is no character either.
-        rememberLocalGate(session, cards?.byId.orEmpty(), clock)
+        rememberLocalGate(session, cards?.byId.orEmpty(), clock, random)
     }
 
 /**
@@ -603,6 +610,7 @@ private fun Destination(
     gate: ProfileGate,
     choice: Choice,
     clock: Clock,
+    random: Random,
     reporter: MatchReporter,
     onNavigate: (Screen) -> Unit,
     onOptions: () -> Unit,
@@ -700,6 +708,7 @@ private fun Destination(
             starters = startup.starters ?: StarterCatalog(emptyList()),
             // The pool the box's four unauthored cards are drawn from — `StarterPack.drawn`.
             cards = startup.catalog?.byId.orEmpty(),
+            random = random,
             onCreated = { onNavigate(Screen.DASHBOARD) },
             onBack = { onNavigate(Screen.PROFILES) },
         )

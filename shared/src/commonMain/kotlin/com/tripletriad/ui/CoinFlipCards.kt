@@ -71,13 +71,13 @@ private fun TossedCard(roll: Int, color: CardColor) {
         exit.animateTo(1f, leaving)
     }
 
-    CardBack(
+    CardFrame(
         color = color,
         scale = CARD_SCALE,
         modifier = Modifier
             .testTag(coinFlipTestTag(roll))
-            // A card back says nothing to a screen reader, and this one is the only place
-            // the player is told who won the toss.
+            // A colour says nothing to a screen reader, and these three are where the toss is
+            // decided.
             .semantics { contentDescription = "${COIN_FLIP_TEST_TAG}-${color.name}" }
             .graphicsLayer {
                 val from = fan.from * size.minDimension

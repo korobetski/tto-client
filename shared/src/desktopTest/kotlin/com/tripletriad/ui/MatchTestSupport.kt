@@ -74,8 +74,27 @@ internal fun ComposeUiTest.totalIsTen(): Boolean =
             .fetchSemanticsNodes().isNotEmpty()
     }
 
+/** Through the roster's home to the full grid, unless already on it. */
+@OptIn(ExperimentalTestApi::class)
+internal fun ComposeUiTest.openEveryone() {
+    // The rule menu heads the full grid and nothing else, so it says which view this is.
+    if (exists(OPPONENT_RULE_FILTER_TEST_TAG)) return
+    onNodeWithTag(OPPONENT_LIST_TEST_TAG).performScrollToNode(hasTestTag(ALL_OPPONENTS_TEST_TAG))
+    onNodeWithTag(ALL_OPPONENTS_TEST_TAG).performClick()
+    waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(OPPONENT_RULE_FILTER_TEST_TAG) }
+}
+
+/** One place's members, from the roster's home. */
+@OptIn(ExperimentalTestApi::class)
+internal fun ComposeUiTest.openPlace(zoneId: String) {
+    onNodeWithTag(OPPONENT_LIST_TEST_TAG).performScrollToNode(hasTestTag(zoneRowTestTag(zoneId)))
+    onNodeWithTag(zoneRowTestTag(zoneId)).performClick()
+    waitForIdle()
+}
+
 @OptIn(ExperimentalTestApi::class)
 internal fun ComposeUiTest.scrollToOpponent(iconId: String) {
+    openEveryone()
     onNodeWithTag(OPPONENT_LIST_TEST_TAG)
         .performScrollToNode(hasTestTag(opponentRowTestTag(iconId)))
 }

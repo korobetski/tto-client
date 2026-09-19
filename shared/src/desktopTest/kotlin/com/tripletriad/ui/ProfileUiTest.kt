@@ -148,9 +148,9 @@ class ProfileUiTest {
         openOpponents()
 
         assertOpenedWith(stored(documents).single(), FF8_BLOCK)
-        // `chocoboy` shipped as ff8-only and `tt-master` as ff14-only. Both are on the list.
-        scrollToOpponent("chocoboy")
-        onNodeWithTag(opponentRowTestTag("chocoboy")).assertExists()
+        // `kid` shipped as ff8-only and `tt-master` as ff14-only. Both are on the list.
+        scrollToOpponent("kid")
+        onNodeWithTag(opponentRowTestTag("kid")).assertExists()
         scrollToOpponent(TEST_OPPONENT)
         onNodeWithTag(opponentRowTestTag(TEST_OPPONENT)).assertExists()
     }
@@ -258,8 +258,8 @@ class ProfileUiTest {
         awaitDashboard()
         openOpponents()
 
-        scrollToOpponent("chocoboy")
-        onNodeWithTag(opponentRowTestTag("chocoboy")).assertExists()
+        scrollToOpponent("kid")
+        onNodeWithTag(opponentRowTestTag("kid")).assertExists()
     }
 
     @Test

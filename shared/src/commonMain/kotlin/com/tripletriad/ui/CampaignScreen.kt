@@ -28,6 +28,7 @@ import com.tripletriad.data.CampaignStep
 import com.tripletriad.data.CardCatalog
 import com.tripletriad.data.Format
 import com.tripletriad.data.PveMatches
+import com.tripletriad.data.ZoneCatalog
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.Strings
@@ -64,6 +65,8 @@ internal fun CampaignScreen(
     today: String = "",
     /** Whether any deck this ladder's format admits exists. See [CampaignRung] for the choice. */
     hasDeck: Boolean = true,
+    /** The map, so a shut ladder can name the place that opens it. */
+    zones: ZoneCatalog = ZoneCatalog(emptyList()),
     onStart: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -116,14 +119,14 @@ internal fun CampaignScreen(
         // bought, on a board that never dealt.
         val undealable = !hasDeck
         val reason = when {
-            locked -> StringKeys.CAMPAIGN_LOCKED
-            spent -> StringKeys.CAMPAIGN_ENTERED_TODAY
-            undealable -> StringKeys.CAMPAIGN_NO_DECK
+            locked -> lockedNote(strings, campaign, zones)
+            spent -> strings[StringKeys.CAMPAIGN_ENTERED_TODAY]
+            undealable -> strings[StringKeys.CAMPAIGN_NO_DECK]
             else -> null
         }
         if (reason != null) {
             Text(
-                text = strings[reason],
+                text = reason,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
                 style = MaterialTheme.typography.labelMedium,
                 modifier = Modifier

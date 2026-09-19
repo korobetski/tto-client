@@ -465,6 +465,7 @@ internal fun CharacterActions(save: GameSave) {
     ) {
         BoonMarker(TtoIcons.MgpBoon, strings[StringKeys.MGP], save.boons.mgp)
         BoonMarker(TtoIcons.XpBoon, strings[StringKeys.XP], save.boons.xp)
+        BoonMarker(TtoIcons.LuckBoon, strings[StringKeys.LUCK], save.boons.luck)
         Text(
             text = "${strings[StringKeys.LEVEL]} ${save.level}",
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = SUBDUED),

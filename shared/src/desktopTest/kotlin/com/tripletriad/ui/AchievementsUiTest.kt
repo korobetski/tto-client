@@ -84,13 +84,17 @@ class AchievementsUiTest {
         openWith(GameSave.new(createdAt = 0L))
 
         pick(ACHIEVEMENT_CATEGORY_MENU_TEST_TAG)
-        pick(achievementCategoryTestTag(AchievementCategory.CAMPAIGNS.tag))
+        // MGP rather than Campaigns: one family, where the tournaments are twenty now and a
+        // lazy grid would not compose them all to be counted.
+        pick(achievementCategoryTestTag(AchievementCategory.MGP.tag))
 
-        assertEquals(CAMPAIGNS, familiesShown())
-        onNodeWithTag(achievementStandingTestTag("all")).assertTextEquals("All · 3")
+        assertEquals(setOf(MGP_POT), familiesShown())
+        onNodeWithTag(achievementStandingTestTag("all")).assertTextEquals("All · 1")
+        // Nought: a new character's purse has already started the one family here, where the
+        // whole catalogue has dozens not started — so the chip counts inside the category.
         onNodeWithTag(achievementStandingTestTag(Standing.NOT_STARTED.tag))
-            .assertTextEquals("Not started · 3")
-        onNodeWithTag(ACHIEVEMENT_CATEGORY_MENU_TEST_TAG).assertTextEquals("Campaigns ▾")
+            .assertTextEquals("Not started · 0")
+        onNodeWithTag(ACHIEVEMENT_CATEGORY_MENU_TEST_TAG).assertTextEquals("MGP ▾")
     }
 
     @Test
@@ -110,7 +114,7 @@ class AchievementsUiTest {
 
         onNodeWithTag(ACHIEVEMENT_TOTAL_TIERS_TEST_TAG).assertTextEquals(expected)
         pick(ACHIEVEMENT_CATEGORY_MENU_TEST_TAG)
-        pick(achievementCategoryTestTag(AchievementCategory.CAMPAIGNS.tag))
+        pick(achievementCategoryTestTag(AchievementCategory.MGP.tag))
 
         onNodeWithTag(ACHIEVEMENT_TOTAL_TIERS_TEST_TAG).assertTextEquals(expected)
     }
@@ -149,11 +153,11 @@ class AchievementsUiTest {
         openWith(earnedFirstWin())
         tap(achievementFamilyTestTag(TRIPLE_TEAM))
 
-        tap(achievementCategoryTestTag(AchievementCategory.CAMPAIGNS.tag))
+        tap(achievementCategoryTestTag(AchievementCategory.MGP.tag))
 
-        assertEquals(CAMPAIGNS, familiesShown())
+        assertEquals(setOf(MGP_POT), familiesShown())
         assertFalse(exists(achievementTierTestTag("ac-tt1")), "the pick is off the grid")
-        assertTrue(exists(achievementTierTestTag(BALAMB)), "so the pane takes the first left")
+        assertTrue(exists(achievementTierTestTag("ac-mp1")), "so the pane takes the first left")
     }
 
     private fun earnedFirstWin(): GameSave = GameSave.new(createdAt = 0L)
@@ -165,8 +169,6 @@ class AchievementsUiTest {
 
         const val TRIPLE_TEAM = "ac-tt"
         const val MGP_POT = "ac-mp"
-        const val BALAMB = "ac-cmp-balamb"
-        val CAMPAIGNS = setOf(BALAMB, "ac-cmp-cc", "ac-cmp-gs")
 
         /** Nine tenths of the thousand `ac-mp1` asks to be held. */
         const val NEARLY_THE_FIRST_POT = 900

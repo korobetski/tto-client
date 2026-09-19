@@ -2,6 +2,7 @@ package com.tripletriad.ui
 
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasTestTag
@@ -88,6 +89,16 @@ class StatsUiTest {
      * is not ours to move; the tier is a first goal rather than a welcome gift, which is the better
      * of the two anyway.
      */
+    @Test
+    fun theHiddenAchievementsAreCountedButNotNamed() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        newCharacter()
+        openAchievements()
+
+        onNodeWithTag(ACHIEVEMENT_HIDDEN_TEST_TAG).assertTextContains("1", substring = true)
+        assertFalse(isVisible("Zantetsuken"), "a hidden achievement is named before it is earned")
+    }
+
     @Test
     fun theCollectorsFirstTierIsOneCardShortOnArrival() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
@@ -182,7 +193,7 @@ class StatsUiTest {
     }
 
     @Test
-    fun theCatalogueCollapsesIntoTwelveFamilies() {
+    fun theCatalogueCollapsesIntoItsFamilies() {
         val families = AchievementCatalog.all
             .map { it.id.trimEnd { character -> character.isDigit() } }
             .distinct()
@@ -216,14 +227,17 @@ class StatsUiTest {
         // The 22 ported from `Achievements.as`, plus one per tournament — the originals recorded
         // no ladder result at all, so the three campaign achievements could only be authored here
         // — plus the collections: the three rungs added above `ac-fob`, three four-rung tribe
-        // ladders beside it, and FFVIII's single-rung companion badge. 25 + 3 + 12 + 1.
-        const val ACHIEVEMENTS = 41
+        // ladders beside it, FFVIII's single-rung companion badge, and the hidden Zantetsuken.
+        // 25 + 3 + 12 + 1 + 1. Then the map: one clearing per place (20) and one win per
+        // tournament new with it (17) — see `PlaceAchievements` in `tto-core`.
+        const val ACHIEVEMENTS = 79
 
         // `ac-tt`, `ac-wof`, `ac-td`, `ac-mp`, the four tribe ladders (`ac-fob`, `ac-fop`,
         // `ac-fog`, `ac-foh`) and `ac-foc` — and the three tournaments, which are families of one
         // apiece: a ladder is won or it is not, so there is no tier to climb. The tribe ladders
         // count as one family each because grouping trims the trailing digits, which is also why
-        // `ac-fob` could keep its digitless id and still sit with `ac-fob2`.
-        const val FAMILIES = 12
+        // `ac-fob` could keep its digitless id and still sit with `ac-fob2`. And `ac-zantetsuken`,
+        // a family of one like a tournament. The map's 37 are single-tier families too.
+        const val FAMILIES = 50
     }
 }

@@ -277,7 +277,7 @@ class MatchUiTest {
          * Named here rather than picked at random from the roster because it also has to be one a
          * novice can afford to challenge — see `PveStubServer.undealtReason`.
          */
-        const val RANDOM_OPPONENT = "maisenta"
+        const val RANDOM_OPPONENT = "ma-dincht"
 
         const val LEVEL_SCORE = "5 — 5"
     }

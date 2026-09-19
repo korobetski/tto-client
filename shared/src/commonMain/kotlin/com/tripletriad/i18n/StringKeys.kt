@@ -79,6 +79,8 @@ object StringKeys {
 
     const val XP: String = "APP_XP"
 
+    const val LUCK: String = "APP_LUCK"
+
     const val DIFFICULTY: String = "APP_DIFFICULTY"
 
     // ---- Match.
@@ -666,6 +668,44 @@ object StringKeys {
     const val OPPONENTS_TIMED: String = "APP_OPPONENTS_TIMED"
 
     /**
+     * The roster read as places. A zone's own name is not here: it is `Zone.nameKey`, authored
+     * in `zones.json` and checked against every bundle by `ZoneBundleTest`.
+     */
+    const val ZONES: String = "APP_ZONES"
+    const val ZONE_LOCKED: String = "APP_ZONE_LOCKED"
+    const val ZONE_OPEN: String = "APP_ZONE_OPEN"
+    const val ZONE_CLEARED: String = "APP_ZONE_CLEARED"
+    const val ZONE_COMPLETE: String = "APP_ZONE_COMPLETE"
+    const val ZONE_BEATEN: String = "APP_ZONE_BEATEN"
+    const val ZONE_NEEDS_ALL: String = "APP_ZONE_NEEDS_ALL"
+    const val ZONE_NEEDS_ANY: String = "APP_ZONE_NEEDS_ANY"
+    const val ZONES_NOTE: String = "APP_ZONES_NOTE"
+
+    /** The day's three suggestions, each captioned with why it was picked. See `DailyTour`. */
+    const val TOUR: String = "APP_TOUR"
+    const val TOUR_WANTED: String = "APP_TOUR_WANTED"
+    const val TOUR_FRESH: String = "APP_TOUR_FRESH"
+    const val TOUR_RIVAL: String = "APP_TOUR_RIVAL"
+    const val TOUR_TIMED: String = "APP_TOUR_TIMED"
+
+    const val QUICK_MATCH: String = "APP_QUICK_MATCH"
+    const val ALL_OPPONENTS: String = "APP_ALL_OPPONENTS"
+    const val RANDOM_HERE: String = "APP_RANDOM_HERE"
+
+    /** An opponent's hours, `{0}` to `{1}` on the 24-hour clock, local time. */
+    const val NPC_HOURS: String = "APP_NPC_HOURS"
+    const val NPC_AWAY: String = "APP_NPC_AWAY"
+    const val NPC_NEEDS_ACHIEVEMENT: String = "APP_NPC_NEEDS_ACHIEVEMENT"
+    const val RIVAL_NEXT: String = "APP_RIVAL_NEXT"
+    const val RIVAL_MAX: String = "APP_RIVAL_MAX"
+
+    /** Counts hidden achievements not yet earned, which the list itself leaves out. */
+    const val ACHIEVEMENTS_HIDDEN: String = "APP_ACHIEVEMENTS_HIDDEN"
+
+    /** The only pointer towards the hidden Zantetsuken, shown on Odin's card. */
+    const val CARD_HINT_ODIN: String = "APP_CARD_HINT_ODIN"
+
+    /**
      * The first of the play root's three tabs.
      *
      * `STR_OPPONENTS` is the screen's own title and would name the tab "Opponents" beside
@@ -1250,6 +1290,12 @@ object StringKeys {
         ERROR_NAME_TAKEN, ERROR_BAD_CREDENTIALS, ERROR_EXPIRED,
         OPPONENTS_LOCKED, OPPONENTS_UNEARNED, REWARD_CARDS,
         OPPONENTS_NEW, OPPONENTS_WANTED, OPPONENTS_TIMED, SOLO, ANY_RULE,
+        ZONES, ZONE_LOCKED, ZONE_OPEN, ZONE_CLEARED, ZONE_COMPLETE, ZONE_BEATEN,
+        ZONE_NEEDS_ALL, ZONE_NEEDS_ANY, ZONES_NOTE,
+        TOUR, TOUR_WANTED, TOUR_FRESH, TOUR_RIVAL, TOUR_TIMED,
+        QUICK_MATCH, ALL_OPPONENTS, RANDOM_HERE,
+        NPC_HOURS, NPC_AWAY, NPC_NEEDS_ACHIEVEMENT, RIVAL_NEXT, RIVAL_MAX,
+        ACHIEVEMENTS_HIDDEN, CARD_HINT_ODIN,
         HELP_FAMILY_SIGHT, HELP_FAMILY_PLAY, HELP_FAMILY_CAPTURE, HELP_FAMILY_ELEMENTS,
         SERVERS_BLURB, SERVERS_CHECK, SERVERS_CHECKING,
         SERVER_UNKNOWN, SERVER_CHECKING, SERVER_ONLINE, SERVER_DEGRADED,

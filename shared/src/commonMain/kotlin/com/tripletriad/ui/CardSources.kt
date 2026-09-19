@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -23,6 +24,7 @@ import com.tripletriad.model.Achievement
 import com.tripletriad.model.AchievementCatalog
 import com.tripletriad.model.BoosterType
 import com.tripletriad.model.CardItem
+import com.tripletriad.model.Deeds
 import com.tripletriad.model.Npc
 import com.tripletriad.ui.theme.LocalTtoColors
 import kotlin.math.roundToInt
@@ -31,6 +33,16 @@ const val CARD_SOURCES_TEST_TAG: String = "card-sources"
 const val CARD_SOURCES_NONE_TEST_TAG: String = "card-sources-none"
 
 fun cardSourceTestTag(slug: String): String = "card-source-$slug"
+
+const val CARD_HINT_TEST_TAG: String = "card-hint"
+
+/**
+ * A line of lore on a card, keyed by id: the only way a hidden achievement is ever pointed at.
+ *
+ * FFVIII's Odin says what becomes of him in the original — Seifer's Zantetsuken — which is also
+ * what losing this card to a trade rule earns. See `Deeds` in `tto-core`.
+ */
+internal val CARD_HINTS: Map<Int, String> = mapOf(Deeds.ODIN_FF8 to StringKeys.CARD_HINT_ODIN)
 
 /**
  * One way a card can be come by.
@@ -182,8 +194,9 @@ internal fun sourceKindsByCard(opponents: NpcCatalog?): Map<Int, Set<SourceKind>
  * a blank space there reads as a panel that failed to load.
  */
 @Composable
-internal fun CardSources(sources: List<CardSource>) {
+internal fun CardSources(sources: List<CardSource>, cardId: Int? = null) {
     val strings = LocalStrings.current
+    val hint = cardId?.let(CARD_HINTS::get)
 
     Column(
         modifier = Modifier.testTag(CARD_SOURCES_TEST_TAG).fillMaxWidth(),
@@ -195,6 +208,18 @@ internal fun CardSources(sources: List<CardSource>) {
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
         )
+
+        // Above the sources, and in the collection's own words rather than a table's: it is not a
+        // way to *get* this card but a way to lose it, and what losing it earns is the secret.
+        hint?.let {
+            Text(
+                text = strings[it],
+                color = LocalTtoColors.current.transient,
+                style = MaterialTheme.typography.labelSmall,
+                fontStyle = FontStyle.Italic,
+                modifier = Modifier.testTag(CARD_HINT_TEST_TAG),
+            )
+        }
 
         if (sources.isEmpty()) {
             Text(

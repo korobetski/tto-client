@@ -29,6 +29,7 @@ class UiArt internal constructor(
     // decode and nothing else.
     private val avatars = mutableMapOf<String, ImageBitmap>()
     private val portraits = mutableMapOf<String, ImageBitmap>()
+    private val zones = mutableMapOf<String, ImageBitmap>()
 
     fun icon(name: String): ImageBitmap? = icons[name]
 
@@ -45,6 +46,16 @@ class UiArt internal constructor(
 
     internal suspend fun portrait(iconId: String): ImageBitmap? =
         portraits[iconId] ?: loadOrNull("npcs/$iconId.png")?.also { portraits[iconId] = it }
+
+    internal fun cachedZone(zoneId: String): ImageBitmap? = zones[zoneId]
+
+    /**
+     * A place's illustration, or null while it has none — every caller draws the place without
+     * one. JPEG rather than PNG because these are painted scenes: twenty of them as PNG would
+     * outweigh the rest of the art, and the web build downloads all of it.
+     */
+    internal suspend fun zone(zoneId: String): ImageBitmap? =
+        zones[zoneId] ?: loadOrNull("zones/$zoneId.jpg")?.also { zones[zoneId] = it }
 }
 
 @Composable
@@ -53,6 +64,16 @@ internal fun rememberAvatar(art: UiArt?, avatarId: String): ImageBitmap? {
     var image by remember(art, avatarId) { mutableStateOf(art.cachedAvatar(avatarId)) }
     LaunchedEffect(art, avatarId) {
         if (image == null) image = art.avatar(avatarId)
+    }
+    return image
+}
+
+@Composable
+internal fun rememberZoneArt(art: UiArt?, zoneId: String): ImageBitmap? {
+    if (art == null) return null
+    var image by remember(art, zoneId) { mutableStateOf(art.cachedZone(zoneId)) }
+    LaunchedEffect(art, zoneId) {
+        if (image == null) image = art.zone(zoneId)
     }
     return image
 }

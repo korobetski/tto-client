@@ -15,12 +15,22 @@ class CampaignBundleTest {
     private val catalog = runBlocking { loadCampaignCatalog() }
     private val cards = runBlocking { loadCardCatalog() }
 
+    /**
+     * The three ladders that predate the map keep their shape, and each of the others is one
+     * place's (see `ZoneBundleTest` for which, and what opens it).
+     */
     @Test
-    fun allThreeLaddersShipInFull() {
-        assertEquals(listOf("cc", "gs", "balamb"), catalog.all.map { it.key })
+    fun theThreeFirstLaddersShipInFullAndEveryPlaceHasOne() {
+        val first = listOf("cc", "gs", "balamb")
+        assertEquals(first, catalog.all.take(first.size).map { it.key })
+        assertEquals(LADDERS, catalog.all.size)
         assertEquals(CARD_CLUB_RUNGS, assertNotNull(catalog.byKey("cc")).steps.size)
         assertEquals(GOLD_SAUCER_RUNGS, assertNotNull(catalog.byKey("gs")).steps.size)
         assertEquals(BALAMB_RUNGS, assertNotNull(catalog.byKey("balamb")).steps.size)
+        for (campaign in catalog.all) {
+            val rungs = campaign.steps.size
+            assertTrue(rungs in MIN_RUNGS_SEEN..MAX_RUNGS_SEEN, "${campaign.key}: $rungs rungs")
+        }
     }
 
     @Test
@@ -31,16 +41,26 @@ class CampaignBundleTest {
             requireNotNull(formats[id]) { "$id is not authored" }
             assertTrue(catalog.playing(id).isNotEmpty(), "$id should have a ladder")
         }
-        // ff8-standard carries two now: the Card Club and Balamb Garden Novices beside
-        // it, both authored for the same single-set format.
-        assertEquals(2, catalog.playing("ff8-standard").size)
+        // ff8-standard carries six now: the Card Club and one per FFVIII place, Balamb's
+        // included, all for the same single-set format.
+        assertEquals(FF8_LADDERS, catalog.playing("ff8-standard").size)
     }
 
     @Test
     fun enteringCostsWhatEachLadderAsksFor() {
         val fees = mapOf("cc" to ENTRY_FEE, "gs" to ENTRY_FEE, "balamb" to BALAMB_FEE)
-        for (campaign in catalog.all) {
-            assertEquals(fees.getValue(campaign.key), campaign.fee, campaign.key)
+        for ((key, fee) in fees) {
+            assertEquals(fee, assertNotNull(catalog.byKey(key)).fee, key)
+        }
+        // The places' own: a hundred per point of the hardest rung's difficulty, floored and
+        // capped, so no ladder is free and none costs more than a week of wins.
+        for (campaign in catalog.all.filter { it.key !in fees }) {
+            val hardest = campaign.steps.maxOf { it.npc.difficulty }
+            assertEquals(
+                (FEE_PER_DIFFICULTY * hardest).coerceIn(MIN_FEE, MAX_FEE),
+                campaign.fee,
+                campaign.key,
+            )
         }
     }
 
@@ -69,7 +89,9 @@ class CampaignBundleTest {
     fun everyRungCanFieldAHand() {
         val formats = runBlocking { loadFormatCatalog() }
         for (campaign in catalog.all) {
-            val ids = cards.block(blockOf(campaign.format, formats)).mapTo(mutableSetOf()) { it.id }
+            val ids = blocksOf(campaign.format, formats)
+                .flatMap { cards.block(it) }
+                .mapTo(mutableSetOf()) { it.id }
             for ((step, entry) in campaign.steps.withIndex()) {
                 val hand = entry.npc.randomHand(Random(step))
                 assertEquals(HAND_SIZE, hand.size, "${campaign.key}/${entry.npc.iconId}")
@@ -138,10 +160,22 @@ class CampaignBundleTest {
         )
     }
 
-    private fun blockOf(formatId: String, formats: FormatCatalog): Int =
-        requireNotNull(formats[formatId]) { "no such format: $formatId" }.blocks.first()
+    /**
+     * Every block, not the first: `ff14-standard` is two (ARR's cards and the later ones), and a
+     * rung dealing from the second is inside its collection. The first alone held while every
+     * FFXIV ladder happened to deal from block 1.
+     */
+    private fun blocksOf(formatId: String, formats: FormatCatalog): List<Int> =
+        requireNotNull(formats[formatId]) { "no such format: $formatId" }.blocks
 
     private companion object {
+        const val LADDERS = 20
+        const val FF8_LADDERS = 6
+        const val MIN_RUNGS_SEEN = 2
+        const val MAX_RUNGS_SEEN = 7
+        const val FEE_PER_DIFFICULTY = 100
+        const val MIN_FEE = 200
+        const val MAX_FEE = 1_000
         const val CARD_CLUB_RUNGS = 7
         const val GOLD_SAUCER_RUNGS = 6
         const val BALAMB_RUNGS = 4

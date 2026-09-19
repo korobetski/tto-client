@@ -36,6 +36,18 @@ class CardSourceIndexTest {
         )
     }
 
+    /**
+     * 232 FF14 cards had none until their sources were read off ffxivcollect: its NPC where the
+     * roster has them, otherwise an opponent of their expansion's places. A card added since
+     * without a table naming it fails here rather than as a silent "no known source" panel.
+     */
+    @Test
+    fun everyCardCanBeComeBy() {
+        val index = sourceKindsByCard(opponents)
+
+        assertEquals(emptyList(), catalog.all.map { it.id }.filter { index[it].isNullOrEmpty() })
+    }
+
     @Test
     fun withoutARosterNoCardIsSaidToComeFromAnOpponent() {
         val index = sourceKindsByCard(opponents = null)

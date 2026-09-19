@@ -1,18 +1,20 @@
 package com.tripletriad.ui
 
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.FF14_FORMAT
+import com.tripletriad.FF8_BLOCK
 import com.tripletriad.data.NpcRating
 import com.tripletriad.data.loadNpcCatalog
 import com.tripletriad.i18n.AppLocale
+import com.tripletriad.model.AchievementCatalog
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.Npc
-import com.tripletriad.model.XpTable
 import com.tripletriad.time.FixedClock
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
@@ -50,20 +52,49 @@ class OpponentUiTest {
     }
 
     /**
-     * The random button hands the challenge to `onChallenge` exactly as a row's own tap does — it
-     * draws from `opponents`, the same unlocked roster a row is listed from — so the only thing
-     * worth proving here is that the tap actually opens a match rather than doing nothing.
+     * The quick match hands the challenge to `onChallenge` exactly as a row's own tap does — which
+     * opponent is `QuickMatchTest`'s question — so the only thing worth proving here is that the
+     * tap actually opens a match rather than doing nothing.
      */
     @Test
-    fun theRandomButtonOpensAMatch() = runComposeUiTest {
+    fun theQuickMatchOpensAMatch() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
         openDashboard()
         openOpponents()
 
+        onNodeWithTag(QUICK_MATCH_TEST_TAG).performClick()
+        settleDeck()
+
+        assertTrue(exists(BOARD_TEST_TAG), "the quick match should open a board")
+    }
+
+    /** The die, inside a place, draws from that place. */
+    @Test
+    fun theDieInAPlaceOpensAMatch() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        openDashboard()
+        openOpponents()
+        assertFalse(exists(RANDOM_OPPONENT_TEST_TAG), "the home has the quick match instead")
+
+        openPlace(STARTER_PLACE)
         onNodeWithTag(RANDOM_OPPONENT_TEST_TAG).performClick()
         settleDeck()
 
-        assertTrue(exists(BOARD_TEST_TAG), "the random button should open a board")
+        assertTrue(exists(BOARD_TEST_TAG), "the die should open a board")
+    }
+
+    /** The home opens on a suggestion: today's tour sits above the places. */
+    @Test
+    fun theHomeOffersTheDaysTour() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        newCharacter()
+        openOpponents()
+
+        assertTrue(exists(TOUR_TEST_TAG), "a new character has somebody to be pointed at")
+        assertTrue(
+            STARTER_PLACE_OPPONENTS.any { exists(tourPickTestTag(it)) },
+            "the tour should pick from the places a new character can reach",
+        )
     }
 
     @Test
@@ -72,6 +103,7 @@ class OpponentUiTest {
         // opponent's own hand is dealt from. They are different lists and only one is a reward.
         val drops = catalog
             .available(FF14_FORMAT, FixedClock.DEFAULT_HOUR, ANY_LEVEL)
+            .filter { it.iconId in STARTER_PLACE_OPPONENTS }
             .first { npc -> npc.itemRewards.any { it.cardId != null } }
 
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
@@ -81,8 +113,7 @@ class OpponentUiTest {
         // The drop table moved into the detail sheet a row's tap opens — see
         // `OpponentDetailSheet` — rather than sitting on the row itself, so seeing it now starts
         // with the tap.
-        onNodeWithTag(OPPONENT_LIST_TEST_TAG)
-            .performScrollToNode(hasTestTag(opponentRowTestTag(drops.iconId)))
+        scrollToOpponent(drops.iconId)
         onNodeWithTag(opponentRowTestTag(drops.iconId)).performClick()
         onNodeWithTag(opponentRewardsTestTag(drops.iconId), useUnmergedTree = true).assertExists()
     }
@@ -93,8 +124,10 @@ class OpponentUiTest {
             .available(FF14_FORMAT, FixedClock.DEFAULT_HOUR, ANY_LEVEL)
             .firstOrNull { npc -> npc.itemRewards.none { it.cardId != null } }
 
-        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
-        newCharacter()
+        // Every place open: the barren one is not in a starting place.
+        val documents = seeded(explorerSave())
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
         openOpponents()
 
         if (barren == null) {
@@ -102,8 +135,7 @@ class OpponentUiTest {
             // loud rather than passing silently, which would hide the day one stops dropping.
             return@runComposeUiTest
         }
-        onNodeWithTag(OPPONENT_LIST_TEST_TAG)
-            .performScrollToNode(hasTestTag(opponentRowTestTag(barren.iconId)))
+        scrollToOpponent(barren.iconId)
         onNodeWithTag(opponentRowTestTag(barren.iconId)).performClick()
         onNodeWithTag(opponentRewardsTestTag(barren.iconId), useUnmergedTree = true)
             .assertDoesNotExist()
@@ -117,8 +149,7 @@ class OpponentUiTest {
 
         // Scrolled to rather than assumed visible: the tab header and the filter row sit above
         // the grid, and a tile that used to be in the first screenful can sit below them.
-        onNodeWithTag(OPPONENT_LIST_TEST_TAG)
-            .performScrollToNode(hasTestTag(opponentRowTestTag(TEST_OPPONENT)))
+        scrollToOpponent(TEST_OPPONENT)
         // What the *sheet* says, which is more than the tile can hold: the tile names the rules
         // and the fee (`OpponentFilterUiTest`), the sheet also names the difficulty and labels
         // the fee as one.
@@ -131,9 +162,9 @@ class OpponentUiTest {
 
     @Test
     fun anEveningOpponentIsAbsentAtNoon() = runComposeUiTest {
-        // Seeded above the level gate, because the fixture is a difficulty-4 opponent and a
-        // character made through the UI starts at level 1. What is under test here is the *hour*.
-        val documents = seeded(veteran())
+        // Seeded with every place open, because the fixture stands in Dravania and a character
+        // made through the UI starts at the Gold Saucer. What is under test here is the *hour*.
+        val documents = seeded(explorerSave())
         setContent {
             TestApp(
                 store = settingsFor(AppLocale.EN_US),
@@ -144,16 +175,44 @@ class OpponentUiTest {
         loadCharacter(documents)
         openOpponents()
 
-        val found = runCatching {
-            onNodeWithTag(OPPONENT_LIST_TEST_TAG)
-                .performScrollToNode(hasTestTag(opponentRowTestTag(EVENING_OPPONENT)))
-        }
+        val found = runCatching { scrollToOpponent(EVENING_OPPONENT) }
         assertTrue(found.isFailure, "an opponent shut at noon should not be listed at noon")
     }
 
+    /**
+     * In their own place, though, they are shown shut rather than left out — with the hours they
+     * keep, which is how a player learns when to come back.
+     */
     @Test
-    fun anEveningOpponentIsThereInTheEvening() = runComposeUiTest {
-        val documents = seeded(veteran())
+    fun anEveningOpponentSaysWhenToComeBack() = runComposeUiTest {
+        val documents = seeded(explorerSave())
+        setContent {
+            TestApp(
+                store = settingsFor(AppLocale.EN_US),
+                documents = documents,
+                clock = FixedClock(hour = NOON),
+            )
+        }
+        loadCharacter(documents)
+        openOpponents()
+        openPlace(EVENING_PLACE)
+
+        onNodeWithTag(OPPONENT_LIST_TEST_TAG)
+            .performScrollToNode(hasTestTag(opponentRowTestTag(EVENING_OPPONENT)))
+        val hours = eveningOpponent.availability
+        val said = "${hours.begins}:00–${hours.ends}:00"
+        onNodeWithTag(opponentNoteTestTag(EVENING_OPPONENT), useUnmergedTree = true)
+            .assertTextContains(said, substring = true)
+
+        onNodeWithTag(opponentRowTestTag(EVENING_OPPONENT)).performClick()
+        assertTrue(exists(OPPONENT_BLOCKED_TEST_TAG), "the sheet should say why not now")
+        assertFalse(exists(OPPONENT_CHALLENGE_TEST_TAG), "and offer no challenge")
+    }
+
+    /** The sheet counts a rivalry down, and says the hours of an opponent who keeps them. */
+    @Test
+    fun theSheetSaysHowCloseARivalryIs() = runComposeUiTest {
+        val documents = seeded(explorerSave())
         setContent {
             TestApp(
                 store = settingsFor(AppLocale.EN_US),
@@ -164,8 +223,28 @@ class OpponentUiTest {
         loadCharacter(documents)
         openOpponents()
 
-        onNodeWithTag(OPPONENT_LIST_TEST_TAG)
-            .performScrollToNode(hasTestTag(opponentRowTestTag(EVENING_OPPONENT)))
+        scrollToOpponent(EVENING_OPPONENT)
+        onNodeWithTag(opponentRowTestTag(EVENING_OPPONENT)).performClick()
+
+        // One win in `explorerSave`, so two more to the next stage.
+        onNodeWithTag(OPPONENT_RIVAL_TEST_TAG).assertTextContains("2 more", substring = true)
+        assertTrue(exists(OPPONENT_HOURS_TEST_TAG), "a timed opponent's sheet names the hours")
+        assertTrue(exists(OPPONENT_CHALLENGE_TEST_TAG), "open in the evening, so challengeable")
+    }
+
+    @Test
+    fun anEveningOpponentIsThereInTheEvening() = runComposeUiTest {
+        val documents = seeded(explorerSave())
+        setContent {
+            TestApp(
+                store = settingsFor(AppLocale.EN_US),
+                documents = documents,
+                clock = FixedClock(hour = EVENING),
+            )
+        }
+        loadCharacter(documents)
+        openOpponents()
+
         scrollToOpponent(EVENING_OPPONENT)
         onNodeWithTag(opponentRowTestTag(EVENING_OPPONENT)).assertExists()
     }
@@ -278,55 +357,102 @@ class OpponentUiTest {
         assertFalse(exists(BOARD_TEST_TAG), "a board was dealt before the deck was chosen")
     }
 
+    /** A place with a picture shows it on its row and again above its members. */
     @Test
-    fun theOpponentListIsHeldBackByTheCharactersLevel() = runComposeUiTest {
+    fun aPlaceWithAPictureShowsItInTheListAndInside() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        newCharacter(FF8_BLOCK)
+        openOpponents()
+
+        onNodeWithTag(OPPONENT_LIST_TEST_TAG)
+            .performScrollToNode(hasTestTag(zoneRowTestTag(PICTURED_PLACE)))
+        // Unmerged: the picture is inside the row's click target, which merges what it holds.
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { existsUnmerged(zoneArtTestTag(PICTURED_PLACE)) }
+
+        openPlace(PICTURED_PLACE)
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(zoneArtTestTag(PICTURED_PLACE)) }
+        assertFalse(exists(zoneRowTestTag(PICTURED_PLACE)), "still on the list")
+    }
+
+    /**
+     * A new character is held to the starting places, and told there is more.
+     *
+     * The evening, so the fixture is not simply shut: what keeps it off is its place.
+     */
+    @Test
+    fun aNewCharacterIsHeldToTheStartingPlaces() = runComposeUiTest {
         setContent {
             TestApp(store = settingsFor(AppLocale.EN_US), clock = FixedClock(hour = EVENING))
         }
         newCharacter()
         openOpponents()
 
-        // Scrolled to rather than merely looked for: the footnote is the last item of a
-        // `LazyColumn`, so it is composed only once it is reached, and an opponent row is four
-        // lines tall since it started showing the cards that can drop. `exists` passed here while
-        // the rows were short enough for the bottom of the list to be on screen at once, which was
-        // luck and not the claim being made.
+        onNodeWithTag(OPPONENT_LIST_TEST_TAG)
+            .performScrollToNode(hasTestTag(zoneRowTestTag(FIRST_CITY)))
+        onNodeWithTag(zoneStatusTestTag(FIRST_CITY), useUnmergedTree = true)
+            .assertTextContains("Clear first", substring = true)
+
+        // Scrolled to rather than merely looked for: the footnote is the last item of a lazy
+        // grid, so it is composed only once it is reached.
+        openEveryone()
         val told = runCatching {
             onNodeWithTag(OPPONENT_LIST_TEST_TAG)
                 .performScrollToNode(hasTestTag(OPPONENT_LOCKED_TEST_TAG))
         }
-        assertTrue(told.isSuccess, "a level-1 character should be told")
-        val reached = runCatching {
-            onNodeWithTag(OPPONENT_LIST_TEST_TAG)
-                .performScrollToNode(hasTestTag(opponentRowTestTag(EVENING_OPPONENT)))
-        }
-        assertTrue(
-            reached.isFailure,
-            "a difficulty-${eveningOpponent.difficulty} opponent is out of a level-1 reach",
-        )
+        assertTrue(told.isSuccess, "a new character should be told there are more elsewhere")
+        val reached = runCatching { scrollToOpponent(EVENING_OPPONENT) }
+        assertTrue(reached.isFailure, "$EVENING_OPPONENT stands in a place not open yet")
     }
 
+    /** Beating the Gold Saucer's regulars opens the three cities, and nothing further. */
     @Test
-    fun levellingOpensTheOnesThatWereHeldBack() = runComposeUiTest {
-        val documents = seeded(veteran())
-        setContent {
-            TestApp(
-                store = settingsFor(AppLocale.EN_US),
-                documents = documents,
-                clock = FixedClock(hour = EVENING),
-            )
-        }
+    fun clearingTheGoldSaucerOpensTheCities() = runComposeUiTest {
+        val saucer = assertNotNull(shippedZones[STARTER_PLACE])
+        val documents = seeded(
+            GameSave.new(createdAt = 0L).copy(npcWins = saucer.npcs.associateWith { 1 }),
+        )
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
         openOpponents()
 
         onNodeWithTag(OPPONENT_LIST_TEST_TAG)
-            .performScrollToNode(hasTestTag(opponentRowTestTag(EVENING_OPPONENT)))
-        scrollToOpponent(EVENING_OPPONENT)
-        onNodeWithTag(opponentRowTestTag(EVENING_OPPONENT)).assertExists()
+            .performScrollToNode(hasTestTag(zoneRowTestTag(FIRST_CITY)))
+        onNodeWithTag(zoneStatusTestTag(FIRST_CITY), useUnmergedTree = true)
+            .assertTextContains("Open", substring = true)
+        onNodeWithTag(OPPONENT_LIST_TEST_TAG)
+            .performScrollToNode(hasTestTag(zoneRowTestTag(EVENING_PLACE)))
+        onNodeWithTag(zoneStatusTestTag(EVENING_PLACE), useUnmergedTree = true)
+            .assertTextContains("Clear first", substring = true)
     }
 
-    private fun veteran(): GameSave =
-        GameSave.new(createdAt = 0L).copy(xp = XpTable.thresholdFor(eveningOpponent.difficulty - 1))
+    /** A place leads with its tournament, shut until the place is cleared and named as such. */
+    @Test
+    fun aPlaceShowsItsTournamentShutUntilItIsCleared() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        newCharacter()
+        openOpponents()
+        openPlace(STARTER_PLACE)
+
+        onNodeWithTag(campaignRowTestTag(STARTER_LADDER))
+            .assertTextContains("Clear first: The Gold Saucer", substring = true)
+    }
+
+    /** Once the place is cleared its tournament opens, and the row leads to it. */
+    @Test
+    fun aClearedPlacesTournamentOpensFromThePlace() = runComposeUiTest {
+        // A starter's decks, or the ladder would be shut for having none to bring.
+        val documents = seeded(
+            freshSave().withAchievement(AchievementCatalog.placeCleared(STARTER_PLACE), 0L),
+        )
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openOpponents()
+        openPlace(STARTER_PLACE)
+
+        onNodeWithTag(campaignRowTestTag(STARTER_LADDER)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(CAMPAIGN_START_TEST_TAG) }
+        assertFalse(exists(CAMPAIGN_LOCKED_TEST_TAG), "a cleared place's ladder should be open")
+    }
 
     private val eveningOpponent: Npc
         get() = requireNotNull(catalog.byIcon(EVENING_OPPONENT, FF14_FORMAT)) {
@@ -345,6 +471,7 @@ class OpponentUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
         openOpponents()
+        openEveryone()
 
         onNodeWithTag(OPPONENT_LIST_TEST_TAG)
             .performScrollToNode(hasTestTag(OPPONENT_UNEARNED_TEST_TAG))
@@ -354,15 +481,11 @@ class OpponentUiTest {
     /** Winning the Card Club puts her on it, and takes the footnote away. */
     @Test
     fun winningTheCardClubPutsHerOnTheRoster() = runComposeUiTest {
-        // Levelled as well as decorated: she has a difficulty like anyone else, and the level
-        // gate would hold her back on a fresh character whatever achievements it held. The two
-        // gates are independent and this test is about the second one.
-        val ishtar = assertNotNull(catalog.all.firstOrNull { it.iconId == ISHTAR })
-        val documents = seeded(
-            GameSave.new(createdAt = 0L)
-                .copy(xp = XpTable.thresholdFor(ishtar.difficulty))
-                .withAchievement(CARD_CLUB, instant = 0L),
-        )
+        // Every place open as well as decorated: she stands in the last FFVIII place, which a
+        // fresh character has not reached whatever achievements it held. The place and the door
+        // are independent and this test is about the door.
+        assertNotNull(catalog.all.firstOrNull { it.iconId == ISHTAR })
+        val documents = seeded(explorerSave().withAchievement(CARD_CLUB, instant = 0L))
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         loadCharacter(documents)
         openOpponents()
@@ -380,6 +503,15 @@ class OpponentUiTest {
         const val EVENING = 18
 
         const val EVENING_OPPONENT = "linu-vali"
+
+        /** Where [EVENING_OPPONENT] stands: several places past the start. */
+        const val EVENING_PLACE = "dravania"
+
+        const val STARTER_PLACE = "gold-saucer"
+        const val STARTER_LADDER = "gs"
+        const val PICTURED_PLACE = "balamb"
+
+        const val FIRST_CITY = "uldah"
 
         /** The FFVIII Queen of Cards, and what finishing the Card Club unlocks. */
         const val ISHTAR = "ishtar"

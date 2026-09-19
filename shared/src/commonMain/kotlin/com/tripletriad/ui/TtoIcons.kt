@@ -436,6 +436,14 @@ internal object TtoIcons {
         }
     }
 
+    /** A four-pointed glint: luck is neither the purse's coin nor the level's wheel. */
+    val LuckBoon: ImageVector by lazy {
+        icon("LuckBoon") {
+            plaque()
+            glint(BOON_R + 0.8f)
+        }
+    }
+
     val Booster: ImageVector by lazy {
         symbol("Booster") {
             moveTo(15.2f, 14.8f)
@@ -510,6 +518,20 @@ internal object TtoIcons {
         }
     }
 
+    /** Four points on the axes, joined through a waist [GLINT_WAIST] of [radius] off-axis. */
+    private fun PathBuilder.glint(radius: Float) {
+        val waist = radius * GLINT_WAIST
+        moveTo(12f, BOON_Y - radius)
+        lineTo(12f + waist, BOON_Y - waist)
+        lineTo(12f + radius, BOON_Y)
+        lineTo(12f + waist, BOON_Y + waist)
+        lineTo(12f, BOON_Y + radius)
+        lineTo(12f - waist, BOON_Y + waist)
+        lineTo(12f - radius, BOON_Y)
+        lineTo(12f - waist, BOON_Y - waist)
+        close()
+    }
+
     private fun PathBuilder.ellipse(cx: Float, cy: Float, rx: Float, ry: Float) {
         val kx = rx * KAPPA
         val ky = ry * KAPPA
@@ -530,6 +552,7 @@ internal object TtoIcons {
     private const val BOON_Y = 13f
     private const val BOON_R = 3.4f
     private const val BOON_EYE = 1.7f
+    private const val GLINT_WAIST = 0.28f
 
     /** One pip of [Die], as a diamond small enough that the stroke closes it into a dot. */
     private fun PathBuilder.pip(x: Float, y: Float) {

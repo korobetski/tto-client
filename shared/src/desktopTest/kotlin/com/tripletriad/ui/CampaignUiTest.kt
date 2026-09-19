@@ -2,8 +2,12 @@ package com.tripletriad.ui
 
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.onChildAt
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
@@ -12,6 +16,7 @@ import com.tripletriad.FF8_BLOCK
 import com.tripletriad.data.loadCampaignCatalog
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.loadStrings
+import com.tripletriad.model.GameSave
 import com.tripletriad.model.MatchResult
 import com.tripletriad.model.questDayOf
 import com.tripletriad.storage.InMemoryDocumentStore
@@ -29,7 +34,16 @@ class CampaignUiTest {
     private val english = runBlocking { loadStrings(AppLocale.EN_US) }
 
     private fun withFee(): InMemoryDocumentStore =
-        seeded(freshSave().copy(mgp = goldSaucer.fee + POCKET_CHANGE))
+        seeded(freshSave().opening(GOLD_SAUCER).copy(mgp = goldSaucer.fee + POCKET_CHANGE))
+
+    /**
+     * This save with the place behind [key] already cleared, so the ladder's own gate is out of
+     * the way and whatever else refuses — the purse, the day, the deck — is what a test sees.
+     */
+    private fun GameSave.opening(key: String): GameSave {
+        val gate = campaigns.byKey(key)?.requiresAchievement ?: return this
+        return withAchievement(gate, instant = 0L)
+    }
 
     /**
      * A referee holding a profile that can just afford the ladder.
@@ -39,7 +53,7 @@ class CampaignUiTest {
      * `/me/save`. See [PveStubServer].
      */
     private fun payingServer(): PveStubServer = PveStubServer(
-        save = freshSave().copy(mgp = goldSaucer.fee + POCKET_CHANGE),
+        save = freshSave().opening(GOLD_SAUCER).copy(mgp = goldSaucer.fee + POCKET_CHANGE),
     )
 
     @Test
@@ -62,13 +76,26 @@ class CampaignUiTest {
         assertTrue(exists(campaignRowTestTag(GOLD_SAUCER)))
     }
 
+    /** The open ladders lead the tab, the way the open places lead theirs. */
+    @Test
+    fun anOpenLadderIsListedAboveTheShutOnes() = runComposeUiTest {
+        // The last ladder in the file, so only the sort can put it first.
+        val last = campaigns.all.last().key
+        val documents = seeded(freshSave(block = FF8_BLOCK).opening(last))
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openTournaments()
+
+        onNodeWithTag(CAMPAIGNS_LIST_TEST_TAG).onChildAt(0)
+            .assert(hasTestTag(campaignRowTestTag(last)))
+    }
+
     @Test
     fun aFreshPurseCannotEnter() = runComposeUiTest {
-        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
-        newCharacter()
-        openTournaments()
-        onNodeWithTag(campaignRowTestTag(GOLD_SAUCER)).performClick()
-        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(CAMPAIGN_LIST_TEST_TAG) }
+        // The place cleared, the purse empty: the fee is the only thing left to refuse.
+        val documents = seeded(freshSave().opening(GOLD_SAUCER).copy(mgp = 0))
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openLadder(documents)
 
         onNodeWithTag(CAMPAIGN_START_TEST_TAG).assertIsNotEnabled()
     }
@@ -132,6 +159,8 @@ class CampaignUiTest {
         openLadder(documents, CARD_CLUB)
 
         assertTrue(exists(CAMPAIGN_LOCKED_TEST_TAG), "a locked ladder should say why")
+        // And why is a place: the Card Club opens once its own place is cleared.
+        onNodeWithTag(CAMPAIGN_LOCKED_TEST_TAG).assertTextContains("Clear first", substring = true)
         onNodeWithTag(CAMPAIGN_START_TEST_TAG).assertIsNotEnabled()
     }
 
@@ -146,7 +175,7 @@ class CampaignUiTest {
     fun aLadderEnteredTodayIsShutUntilTomorrow() = runComposeUiTest {
         val today = questDayOf(FixedClock().nowMillis())
         val documents = seeded(
-            freshSave().copy(
+            freshSave().opening(GOLD_SAUCER).copy(
                 mgp = goldSaucer.fee * 2,
                 campaignEntries = mapOf(GOLD_SAUCER to today),
             ),
@@ -162,7 +191,7 @@ class CampaignUiTest {
     @Test
     fun anEntrySpentOnAnotherDayDoesNotShutTheLadder() = runComposeUiTest {
         val documents = seeded(
-            freshSave().copy(
+            freshSave().opening(GOLD_SAUCER).copy(
                 mgp = goldSaucer.fee * 2,
                 campaignEntries = mapOf(GOLD_SAUCER to YESTERDAY),
             ),
@@ -190,7 +219,7 @@ class CampaignUiTest {
     @Test
     fun losingARungEndsTheRunAndOpensTheBilan() = runComposeUiTest {
         val stub = PveStubServer(
-            save = freshSave().copy(mgp = goldSaucer.fee + POCKET_CHANGE),
+            save = freshSave().opening(GOLD_SAUCER).copy(mgp = goldSaucer.fee + POCKET_CHANGE),
             seed = LOSING_SEED,
         )
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
@@ -227,7 +256,7 @@ class CampaignUiTest {
     @Test
     fun aDrawnRungIsReplayedWithoutAskingForTheDeckAgain() = runComposeUiTest {
         val stub = PveStubServer(
-            save = freshSave().copy(mgp = goldSaucer.fee + POCKET_CHANGE),
+            save = freshSave().opening(GOLD_SAUCER).copy(mgp = goldSaucer.fee + POCKET_CHANGE),
             seed = DRAWING_SEED,
         )
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
@@ -280,7 +309,7 @@ class CampaignUiTest {
     fun theFirstRungWaitsForTheEntryToBePaid() = runComposeUiTest {
         val gate = CompletableDeferred<Unit>()
         val stub = PveStubServer(
-            save = freshSave().copy(mgp = goldSaucer.fee + POCKET_CHANGE),
+            save = freshSave().opening(GOLD_SAUCER).copy(mgp = goldSaucer.fee + POCKET_CHANGE),
             entryGate = gate,
         )
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
@@ -308,7 +337,9 @@ class CampaignUiTest {
     @Test
     fun aLadderInTheOtherFormatIsShutRatherThanSold() = runComposeUiTest {
         val balamb = campaigns.byKey(BALAMB) ?: error("no $BALAMB campaign")
-        val documents = seeded(freshSave(block = FF14_BLOCK).copy(mgp = balamb.fee * 2))
+        val documents = seeded(
+            freshSave(block = FF14_BLOCK).opening(BALAMB).copy(mgp = balamb.fee * 2),
+        )
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openLadder(documents, BALAMB)
 

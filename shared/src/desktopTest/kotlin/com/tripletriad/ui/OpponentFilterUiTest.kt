@@ -27,7 +27,7 @@ import kotlin.test.assertTrue
  * 22 and 19 of the same people in the same order — so the first faces appeared three times before
  * a single filter had been pressed.
  *
- * The roster is read from the catalogue at a fresh character's own level rather than typed, so
+ * The roster is read from the catalogue and the starting places rather than typed, so
  * these say what the *filter* does and not what `npcs.json` happens to hold this week. The one
  * exception is "All Open", which is asserted by its English wording because a tile that carries a
  * rules line nobody can read would satisfy any test written against the key.
@@ -36,9 +36,10 @@ import kotlin.test.assertTrue
 class OpponentFilterUiTest {
     private val catalog = runBlocking { loadNpcCatalog() }
 
-    /** What a character made through the UI sees: level 1, no achievement earned, at noon. */
+    /** What a character made through the UI sees: the starting places, nothing earned, at noon. */
     private val roster: List<Npc> =
-        catalog.available(FF14_FORMAT, FixedClock.DEFAULT_HOUR, STARTER_LEVEL)
+        catalog.available(FF14_FORMAT, FixedClock.DEFAULT_HOUR, ANY_LEVEL)
+            .filter { it.iconId in STARTER_PLACE_OPPONENTS }
 
     @Test
     fun theTimedChipLeavesOnlyTheOnesWithAnHour() = runComposeUiTest {
@@ -135,6 +136,7 @@ class OpponentFilterUiTest {
 
     /** Opens the rule menu and takes one entry — null being "any rule", its own entry. */
     private fun ComposeUiTest.pickRule(ruleKey: String?) {
+        openEveryone()
         onNodeWithTag(OPPONENT_RULE_FILTER_TEST_TAG).performClick()
         onNodeWithTag(opponentRuleChoiceTestTag(ruleKey)).performClick()
     }
@@ -144,9 +146,4 @@ class OpponentFilterUiTest {
         onAllNodes(hasTestTag(opponentRowTestTag(iconId)).and(hasText(text, substring = true)))
             .fetchSemanticsNodes()
             .isNotEmpty()
-
-    private companion object {
-        /** What `newCharacter()` produces, and what the roster above is read at. */
-        const val STARTER_LEVEL = 1
-    }
 }

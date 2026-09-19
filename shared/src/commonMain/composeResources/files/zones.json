@@ -1,0 +1,154 @@
+{
+  "zones": [
+    {
+      "id": "gold-saucer",
+      "nameKey": "APP_ZONE_GOLD_SAUCER",
+      "npcs": ["tt-master", "jonas", "ruhtwyda", "aurifort", "guhtwint", "queen-of-cards"]
+    },
+    {
+      "id": "uldah",
+      "nameKey": "APP_ZONE_ULDAH",
+      "after": ["gold-saucer"],
+      "npcs": [
+        "roger", "swift", "kilfufu", "helmhart", "wymond", "droyn", "fufulupa", "momodi",
+        "fhobhas", "yayake", "yellow-moon", "hab", "papalymo"
+      ]
+    },
+    {
+      "id": "limsa",
+      "nameKey": "APP_ZONE_LIMSA",
+      "after": ["gold-saucer"],
+      "npcs": [
+        "memeroon", "tratchoum", "baderon", "mimidoa", "rashaht-rhiki", "gegeruju", "okalkaya",
+        "mordyn", "wawalago", "furtive-former-imperial"
+      ]
+    },
+    {
+      "id": "gridania",
+      "nameKey": "APP_ZONE_GRIDANIA",
+      "after": ["gold-saucer"],
+      "npcs": [
+        "maisenta", "ylaire", "miounne", "sezul-totoloc", "buscarron", "momo", "landenel",
+        "piralnaut", "marcette", "noes", "vorsaile-heuloix"
+      ]
+    },
+    {
+      "id": "mor-dhona",
+      "nameKey": "APP_ZONE_MOR_DHONA",
+      "after": ["uldah", "limsa", "gridania"],
+      "afterAny": true,
+      "npcs": ["prudence", "tataru", "klynthota", "indolent-imperial", "rowena"]
+    },
+    {
+      "id": "battlehall",
+      "nameKey": "APP_ZONE_BATTLEHALL",
+      "after": ["mor-dhona"],
+      "npcs": [
+        "wyra", "nell", "prideful-stag", "flichoirel", "malevolent-weasel", "elmer",
+        "hall-overseer", "lewena"
+      ]
+    },
+    {
+      "id": "ishgard",
+      "nameKey": "APP_ZONE_ISHGARD",
+      "after": ["mor-dhona"],
+      "npcs": ["manservant", "joellaut", "ourdilic", "dominiac", "gibrillont", "elaisse"]
+    },
+    {
+      "id": "dravania",
+      "nameKey": "APP_ZONE_DRAVANIA",
+      "after": ["ishgard"],
+      "npcs": [
+        "mogzin", "linu-vali", "tapklix", "redbill-storeboy", "seika", "mero-roggo",
+        "vath-deftarm", "voracious-vath", "laniaitte", "marielle", "idle-imperial", "mogmill",
+        "midnight-dew", "marcechamp"
+      ]
+    },
+    {
+      "id": "gyr-abania",
+      "nameKey": "APP_ZONE_GYR_ABANIA",
+      "after": ["dravania"],
+      "npcs": [
+        "ercanbald", "sladkey", "arsieu", "umber-torrent", "garima", "ironworks-hand",
+        "imperial-deserter"
+      ]
+    },
+    {
+      "id": "kugane",
+      "nameKey": "APP_ZONE_KUGANE",
+      "after": ["gyr-abania"],
+      "npcs": ["tokimori", "hanagasa", "hetsukaze", "kotokaze", "botan", "hokushin", "kikimo"]
+    },
+    {
+      "id": "othard",
+      "nameKey": "APP_ZONE_OTHARD",
+      "after": ["kugane"],
+      "npcs": [
+        "ushiogi", "masatsuchi", "gyoei", "yusui", "tsuzura", "kaizan", "isobe", "hachinan",
+        "munglig", "ogodei", "nigen", "kiuka"
+      ]
+    },
+    {
+      "id": "norvrandt",
+      "nameKey": "APP_ZONE_NORVRANDT",
+      "after": ["othard"],
+      "npcs": [
+        "cobleva", "lewto-sue", "eo-sigun", "redard", "saushs-koal", "ibenart", "drery",
+        "gyuf-uin", "glynard", "hargra", "grewenn", "lamlyn"
+      ]
+    },
+    {
+      "id": "sharlayan",
+      "nameKey": "APP_ZONE_SHARLAYAN",
+      "after": ["norvrandt"],
+      "npcs": [
+        "cheatingway", "ruissenaud", "aiglephine", "ghasa", "qetanur", "maillart", "celia",
+        "mehryde", "gamingway", "worldly-imperial"
+      ]
+    },
+    {
+      "id": "tural",
+      "nameKey": "APP_ZONE_TURAL",
+      "after": ["sharlayan"],
+      "npcs": [
+        "nyikweni", "wopli", "uataaye", "warsowok", "bruk-noq", "luwyawa", "larisa",
+        "gavoll-ja", "hume-black-mage", "pudeel-ja", "miitso", "pawkukwe"
+      ]
+    },
+    {
+      "id": "balamb",
+      "nameKey": "APP_ZONE_BALAMB",
+      "npcs": ["kid", "jack", "club", "diamond", "ma-dincht", "trepies"]
+    },
+    {
+      "id": "galbadia",
+      "nameKey": "APP_ZONE_GALBADIA",
+      "after": ["balamb"],
+      "npcs": ["zone", "martine", "watts", "caraway"]
+    },
+    {
+      "id": "fishermans-horizon",
+      "nameKey": "APP_ZONE_FISHERMANS_HORIZON",
+      "after": ["galbadia"],
+      "npcs": ["dobe", "flo"]
+    },
+    {
+      "id": "centra",
+      "nameKey": "APP_ZONE_CENTRA",
+      "after": ["fishermans-horizon"],
+      "npcs": ["chocoboy", "ufo", "edea", "cid"]
+    },
+    {
+      "id": "esthar",
+      "nameKey": "APP_ZONE_ESTHAR",
+      "after": ["centra"],
+      "npcs": ["piet", "odine", "ellone", "laguna"]
+    },
+    {
+      "id": "card-club",
+      "nameKey": "APP_ZONE_CARD_CLUB",
+      "after": ["esthar"],
+      "npcs": ["spade", "jocker", "heart", "king", "ishtar"]
+    }
+  ]
+}

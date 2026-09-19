@@ -16,8 +16,11 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import com.tripletriad.data.Campaign
+import com.tripletriad.data.ZoneCatalog
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
+import com.tripletriad.i18n.Strings
+import com.tripletriad.model.AchievementCatalog
 import com.tripletriad.model.GameSave
 
 const val CAMPAIGNS_LIST_TEST_TAG: String = "campaigns-list"
@@ -40,6 +43,7 @@ internal fun CampaignsScreen(
     onCampaign: (Campaign) -> Unit,
     onTab: (PlayTab) -> Unit,
     onBack: () -> Unit,
+    zones: ZoneCatalog = ZoneCatalog(emptyList()),
 ) {
     val strings = LocalStrings.current
 
@@ -59,7 +63,12 @@ internal fun CampaignsScreen(
             modifier = Modifier.testTag(CAMPAIGNS_LIST_TEST_TAG).fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(SpaceSm),
         ) {
-            items(campaigns, key = { it.key }) { campaign ->
+            // Open ones first, as the places are: with a ladder per place, a character would
+            // otherwise scroll past a column of shut ones to find the few it can enter.
+            items(
+                campaigns.sortedBy { !it.isUnlockedFor(profile) },
+                key = { it.key },
+            ) { campaign ->
                 // A ladder still to be earned is dimmed rather than hidden — the same reasoning
                 // the entry fee's disabled button follows. A tournament nobody can see is a
                 // tournament nobody knows to work towards, and being told what to beat first is
@@ -67,6 +76,7 @@ internal fun CampaignsScreen(
                 CampaignRow(
                     campaign = campaign,
                     locked = !campaign.isUnlockedFor(profile),
+                    lockedNote = lockedNote(strings, campaign, zones),
                     onClick = { onCampaign(campaign) },
                 )
             }
@@ -74,8 +84,27 @@ internal fun CampaignsScreen(
     }
 }
 
+/**
+ * What keeps [campaign] shut, in words: the place to clear when its gate is a place's clearing —
+ * every shipped ladder's is — and the generic line otherwise.
+ */
+internal fun lockedNote(strings: Strings, campaign: Campaign, zones: ZoneCatalog): String =
+    zones.zones
+        .firstOrNull { campaign.requiresAchievement == AchievementCatalog.placeCleared(it.id) }
+        ?.let { strings.format(StringKeys.ZONE_NEEDS_ALL, strings[it.nameKey]) }
+        ?: strings[StringKeys.CAMPAIGN_LOCKED]
+
+/** The ladder that clearing [zoneId] opens, if it has one. */
+internal fun List<Campaign>.openedBy(zoneId: String): Campaign? =
+    firstOrNull { it.requiresAchievement == AchievementCatalog.placeCleared(zoneId) }
+
 @Composable
-private fun CampaignRow(campaign: Campaign, locked: Boolean, onClick: () -> Unit) {
+internal fun CampaignRow(
+    campaign: Campaign,
+    locked: Boolean,
+    lockedNote: String,
+    onClick: () -> Unit,
+) {
     val strings = LocalStrings.current
     val alpha = if (locked) DISABLED else 1f
 
@@ -103,7 +132,7 @@ private fun CampaignRow(campaign: Campaign, locked: Boolean, onClick: () -> Unit
                 // the same distinction the roster's own locked footnotes draw. An achievement gate
                 // is the only one a campaign carries; see `Campaign.requiresAchievement`.
                 text = if (locked) {
-                    strings[StringKeys.CAMPAIGN_LOCKED]
+                    lockedNote
                 } else {
                     strings.format(StringKeys.CAMPAIGN_ROUNDS, campaign.steps.size.toString())
                 },

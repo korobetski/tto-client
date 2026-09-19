@@ -17,8 +17,10 @@ import com.tripletriad.audio.SilentAudioPlayer
 import com.tripletriad.data.CardCatalog
 import com.tripletriad.data.FormatCatalog
 import com.tripletriad.data.SaveRepository
+import com.tripletriad.data.ZoneCatalog
 import com.tripletriad.data.loadCardCatalog
 import com.tripletriad.data.loadFormatCatalog
+import com.tripletriad.data.loadZoneCatalog
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.Item
@@ -453,6 +455,23 @@ internal val pvpCards: CardCatalog by lazy { runBlocking { loadCardCatalog() } }
 internal val pvpFormats: FormatCatalog by lazy { runBlocking { loadFormatCatalog() } }
 
 internal const val ANY_LEVEL: Int = 99
+
+internal val shippedZones: ZoneCatalog by lazy { runBlocking { loadZoneCatalog() } }
+
+/** Who a new character can meet: the members of the places open from the start. */
+internal val STARTER_PLACE_OPPONENTS: Set<String> by lazy {
+    shippedZones.zones.filter { it.isStarter }.flatMap { it.npcs }.toSet()
+}
+
+/**
+ * A character who has beaten everybody once, so every place is open.
+ *
+ * One win each, which is below [com.tripletriad.model.Rivalry.WINS_PER_STAGE]: nobody plays or
+ * pays as a rival yet, so what a test reads off a sheet is the authored row.
+ */
+internal fun explorerSave(): GameSave =
+    GameSave.new(createdAt = 0L)
+        .copy(npcWins = shippedZones.zones.flatMap { it.npcs }.associateWith { 1 })
 
 /**
  * The nine cards [freshSave] holds: the authored five, then the four its seed drew.

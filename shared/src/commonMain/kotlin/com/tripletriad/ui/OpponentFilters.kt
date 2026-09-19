@@ -83,8 +83,8 @@ internal fun rememberOpponentFilters(opponents: List<Npc>, sets: List<CardSet>):
 internal fun OpponentReason.holds(npc: Npc, cards: Map<Int, Card>, profile: GameSave): Boolean =
     when (this) {
         OpponentReason.ALL -> true
-        // Never in `npcWins`, which is exactly the set a win or a loss adds an opponent's `iconId`
-        // to — a queue that empties itself as it is played, and needs nothing counted to build.
+        // Never in `npcWins`, which is exactly the set a win adds an opponent's `iconId` to — a
+        // loss adds nothing, so an opponent lost to stays fresh until beaten.
         OpponentReason.FRESH -> npc.iconId !in profile.npcWins
         OpponentReason.WANTED -> npc.wants(cards, profile.cards)
         // Everyone on the roster is already open at this hour — `NpcCatalog.available` filtered on

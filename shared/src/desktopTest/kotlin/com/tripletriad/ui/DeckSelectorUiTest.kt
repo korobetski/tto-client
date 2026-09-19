@@ -5,10 +5,8 @@ import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.FF14_BLOCK
 import com.tripletriad.FF8_BLOCK
@@ -177,8 +175,7 @@ class DeckSelectorUiTest {
         openDashboard()
         openOpponents()
 
-        onNodeWithTag(OPPONENT_LIST_TEST_TAG)
-            .performScrollToNode(hasTestTag(opponentRowTestTag(RANDOM_OPPONENT)))
+        scrollToOpponent(RANDOM_OPPONENT)
         scrollToOpponent(RANDOM_OPPONENT)
         onNodeWithTag(opponentRowTestTag(RANDOM_OPPONENT)).performClick()
         onNodeWithTag(OPPONENT_CHALLENGE_TEST_TAG).performClick()

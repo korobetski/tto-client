@@ -20,5 +20,6 @@ class CatalogLoadingTest {
         assertTrue(loadStarterCatalog().starters.isNotEmpty(), "no starters")
         loadCampaignCatalog()
         loadFormatCatalog()
+        assertTrue(loadZoneCatalog().zones.isNotEmpty(), "no zones")
     }
 }

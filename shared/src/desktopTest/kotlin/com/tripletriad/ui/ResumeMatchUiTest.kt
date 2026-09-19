@@ -73,7 +73,7 @@ class ResumeMatchUiTest {
 
         // The roster has been drawn and the question has been asked — waiting on the list rather
         // than on the answer would pass before the request had been made, whatever the answer was.
-        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(RANDOM_OPPONENT_TEST_TAG) }
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(QUICK_MATCH_TEST_TAG) }
         waitForIdle()
         assertFalse(exists(OPPONENT_RESUME_TEST_TAG), "nothing has been started to come back to")
     }
@@ -95,7 +95,7 @@ class ResumeMatchUiTest {
         onNodeWithTag(MATCH_DONE_TEST_TAG).performClick()
         awaitOpponents()
 
-        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(RANDOM_OPPONENT_TEST_TAG) }
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(QUICK_MATCH_TEST_TAG) }
         waitForIdle()
         assertFalse(exists(OPPONENT_RESUME_TEST_TAG), "the match is over, not paused")
     }
@@ -112,7 +112,7 @@ class ResumeMatchUiTest {
 
         openOpponents()
 
-        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(RANDOM_OPPONENT_TEST_TAG) }
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(QUICK_MATCH_TEST_TAG) }
         waitForIdle()
         assertFalse(exists(OPPONENT_RESUME_TEST_TAG), "there is no server holding a match")
     }

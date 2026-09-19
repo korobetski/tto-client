@@ -23,8 +23,10 @@ class AchievementFamiliesTest {
                 AchievementCategory.COLLECTION to
                     setOf("ac-td", "ac-fob", "ac-fop", "ac-fog", "ac-foh", "ac-foc"),
                 AchievementCategory.MATCHES to setOf("ac-tt", "ac-wof"),
+                AchievementCategory.PLACES to PLACES.map { "ac-zone-$it" }.toSet(),
                 AchievementCategory.CAMPAIGNS to
-                    setOf("ac-cmp-balamb", "ac-cmp-cc", "ac-cmp-gs"),
+                    setOf("ac-cmp-balamb", "ac-cmp-cc", "ac-cmp-gs") +
+                    NEW_LADDERS.map { "ac-cmp-$it" },
                 AchievementCategory.MGP to setOf("ac-mp"),
             ),
             byCategory,
@@ -69,6 +71,7 @@ class AchievementFamiliesTest {
                 mgpEarned = paysACard.mgpReward + paysMgp.mgpReward,
                 cardsEarned = 1,
                 cardsTotal = AchievementCatalog.all.count { it.reward is CardItem },
+                hiddenLeft = AchievementCatalog.all.count { it.hidden },
             ),
             achievementTotals(save),
         )
@@ -81,6 +84,15 @@ class AchievementFamiliesTest {
         const val MGP_POT = "ac-mp"
         const val GOLD_SAUCER = "ac-cmp-gs"
         const val BALAMB = "ac-cmp-balamb"
+
+        /** The places whose ladder is new with the map; the other three predate it. */
+        val NEW_LADDERS = listOf(
+            "uldah", "limsa", "gridania", "mor-dhona", "battlehall", "ishgard", "dravania",
+            "gyr-abania", "kugane", "othard", "norvrandt", "sharlayan", "tural", "galbadia",
+            "fishermans-horizon", "centra", "esthar",
+        )
+
+        val PLACES = NEW_LADDERS + listOf("gold-saucer", "balamb", "card-club")
 
         /** What `ac-mp1` asks to be held. */
         const val FIRST_POT = 1_000

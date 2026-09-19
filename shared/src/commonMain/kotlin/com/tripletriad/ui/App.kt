@@ -33,6 +33,7 @@ import com.tripletriad.data.NpcCatalog
 import com.tripletriad.data.PveMatches
 import com.tripletriad.data.StarterCatalog
 import com.tripletriad.data.StarterPack
+import com.tripletriad.data.ZoneCatalog
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
@@ -919,6 +920,8 @@ private fun CharacterDestination(
             OpponentScreen(
                 profile = profile,
                 catalog = opponents,
+                // Loaded in the same phase as the roster, so null only where the roster is too.
+                zones = startup.zones ?: ZoneCatalog(emptyList()),
                 formatId = formatId,
                 // The card table too, since a row now draws the cards its opponent can drop. An
                 // empty map before the catalog has loaded, which costs the drop lines for the one
@@ -927,6 +930,7 @@ private fun CharacterDestination(
                 cards = startup.catalog?.all?.associateBy { it.id }.orEmpty(),
                 sets = startup.catalog?.sets.orEmpty(),
                 hour = clock.localHour(),
+                nowMillis = clock.nowMillis(),
                 waiting = waiting,
                 onChallenge = {
                     choice.opponent = it
@@ -941,6 +945,11 @@ private fun CharacterDestination(
                 onResume = {
                     choice.opponent = it
                     onNavigate(Screen.MATCH)
+                },
+                campaigns = startup.campaigns?.all.orEmpty(),
+                onCampaign = {
+                    choice.campaign = it
+                    onNavigate(Screen.CAMPAIGN)
                 },
             )
         }
@@ -960,6 +969,7 @@ private fun CharacterDestination(
             },
             onTab = toPlayTab,
             onBack = toDashboard,
+            zones = startup.zones ?: ZoneCatalog(emptyList()),
         )
 
         // Everything that *is* a match: the ordinary one, the tutorial, and a ladder step. Grouped
@@ -1474,6 +1484,7 @@ private fun CampaignDestination(
             // False shuts the ladder with a reason rather than letting the fee be taken for a run
             // whose every rung the referee would refuse to deal.
             hasDeck = hasDeck,
+            zones = startup.zones ?: ZoneCatalog(emptyList()),
             // The fee is taken here, on the way in, and never given back: `startCampaign`'s
             // handler does `Game.PROFILE_DATAS.MGP -= 500` and then opens the ladder. A defeat
             // costs another 500 to try again, which is the whole of what makes a ladder a stake.

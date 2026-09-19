@@ -124,7 +124,7 @@ internal fun CardPanel(
                 // only about four lines of it are above the fold on a phone; whichever goes first
                 // is the one the player is shown. A card they do not own is a card they opened to
                 // ask *where do I get this*, and the flavour text is the part they can scroll for.
-                sources?.let { CardSources(it) }
+                sources?.let { CardSources(it, card.id) }
                 if (strings.has(description)) {
                     Text(
                         // Quoted speech, with emphasis and the odd line break — the prose most
@@ -203,7 +203,7 @@ internal fun UnknownCardPanel(
                     .weight(1f)
                     .verticalScroll(rememberScrollState()),
             ) {
-                CardSources(sources)
+                CardSources(sources, card.id)
             }
         }
     }

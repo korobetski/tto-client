@@ -40,6 +40,7 @@ import com.tripletriad.i18n.loadStrings
 import com.tripletriad.model.ACE_POWER
 import com.tripletriad.model.Card
 import com.tripletriad.model.CardType
+import com.tripletriad.model.Deeds
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.Side
 import com.tripletriad.settings.InMemorySettingsStore
@@ -59,20 +60,6 @@ class CollectionUiTest {
 
     /** The shipped roster, so a card's drop lines are the real ones. See [cardSources]. */
     private val opponents = kotlinx.coroutines.runBlocking { com.tripletriad.data.loadNpcCatalog() }
-
-    /**
-     * An admitted card no shelf, pack, haut fait or opponent offers.
-     *
-     * Chosen from the shipped tables rather than written down, because which cards have no source
-     * is exactly what this port is still filling in — a hard-coded id would be a test that fails
-     * the day somebody authors a drop for it, which is the day it should start passing differently.
-     */
-    private val unobtainable = catalog.all.first { card ->
-        cardSources(
-            card.id,
-            opponents,
-        ).isEmpty()
-    }
 
     private fun ComposeUiTest.openCards(block: Int = FF14_BLOCK) {
         newCharacter(block)
@@ -405,16 +392,13 @@ class CollectionUiTest {
         assertTrue(isVisible("20%"), "the drop rate is not on screen")
     }
 
+    /**
+     * Driven on the panel itself: since every shipped card gained a source (see
+     * `CardSourceIndexTest.everyCardCanBeComeBy`), no card in the grid reaches this state.
+     */
     @Test
     fun aCardNothingOffersSaysThatInsteadOfShowingABlank() = runComposeUiTest {
-        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
-        openCards()
-
-        // By number, not by name: the card is not owned, so its name is what the "?" is hiding.
-        onNodeWithTag(CARD_SEARCH_TEST_TAG).performTextInput("${unobtainable.number}")
-        waitForIdle()
-        onNodeWithTag(cardCellTestTag(unobtainable.id)).performClick()
-        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(CARD_DETAIL_TEST_TAG) }
+        setContent { CardSources(sources = emptyList()) }
 
         onNodeWithTag(CARD_SOURCES_NONE_TEST_TAG).assertExists()
     }
@@ -463,6 +447,32 @@ class CollectionUiTest {
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(CARD_DETAIL_TEST_TAG) }
         assertTrue(isVisible(strings[card.nameKey]), "the detail kept the name back")
         assertTrue(isVisible("Sides"), "the detail kept the sides back")
+    }
+
+    @Test
+    fun odinHintsAtTheCardLosingHimEarns() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        openCards(FF8_BLOCK)
+        val odin = catalog.byId.getValue(Deeds.ODIN_FF8)
+
+        onNodeWithTag(CARD_SEARCH_TEST_TAG).performTextInput("${odin.number}")
+        waitForIdle()
+        onNodeWithTag(cardCellTestTag(odin.id)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(CARD_DETAIL_TEST_TAG) }
+
+        onNodeWithTag(CARD_HINT_TEST_TAG).assertExists()
+    }
+
+    @Test
+    fun gilgameshIsNotListedUntilOwned() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        openCards(FF8_BLOCK)
+        val gilgamesh = catalog.byId.getValue(GILGAMESH)
+
+        onNodeWithTag(CARD_SEARCH_TEST_TAG).performTextInput("${gilgamesh.number}")
+        waitForIdle()
+
+        assertFalse(exists(cardCellTestTag(GILGAMESH)), "the secret card is in the grid")
     }
 
     @Test
@@ -681,12 +691,11 @@ class CollectionUiTest {
         const val SPARES = 3
 
         // 153 FF14 + 110 FF8 before the FF14 set completed to 454 across two blocks, and 475
-        // with the cards of patches 7.4-7.51. Still 585, not 586, now that FF8 carries a 111th
-        // card: Mooba is secret, and a secret card the fixture's profile does not own does not
-        // widen this total either — the same filter that hides it from the grid hides it from the
-        // count under it. See
+        // with the cards of patches 7.4-7.51. 584 of the 586: Mooba and Gilgamesh are secret, and
+        // a secret card the fixture's profile does not own does not widen this total either —
+        // the same filter that hides it from the grid hides it from the count under it. See
         // `SECRET_CARD_IDS` in `CardListBody.kt`.
-        const val ALL_CARDS = 585
+        const val ALL_CARDS = 584
 
         /** Past `FilterPanelMinWidth` with the rail up — a 1600 × 1000 browser window. */
         const val WIDE_WINDOW_WIDTH = 1600f
@@ -715,6 +724,9 @@ class CollectionUiTest {
          * another card that is both bought and dropped.
          */
         const val CHOCOBO = 269
+
+        /** FFVIII's secret card, won with the hidden Zantetsuken. */
+        const val GILGAMESH = 0x0850
 
         const val TWO_COPIES = 2
         const val THREE_COPIES = 3
@@ -812,9 +824,9 @@ class CollectionUiTest {
 
         pickFilter(CARD_SET_MENU_TEST_TAG, setFilterTestTag(FF8_BLOCK))
 
-        // Mooba is in this block but the fixture profile does not own it, so the list — and the
-        // total beneath it — hides that one card. See `SECRET_CARD_IDS` in `CardListBody.kt`.
-        val ff8 = catalog.block(FF8_BLOCK).size - 1
+        // Mooba and Gilgamesh are in this block but the fixture profile owns neither, so the list —
+        // and the total beneath it — hides both. See `SECRET_CARD_IDS` in `CardListBody.kt`.
+        val ff8 = catalog.block(FF8_BLOCK).size - SECRET_CARD_IDS.size
         onNodeWithTag(CARD_TOTAL_TEST_TAG).assertTextEquals(
             "Owned$DOT_SEPARATOR" + "0 / $ff8",
         )

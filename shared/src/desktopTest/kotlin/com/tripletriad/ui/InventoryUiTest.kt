@@ -6,6 +6,7 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
@@ -430,6 +431,23 @@ class InventoryUiTest {
         val save = storedSave(documents)
         assertEquals(PotionType.MGP.modifier.value, save.boons.mgp, "the potion's own value")
         assertEquals(0, Inventory.count(save, PotionItem(PotionType.MGP)), "and it is consumed")
+    }
+
+    /** The luck boon is the port's, so the bar that shows the other two must learn to show it. */
+    @Test
+    fun drinkingALuckPotionShowsItsBoonOnTheBar() = runComposeUiTest {
+        val documents = seeded(Inventory.add(freshSave(), PotionItem(PotionType.LUCK)))
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openBag(documents)
+        assertTrue(onAllNodesWithContentDescription("Luck").fetchSemanticsNodes().isEmpty())
+
+        useItem(PotionItem(PotionType.LUCK))
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { storedSave(documents).boons.luck > 0 }
+
+        assertEquals(PotionType.LUCK.modifier.value, storedSave(documents).boons.luck)
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
+            onAllNodesWithContentDescription("Luck").fetchSemanticsNodes().isNotEmpty()
+        }
     }
 
     @Test

@@ -473,14 +473,33 @@ class StringsBundleTest {
         // the wide shop's empty pane; `APP_SELECT_CARDS`, `APP_CARDS_SELECTED` and
         // `APP_SELL_KEEPS_ONE` are the card list's bulk sale. Authored in all four `app-*`
         // bundles at once. Measured on 2026-09-16 as above.
+        //
+        // +46 to every bundle since: the roster's places, tour and quick match. Twenty
+        // `APP_ZONE_<ID>` names (see `zones.json`), the zone states and notes, `APP_TOUR*`,
+        // `APP_QUICK_MATCH`, `APP_ALL_OPPONENTS`, `APP_RANDOM_HERE`, the opponent hours and
+        // absences, the two rivalry lines, `APP_ACHIEVEMENTS_HIDDEN`, `APP_CARD_HINT_ODIN` and
+        // the hidden `APP_AC_ZANTETSUKEN` with its description. `APP_OPPONENTS_LOCKED` was
+        // reworded, not added. Authored in all four `app-*` bundles at once. Measured on
+        // 2026-09-18 as above.
+        //
+        // +91 to every bundle since: the places' tournaments and achievements. For each of the
+        // twenty places `APP_AC_ZONE_<ID>` and its `_DESC` (clearing it); for each of the
+        // seventeen ladders new with the map `APP_CAMPAIGN_<ID>` (its name) and
+        // `APP_AC_CAMPAIGN_<ID>` with its `_DESC` (winning it) — 40 + 51. `APP_CAMPAIGN_LOCKED`
+        // was reworded, not added. Authored in all four `app-*` bundles at once. Measured on
+        // 2026-09-18 as above.
+        //
+        // +3 to every bundle since: the luck potion. `STR_LUCK_BOOST` (its name — no Square Enix
+        // bundle has one, the potion is the port's), `APP_LUCK_BOOST_DESC` and `APP_LUCK`, the
+        // boon's label on the character bar. Gaps unchanged, 2026-09-18.
 
-        const val UNION_KEYS = 2015
+        const val UNION_KEYS = 2155
 
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 2011,
-            AppLocale.FR_FR to 2012,
-            AppLocale.DE_DE to 1940,
-            AppLocale.JA_JA to 1972,
+            AppLocale.EN_US to 2151,
+            AppLocale.FR_FR to 2152,
+            AppLocale.DE_DE to 2080,
+            AppLocale.JA_JA to 2112,
         )
 
         val EXPECTED_GAPS = mapOf(

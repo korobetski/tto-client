@@ -278,6 +278,7 @@ private fun TallyPanel(profile: GameSave) {
         val boons = buildList {
             if (profile.boons.mgp > 0) add("${strings[StringKeys.MGP]} ×${profile.boons.mgp}")
             if (profile.boons.xp > 0) add("${strings[StringKeys.XP]} ×${profile.boons.xp}")
+            if (profile.boons.luck > 0) add("${strings[StringKeys.LUCK]} ×${profile.boons.luck}")
         }
         if (boons.isNotEmpty()) {
             Text(

@@ -29,7 +29,7 @@ internal data class AchievementFamily(
 }
 
 /**
- * The four things a family can be about, read off what its tiers *ask for*.
+ * The five things a family can be about, read off what its tiers *ask for*.
  *
  * Derived from the requirement rather than listed by id, so an achievement authored in `tto-core`
  * lands in a category without this file hearing of it. Rule wins sit with the plain ones: "win
@@ -39,13 +39,18 @@ internal data class AchievementFamily(
 internal enum class AchievementCategory(val labelKey: String, val tag: String) {
     COLLECTION(StringKeys.COLLECTION, "collection"),
     MATCHES(StringKeys.WINS, "wins"),
+    PLACES(StringKeys.ZONES, "places"),
     CAMPAIGNS(StringKeys.CAMPAIGNS, "campaigns"),
     MGP(StringKeys.MGP, "mgp"),
 }
 
 internal fun categoryOf(requirement: Requirement): AchievementCategory = when (requirement) {
     is Requirement.CardsOwned, is Requirement.CardSetOwned -> AchievementCategory.COLLECTION
-    is Requirement.NpcWins, is Requirement.RuleWins -> AchievementCategory.MATCHES
+    // A deed is something that happened at a table — losing FFVIII's Odin, so far.
+    is Requirement.NpcWins, is Requirement.RuleWins, is Requirement.Deed ->
+        AchievementCategory.MATCHES
+    // Twenty places, one family each: among the plain wins they would bury the rest.
+    is Requirement.NpcsBeaten -> AchievementCategory.PLACES
     is Requirement.CampaignWins -> AchievementCategory.CAMPAIGNS
     is Requirement.MgpHeld -> AchievementCategory.MGP
 }
@@ -88,7 +93,7 @@ internal val AchievementFamily.isAlmost: Boolean
  * their first rung is.
  */
 internal fun rankedFamilies(profile: GameSave): List<AchievementFamily> {
-    val families = AchievementCatalog.all
+    val families = visibleAchievements(profile)
         .groupBy { it.id.trimEnd { character -> character.isDigit() } }
         .map { (key, tiers) ->
             val next = tiers.firstOrNull { !profile.hasAchievement(it.id) }
@@ -106,11 +111,23 @@ internal fun rankedFamilies(profile: GameSave): List<AchievementFamily> {
 }
 
 /**
+ * The catalogue as this profile may see it: a [Achievement.hidden] one only once it is earned.
+ *
+ * Hidden from the grid rather than drawn as a blank medallion, because a blank with a card reward
+ * under it is a hint, and the hint for Zantetsuken lives on the card it is about (see
+ * `CARD_HINTS`). What is left of it is a count — [AchievementTotals.hiddenLeft].
+ */
+internal fun visibleAchievements(profile: GameSave): List<Achievement> =
+    AchievementCatalog.all.filter { !it.hidden || profile.hasAchievement(it.id) }
+
+/**
  * The three numbers over the grid.
  *
  * @param mgpEarned what the earned tiers paid, not the purse: the purse is in the app bar already,
  *   and most of it was won at the table.
  * @param cardsTotal the tiers that pay a card at all — most pay MGP or nothing.
+ * @param hiddenLeft hidden tiers not yet earned. The totals count them — a total that grew the
+ *   day one was found would say the same thing less clearly than this line does.
  */
 internal data class AchievementTotals(
     val tiersEarned: Int,
@@ -118,6 +135,7 @@ internal data class AchievementTotals(
     val mgpEarned: Int,
     val cardsEarned: Int,
     val cardsTotal: Int,
+    val hiddenLeft: Int = 0,
 )
 
 internal fun achievementTotals(profile: GameSave): AchievementTotals {
@@ -129,6 +147,7 @@ internal fun achievementTotals(profile: GameSave): AchievementTotals {
         mgpEarned = earned.sumOf { it.mgpReward },
         cardsEarned = earned.count { it.reward is CardItem },
         cardsTotal = all.count { it.reward is CardItem },
+        hiddenLeft = all.count { it.hidden && !profile.hasAchievement(it.id) },
     )
 }
 

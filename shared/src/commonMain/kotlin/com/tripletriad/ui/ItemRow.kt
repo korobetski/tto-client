@@ -148,4 +148,5 @@ private fun packEffect(
 private fun boonLabel(strings: Strings, type: BoonType): String = when (type) {
     BoonType.MGP -> strings[StringKeys.MGP]
     BoonType.XP -> strings[StringKeys.XP]
+    BoonType.LUCK -> strings[StringKeys.LUCK]
 }

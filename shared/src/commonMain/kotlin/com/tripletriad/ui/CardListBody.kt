@@ -571,14 +571,15 @@ private fun ColumnScope.SellControls(card: Card, profile: GameSave, onSell: (Car
 
 /**
  * Cards this list hides until the profile actually owns one — an easter egg stops being one the
- * moment it is readable off a menu nobody has to earn anything to see. Mooba (`0x086f`) is the one
- * shipped so far.
+ * moment it is readable off a menu nobody has to earn anything to see. Mooba (`0x086f`) and
+ * FFVIII's Gilgamesh (`0x0850`), whose only way in is the hidden Zantetsuken achievement — listing
+ * the card would name the achievement in its sources.
  *
  * Purely a fact about how *this screen* lists cards, not one the rest of the game needs: a match
  * replay never reads this set, `:core` does not know it exists, and a secret card plays, sells and
  * trades exactly like any other the moment it is in the profile's collection.
  */
-private val SECRET_CARD_IDS = setOf(0x086f)
+internal val SECRET_CARD_IDS = setOf(0x086f, 0x0850)
 
 private val DetailPaneWidth = 260.dp
 

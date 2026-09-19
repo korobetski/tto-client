@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
@@ -36,17 +37,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.tripletriad.data.Campaign
 import com.tripletriad.data.CardSet
+import com.tripletriad.data.DailyTour
 import com.tripletriad.data.NpcCatalog
+import com.tripletriad.data.QuickMatch
+import com.tripletriad.data.ZoneCatalog
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
-import com.tripletriad.i18n.Strings
 import com.tripletriad.model.Availability
 import com.tripletriad.model.Card
 import com.tripletriad.model.GameSave
-import com.tripletriad.model.MatchResult
 import com.tripletriad.model.Npc
 import com.tripletriad.model.NpcLevel
+import com.tripletriad.model.asRivalOf
+import com.tripletriad.time.utcDayNumber
 import com.tripletriad.ui.theme.LocalTtoColors
 import kotlin.random.Random
 
@@ -66,6 +71,14 @@ const val OPPONENT_CHALLENGE_TEST_TAG: String = "opponent-challenge"
 const val OPPONENT_RESUME_TEST_TAG: String = "opponent-resume"
 
 const val OPPONENT_RULE_FILTER_TEST_TAG: String = "opponent-filter-rule"
+
+const val OPPONENT_HOURS_TEST_TAG: String = "opponent-hours"
+
+const val OPPONENT_RIVAL_TEST_TAG: String = "opponent-rival"
+
+const val OPPONENT_BLOCKED_TEST_TAG: String = "opponent-blocked"
+
+fun opponentNoteTestTag(iconId: String): String = "opponent-note-$iconId"
 
 fun opponentBlockFilterTestTag(block: Int?): String = "opponent-filter-block-${block ?: "all"}"
 
@@ -93,14 +106,31 @@ internal enum class OpponentReason(val slug: String, val labelKey: String) {
 }
 
 /**
+ * Where the roster stands: the day's suggestions and the places, one place, or everybody.
+ *
+ * Not a [Screen] each: all three are the play root's first tab, and back from a place or from the
+ * full list is this screen's own home rather than the dashboard.
+ */
+internal sealed interface RosterView {
+    data object Home : RosterView
+
+    data class Place(val zoneId: String) : RosterView
+
+    data object Everyone : RosterView
+}
+
+/**
  * The solo roster: the play root's first tab.
  *
- * The eighty-five hand-drawn portraits are this screen's one real asset, and a 56 dp row spent
- * them four at a time. A grid shows twelve to sixteen above the fold without giving up what the
- * row said that a portrait cannot: each tile still carries the rules the match is played under
- * and what it costs to sit down, because those are what a player reads *before* committing a fee,
- * not after. Finding somebody who plays a particular rule is the [OPPONENT_RULE_FILTER_TEST_TAG]
- * menu rather than a scroll through everyone.
+ * It opens on a suggestion rather than a choice. A new character used to meet eighty-odd faces in
+ * one grid and be asked to pick; now the home offers [QUICK_MATCH_TEST_TAG] — an opponent picked
+ * for them — the [DailyTour], and the [ZoneCatalog]'s places, which open one after another as each
+ * is cleared. The full grid is still there behind [ALL_OPPONENTS_TEST_TAG], with its filters, for
+ * whoever wants to choose.
+ *
+ * The places replace the level gate: every opponent of an open place can be challenged whatever
+ * the level, so [NpcCatalog.available] is asked with [EVERY_LEVEL]. The hours and the achievement
+ * doors still hold, and a place shows the opponents they keep out, dimmed, with their hours.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -108,9 +138,11 @@ internal enum class OpponentReason(val slug: String, val labelKey: String) {
 internal fun OpponentScreen(
     profile: GameSave,
     catalog: NpcCatalog,
+    zones: ZoneCatalog,
     cards: Map<Int, Card>,
     sets: List<CardSet>,
     hour: Int,
+    nowMillis: Long,
     formatId: String,
     waiting: Int,
     onChallenge: (Npc) -> Unit,
@@ -126,22 +158,45 @@ internal fun OpponentScreen(
      */
     resumable: Npc? = null,
     onResume: (Npc) -> Unit = {},
+    /** Every ladder, for the one a place's view leads with; see [placeItems]. */
+    campaigns: List<Campaign> = emptyList(),
+    onCampaign: (Campaign) -> Unit = {},
 ) {
     val strings = LocalStrings.current
     // Keyed on the format, not on the character: who a player may challenge is a property of the
-    // match they are looking for. `MODE` used to answer this and the answer was the same only
-    // because a character could play one set.
+    // match they are looking for.
     val earned = profile.achievements.keys
-    val opponents = remember(catalog, formatId, hour, profile.level, earned) {
-        catalog.available(formatId, hour, profile.level, earned)
+    val roster = remember(catalog, formatId) { catalog.playing(formatId) }
+    val places = remember(zones, roster, profile, cards) { zones.progress(roster, profile, cards) }
+    val reachable = remember(zones, roster, profile, cards) {
+        zones.reachable(roster, profile, cards).map { it.iconId }.toSet()
     }
-    val locked = remember(catalog, formatId, hour, profile.level) {
-        catalog.lockedByLevel(formatId, hour, profile.level)
+    // The tour's pool is every hour's, so a timed pick can be shown with its hours while closed.
+    val pool = remember(roster, reachable, earned) {
+        roster.filter { it.iconId in reachable && it.isEarnedBy(earned) }
     }
-    // Counted apart from the level-locked, because the two footnotes promise different things:
+    val day = utcDayNumber(nowMillis)
+    val tour = remember(pool, profile, cards, day) {
+        DailyTour.picks(pool, profile, cards, nowMillis)
+    }
+    val openNow = remember(catalog, formatId, hour, earned) {
+        catalog.available(formatId, hour, EVERY_LEVEL, earned)
+    }
+    val opponents = remember(openNow, reachable) { openNow.filter { it.iconId in reachable } }
+    // Open at this hour and earned, but in a place not open yet: the footnote's "somewhere else".
+    val locked = openNow.size - opponents.size
+    // Counted apart from the place-locked, because the two footnotes promise different things:
     // one says keep playing, this one says there is a tournament to win first.
     val unearned = remember(catalog, formatId, earned) {
         catalog.lockedByAchievement(formatId, earned)
+    }
+    val challengeable = { npc: Npc ->
+        npc.iconId in reachable && npc.isEarnedBy(earned) && npc.availability.isOpenAtHour(hour)
+    }
+
+    var view by remember(formatId) { mutableStateOf<RosterView>(RosterView.Home) }
+    val place = (view as? RosterView.Place)?.let { v ->
+        places.firstOrNull { it.zone.id == v.zoneId }
     }
 
     val filters = rememberOpponentFilters(opponents, sets)
@@ -153,30 +208,43 @@ internal fun OpponentScreen(
     // `groupBy` preserves the order it first sees a key in.
     val tiers = remember(shown) { shown.groupBy { it.level } }
 
+    // What the die draws from: the view's own opponents that can be challenged right now.
+    val drawable = when (view) {
+        RosterView.Home -> emptyList()
+        is RosterView.Place -> place?.members.orEmpty().filter(challengeable)
+        RosterView.Everyone -> shown
+    }
+
     // The opponent a tap opened the detail sheet for, or null. Kept as an id rather than the `Npc`
     // itself so a filter change that removes it from `shown` closes the sheet by simply finding
     // nothing, instead of holding a stale reference to an opponent no longer on screen.
-    var detailIcon by remember(shown) { mutableStateOf<String?>(null) }
-    val detail = shown.firstOrNull { it.iconId == detailIcon }
+    var detailIcon by remember(view, shown) { mutableStateOf<String?>(null) }
+    val detail = roster.firstOrNull { it.iconId == detailIcon }
     val sheetState = rememberModalBottomSheetState()
+    val home = { view = RosterView.Home }
 
     CharacterScaffold(
         profile = profile,
-        title = strings[StringKeys.PLAY],
-        onBack = onBack,
-        // The die is an action, not a chapter. It used to be a full-width filled button halfway
-        // down the screen, between the shelves and the roster, where it read as a heading and cut
-        // the page in two. Hidden rather than disabled when there is nobody to pick, since a
-        // filter that matches nobody is the player's own doing and the grid already says so.
+        title = when (view) {
+            RosterView.Home -> strings[StringKeys.PLAY]
+            is RosterView.Place ->
+                place?.let { strings[it.zone.nameKey] } ?: strings[StringKeys.PLAY]
+            RosterView.Everyone -> strings[StringKeys.ALL_OPPONENTS]
+        },
+        onBack = if (view == RosterView.Home) onBack else home,
+        // The die is an action, not a chapter. Hidden rather than disabled when there is nobody
+        // to pick, since a filter that matches nobody is the player's own doing and the grid
+        // already says so; and on the home, where the quick match is the same question asked
+        // better.
         actions = {
-            if (shown.isNotEmpty()) {
+            if (drawable.isNotEmpty()) {
                 IconButton(
-                    onClick = { onChallenge(shown.random(Random)) },
+                    onClick = { onChallenge(drawable.random(Random)) },
                     modifier = Modifier.testTag(RANDOM_OPPONENT_TEST_TAG),
                 ) {
                     Icon(
                         imageVector = TtoIcons.Die,
-                        contentDescription = strings[StringKeys.RANDOM_OPPONENT],
+                        contentDescription = strings[dieLabel(view)],
                     )
                 }
             }
@@ -190,6 +258,9 @@ internal fun OpponentScreen(
         // same fix `ShopBody` makes for the same reason.
         LazyVerticalGrid(
             columns = GridCells.Adaptive(TileMinWidth),
+            // One grid for three views: each opens at its top rather than at the scroll the last
+            // one was left at, which on a long home would be past the full roster's filters.
+            state = remember(view) { LazyGridState() },
             modifier = Modifier.testTag(OPPONENT_LIST_TEST_TAG).fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(SpaceSm),
             horizontalArrangement = Arrangement.spacedBy(SpaceSm),
@@ -197,9 +268,7 @@ internal fun OpponentScreen(
             // **First, and filled.** A match already under way is the one thing on this screen
             // that is not a choice: everything below it starts something new, and starting
             // something new is what abandons the match — the server closes the live one when the
-            // next is opened (`PveStore.open`). So it goes above the chips rather than among the
-            // opponents, where a player who had scrolled would never see it, and it is not
-            // filtered by them for the same reason.
+            // next is opened (`PveStore.open`). So it goes above everything else, in every view.
             resumable?.let { npc ->
                 fullWidth(RESUME_KEY) {
                     WideButton(
@@ -210,58 +279,60 @@ internal fun OpponentScreen(
                 }
             }
 
-            fullWidth(FILTERS_KEY) {
-                OpponentFilterRows(
-                    filters = filters,
-                    opponents = opponents,
-                    cards = cards,
-                    profile = profile,
-                )
-            }
-
-            if (shown.isEmpty()) {
-                fullWidth(EMPTY_KEY) {
-                    EmptyNote(
-                        text = strings[StringKeys.NO_OPPONENT],
-                        tag = OPPONENT_EMPTY_TEST_TAG,
-                    )
-                }
-            } else {
-                for ((level, npcs) in tiers) {
-                    fullWidth("tier-${level.name}") { TierHeader(level, npcs.size) }
-                    items(npcs, key = { it.iconId }) { npc ->
+            when (view) {
+                RosterView.Home -> homeItems(
+                    places = places,
+                    zones = zones,
+                    tour = tour,
+                    canQuickMatch = opponents.isNotEmpty(),
+                    onQuickMatch = {
+                        QuickMatch.pick(opponents, profile, hour)?.let(onChallenge)
+                    },
+                    onPlace = { view = RosterView.Place(it) },
+                    onEveryone = { view = RosterView.Everyone },
+                    tile = { npc, caption ->
                         OpponentTile(
                             npc = npc,
                             cards = cards,
                             owned = profile.cards,
+                            caption = caption,
+                            note = npc.absenceNote(strings, hour, earned),
+                            onClick = { detailIcon = npc.iconId },
+                        )
+                    },
+                )
+
+                is RosterView.Place -> place?.let { progress ->
+                    val tournament = campaigns.openedBy(progress.zone.id)?.let {
+                        PlaceTournament(
+                            campaign = it,
+                            locked = !it.isUnlockedFor(profile),
+                            lockedNote = lockedNote(strings, it, zones),
+                            onOpen = { onCampaign(it) },
+                        )
+                    }
+                    placeItems(progress, tournament) { npc ->
+                        OpponentTile(
+                            npc = npc,
+                            cards = cards,
+                            owned = profile.cards,
+                            note = npc.absenceNote(strings, hour, earned) ?: npc.hoursNote(strings),
+                            dimmed = !challengeable(npc),
                             onClick = { detailIcon = npc.iconId },
                         )
                     }
                 }
 
-                // Under the grid rather than over it: it is a footnote about what is *not* here,
-                // and a player who has not scrolled to the bottom has not run out of opponents
-                // yet.
-                if (locked > 0) {
-                    fullWidth(LOCKED_KEY) {
-                        Footnote(
-                            text = strings.format(StringKeys.OPPONENTS_LOCKED, locked.toString()),
-                            tag = OPPONENT_LOCKED_TEST_TAG,
-                        )
-                    }
-                }
-
-                if (unearned > 0) {
-                    fullWidth(UNEARNED_KEY) {
-                        Footnote(
-                            text = strings.format(
-                                StringKeys.OPPONENTS_UNEARNED,
-                                unearned.toString(),
-                            ),
-                            tag = OPPONENT_UNEARNED_TEST_TAG,
-                        )
-                    }
-                }
+                RosterView.Everyone -> everyoneItems(
+                    filters = filters,
+                    opponents = opponents,
+                    cards = cards,
+                    profile = profile,
+                    tiers = tiers,
+                    locked = locked,
+                    unearned = unearned,
+                    onOpen = { detailIcon = it.iconId },
+                )
             }
         }
     }
@@ -277,12 +348,79 @@ internal fun OpponentScreen(
         ) {
             OpponentDetailSheet(
                 npc = npc,
+                profile = profile,
                 cards = cards,
-                owned = profile.cards,
+                blocker = if (challengeable(npc)) null else npc.absenceNote(strings, hour, earned),
                 onChallenge = {
                     detailIcon = null
                     onChallenge(npc)
                 },
+            )
+        }
+    }
+}
+
+/** The full roster behind "see every opponent": filters, bands, and what is not here. */
+@Suppress("LongParameterList")
+private fun LazyGridScope.everyoneItems(
+    filters: OpponentFilters,
+    opponents: List<Npc>,
+    cards: Map<Int, Card>,
+    profile: GameSave,
+    tiers: Map<NpcLevel, List<Npc>>,
+    locked: Int,
+    unearned: Int,
+    onOpen: (Npc) -> Unit,
+) {
+    fullWidth(FILTERS_KEY) {
+        OpponentFilterRows(
+            filters = filters,
+            opponents = opponents,
+            cards = cards,
+            profile = profile,
+        )
+    }
+
+    if (tiers.isEmpty()) {
+        fullWidth(EMPTY_KEY) {
+            EmptyNote(
+                text = LocalStrings.current[StringKeys.NO_OPPONENT],
+                tag = OPPONENT_EMPTY_TEST_TAG,
+            )
+        }
+        return
+    }
+    for ((level, npcs) in tiers) {
+        fullWidth("tier-${level.name}") { TierHeader(level, npcs.size) }
+        items(npcs, key = { it.iconId }) { npc ->
+            OpponentTile(
+                npc = npc,
+                cards = cards,
+                owned = profile.cards,
+                note = npc.hoursNote(LocalStrings.current),
+                onClick = { onOpen(npc) },
+            )
+        }
+    }
+
+    // Under the grid rather than over it: it is a footnote about what is *not* here, and a player
+    // who has not scrolled to the bottom has not run out of opponents yet.
+    if (locked > 0) {
+        fullWidth(LOCKED_KEY) {
+            Footnote(
+                text = LocalStrings.current.format(StringKeys.OPPONENTS_LOCKED, locked.toString()),
+                tag = OPPONENT_LOCKED_TEST_TAG,
+            )
+        }
+    }
+    if (unearned > 0) {
+        fullWidth(UNEARNED_KEY) {
+            Footnote(
+                text = LocalStrings.current.format(
+                    StringKeys.OPPONENTS_UNEARNED,
+                    unearned.toString(),
+                ),
+                tag = OPPONENT_UNEARNED_TEST_TAG,
             )
         }
     }
@@ -369,11 +507,18 @@ private fun TierHeader(level: NpcLevel, count: Int) {
  * collection does not hold.
  */
 @Composable
-private fun OpponentTile(
+@Suppress("LongParameterList")
+internal fun OpponentTile(
     npc: Npc,
     cards: Map<Int, Card>,
     owned: Map<Int, Int>,
     onClick: () -> Unit,
+    /** Why this tile is here, over the portrait — the tour's reason. */
+    caption: String? = null,
+    /** Under the fee: the hours kept, or why the opponent cannot be met now. */
+    note: String? = null,
+    /** Shown but not challengeable now. Still opens the sheet, which says why. */
+    dimmed: Boolean = false,
 ) {
     val strings = LocalStrings.current
     val name = strings[npc.nameKey]
@@ -385,10 +530,23 @@ private fun OpponentTile(
             .fillMaxWidth()
             .rowSurface()
             .ttoClickable(onClick = onClick)
-            .padding(vertical = SpaceSm, horizontal = SpaceXs),
+            .padding(vertical = SpaceSm, horizontal = SpaceXs)
+            .alpha(if (dimmed) DIMMED_ALPHA else 1f),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
+        caption?.let {
+            Text(
+                text = it,
+                color = MaterialTheme.colorScheme.tertiary,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                minLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
         Box {
             NpcPortrait(npc = npc, name = name)
             if (wants) {
@@ -432,6 +590,18 @@ private fun OpponentTile(
             coin = MaterialTheme.colorScheme.tertiary,
             coinSize = FeeCoinSize,
         )
+
+        note?.let {
+            Text(
+                text = it,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+                style = MaterialTheme.typography.labelSmall,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.testTag(opponentNoteTestTag(npc.iconId)),
+            )
+        }
     }
 }
 
@@ -443,12 +613,17 @@ private fun OpponentTile(
 @Composable
 private fun OpponentDetailSheet(
     npc: Npc,
+    profile: GameSave,
     cards: Map<Int, Card>,
-    owned: Map<Int, Int>,
+    /** Why the opponent cannot be challenged now, in place of the button; null when they can. */
+    blocker: String?,
     onChallenge: () -> Unit,
 ) {
     val strings = LocalStrings.current
     val rewards = remember(npc, cards) { npcCardRewards(npc, cards) }
+    // As this profile meets them: a rival's band, fee and payout, the ones the server will use.
+    val met = remember(npc, profile) { npc.asRivalOf(profile) }
+    val owned = profile.cards
 
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = SpaceLg, vertical = SpaceSm),
@@ -467,7 +642,7 @@ private fun OpponentDetailSheet(
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    text = strings[npc.level.labelKey],
+                    text = strings[met.level.labelKey],
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -475,10 +650,28 @@ private fun OpponentDetailSheet(
         }
 
         Text(
-            text = rewardLine(strings, npc),
+            text = rewardLine(strings, met),
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
             style = MaterialTheme.typography.bodyMedium,
         )
+
+        npc.hoursNote(strings)?.let {
+            Text(
+                text = it,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.testTag(OPPONENT_HOURS_TEST_TAG),
+            )
+        }
+
+        rivalLine(strings, profile.npcWins[npc.iconId] ?: 0)?.let {
+            Text(
+                text = it,
+                color = MaterialTheme.colorScheme.tertiary,
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.testTag(OPPONENT_RIVAL_TEST_TAG),
+            )
+        }
 
         // Omitted rather than shown empty: "no special rules" is what an absent line already
         // says. The tile keeps a blank one to hold its height; a sheet has no row to line up with.
@@ -498,11 +691,20 @@ private fun OpponentDetailSheet(
             RewardCards(iconId = npc.iconId, rewards = rewards, owned = owned)
         }
 
-        WideButton(
-            label = strings[StringKeys.CHALLENGE],
-            tag = OPPONENT_CHALLENGE_TEST_TAG,
-            onClick = onChallenge,
-        )
+        if (blocker == null) {
+            WideButton(
+                label = strings[StringKeys.CHALLENGE],
+                tag = OPPONENT_CHALLENGE_TEST_TAG,
+                onClick = onChallenge,
+            )
+        } else {
+            Text(
+                text = blocker,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.testTag(OPPONENT_BLOCKED_TEST_TAG).padding(vertical = SpaceSm),
+            )
+        }
     }
 }
 
@@ -560,16 +762,13 @@ internal fun Npc.wants(cards: Map<Int, Card>, owned: Map<Int, Int>): Boolean =
 
 private const val UNOWNED_ALPHA = 0.28f
 
-private fun rewardLine(strings: Strings, npc: Npc): String = buildList {
-    add("${strings[StringKeys.DIFFICULTY]} ${npc.difficulty}")
-    if (npc.matchFee > 0) add("${strings[StringKeys.MATCH_FEE]} ${npc.matchFee}")
-    add("${npc.mgpFor(MatchResult.WIN)} ${strings[StringKeys.MGP]}")
-    val xp = npc.xpFor(MatchResult.WIN)
-    if (xp > 0) add("$xp ${strings[StringKeys.XP]}")
-}.joinToString(DOT_SEPARATOR)
-
 /** Open at some hours and not others — the "Horaire" chip's own predicate. */
 internal fun Npc.isTimed(): Boolean = availability != Availability.Always
+
+/** A level no opponent's difficulty reaches: places, not levels, open the roster now. */
+private const val EVERY_LEVEL = 99
+
+private const val DIMMED_ALPHA = 0.45f
 
 /** The menu of rules on offer, and the filters read against them. */
 @Composable

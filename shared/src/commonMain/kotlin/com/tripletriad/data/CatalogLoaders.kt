@@ -13,6 +13,8 @@ const val STARTER_CATALOG_PATH: String = "files/starters.json"
 
 const val FORMAT_CATALOG_PATH: String = "files/formats.json"
 
+const val ZONE_CATALOG_PATH: String = "files/zones.json"
+
 @OptIn(ExperimentalResourceApi::class)
 suspend fun loadCardCatalog(): CardCatalog =
     CardCatalogParser.parse(Res.readBytes(CARD_CATALOG_PATH).decodeToString())
@@ -32,3 +34,7 @@ suspend fun loadStarterCatalog(): StarterCatalog =
 @OptIn(ExperimentalResourceApi::class)
 suspend fun loadFormatCatalog(): FormatCatalog =
     FormatCatalogParser.parse(Res.readBytes(FORMAT_CATALOG_PATH).decodeToString())
+
+@OptIn(ExperimentalResourceApi::class)
+suspend fun loadZoneCatalog(): ZoneCatalog =
+    ZoneCatalog.parse(Res.readBytes(ZONE_CATALOG_PATH).decodeToString())

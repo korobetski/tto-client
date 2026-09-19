@@ -10,11 +10,13 @@ import com.tripletriad.data.CardCatalog
 import com.tripletriad.data.FormatCatalog
 import com.tripletriad.data.NpcCatalog
 import com.tripletriad.data.StarterCatalog
+import com.tripletriad.data.ZoneCatalog
 import com.tripletriad.data.loadCampaignCatalog
 import com.tripletriad.data.loadCardCatalog
 import com.tripletriad.data.loadFormatCatalog
 import com.tripletriad.data.loadNpcCatalog
 import com.tripletriad.data.loadStarterCatalog
+import com.tripletriad.data.loadZoneCatalog
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.rememberDeviceLocale
 import com.tripletriad.settings.SettingsStore
@@ -46,6 +48,7 @@ data class StartupState(
     val ui: UiArt? = null,
     val opponents: NpcCatalog? = null,
     val campaigns: CampaignCatalog? = null,
+    val zones: ZoneCatalog? = null,
 ) {
     val isReady: Boolean get() = phase == StartupPhase.READY
 }
@@ -72,6 +75,7 @@ fun rememberStartup(store: SettingsStore): StartupState {
 
         val opponents = loadNpcCatalog()
         val campaigns = loadCampaignCatalog()
+        val zones = loadZoneCatalog()
         value = StartupState(
             phase = StartupPhase.READY,
             settings = settings,
@@ -82,6 +86,7 @@ fun rememberStartup(store: SettingsStore): StartupState {
             ui = ui,
             opponents = opponents,
             campaigns = campaigns,
+            zones = zones,
         )
     }
     return state

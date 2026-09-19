@@ -80,6 +80,7 @@ class ItemRowTest {
         assertEquals(BoonType.MGP, boonOf(PotionItem(PotionType.MGP)))
         assertEquals(BoonType.MGP, boonOf(PotionItem(PotionType.BIG_MGP)))
         assertEquals(BoonType.XP, boonOf(PotionItem(PotionType.SMALL_XP)))
+        assertEquals(BoonType.LUCK, boonOf(PotionItem(PotionType.LUCK)))
     }
 
     @Test

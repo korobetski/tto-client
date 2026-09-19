@@ -193,6 +193,7 @@ internal fun ItemGlyph(
     val drawn = when {
         boon == BoonType.XP -> TtoIcons.XpBoon to colors.experience
         boon == BoonType.MGP -> TtoIcons.MgpBoon to colors.currency
+        boon == BoonType.LUCK -> TtoIcons.LuckBoon to colors.positive
         // The game's 80 px pack wherever it loaded. The vector is for a missing bitmap only: in
         // neither of the earned-thing colours, as a pack is not MGP and not XP but what they buy.
         item is BoosterItem && art?.icon(itemIconId(item)) == null ->

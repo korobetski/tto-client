@@ -60,6 +60,8 @@ const val ACHIEVEMENT_TOTAL_TIERS_TEST_TAG: String = "stats-total-tiers"
 const val ACHIEVEMENT_TOTAL_MGP_TEST_TAG: String = "stats-total-mgp"
 const val ACHIEVEMENT_TOTAL_CARDS_TEST_TAG: String = "stats-total-cards"
 
+const val ACHIEVEMENT_HIDDEN_TEST_TAG: String = "stats-hidden"
+
 /** `all` is the entry that lifts the category — in the rail and in the menu alike. */
 fun achievementCategoryTestTag(category: String): String = "stats-category-$category"
 
@@ -110,7 +112,18 @@ internal fun ColumnScope.AchievementsBody(profile: GameSave, cards: Map<Int, Car
     val inCategory = families.filter { category == null || it.category == category }
     val shown = inCategory.filter { standing?.admits(it) ?: true }
 
-    val totalsRow: @Composable () -> Unit = { TotalsRow(totals) }
+    val totalsRow: @Composable () -> Unit = {
+        TotalsRow(totals)
+        // Under the totals rather than in the grid: there is nothing to draw for it but a number.
+        if (totals.hiddenLeft > 0) {
+            Text(
+                text = strings.format(StringKeys.ACHIEVEMENTS_HIDDEN, "${totals.hiddenLeft}"),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.testTag(ACHIEVEMENT_HIDDEN_TEST_TAG),
+            )
+        }
+    }
     val grid: @Composable (Modifier, String?) -> Unit = { modifier, lit ->
         if (shown.isEmpty()) {
             Box(modifier = modifier, contentAlignment = Alignment.Center) {

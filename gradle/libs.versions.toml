@@ -1,5 +1,5 @@
 [versions]
-agp = "9.4.0"
+agp = "9.4.1"
 kotlin = "2.4.20"
 
 # The rules engine, published from the `tto-core` repository — `:core` in this build until it left.
@@ -11,7 +11,7 @@ kotlin = "2.4.20"
 # `tto-server`'s. A local `publishToMavenLocal` is how a change is tried before any of that — see
 # `settings.gradle.kts` for why the local copy wins over the published one.
 
-core = "0.9.2"
+core = "0.12.1"
 
 compose = "1.12.0"
 composeMaterial3 = "1.9.0"
@@ -29,7 +29,7 @@ coroutines = "1.11.0"
 # the shape of the trap remains: the failure is invisible to every task normally run on a Windows
 # host and shows up only under `./gradlew check`, so whoever raises Ktor next still raises Kotlin
 # first.
-ktor = "3.5.2"
+ktor = "3.6.0"
 
 # KotlinCrypto, for the two primitives the peer handshake needs and Kotlin Multiplatform has no
 # common answer for: SHA-256 and a random source that is safe to commit to. Both publish for every

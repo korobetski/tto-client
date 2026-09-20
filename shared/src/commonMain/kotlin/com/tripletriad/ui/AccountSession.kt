@@ -383,6 +383,7 @@ class AccountSession internal constructor(
                     intent.offer.item,
                     intent.formatId,
                     operationId,
+                    intent.count,
                 )
 
                 is Intent.SellItem ->

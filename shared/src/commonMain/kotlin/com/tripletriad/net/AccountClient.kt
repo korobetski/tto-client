@@ -162,8 +162,9 @@ class AccountClient(
         item: Item,
         formatId: String,
         operationId: String,
+        count: Int = 1,
     ): AccountResult<PlayerState> =
-        intent(token, "/me/shop/buy", BuyRequest(item, formatId, operationId))
+        intent(token, "/me/shop/buy", BuyRequest(item, formatId, operationId, count))
 
     suspend fun sellItem(
         token: String,

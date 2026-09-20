@@ -228,16 +228,17 @@ class StatsUiTest {
         // no ladder result at all, so the three campaign achievements could only be authored here
         // — plus the collections: the three rungs added above `ac-fob`, three four-rung tribe
         // ladders beside it, FFVIII's single-rung companion badge, and the hidden Zantetsuken.
-        // 25 + 3 + 12 + 1 + 1. Then the map: one clearing per place (20) and one win per
-        // tournament new with it (17) — see `PlaceAchievements` in `tto-core`.
-        const val ACHIEVEMENTS = 79
+        // 25 + 3 + 12 + 1 + 1. Then the map: one clearing per place (26) and one win per
+        // tournament new with it (23) — see `PlaceAchievements` in `tto-core`. The six places the
+        // FFVIII map gained bring one of each.
+        const val ACHIEVEMENTS = 91
 
         // `ac-tt`, `ac-wof`, `ac-td`, `ac-mp`, the four tribe ladders (`ac-fob`, `ac-fop`,
         // `ac-fog`, `ac-foh`) and `ac-foc` — and the three tournaments, which are families of one
         // apiece: a ladder is won or it is not, so there is no tier to climb. The tribe ladders
         // count as one family each because grouping trims the trailing digits, which is also why
         // `ac-fob` could keep its digitless id and still sit with `ac-fob2`. And `ac-zantetsuken`,
-        // a family of one like a tournament. The map's 37 are single-tier families too.
-        const val FAMILIES = 50
+        // a family of one like a tournament. The map's 49 are single-tier families too.
+        const val FAMILIES = 62
     }
 }

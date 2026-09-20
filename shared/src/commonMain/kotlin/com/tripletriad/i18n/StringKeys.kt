@@ -692,6 +692,14 @@ object StringKeys {
     const val ALL_OPPONENTS: String = "APP_ALL_OPPONENTS"
     const val RANDOM_HERE: String = "APP_RANDOM_HERE"
 
+    /**
+     * The mark on the portrait of an opponent already beaten once.
+     *
+     * A label rather than a decoration: the mark is the tile's only wordless state, so this is
+     * what a screen reader reads out and what a test looks for.
+     */
+    const val NPC_BEATEN: String = "APP_NPC_BEATEN"
+
     /** An opponent's hours, `{0}` to `{1}` on the 24-hour clock, local time. */
     const val NPC_HOURS: String = "APP_NPC_HOURS"
     const val NPC_AWAY: String = "APP_NPC_AWAY"
@@ -1194,6 +1202,15 @@ object StringKeys {
     /** What the wide shop's detail pane says before an offer is picked. */
     const val SHOP_PICK_OFFER: String = "APP_SHOP_PICK_OFFER"
 
+    // ---- The purchase sheet's quantity stepper. Its minus and plus are the sell stepper's, but
+    // its third button is a shortcut rather than a step, so what it says is the number it jumps to.
+    const val QUANTITY: String = "APP_QUANTITY"
+    const val BUY_FEWER: String = "APP_BUY_FEWER"
+    const val BUY_MORE: String = "APP_BUY_MORE"
+
+    /** The stepper's "as many as the purse allows", `{0}` that number. */
+    const val BUY_MOST: String = "APP_BUY_MOST"
+
     // ---- The card list's bulk sale: the toggle, and the bar that counts the selection.
     const val SELECT_CARDS: String = "APP_SELECT_CARDS"
     const val CARDS_SELECTED: String = "APP_CARDS_SELECTED"
@@ -1294,7 +1311,7 @@ object StringKeys {
         ZONE_NEEDS_ALL, ZONE_NEEDS_ANY, ZONES_NOTE,
         TOUR, TOUR_WANTED, TOUR_FRESH, TOUR_RIVAL, TOUR_TIMED,
         QUICK_MATCH, ALL_OPPONENTS, RANDOM_HERE,
-        NPC_HOURS, NPC_AWAY, NPC_NEEDS_ACHIEVEMENT, RIVAL_NEXT, RIVAL_MAX,
+        NPC_BEATEN, NPC_HOURS, NPC_AWAY, NPC_NEEDS_ACHIEVEMENT, RIVAL_NEXT, RIVAL_MAX,
         ACHIEVEMENTS_HIDDEN, CARD_HINT_ODIN,
         HELP_FAMILY_SIGHT, HELP_FAMILY_PLAY, HELP_FAMILY_CAPTURE, HELP_FAMILY_ELEMENTS,
         SERVERS_BLURB, SERVERS_CHECK, SERVERS_CHECKING,
@@ -1368,7 +1385,8 @@ object StringKeys {
         BADGE_NEW, BADGE_DUPLICATE, ADD_NEW_CARDS, SELL_DUPLICATES,
         DUPLICATES, CARD_COPIES, SELL_FEWER, SELL_MORE,
         ITEM_GIST_BOON, PACK_MISSING_SHORT, PACK_MISSING_OF, PACK_POOL, SHOP_BALANCE,
-        SHOP_PICK_OFFER, SELECT_CARDS, CARDS_SELECTED, SELL_KEEPS_ONE,
+        SHOP_PICK_OFFER, QUANTITY, BUY_FEWER, BUY_MORE, BUY_MOST,
+        SELECT_CARDS, CARDS_SELECTED, SELL_KEEPS_ONE,
     )
 
     val appOwned: List<String> = all.filter { it.startsWith("APP_") }

@@ -136,7 +136,7 @@ internal fun ColumnScope.ShopBody(
     starters: StarterCatalog,
     selectedTag: String?,
     onSelect: (String?) -> Unit,
-    onBuy: (ShopOffer) -> Unit,
+    onBuy: (ShopOffer, Int) -> Unit,
     onClaimStarter: (() -> Unit)? = null,
 ) {
     val wide = LocalWideLayout.current
@@ -515,7 +515,7 @@ private fun ShopOfferPane(
     offer: ShopOffer?,
     cards: Map<Int, Card>,
     profile: GameSave,
-    onBuy: (ShopOffer) -> Unit,
+    onBuy: (ShopOffer, Int) -> Unit,
     modifier: Modifier,
 ) {
     Column(
@@ -538,7 +538,7 @@ private fun ShopOfferPane(
                 offer = offer,
                 cards = cards,
                 profile = profile,
-                onBuy = { onBuy(offer) },
+                onBuy = { count -> onBuy(offer, count) },
             )
         }
     }
@@ -557,12 +557,17 @@ internal fun ShopOfferSheet(
     offer: ShopOffer,
     cards: Map<Int, Card>,
     profile: GameSave,
-    onBuy: () -> Unit,
+    onBuy: (Int) -> Unit,
 ) {
     val strings = LocalStrings.current
     val card = itemCard(offer.item, cards)
     val name = itemName(strings, offer.item, cards)
-    val isAffordable = offer.isAffordableBy(profile)
+    // Keyed on the purse as well as the offer, so a purchase leaves the stepper back at one
+    // rather than aimed at a second ten that the next tap would buy without being asked again.
+    val most = offer.affordableCount(profile)
+    var count by remember(offer, most) { mutableStateOf(1) }
+    val wanted = count.coerceIn(1, most.coerceAtLeast(1))
+    val isAffordable = offer.isAffordableBy(profile, wanted)
 
     Column(
         modifier = Modifier
@@ -645,13 +650,19 @@ internal fun ShopOfferSheet(
             PackPool(type = pack.boosterType, offer = offer, cards = cards, profile = profile)
         }
 
-        BalanceLine(offer = offer, profile = profile)
+        // Only when there is a choice to make: a purse that covers one of something says so by
+        // having no stepper, rather than by two buttons that cannot be pressed.
+        if (most > 1) {
+            BuyQuantity(count = wanted, most = most, onCount = { count = it })
+        }
+
+        BalanceLine(offer = offer, profile = profile, count = wanted)
 
         WideButton(
-            label = "${strings[StringKeys.BUY]}$DOT_SEPARATOR${grouped(offer.price)}",
+            label = buyLabel(strings, offer, wanted),
             tag = SHOP_BUY_TEST_TAG,
             enabled = isAffordable,
-            onClick = onBuy,
+            onClick = { onBuy(wanted) },
         )
     }
 }
@@ -742,9 +753,12 @@ private fun PackPool(
  * next purchase starts from.
  */
 @Composable
-private fun BalanceLine(offer: ShopOffer, profile: GameSave) {
+private fun BalanceLine(offer: ShopOffer, profile: GameSave, count: Int = 1) {
     val strings = LocalStrings.current
-    val affordable = offer.isAffordableBy(profile)
+    val affordable = offer.isAffordableBy(profile, count)
+    // Safe as an `Int` because [count] has been clamped to what the purse holds, which is one
+    // itself. `priceFor` is a `Long` for the counts that have **not** been — see `ShopCatalog.buy`.
+    val total = offer.priceFor(count).toInt()
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -768,7 +782,7 @@ private fun BalanceLine(offer: ShopOffer, profile: GameSave) {
         )
         if (affordable) {
             Text(
-                text = grouped(profile.mgp - offer.price),
+                text = grouped(profile.mgp - total),
                 modifier = Modifier.testTag(shopBalanceAfterTestTag(offer)),
                 color = MaterialTheme.colorScheme.tertiary,
                 style = MaterialTheme.typography.labelMedium,
@@ -777,7 +791,7 @@ private fun BalanceLine(offer: ShopOffer, profile: GameSave) {
             )
         } else {
             Text(
-                text = strings.format(StringKeys.PRICE_SHORT, grouped(offer.price - profile.mgp)),
+                text = strings.format(StringKeys.PRICE_SHORT, grouped(total - profile.mgp)),
                 modifier = Modifier.testTag(shopShortTestTag(offer)),
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.labelMedium,

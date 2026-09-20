@@ -425,6 +425,42 @@ class OpponentUiTest {
             .assertTextContains("Clear first", substring = true)
     }
 
+    /**
+     * A place's faces say which of them are done with.
+     *
+     * The count on the place's row ("2 / 6 beaten") says how many, never which, and the roster's
+     * "never played" chip lives on the full grid rather than in a place. So inside a place the
+     * only way to tell an opponent already beaten from one still to meet was to open each sheet
+     * in turn and read the rivalry line.
+     *
+     * Unmerged, because the mark sits inside the tile's own click target, which merges what it
+     * holds — the same reason the zone art is looked for that way.
+     */
+    @Test
+    fun aPlaceMarksTheOpponentsAlreadyBeaten() = runComposeUiTest {
+        val saucer = assertNotNull(shippedZones[STARTER_PLACE])
+        val documents = seeded(
+            GameSave.new(createdAt = 0L).copy(npcWins = mapOf(TEST_OPPONENT to 1)),
+        )
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openOpponents()
+        openPlace(STARTER_PLACE)
+
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
+            existsUnmerged(opponentBeatenTestTag(TEST_OPPONENT))
+        }
+        // The other five are on screen too — six tiles, no scrolling — so their want of a mark is
+        // a real absence rather than a lazy grid's silence.
+        for (other in saucer.npcs.filter { it != TEST_OPPONENT }) {
+            onNodeWithTag(opponentRowTestTag(other)).assertExists()
+            assertFalse(
+                existsUnmerged(opponentBeatenTestTag(other)),
+                "$other has never been beaten and should carry no mark",
+            )
+        }
+    }
+
     /** A place leads with its tournament, shut until the place is cleared and named as such. */
     @Test
     fun aPlaceShowsItsTournamentShutUntilItIsCleared() = runComposeUiTest {

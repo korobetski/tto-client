@@ -81,8 +81,12 @@ internal fun StoreScreen(
 
     // Hoisted out of the bottom bar that used to hold it: the button now lives in the sheet, and
     // the sheet is not the only thing that will ever want to spend the money.
-    val buy: (ShopOffer) -> Unit = { offer ->
-        val bought = itemName(strings, offer.item, cards)
+    val buy: (ShopOffer, Int) -> Unit = { offer, count ->
+        // Named with its count, so the note confirms the purchase that was actually made rather
+        // than the one the button says: "Bronze pack ×10" is the whole of what a player checks.
+        val bought = itemName(strings, offer.item, cards).let {
+            if (count > 1) "$it ×$count" else it
+        }
         // Closed immediately rather than left open behind the note: `ModalBottomSheet` draws in
         // its own `Popup`, on top of the scaffold and everything in it, `snackbarHost` included —
         // so a note shown while the sheet stayed open was there, just hidden under it. Closing the
@@ -93,7 +97,7 @@ internal fun StoreScreen(
         scope.launch {
             // Asked, not computed. On an account the price is the server's and the profile that
             // comes back is the one it wrote — see `BuyRequest`.
-            val outcome = onIntent(Intent.Buy(offer, format.id))
+            val outcome = onIntent(Intent.Buy(offer, format.id, count))
             // After the write, not before: the note says the purchase happened, and a line shown
             // while the save was in flight would be a promise.
             //
@@ -203,7 +207,7 @@ internal fun StoreScreen(
                     offer = offer,
                     cards = cards,
                     profile = profile,
-                    onBuy = { buy(offer) },
+                    onBuy = { count -> buy(offer, count) },
                 )
             }
         }

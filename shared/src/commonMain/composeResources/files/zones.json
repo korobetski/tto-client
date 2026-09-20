@@ -20,7 +20,7 @@
       "after": ["gold-saucer"],
       "npcs": [
         "memeroon", "tratchoum", "baderon", "mimidoa", "rashaht-rhiki", "gegeruju", "okalkaya",
-        "mordyn", "wawalago", "furtive-former-imperial"
+        "mordyn", "wawalago"
       ]
     },
     {
@@ -68,10 +68,7 @@
       "id": "gyr-abania",
       "nameKey": "APP_ZONE_GYR_ABANIA",
       "after": ["dravania"],
-      "npcs": [
-        "ercanbald", "sladkey", "arsieu", "umber-torrent", "garima", "ironworks-hand",
-        "imperial-deserter"
-      ]
+      "npcs": ["ercanbald", "umber-torrent", "garima", "ironworks-hand", "imperial-deserter"]
     },
     {
       "id": "kugane",
@@ -94,7 +91,8 @@
       "after": ["othard"],
       "npcs": [
         "cobleva", "lewto-sue", "eo-sigun", "redard", "saushs-koal", "ibenart", "drery",
-        "gyuf-uin", "glynard", "hargra", "grewenn", "lamlyn"
+        "gyuf-uin", "glynard", "hargra", "grewenn", "lamlyn", "furtive-former-imperial",
+        "sladkey", "arsieu"
       ]
     },
     {
@@ -118,13 +116,43 @@
     {
       "id": "balamb",
       "nameKey": "APP_ZONE_BALAMB",
-      "npcs": ["kid", "jack", "club", "diamond", "ma-dincht", "trepies"]
+      "npcs": ["kid", "jack", "club", "diamond", "ma-dincht", "trepies", "hotel-owner"]
+    },
+    {
+      "id": "balamb-garden",
+      "nameKey": "APP_ZONE_BALAMB_GARDEN",
+      "after": ["balamb"],
+      "npcs": ["jogger", "bench-man", "library-girl", "garden-faculty", "cafeteria-seed", "kadowaki"]
+    },
+    {
+      "id": "dollet",
+      "nameKey": "APP_ZONE_DOLLET",
+      "after": ["balamb-garden"],
+      "npcs": [
+        "dollet-pub-owner", "dollet-radio-tech", "dollet-duke", "galbadian-sentry",
+        "dollet-fisher"
+      ]
+    },
+    {
+      "id": "timber",
+      "nameKey": "APP_ZONE_TIMBER",
+      "after": ["dollet"],
+      "npcs": [
+        "timber-pub-owner", "timber-maniacs", "owl-lookout", "train-conductor",
+        "galbadia-officer"
+      ]
     },
     {
       "id": "galbadia",
       "nameKey": "APP_ZONE_GALBADIA",
-      "after": ["balamb"],
+      "after": ["timber"],
       "npcs": ["zone", "martine", "watts", "caraway"]
+    },
+    {
+      "id": "winhill",
+      "nameKey": "APP_ZONE_WINHILL",
+      "after": ["galbadia"],
+      "npcs": ["raine", "winhill-florist", "vase-lady", "winhill-militia"]
     },
     {
       "id": "fishermans-horizon",
@@ -133,16 +161,28 @@
       "npcs": ["dobe", "flo"]
     },
     {
+      "id": "shumi-village",
+      "nameKey": "APP_ZONE_SHUMI_VILLAGE",
+      "after": ["fishermans-horizon"],
+      "npcs": ["shumi-elder", "shumi-artisan", "moomba", "shumi-attendant", "shumi-sculptor"]
+    },
+    {
+      "id": "trabia",
+      "nameKey": "APP_ZONE_TRABIA",
+      "after": ["fishermans-horizon"],
+      "npcs": ["trabia-classmate", "trabia-cadet", "trabia-coach", "trabia-mechanic"]
+    },
+    {
       "id": "centra",
       "nameKey": "APP_ZONE_CENTRA",
-      "after": ["fishermans-horizon"],
+      "after": ["trabia"],
       "npcs": ["chocoboy", "ufo", "edea", "cid"]
     },
     {
       "id": "esthar",
       "nameKey": "APP_ZONE_ESTHAR",
       "after": ["centra"],
-      "npcs": ["piet", "odine", "ellone", "laguna"]
+      "npcs": ["piet", "odine", "ellone", "laguna", "presidential-aide"]
     },
     {
       "id": "card-club",

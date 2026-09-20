@@ -14,7 +14,6 @@ import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -43,6 +42,7 @@ import com.tripletriad.data.DailyTour
 import com.tripletriad.data.NpcCatalog
 import com.tripletriad.data.QuickMatch
 import com.tripletriad.data.ZoneCatalog
+import com.tripletriad.data.isBeatenBy
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.Availability
@@ -297,6 +297,7 @@ internal fun OpponentScreen(
                             owned = profile.cards,
                             caption = caption,
                             note = npc.absenceNote(strings, hour, earned),
+                            beaten = npc.isBeatenBy(profile),
                             onClick = { detailIcon = npc.iconId },
                         )
                     },
@@ -318,6 +319,7 @@ internal fun OpponentScreen(
                             owned = profile.cards,
                             note = npc.absenceNote(strings, hour, earned) ?: npc.hoursNote(strings),
                             dimmed = !challengeable(npc),
+                            beaten = npc.isBeatenBy(profile),
                             onClick = { detailIcon = npc.iconId },
                         )
                     }
@@ -398,6 +400,7 @@ private fun LazyGridScope.everyoneItems(
                 cards = cards,
                 owned = profile.cards,
                 note = npc.hoursNote(LocalStrings.current),
+                beaten = npc.isBeatenBy(profile),
                 onClick = { onOpen(npc) },
             )
         }
@@ -459,8 +462,6 @@ private const val UNEARNED_KEY = "unearned-note"
 
 private val TileMinWidth = 104.dp
 
-private val WantDotSize = 9.dp
-
 private val FeeCoinSize = 13.dp
 
 /**
@@ -519,6 +520,8 @@ internal fun OpponentTile(
     note: String? = null,
     /** Shown but not challengeable now. Still opens the sheet, which says why. */
     dimmed: Boolean = false,
+    /** Already beaten at least once, marked over the portrait. See [NpcMarks]. */
+    beaten: Boolean = false,
 ) {
     val strings = LocalStrings.current
     val name = strings[npc.nameKey]
@@ -549,14 +552,7 @@ internal fun OpponentTile(
         }
         Box {
             NpcPortrait(npc = npc, name = name)
-            if (wants) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .size(WantDotSize)
-                        .background(MaterialTheme.colorScheme.tertiary, CircleShape),
-                )
-            }
+            NpcMarks(iconId = npc.iconId, wants = wants, beaten = beaten)
         }
 
         Text(

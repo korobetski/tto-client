@@ -493,13 +493,31 @@ class StringsBundleTest {
         // bundle has one, the potion is the port's), `APP_LUCK_BOOST_DESC` and `APP_LUCK`, the
         // boon's label on the character bar. Gaps unchanged, 2026-09-18.
 
-        const val UNION_KEYS = 2155
+        // +1 to every bundle since: `APP_NPC_BEATEN`, the label on the tick a roster tile now
+        // draws over the portrait of an opponent already beaten — see `NpcMarks`. Authored in all
+        // four `app-*` bundles at once, so the gaps are unchanged. Measured on 2026-09-20 from a
+        // `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted.
+
+        // +4 to every bundle since: the purchase sheet's quantity stepper — `APP_QUANTITY`,
+        // `APP_BUY_FEWER`, `APP_BUY_MORE` and `APP_BUY_MOST`. Authored in all four `app-*`
+        // bundles at once, so the gaps are unchanged. Measured on 2026-09-20 from a
+        // `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted.
+
+        // +67 to every bundle since: the FFVIII map. Thirty-one `APP_NPC_<ID>` for the new
+        // opponents, and for each of the six new places its `APP_ZONE_<ID>`, its tournament's
+        // `APP_CAMPAIGN_<ID>`, and the two achievements with their descriptions
+        // (`APP_AC_ZONE_<ID>`, `_DESC`, `APP_AC_CAMPAIGN_<ID>`, `_DESC`) — 31 + 36. The three
+        // FFXIV opponents that moved place took their names with them and added none. Authored in
+        // all four `app-*` bundles at once, so the gaps are unchanged. Measured on 2026-09-20 from
+        // a `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted.
+
+        const val UNION_KEYS = 2227
 
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 2151,
-            AppLocale.FR_FR to 2152,
-            AppLocale.DE_DE to 2080,
-            AppLocale.JA_JA to 2112,
+            AppLocale.EN_US to 2223,
+            AppLocale.FR_FR to 2224,
+            AppLocale.DE_DE to 2152,
+            AppLocale.JA_JA to 2184,
         )
 
         val EXPECTED_GAPS = mapOf(

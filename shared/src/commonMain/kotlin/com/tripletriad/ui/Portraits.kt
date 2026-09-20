@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -25,6 +26,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.tripletriad.i18n.LocalStrings
+import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.BoonType
 import com.tripletriad.model.BoosterItem
 import com.tripletriad.model.Card
@@ -152,6 +155,46 @@ internal fun NpcPortrait(
         contentAlignment = Alignment.Center,
     ) {
         Bitmap(image = image, description = name, fallback = name)
+    }
+}
+
+/**
+ * The two corners of a portrait that carry what the tile's words do not.
+ *
+ * Opposite corners, and different shapes: the two are true together often — an opponent beaten
+ * once who still holds a card the collection lacks — and telling them apart cannot rest on colour
+ * alone, which [OpponentTile]'s dimming has already spent half of.
+ *
+ * The tick sits on a disc rather than straight on the art: a portrait is somebody's scraped
+ * artwork, and a bare green tick on a pale one is not a tick.
+ */
+@Composable
+internal fun BoxScope.NpcMarks(iconId: String, wants: Boolean, beaten: Boolean) {
+    if (beaten) {
+        val ground = MaterialTheme.colorScheme.surface.copy(alpha = MARK_GROUND)
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .size(BeatenMarkSize)
+                .background(ground, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = TtoIcons.Done,
+                contentDescription = LocalStrings.current[StringKeys.NPC_BEATEN],
+                tint = LocalTtoColors.current.positive,
+                modifier = Modifier.size(BeatenTickSize).testTag(opponentBeatenTestTag(iconId)),
+            )
+        }
+    }
+    // The dot the roster has always drawn: this opponent can hand over a card not held yet.
+    if (wants) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .size(WantDotSize)
+                .background(MaterialTheme.colorScheme.tertiary, CircleShape),
+        )
     }
 }
 
@@ -467,6 +510,9 @@ const val AVATAR_TEST_TAG: String = "avatar"
 
 fun portraitTestTag(iconId: String): String = "portrait-$iconId"
 
+/** The tick [NpcMarks] draws over a beaten opponent. */
+fun opponentBeatenTestTag(iconId: String): String = "opponent-beaten-$iconId"
+
 fun thumbTestTag(textureId: String): String = "thumb-$textureId"
 
 private val AVATAR_SIZE = 56.dp
@@ -475,6 +521,16 @@ private val AVATAR_SIZE = 56.dp
 private val PORTRAIT_SIZE = 50.dp
 private val ICON_SIZE = 32.dp
 private val THUMB_SIZE = 40.dp
+
+/** The cyan dot over a portrait: this opponent holds a card the collection does not. */
+private val WantDotSize = 9.dp
+
+private val BeatenMarkSize = 16.dp
+
+private val BeatenTickSize = 12.dp
+
+/** How much of the portrait the beaten mark's disc keeps out, so the tick reads on any art. */
+private const val MARK_GROUND = 0.8f
 
 /** The element badge on a tile. Bigger than the stats line's, because it is read at a glance. */
 private val TileBadgeSize = 16.dp

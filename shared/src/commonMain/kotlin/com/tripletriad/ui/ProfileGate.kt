@@ -36,7 +36,13 @@ enum class IntentOutcome {
 }
 
 sealed interface Intent {
-    data class Buy(val offer: ShopOffer, val formatId: String) : Intent
+    /**
+     * Buying [count] of one offer, as one purchase rather than [count] of them.
+     *
+     * All or nothing, and priced by `:core` on both paths — see `ShopCatalog.buy`, which caps the
+     * count and refuses a purse that covers only part of it.
+     */
+    data class Buy(val offer: ShopOffer, val formatId: String, val count: Int = 1) : Intent
 
     data class SellItem(val item: Item) : Intent
 
@@ -112,7 +118,7 @@ private fun GameSave.applying(
     cards: Map<Int, Card>,
     random: Random,
 ): GameSave = when (intent) {
-    is Intent.Buy -> ShopCatalog.buy(this, intent.offer)
+    is Intent.Buy -> ShopCatalog.buy(this, intent.offer, intent.count)
     is Intent.SellItem -> Inventory.sell(this, intent.item, cards)
 
     // The same `:core` function the server calls, given the same count it would compute — the

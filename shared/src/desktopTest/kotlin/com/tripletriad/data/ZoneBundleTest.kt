@@ -139,6 +139,61 @@ class ZoneBundleTest {
         }
     }
 
+    /**
+     * **The way on ramps up.** A place may not hold its exits shut behind an opponent harder than
+     * its distance from the door allows.
+     *
+     * ### What this is for
+     *
+     * `difficulty` is measured, not authored ([NpcRatingBundleTest]), so it cannot be softened to
+     * make a place welcoming — softening it would only make the number lie. What *is* authored is
+     * who holds the way shut: an opponent behind [Npc.requiresAchievement] still stands in the
+     * place, still counts towards completing it, and no longer blocks the places after it
+     * ([ZoneCatalog.blocks]). The Gold Saucer shipped with Ruhtwyda, Aurifort and the Queen of
+     * Cards — 10, 10 and 8 — as the fourth, fifth and sixth opponents a new profile is ever
+     * offered, ahead of every other place on the map. They are still there; they are no longer
+     * the door.
+     *
+     * ### The ceiling
+     *
+     * [ENTRY_CEILING] at the door and [CEILING_STEP] per place that has to be cleared to get here,
+     * to the top of the scale. So a starter place asks for 4s, the ring behind it for 7s, and from
+     * two places in the map stops asking — by then the ramp has done its work and a place is free
+     * to be what it is. The numbers are a decision, not a measurement, and this is where the
+     * decision lives: raise them and the opponents that no longer fit fail here by name.
+     *
+     * A place with nothing holding it shut would open the map for free, so that is checked in the
+     * same breath.
+     */
+    @Test
+    fun theWayOnRampsUpWithHowFarAPlaceIsFromTheDoor() {
+        for (zone in zones.zones) {
+            val holding = zone.npcs
+                .mapNotNull { icon -> npcs.all.firstOrNull { it.iconId == icon } }
+                .filter(ZoneCatalog::blocks)
+            assertTrue(holding.isNotEmpty(), "nothing holds ${zone.id} shut")
+
+            val before = zone.placesBefore().size
+            val ceiling = minOf(ENTRY_CEILING + CEILING_STEP * before, NpcRating.RANGE.last)
+            assertEquals(
+                emptyList(),
+                holding.filter { it.difficulty > ceiling }.map { "${it.iconId} ${it.difficulty}" },
+                "${zone.id} opens after $before place(s), so it may ask for at most $ceiling",
+            )
+        }
+    }
+
+    /** Which places have to be cleared before this one opens — [ZoneCatalog]'s own two rules. */
+    private fun Zone.placesBefore(): Set<String> = when {
+        isStarter -> emptySet()
+        // Any one of them opens it, so what it costs is the cheapest of them.
+        afterAny -> after.map { it.withItsOwn() }.minBy { it.size }
+        else -> after.flatMapTo(mutableSetOf()) { it.withItsOwn() }
+    }
+
+    private fun String.withItsOwn(): Set<String> =
+        zones.zones.single { it.id == this }.placesBefore() + this
+
     private fun Zone.opensAfter(open: Set<String>): Boolean = when {
         isStarter -> true
         afterAny -> after.any { it in open }
@@ -147,6 +202,12 @@ class ZoneBundleTest {
 
     private companion object {
         val PREDATING_LADDERS = setOf("gs", "cc", "balamb")
+
+        /** What a place open from the start may ask for. */
+        const val ENTRY_CEILING = 4
+
+        /** How much each place cleared on the way here raises that. */
+        const val CEILING_STEP = 3
         const val ZONE_ART_DIR = "src/commonMain/composeResources/files/art/zones"
         const val ART_WIDTH = 960
         const val ART_HEIGHT = 540

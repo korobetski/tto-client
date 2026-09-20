@@ -169,8 +169,8 @@ class CampaignBundleTest {
         requireNotNull(formats[formatId]) { "no such format: $formatId" }.blocks
 
     private companion object {
-        const val LADDERS = 20
-        const val FF8_LADDERS = 6
+        const val LADDERS = 26
+        const val FF8_LADDERS = 12
         const val MIN_RUNGS_SEEN = 2
         const val MAX_RUNGS_SEEN = 7
         const val FEE_PER_DIFFICULTY = 100

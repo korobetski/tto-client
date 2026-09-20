@@ -160,6 +160,80 @@ class ShopUiTest {
         assertEquals(1, storedSave(documents).bag.size, "one row, stack of two")
     }
 
+    /**
+     * **Ten packs are one tap on the shortcut, one price and one delivery.**
+     *
+     * The count travels with the purchase — see `Intent.Buy` and `BuyRequest.count` — so this is
+     * one write rather than ten, and the purse is charged `priceFor(10)` in a single step. The
+     * purse is set to exactly ten of the price so the shortcut's own ceiling is ten: that button
+     * offers what the purse allows, and what it offers is what `:core` will charge for.
+     */
+    @Test
+    fun theQuantityShortcutBuysAsManyAsThePurseAllows() = runComposeUiTest {
+        val potion = ShopCatalog.ff14.first { it.item == PotionItem(PotionType.MGP) }
+        val documents = seeded(profile(mgp = potion.price * TEN))
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openShop(documents)
+
+        shelf("boons")
+        onNodeWithTag(shopOfferTestTag(potion)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(SHOP_MOST_TEST_TAG) }
+        onNodeWithTag(SHOP_MOST_TEST_TAG).performClick()
+        waitForIdle()
+        assertEquals("$TEN", lineOf(SHOP_COUNT_TEST_TAG), "the shortcut should jump to the most")
+
+        onNodeWithTag(SHOP_BUY_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { storedSave(documents).bag.isNotEmpty() }
+
+        val save = storedSave(documents)
+        assertEquals(TEN, Inventory.count(save, potion.item), "ten bought, ten delivered")
+        assertEquals(0, save.mgp, "and ten paid for")
+        assertEquals(1, save.bag.size, "one row, stack of ten")
+    }
+
+    /**
+     * **The stepper is there only when there is a choice to make.**
+     *
+     * A purse that affords one is offered no quantity at all, and the button is the plain "Buy"
+     * it always was; a purse that affords two starts at one, with only the "+" live. Both halves
+     * matter: a row of dead buttons over every offer a starting purse can barely reach is the
+     * clutter this feature would otherwise add to the sheet.
+     */
+    @Test
+    fun theStepperAppearsOnlyWhenThePurseCanAffordASecond() = runComposeUiTest {
+        val potion = ShopCatalog.ff14.first { it.item == PotionItem(PotionType.MGP) }
+        val documents = seeded(profile(mgp = potion.price))
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openShop(documents)
+
+        shelf("boons")
+        onNodeWithTag(shopOfferTestTag(potion)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(SHOP_BUY_TEST_TAG) }
+        assertFalse(exists(SHOP_MORE_TEST_TAG), "one affordable, so nothing to step through")
+        assertFalse(exists(SHOP_COUNT_TEST_TAG))
+    }
+
+    /** The other half: a purse for two opens the stepper at one, and it stops at two. */
+    @Test
+    fun aPurseForTwoOpensTheStepperAtOneAndStopsAtTwo() = runComposeUiTest {
+        val potion = ShopCatalog.ff14.first { it.item == PotionItem(PotionType.MGP) }
+        val documents = seeded(profile(mgp = potion.price * 2))
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openShop(documents)
+
+        shelf("boons")
+        onNodeWithTag(shopOfferTestTag(potion)).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(SHOP_MORE_TEST_TAG) }
+        assertEquals("1", lineOf(SHOP_COUNT_TEST_TAG), "a stepper opens on one")
+        onNodeWithTag(SHOP_FEWER_TEST_TAG).assertIsNotEnabled()
+
+        onNodeWithTag(SHOP_MORE_TEST_TAG).performClick()
+        waitForIdle()
+        assertEquals("2", lineOf(SHOP_COUNT_TEST_TAG))
+        onNodeWithTag(SHOP_MORE_TEST_TAG).assertIsNotEnabled()
+        onNodeWithTag(SHOP_FEWER_TEST_TAG).assertIsEnabled()
+    }
+
     @Test
     fun eachShelfIsOneChipAwayAndOnlyOneIsOnScreen() = runComposeUiTest {
         val documents = seeded(profile(mgp = ENOUGH_FOR_ANY_PACK))
@@ -430,5 +504,7 @@ class ShopUiTest {
 
         /** Above the bronze pouch and below the platinum one, which `BoosterPricing` sets. */
         const val MID_PURSE = 1_000
+
+        const val TEN = 10
     }
 }

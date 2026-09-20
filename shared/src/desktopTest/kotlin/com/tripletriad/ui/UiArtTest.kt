@@ -102,10 +102,24 @@ class UiArtTest {
         /**
          * Opponents that ship no portrait **by design** — the four suits and the face cards among
          * them are placeholders rather than people.
+         *
+         * The thirty-one written for the FFVIII map are here for a different reason and belong in
+         * the same list all the same: they are authored in this repository and stand in no AS3
+         * original, so there is no art to import and none may be drawn from elsewhere while BR-003
+         * is unresolved (see CLAUDE.md). `Portraits` draws each with its initial, the way the
+         * forty already without a face are drawn. They are not [AWAITING_PORTRAIT]: nothing is
+         * missing, because nothing was ever extracted.
          */
         val WITHOUT_PORTRAITS = listOf(
             "club", "diamond", "dobe", "flo", "heart", "jack", "jocker",
             "ma-dincht", "piet", "spade", "trepies",
+            "bench-man", "cafeteria-seed", "dollet-duke", "dollet-fisher", "dollet-pub-owner",
+            "dollet-radio-tech", "galbadia-officer", "galbadian-sentry", "garden-faculty",
+            "hotel-owner", "jogger", "kadowaki", "library-girl", "moomba", "owl-lookout",
+            "presidential-aide", "raine", "shumi-artisan", "shumi-attendant", "shumi-elder",
+            "shumi-sculptor", "timber-maniacs", "timber-pub-owner", "trabia-cadet",
+            "trabia-classmate", "trabia-coach", "trabia-mechanic", "train-conductor", "vase-lady",
+            "winhill-florist", "winhill-militia",
         )
 
         /**
@@ -114,9 +128,11 @@ class UiArtTest {
          * faces were not among what came across.
          *
          * They arrived with the FFXIV expansion, which added 75 opponents and only 38 portraits —
-         * 158 opponents are declared against 112 files in `art/npcs/`. Each of these draws with the
+         * 189 opponents are declared against 112 files in `art/npcs/`. Each of these draws with the
          * fallback plate instead of a face, which is why the count is asserted separately: this
-         * list shrinks by adding the missing files, one name at a time.
+         * list shrinks by adding the missing files, one name at a time. The gap widened again with
+         * the FFVIII map, but not here: those thirty-one are in [WITHOUT_PORTRAITS], for the reason
+         * stated there.
          */
         val AWAITING_PORTRAIT = listOf(
             "aiglephine", "bruk-noq", "celia", "cheatingway", "cobleva", "droyn", "gamingway",

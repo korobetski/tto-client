@@ -54,6 +54,8 @@ fun zoneStatusTestTag(zoneId: String): String = "opponent-zone-status-$zoneId"
 
 fun zoneArtTestTag(zoneId: String): String = "opponent-zone-art-$zoneId"
 
+fun zoneOpensTestTag(zoneId: String): String = "opponent-zone-opens-$zoneId"
+
 /**
  * The roster's home: the quick match, the day's tour, the places, and the way to everybody.
  *
@@ -62,8 +64,9 @@ fun zoneArtTestTag(zoneId: String): String = "opponent-zone-art-$zoneId"
  *
  * Only the open places are listed. The shut ones used to be here too, dimmed, each naming the
  * place to clear first — which laid the whole map out on the first screen a new character saw,
- * twenty-odd rows of which two could be entered. A place now appears the day it opens, and the
- * note under the list is what says that clearing one opens more.
+ * twenty-odd rows of which two could be entered. A place now appears the day it opens. What it
+ * leads to is still said, but on the row of the place that leads there — "3 more to beat to open
+ * Dollet" — so the one shut place named is the next one, and it is named where the work is.
  */
 @Suppress("LongParameterList")
 internal fun LazyGridScope.homeItems(
@@ -151,6 +154,11 @@ internal fun LazyGridScope.placeItems(
             ).padding(vertical = SpaceXs),
         )
     }
+    if (place.opens.isNotEmpty()) {
+        span("place-opens") {
+            opensLine(LocalStrings.current, place)?.let { OpensLine(it, place.zone.id) }
+        }
+    }
     if (tournament != null) {
         span("place-tournament") {
             CampaignRow(
@@ -232,6 +240,7 @@ private fun ZoneRow(place: ZoneProgress, onOpen: () -> Unit) {
                     style = MaterialTheme.typography.labelSmall,
                     modifier = Modifier.testTag(zoneStatusTestTag(place.zone.id)),
                 )
+                opensLine(strings, place)?.let { OpensLine(it, place.zone.id) }
             }
             Text(
                 text = "${place.beaten}/${place.members.size}",
@@ -263,6 +272,37 @@ private fun ZoneBanner(zoneId: String) {
             .height(ZoneBannerHeight)
             .clip(MaterialTheme.shapes.small),
     )
+}
+
+/** The line naming what clearing a place opens, in the colour of a goal rather than a status. */
+@Composable
+private fun OpensLine(text: String, zoneId: String) {
+    Text(
+        text = text,
+        color = MaterialTheme.colorScheme.primary,
+        style = MaterialTheme.typography.labelSmall,
+        modifier = Modifier.testTag(zoneOpensTestTag(zoneId)),
+    )
+}
+
+/**
+ * "3 more to beat to open Dollet", or null for a place that opens nothing new — cleared already,
+ * or the end of its road.
+ *
+ * [ZoneProgress.left] rather than the unbeaten count: the ones who keep hours or wait behind a
+ * badge do not hold the way shut, and a count that included them would promise a door that is
+ * already one win away from opening.
+ */
+private fun opensLine(strings: Strings, place: ZoneProgress): String? {
+    if (place.opens.isEmpty()) return null
+    val names = place.opens.joinToString(strings[StringKeys.LIST_SEPARATOR]) {
+        strings[it.nameKey]
+    }
+    return if (place.left == 1) {
+        strings.format(StringKeys.ZONE_OPENS_ONE, names)
+    } else {
+        strings.format(StringKeys.ZONE_OPENS_MANY, "${place.left}", names)
+    }
 }
 
 private fun placeSummary(strings: Strings, place: ZoneProgress): String =

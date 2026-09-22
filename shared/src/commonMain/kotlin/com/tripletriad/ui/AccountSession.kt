@@ -486,16 +486,26 @@ internal fun AccountResult<*>.message(strings: Strings): String = when (this) {
     is AccountResult.Failed -> strings.format(StringKeys.ERROR_STATUS, status.toString())
     is AccountResult.RefusedPvp -> code.message(strings)
 
-    // One sentence for five of the six codes, unlike the player-versus-player refusals above. Each
-    // of those means "this screen's idea of the match is wrong", and the answer to all of them is
-    // the same: re-read it. A player who is told *which* way their client was out of date learns
-    // nothing they can act on.
+    // One sentence for four of the seven codes, unlike the player-versus-player refusals above.
+    // Each of those means "this screen's idea of the match is wrong", and the answer to all of them
+    // is the same: re-read it. A player who is told *which* way their client was out of date
+    // learns nothing they can act on.
     //
-    // `UNDEALABLE` is the exception and had to be pulled out: it is not staleness, re-reading does
-    // not fix it, and the retry button under that sentence never once helped. It is a deck the
-    // format does not admit, and saying so is the only thing that lets the player act.
+    // `UNDEALABLE` is the first exception and had to be pulled out: it is not staleness,
+    // re-reading does not fix it, and the retry button under that sentence never once helped. It
+    // is a deck the format does not admit, and saying so is the only thing that lets the player
+    // act.
+    //
+    // The two catalogue misses are the second. They were staleness too until 2026-09-21, when the
+    // server had never been given thirty-one of the client's opponents and every one of them read
+    // as "the match has moved on" — true of nothing, and the reason the drift took a server log to
+    // find. The sentence now says the server may be behind — "may", because `PveRoutes.open`
+    // answers an opponent the profile has not earned with the same code, and this client never
+    // offers one of those unless the two disagree about the profile.
     is AccountResult.RefusedPve -> when (code) {
         PveRefusal.UNDEALABLE -> strings[StringKeys.ERROR_UNDEALABLE]
+        PveRefusal.NO_SUCH_OPPONENT, PveRefusal.NO_SUCH_FORMAT ->
+            strings[StringKeys.ERROR_NOT_ON_SERVER]
         else -> strings[StringKeys.ERROR_STALE_MATCH]
     }
 

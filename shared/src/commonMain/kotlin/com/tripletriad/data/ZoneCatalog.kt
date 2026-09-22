@@ -51,12 +51,20 @@ enum class ZoneStatus {
  *
  * @property members the zone's opponents in the roster it was read against, easiest first.
  * @property beaten how many [members] the profile has a win against.
+ * @property left how many of the [members] that [ZoneCatalog.blocks] are still unbeaten. Smaller
+ *   than `members.size - beaten` wherever an opponent keeps hours or waits behind a badge.
+ * @property opens the shut places this one's clearing would open, in map order. Empty unless it is
+ *   [ZoneStatus.OPEN]: a place is named here before it opens, and only here, so the home can say
+ *   what a player is working towards without listing the whole map (see `homeItems`). A place that
+ *   also waits on another uncleared one is not named — clearing this would not open it.
  */
 data class ZoneProgress(
     val zone: Zone,
     val status: ZoneStatus,
     val members: List<Npc>,
     val beaten: Int,
+    val left: Int,
+    val opens: List<Zone>,
 ) {
     val isOpen: Boolean get() = status != ZoneStatus.LOCKED
 }
@@ -97,9 +105,21 @@ class ZoneCatalog(val zones: List<Zone>) {
                     ZoneStatus.COMPLETE
                 else -> ZoneStatus.CLEARED
             }
-            ZoneProgress(zone, status, members, beaten)
+            val left = members.count { blocks(it) && !it.isBeatenBy(save) }
+            val opens =
+                if (status == ZoneStatus.OPEN) opening(zone, cleared, byIcon) else emptyList()
+            ZoneProgress(zone, status, members, beaten, left, opens)
         }.sortedBy { !it.isOpen }
     }
+
+    /** The zones still shut that [zone] would open on its own, if it were cleared now. */
+    private fun opening(zone: Zone, cleared: Set<String>, byIcon: Map<String, Npc>): List<Zone> =
+        zones.filter { next ->
+            zone.id in next.after &&
+                next.npcs.any(byIcon::containsKey) &&
+                !isUnlocked(next, cleared) &&
+                isUnlocked(next, cleared + zone.id)
+        }
 
     /**
      * The members of [roster] whose zone is open, in roster order.

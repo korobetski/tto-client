@@ -599,8 +599,20 @@ object StringKeys {
 
     const val ERROR_STATUS: String = "APP_ERROR_STATUS"
 
-    /** One line for every `PveRefusal` but `UNDEALABLE`: the board on screen is out of date. */
+    /**
+     * One line for the `PveRefusal`s that mean the board on screen is out of date — all but
+     * `UNDEALABLE` and the two [ERROR_NOT_ON_SERVER] takes.
+     */
     const val ERROR_STALE_MATCH: String = "APP_ERROR_STALE_MATCH"
+
+    /**
+     * `NO_SUCH_OPPONENT` and `NO_SUCH_FORMAT`: most likely the server's catalogues lack what this
+     * client's offer. Re-reading never fixes it, and on 2026-09-21 it read as [ERROR_STALE_MATCH]
+     * for thirty-one opponents the server had never been given — see CLAUDE.md, "The catalogs the
+     * server copies". Worded "may be" because the server answers an opponent not yet earned the
+     * same way, and a client offering one is out of step some other way.
+     */
+    const val ERROR_NOT_ON_SERVER: String = "APP_ERROR_NOT_ON_SERVER"
 
     /** `PveRefusal.UNDEALABLE`, which retrying never fixes — the deck is the wrong pool. */
     const val ERROR_UNDEALABLE: String = "APP_ERROR_UNDEALABLE"
@@ -678,8 +690,14 @@ object StringKeys {
     const val ZONE_COMPLETE: String = "APP_ZONE_COMPLETE"
     const val ZONE_BEATEN: String = "APP_ZONE_BEATEN"
     const val ZONE_NEEDS_ALL: String = "APP_ZONE_NEEDS_ALL"
-    const val ZONE_NEEDS_ANY: String = "APP_ZONE_NEEDS_ANY"
     const val ZONES_NOTE: String = "APP_ZONES_NOTE"
+
+    /** What clearing an open place opens: one opponent left, then `{0}` of them. */
+    const val ZONE_OPENS_ONE: String = "APP_ZONE_OPENS_ONE"
+    const val ZONE_OPENS_MANY: String = "APP_ZONE_OPENS_MANY"
+
+    /** Between the names of a list — `, ` where the language has no mark of its own. */
+    const val LIST_SEPARATOR: String = "APP_LIST_SEPARATOR"
 
     /** The day's three suggestions, each captioned with why it was picked. See `DailyTour`. */
     const val TOUR: String = "APP_TOUR"
@@ -1302,13 +1320,13 @@ object StringKeys {
         SIGN_IN, CREATE_ACCOUNT, PASSWORD, ACCOUNT_BLURB,
         ACCOUNT_TO_REGISTER, ACCOUNT_TO_SIGN_IN, UPDATE_NEEDED,
         ERROR_OFFLINE, ERROR_UPDATE, ERROR_STATUS, ERROR_STALE_MATCH, ERROR_UNDEALABLE,
-        ERROR_THROTTLED, ERROR_THROTTLED_IN,
+        ERROR_NOT_ON_SERVER, ERROR_THROTTLED, ERROR_THROTTLED_IN,
         NO_SEEDS, LOADING, RETRY, CARD_FACE_DOWN, PROFILE_LOCAL_NOTE,
         ERROR_NAME_TAKEN, ERROR_BAD_CREDENTIALS, ERROR_EXPIRED,
         OPPONENTS_LOCKED, OPPONENTS_UNEARNED, REWARD_CARDS,
         OPPONENTS_NEW, OPPONENTS_WANTED, OPPONENTS_TIMED, SOLO, ANY_RULE,
         ZONES, ZONE_LOCKED, ZONE_OPEN, ZONE_CLEARED, ZONE_COMPLETE, ZONE_BEATEN,
-        ZONE_NEEDS_ALL, ZONE_NEEDS_ANY, ZONES_NOTE,
+        ZONE_NEEDS_ALL, ZONES_NOTE, ZONE_OPENS_ONE, ZONE_OPENS_MANY, LIST_SEPARATOR,
         TOUR, TOUR_WANTED, TOUR_FRESH, TOUR_RIVAL, TOUR_TIMED,
         QUICK_MATCH, ALL_OPPONENTS, RANDOM_HERE,
         NPC_BEATEN, NPC_HOURS, NPC_AWAY, NPC_NEEDS_ACHIEVEMENT, RIVAL_NEXT, RIVAL_MAX,

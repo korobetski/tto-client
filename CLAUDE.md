@@ -132,11 +132,14 @@ the change.** The other half is `cp` into that directory, in the same commit.
 
 What drift looks like, from the 2026-09-21 case that is the reason this section exists: the FFVIII
 map shipped 31 new opponents here and nowhere else, so the server resolved every one of them to
-`PveRefusal.NO_SUCH_OPPONENT`. The client shows **"La partie a avancé. Rechargement du plateau."**
-— `AccountSession.message` maps five of the six PvE refusals onto that one sentence, deliberately,
-so the screen says *staleness* for what is actually *a server that has never heard of this
-opponent*. Take that sentence on a brand-new opponent as meaning the catalogs have drifted, not
-that anything here is wrong.
+`PveRefusal.NO_SUCH_OPPONENT`. The client then showed **"La partie a avancé. Rechargement du
+plateau."** — `AccountSession.message` folded that refusal into its staleness sentence, so the
+screen said *staleness* for what was actually *a server that had never heard of this opponent*.
+Since 2026-09-22 `NO_SUCH_OPPONENT` and `NO_SUCH_FORMAT` have their own sentence instead: **"Ce
+serveur ne vous propose pas cette partie. Il n'est peut-être pas à jour avec votre version du
+jeu."** Take that one on a brand-new opponent as meaning the catalogs have drifted, not that
+anything here is wrong. It says "peut-être" because the server gives the same answer for an
+opponent the profile has not earned yet.
 
 ```bash
 cp shared/src/commonMain/composeResources/files/{npcs,campaigns}.json \

@@ -10,6 +10,7 @@ import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.FF14_FORMAT
 import com.tripletriad.FF8_BLOCK
 import com.tripletriad.data.NpcRating
+import com.tripletriad.data.ZoneCatalog
 import com.tripletriad.data.loadNpcCatalog
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.AchievementCatalog
@@ -431,6 +432,41 @@ class OpponentUiTest {
                 .performScrollToNode(hasTestTag(zoneRowTestTag(EVENING_PLACE)))
         }
         assertTrue(further.isFailure, "$EVENING_PLACE is further on and should not be listed yet")
+
+        onNodeWithTag(OPPONENT_LIST_TEST_TAG)
+            .performScrollToNode(hasTestTag(zoneRowTestTag(FIRST_CITY)))
+        onNodeWithTag(zoneOpensTestTag(FIRST_CITY), useUnmergedTree = true)
+            .assertTextContains("to open Mor Dhona", substring = true)
+        onNodeWithTag(OPPONENT_LIST_TEST_TAG)
+            .performScrollToNode(hasTestTag(zoneRowTestTag(STARTER_PLACE)))
+        assertFalse(
+            existsUnmerged(zoneOpensTestTag(STARTER_PLACE)),
+            "a cleared place has nothing left to open",
+        )
+    }
+
+    /**
+     * The shut places are not listed, but the next ones are named — on the row of the place whose
+     * clearing opens them, with how many stand in the way.
+     *
+     * The count is the blocking members', not the unbeaten ones': the Saucer has opponents who
+     * keep hours or wait behind a badge, and counting them would overstate the way to the cities.
+     */
+    @Test
+    fun anOpenPlaceSaysWhatClearingItOpens() = runComposeUiTest {
+        val saucer = assertNotNull(shippedZones[STARTER_PLACE])
+        val roster = runBlocking { loadNpcCatalog() }.all.associateBy { it.iconId }
+        val blocking = saucer.npcs.mapNotNull(roster::get).count(ZoneCatalog::blocks)
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        newCharacter()
+        openOpponents()
+
+        onNodeWithTag(OPPONENT_LIST_TEST_TAG)
+            .performScrollToNode(hasTestTag(zoneRowTestTag(STARTER_PLACE)))
+        onNodeWithTag(zoneOpensTestTag(STARTER_PLACE), useUnmergedTree = true).assertTextContains(
+            "$blocking more to beat to open Ul'dah & Thanalan, Limsa Lominsa & La Noscea, " +
+                "Gridania & the Black Shroud",
+        )
     }
 
     /**

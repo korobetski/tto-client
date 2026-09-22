@@ -515,13 +515,19 @@ class StringsBundleTest {
         // tournament and their two achievements with it — the six `*_BALAMB_GARDEN*` keys. Removed
         // from all four bundles at once, so the gaps are unchanged. 2026-09-22.
 
-        const val UNION_KEYS = 2221
+        // +3 to every bundle since: +4 and −1. `APP_ZONE_OPENS_ONE`, `_MANY` and
+        // `APP_LIST_SEPARATOR` say on an open place's row what clearing it opens, and
+        // `APP_ERROR_NOT_ON_SERVER` stops a catalogue miss reading as a stale board.
+        // `APP_ZONE_NEEDS_ANY` went, unread since shut places stopped being listed. All four
+        // bundles at once, so the gaps are unchanged. 2026-09-22.
+
+        const val UNION_KEYS = 2224
 
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 2217,
-            AppLocale.FR_FR to 2218,
-            AppLocale.DE_DE to 2146,
-            AppLocale.JA_JA to 2178,
+            AppLocale.EN_US to 2220,
+            AppLocale.FR_FR to 2221,
+            AppLocale.DE_DE to 2149,
+            AppLocale.JA_JA to 2181,
         )
 
         val EXPECTED_GAPS = mapOf(

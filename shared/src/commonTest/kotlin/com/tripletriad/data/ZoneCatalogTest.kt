@@ -100,6 +100,32 @@ class ZoneCatalogTest {
     }
 
     @Test
+    fun anOpenPlaceNamesWhatItsClearingOpensAndWhoStandsInTheWay() {
+        val start = place(save("b"), "start")
+
+        assertEquals(listOf("left", "right"), start.opens.map { it.id })
+        assertEquals(1, start.left, "`night` and `badge` do not hold the way shut")
+        assertEquals(2, start.members.size - start.beaten - start.left)
+    }
+
+    @Test
+    fun aPlaceThatAlsoWaitsOnAnotherUnclearedOneIsNotNamed() {
+        val cleared = save("a", "b")
+        assertEquals(listOf("either"), place(cleared, "left").opens.map { it.id }, "`both` waits")
+
+        val oneSide = save("a", "b", "c")
+        assertEquals(listOf("both"), place(oneSide, "right").opens.map { it.id })
+    }
+
+    @Test
+    fun aClearedOrShutPlaceOpensNothing() {
+        val progress = zones.progress(roster, save("a", "b"), cards).associateBy { it.zone.id }
+
+        assertEquals(emptyList(), progress.getValue("start").opens, "already cleared")
+        assertEquals(emptyList(), progress.getValue("either").opens, "not open, so not named")
+    }
+
+    @Test
     fun theReachableRosterKeepsWhomNoPlaceNames() {
         val reachable = zones.reachable(roster, save(), cards).map { it.iconId }
 
@@ -108,6 +134,9 @@ class ZoneCatalogTest {
 
     private fun statuses(save: GameSave): Map<String, ZoneStatus> =
         zones.progress(roster, save, cards).associate { it.zone.id to it.status }
+
+    private fun place(save: GameSave, id: String): ZoneProgress =
+        zones.progress(roster, save, cards).first { it.zone.id == id }
 
     private fun save(vararg beaten: String): GameSave =
         GameSave.new(createdAt = 0L).copy(npcWins = beaten.associateWith { 1 })

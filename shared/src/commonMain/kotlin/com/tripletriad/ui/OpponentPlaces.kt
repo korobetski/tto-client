@@ -18,12 +18,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
@@ -33,7 +30,6 @@ import androidx.compose.ui.unit.dp
 import com.tripletriad.data.Campaign
 import com.tripletriad.data.TourPick
 import com.tripletriad.data.TourReason
-import com.tripletriad.data.ZoneCatalog
 import com.tripletriad.data.ZoneProgress
 import com.tripletriad.data.ZoneStatus
 import com.tripletriad.i18n.LocalStrings
@@ -63,11 +59,15 @@ fun zoneArtTestTag(zoneId: String): String = "opponent-zone-art-$zoneId"
  *
  * In that order because it is the order of how much choosing each asks for — none, one of three,
  * one of a handful of places, one of everybody.
+ *
+ * Only the open places are listed. The shut ones used to be here too, dimmed, each naming the
+ * place to clear first — which laid the whole map out on the first screen a new character saw,
+ * twenty-odd rows of which two could be entered. A place now appears the day it opens, and the
+ * note under the list is what says that clearing one opens more.
  */
 @Suppress("LongParameterList")
 internal fun LazyGridScope.homeItems(
     places: List<ZoneProgress>,
-    zones: ZoneCatalog,
     tour: List<TourPick>,
     canQuickMatch: Boolean,
     onQuickMatch: () -> Unit,
@@ -104,9 +104,9 @@ internal fun LazyGridScope.homeItems(
             modifier = Modifier.padding(top = SpaceSm),
         )
     }
-    for (place in places) {
+    for (place in places.filter { it.isOpen }) {
         span("zone-${place.zone.id}") {
-            ZoneRow(place = place, zones = zones, onOpen = { onPlace(place.zone.id) })
+            ZoneRow(place = place, onOpen = { onPlace(place.zone.id) })
         }
     }
     span("zones-note") {
@@ -173,15 +173,14 @@ internal class PlaceTournament(
 )
 
 /**
- * A place as a row: its name, how far along it is, and — while it is shut — what opens it.
+ * An open place as a row: its name and how far along it is.
  *
- * A row rather than a tile: the places are a list read top to bottom, open ones first, and a
- * locked one has a sentence to say that a tile would have to cut.
+ * A row rather than a tile: the places are a list read top to bottom, and the summary line is a
+ * sentence a tile would have to cut.
  */
 @Composable
-private fun ZoneRow(place: ZoneProgress, zones: ZoneCatalog, onOpen: () -> Unit) {
+private fun ZoneRow(place: ZoneProgress, onOpen: () -> Unit) {
     val strings = LocalStrings.current
-    val open = place.isOpen
     val art = rememberZoneArt(LocalUiArt.current, place.zone.id)
     val ground = MaterialTheme.colorScheme.surfaceContainerHigh
 
@@ -190,17 +189,13 @@ private fun ZoneRow(place: ZoneProgress, zones: ZoneCatalog, onOpen: () -> Unit)
             .testTag(zoneRowTestTag(place.zone.id))
             .fillMaxWidth()
             .rowSurface()
-            .then(if (open) Modifier.ttoClickable(onClick = onOpen) else Modifier)
-            .alpha(if (open) 1f else FAINT),
+            .ttoClickable(onClick = onOpen),
     ) {
         if (art != null) {
             Image(
                 bitmap = art,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                // A shut place keeps its picture but not its colour: it is somewhere to go, not
-                // somewhere to be yet.
-                colorFilter = if (open) null else Grayscale,
                 modifier = Modifier.matchParentSize().testTag(zoneArtTestTag(place.zone.id)),
             )
             // The text sits on the left, so the picture shows through on the right only.
@@ -232,14 +227,7 @@ private fun ZoneRow(place: ZoneProgress, zones: ZoneCatalog, onOpen: () -> Unit)
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = if (open) {
-                        placeSummary(
-                            strings,
-                            place,
-                        )
-                    } else {
-                        lockHint(strings, place, zones)
-                    },
+                    text = placeSummary(strings, place),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
                     style = MaterialTheme.typography.labelSmall,
                     modifier = Modifier.testTag(zoneStatusTestTag(place.zone.id)),
@@ -280,12 +268,6 @@ private fun ZoneBanner(zoneId: String) {
 private fun placeSummary(strings: Strings, place: ZoneProgress): String =
     strings[place.status.labelKey] + DOT_SEPARATOR +
         strings.format(StringKeys.ZONE_BEATEN, "${place.beaten}", "${place.members.size}")
-
-private fun lockHint(strings: Strings, place: ZoneProgress, zones: ZoneCatalog): String {
-    val names = place.zone.after.mapNotNull { zones[it] }.joinToString(", ") { strings[it.nameKey] }
-    val key = if (place.zone.afterAny) StringKeys.ZONE_NEEDS_ANY else StringKeys.ZONE_NEEDS_ALL
-    return strings.format(key, names)
-}
 
 private val ZoneStatus.labelKey: String
     get() = when (this) {
@@ -361,8 +343,6 @@ private const val SCRIM_TEXT = 0.94f
 private const val SCRIM_FADE = 0.7f
 
 private const val SCRIM_CLEAR = 0.2f
-
-private val Grayscale = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) })
 
 private val TextShadow = Shadow(color = Color.Black, blurRadius = 6f)
 

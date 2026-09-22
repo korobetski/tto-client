@@ -970,6 +970,11 @@ private fun CharacterDestination(
             onTab = toPlayTab,
             onBack = toDashboard,
             zones = startup.zones ?: ZoneCatalog(emptyList()),
+            // Read against the whole roster for the same reason as the ladders above: a place is
+            // open or shut for the character, whatever format the ladder in it is played under.
+            openPlaces = remember(startup.zones, startup.opponents, profile) {
+                startup.opponents?.let { npcs -> startup.zones?.openIds(npcs.all, profile) }
+            },
         )
 
         // Everything that *is* a match: the ordinary one, the tutorial, and a ladder step. Grouped

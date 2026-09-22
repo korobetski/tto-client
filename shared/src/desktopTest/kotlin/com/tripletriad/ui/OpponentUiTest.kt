@@ -375,9 +375,13 @@ class OpponentUiTest {
     }
 
     /**
-     * A new character is held to the starting places, and told there is more.
+     * A new character is held to the starting places, is not shown the others, and is told there
+     * is more.
      *
      * The evening, so the fixture is not simply shut: what keeps it off is its place.
+     *
+     * The first city's absence is asserted by failing to scroll to it rather than by `exists`: the
+     * list is lazy, and a row not composed yet would pass `exists` as absent all the same.
      */
     @Test
     fun aNewCharacterIsHeldToTheStartingPlaces() = runComposeUiTest {
@@ -388,9 +392,12 @@ class OpponentUiTest {
         openOpponents()
 
         onNodeWithTag(OPPONENT_LIST_TEST_TAG)
-            .performScrollToNode(hasTestTag(zoneRowTestTag(FIRST_CITY)))
-        onNodeWithTag(zoneStatusTestTag(FIRST_CITY), useUnmergedTree = true)
-            .assertTextContains("Clear first", substring = true)
+            .performScrollToNode(hasTestTag(zoneRowTestTag(STARTER_PLACE)))
+        val shown = runCatching {
+            onNodeWithTag(OPPONENT_LIST_TEST_TAG)
+                .performScrollToNode(hasTestTag(zoneRowTestTag(FIRST_CITY)))
+        }
+        assertTrue(shown.isFailure, "$FIRST_CITY is not open yet and should not be listed")
 
         // Scrolled to rather than merely looked for: the footnote is the last item of a lazy
         // grid, so it is composed only once it is reached.
@@ -419,10 +426,11 @@ class OpponentUiTest {
             .performScrollToNode(hasTestTag(zoneRowTestTag(FIRST_CITY)))
         onNodeWithTag(zoneStatusTestTag(FIRST_CITY), useUnmergedTree = true)
             .assertTextContains("Open", substring = true)
-        onNodeWithTag(OPPONENT_LIST_TEST_TAG)
-            .performScrollToNode(hasTestTag(zoneRowTestTag(EVENING_PLACE)))
-        onNodeWithTag(zoneStatusTestTag(EVENING_PLACE), useUnmergedTree = true)
-            .assertTextContains("Clear first", substring = true)
+        val further = runCatching {
+            onNodeWithTag(OPPONENT_LIST_TEST_TAG)
+                .performScrollToNode(hasTestTag(zoneRowTestTag(EVENING_PLACE)))
+        }
+        assertTrue(further.isFailure, "$EVENING_PLACE is further on and should not be listed yet")
     }
 
     /**

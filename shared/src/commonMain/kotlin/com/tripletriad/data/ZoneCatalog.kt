@@ -78,8 +78,9 @@ class ZoneCatalog(val zones: List<Zone>) {
      * A zone with no member in the roster is left out rather than shown empty: under an FFXIV-only
      * format, Balamb is not a locked place, it is not a place at all.
      *
-     * The open ones come first, each group in map order: an FF8 character would otherwise scroll
-     * past fourteen shut FFXIV places to reach Balamb.
+     * The open ones come first, each group in map order. The shut ones are still returned — the
+     * roster's home leaves them out (a place is discovered when it opens, not listed ahead of it),
+     * but [reachable] and [openIds] are answered from the same reading.
      */
     fun progress(roster: List<Npc>, save: GameSave, cards: Map<Int, Card>): List<ZoneProgress> {
         val byIcon = roster.associateBy { it.iconId }
@@ -111,6 +112,16 @@ class ZoneCatalog(val zones: List<Zone>) {
         val open = progress(roster, save, cards).filter { it.isOpen }.map { it.zone.id }.toSet()
         return roster.filter { npc -> zoneOf(npc.iconId)?.let { it.id in open } ?: true }
     }
+
+    /**
+     * The ids of the zones open to [save], for a screen that needs to know which places a player
+     * has been shown without drawing them — the tournaments tab, which hides a shut place's ladder.
+     *
+     * No card table: it only tells [ZoneStatus.CLEARED] from [ZoneStatus.COMPLETE], and both are
+     * open.
+     */
+    fun openIds(roster: List<Npc>, save: GameSave): Set<String> =
+        progress(roster, save, emptyMap()).filter { it.isOpen }.map { it.zone.id }.toSet()
 
     private fun isUnlocked(zone: Zone, cleared: Set<String>): Boolean = when {
         zone.isStarter -> true

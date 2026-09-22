@@ -116,18 +116,15 @@
     {
       "id": "balamb",
       "nameKey": "APP_ZONE_BALAMB",
-      "npcs": ["kid", "jack", "club", "diamond", "ma-dincht", "trepies", "hotel-owner"]
-    },
-    {
-      "id": "balamb-garden",
-      "nameKey": "APP_ZONE_BALAMB_GARDEN",
-      "after": ["balamb"],
-      "npcs": ["jogger", "bench-man", "library-girl", "garden-faculty", "cafeteria-seed", "kadowaki"]
+      "npcs": [
+        "kid", "jack", "club", "diamond", "ma-dincht", "trepies", "jogger", "bench-man",
+        "library-girl", "garden-faculty", "cafeteria-seed", "hotel-owner", "kadowaki"
+      ]
     },
     {
       "id": "dollet",
       "nameKey": "APP_ZONE_DOLLET",
-      "after": ["balamb-garden"],
+      "after": ["balamb"],
       "npcs": [
         "dollet-pub-owner", "dollet-radio-tech", "dollet-duke", "galbadian-sentry",
         "dollet-fisher"

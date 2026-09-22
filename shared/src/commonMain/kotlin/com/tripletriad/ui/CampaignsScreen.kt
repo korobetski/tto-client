@@ -44,8 +44,20 @@ internal fun CampaignsScreen(
     onTab: (PlayTab) -> Unit,
     onBack: () -> Unit,
     zones: ZoneCatalog = ZoneCatalog(emptyList()),
+    /**
+     * The places open to this character ([ZoneCatalog.openIds]), or null to list every ladder.
+     *
+     * A ladder whose place is not open yet is left off with its place: its lock line would name
+     * that place ("Clear first: Trabia"), and the roster's home no longer does.
+     */
+    openPlaces: Set<String>? = null,
 ) {
     val strings = LocalStrings.current
+    val shown = campaigns.filter { campaign ->
+        val place = zones.placeOf(campaign)
+        openPlaces == null || place == null || place in openPlaces ||
+            campaign.isUnlockedFor(profile)
+    }
 
     CharacterScaffold(
         profile = profile,
@@ -54,7 +66,7 @@ internal fun CampaignsScreen(
     ) {
         PlayTabs(current = PlayTab.TOURNAMENTS, waiting = waiting, onSelect = onTab)
 
-        if (campaigns.isEmpty()) {
+        if (shown.isEmpty()) {
             EmptyNote(text = strings[StringKeys.NO_OPPONENT], tag = CAMPAIGNS_EMPTY_TEST_TAG)
             return@CharacterScaffold
         }
@@ -66,13 +78,14 @@ internal fun CampaignsScreen(
             // Open ones first, as the places are: with a ladder per place, a character would
             // otherwise scroll past a column of shut ones to find the few it can enter.
             items(
-                campaigns.sortedBy { !it.isUnlockedFor(profile) },
+                shown.sortedBy { !it.isUnlockedFor(profile) },
                 key = { it.key },
             ) { campaign ->
-                // A ladder still to be earned is dimmed rather than hidden — the same reasoning
-                // the entry fee's disabled button follows. A tournament nobody can see is a
-                // tournament nobody knows to work towards, and being told what to beat first is
-                // the point of gating it.
+                // A ladder still to be earned in a place already open is dimmed rather than
+                // hidden — the same reasoning the entry fee's disabled button follows. A
+                // tournament nobody can see is a tournament nobody knows to work towards, and
+                // being told what to beat first is the point of gating it. One further off than
+                // that is not shown at all; see `openPlaces`.
                 CampaignRow(
                     campaign = campaign,
                     locked = !campaign.isUnlockedFor(profile),
@@ -89,10 +102,14 @@ internal fun CampaignsScreen(
  * every shipped ladder's is — and the generic line otherwise.
  */
 internal fun lockedNote(strings: Strings, campaign: Campaign, zones: ZoneCatalog): String =
-    zones.zones
-        .firstOrNull { campaign.requiresAchievement == AchievementCatalog.placeCleared(it.id) }
+    zones.placeOf(campaign)
+        ?.let { zones[it] }
         ?.let { strings.format(StringKeys.ZONE_NEEDS_ALL, strings[it.nameKey]) }
         ?: strings[StringKeys.CAMPAIGN_LOCKED]
+
+/** The place whose clearing opens [campaign], or null for a ladder gated on something else. */
+private fun ZoneCatalog.placeOf(campaign: Campaign): String? =
+    zones.firstOrNull { campaign.requiresAchievement == AchievementCatalog.placeCleared(it.id) }?.id
 
 /** The ladder that clearing [zoneId] opens, if it has one. */
 internal fun List<Campaign>.openedBy(zoneId: String): Campaign? =

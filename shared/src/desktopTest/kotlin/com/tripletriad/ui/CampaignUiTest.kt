@@ -10,6 +10,7 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onChildAt
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.FF14_BLOCK
 import com.tripletriad.FF8_BLOCK
@@ -25,6 +26,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
@@ -46,6 +48,15 @@ class CampaignUiTest {
     }
 
     /**
+     * Everybody of every place beaten but the Card Club's own: its place is open and not cleared,
+     * so its ladder is listed, and shut.
+     */
+    private fun cardClubOpen(): GameSave {
+        val place = assertNotNull(shippedZones[CARD_CLUB_PLACE])
+        return explorerSave().let { it.copy(npcWins = it.npcWins - place.npcs.toSet()) }
+    }
+
+    /**
      * A referee holding a profile that can just afford the ladder.
      *
      * The rungs are refereed matches, so a ladder needs a server at all now; and the entry fee is
@@ -56,24 +67,47 @@ class CampaignUiTest {
         save = freshSave().opening(GOLD_SAUCER).copy(mgp = goldSaucer.fee + POCKET_CHANGE),
     )
 
+    /**
+     * Both starting places' ladders, whichever block the character opened with — and not the Card
+     * Club's, whose place is the last on the FFVIII map and not shown to a new character at all.
+     *
+     * The absence is a real one: two rows fit on screen, so a lazy column that merely has not
+     * composed the third is not what makes it missing.
+     */
     @Test
-    fun bothLaddersAreOffered() = runComposeUiTest {
+    fun aNewCharacterIsOfferedTheStartingPlacesLadders() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter(FF14_BLOCK)
         openTournaments()
 
         assertTrue(exists(campaignRowTestTag(GOLD_SAUCER)), "the Gold Saucer is the ff14 ladder")
-        assertTrue(exists(campaignRowTestTag(CARD_CLUB)), "the Card Club is the ff8 one")
+        assertTrue(exists(campaignRowTestTag(BALAMB)), "Balamb is the ff8 one")
+        assertFalse(exists(campaignRowTestTag(CARD_CLUB)), "its place is not open yet")
     }
 
     @Test
-    fun anFf8CharacterSeesBothToo() = runComposeUiTest {
+    fun anFf8CharacterSeesTheSameOnes() = runComposeUiTest {
         setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
         newCharacter(FF8_BLOCK)
         openTournaments()
 
-        assertTrue(exists(campaignRowTestTag(CARD_CLUB)))
+        assertTrue(exists(campaignRowTestTag(BALAMB)))
         assertTrue(exists(campaignRowTestTag(GOLD_SAUCER)))
+        assertFalse(exists(campaignRowTestTag(CARD_CLUB)))
+    }
+
+    /** The Card Club's ladder appears with its place, shut until that place is cleared. */
+    @Test
+    fun aLadderAppearsWhenItsPlaceOpens() = runComposeUiTest {
+        val documents = seeded(cardClubOpen())
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openTournaments()
+
+        onNodeWithTag(CAMPAIGNS_LIST_TEST_TAG)
+            .performScrollToNode(hasTestTag(campaignRowTestTag(CARD_CLUB)))
+        onNodeWithTag(campaignRowTestTag(CARD_CLUB))
+            .assertTextContains("Clear first", substring = true)
     }
 
     /** The open ladders lead the tab, the way the open places lead theirs. */
@@ -148,13 +182,14 @@ class CampaignUiTest {
     /**
      * A ladder earned rather than bought says so, and cannot be entered at any price.
      *
-     * The Card Club is the shipped case: Balamb Garden is the way in. The purse is deliberately
-     * ample, so the only thing refusing is the gate.
+     * The Card Club is the shipped case, its place reached but not cleared — a place further off
+     * would not list its ladder at all. The purse is deliberately ample, so the only thing refusing
+     * is the gate.
      */
     @Test
     fun aGatedLadderNamesItsGateAndStaysShut() = runComposeUiTest {
         val cardClub = campaigns.byKey(CARD_CLUB) ?: error("no $CARD_CLUB campaign")
-        val documents = seeded(freshSave().copy(mgp = cardClub.fee * 2))
+        val documents = seeded(cardClubOpen().copy(mgp = cardClub.fee * 2))
         setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
         openLadder(documents, CARD_CLUB)
 
@@ -380,6 +415,9 @@ class CampaignUiTest {
     ) {
         loadCharacter(documents)
         openTournaments()
+        onNodeWithTag(
+            CAMPAIGNS_LIST_TEST_TAG,
+        ).performScrollToNode(hasTestTag(campaignRowTestTag(key)))
         onNodeWithTag(campaignRowTestTag(key)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(CAMPAIGN_LIST_TEST_TAG) }
     }
@@ -388,6 +426,9 @@ class CampaignUiTest {
         const val GOLD_SAUCER = "gs"
 
         const val CARD_CLUB = "cc"
+
+        /** Where [CARD_CLUB]'s ladder is opened from: the last place on the FFVIII map. */
+        const val CARD_CLUB_PLACE = "card-club"
 
         // The one shipped ladder in the FFVIII pool that no achievement gates, which is what makes
         // it the case where a missing deck is the *only* thing shutting the door.

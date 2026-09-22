@@ -88,9 +88,9 @@ class AchievementFamiliesTest {
         /** The places whose ladder is new with the map; the other three predate it. */
         val NEW_LADDERS = listOf(
             "uldah", "limsa", "gridania", "mor-dhona", "battlehall", "ishgard", "dravania",
-            "gyr-abania", "kugane", "othard", "norvrandt", "sharlayan", "tural", "balamb-garden",
-            "dollet", "timber", "galbadia", "winhill", "fishermans-horizon", "shumi-village",
-            "trabia", "centra", "esthar",
+            "gyr-abania", "kugane", "othard", "norvrandt", "sharlayan", "tural", "dollet",
+            "timber", "galbadia", "winhill", "fishermans-horizon", "shumi-village", "trabia",
+            "centra", "esthar",
         )
 
         val PLACES = NEW_LADDERS + listOf("gold-saucer", "balamb", "card-club")

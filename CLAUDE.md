@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 The Kotlin Multiplatform + Compose Multiplatform client for a Triple Triad game. It is one of
-**two repositories** that ship together:
+**three repositories** that ship together:
 
 | Repo | Holds | How it arrives here |
 |---|---|---|
@@ -23,6 +23,9 @@ Consequences worth knowing before touching anything:
   `rm -rf ~/.m2/repository/com/tripletriad`.
 - The `core` version here and in `tto-server` **must match** — a match is verified by replaying its
   transcript with the engine both sides linked.
+- **Five of the resource files under `composeResources/files/` have a second copy in `tto-server`**,
+  and that copy is the one a real match is played against. See *The catalogs the server copies*
+  below before editing any of them.
 
 ## Prerequisites
 
@@ -119,6 +122,35 @@ types, because a dead server is an ordinary state of the world. Match results ar
 common; the engine is per-platform (OkHttp / CIO / Darwin). `ktor-client-mock` is how the whole layer
 is tested in `commonTest` with no socket.
 
+### The catalogs the server copies
+
+Five files under `composeResources/files/` exist **twice**, here and in
+`tto-server/src/main/resources/catalog/`: `cards.json`, `npcs.json`, `formats.json`,
+`campaigns.json`, `starters.json`. The server needs its own because it must not take the client's
+word for what a card is worth — see `Catalogs.kt` there. **Editing one of these five here is half
+the change.** The other half is `cp` into that directory, in the same commit.
+
+What drift looks like, from the 2026-09-21 case that is the reason this section exists: the FFVIII
+map shipped 31 new opponents here and nowhere else, so the server resolved every one of them to
+`PveRefusal.NO_SUCH_OPPONENT`. The client shows **"La partie a avancé. Rechargement du plateau."**
+— `AccountSession.message` maps five of the six PvE refusals onto that one sentence, deliberately,
+so the screen says *staleness* for what is actually *a server that has never heard of this
+opponent*. Take that sentence on a brand-new opponent as meaning the catalogs have drifted, not
+that anything here is wrong.
+
+```bash
+cp shared/src/commonMain/composeResources/files/{npcs,campaigns}.json \
+   ../tto-server/src/main/resources/catalog/
+```
+
+The server then has to be **rebuilt and restarted**: the catalogs are classpath resources forced at
+boot by `Catalogs.preload()`, so a running server keeps dealing from the jar it started with.
+
+`CatalogDriftTest` in `tto-server` catches the part that can be caught from there alone — `:core`'s
+`PlaceAchievements` travels inside the artifact the server links, so it can check that its roster
+holds everybody the map names. It does **not** see card pools: a pool edited on one side only
+passes it and still makes an honest transcript replay to a different board.
+
 ### Two versions that must not be conflated
 
 - `clientVersion` in `gradle.properties` — the release number. Moves every release. The `:shared`
@@ -151,7 +183,9 @@ checking a real APK; delete them only when the plugin does its own wiring.
    `composeResources/files/art/`, the `tto-*.json` locales, `androidApp/src/main/res/` (launcher
    icon, `raw/` sounds) were all extracted once from the AS3 original by scripts that are **not in
    this repository** and cannot be re-run. Edit them in place, and say in the commit what changed
-   and against which source.
+   and against which source. Three of them — `cards.json`, `npcs.json`, `campaigns.json` — are also
+   copied into `tto-server`, so editing one here is half the change: see *The catalogs the server
+   copies*.
 5. **`tto-*.json` is the exception, and `app-<tag>.json` is how it is corrected.** Those bundles are
    Square Enix's own wording, duplicate keys and mistranslations included. Correcting one in place
    would make the bundle look trustworthy without making it so; an override in `app-<tag>.json`
@@ -182,6 +216,12 @@ paraphrase reste et devient un mensonge.
   branch name and test counts respectively. If you quote a test count, say which task produced it
   and when, the way the fixed docs now do — these numbers will drift again and are not worth
   trusting on sight.
+- **Fixed 2026-09-21**: this file opened with "one of **two repositories**" over a table of three,
+  and `tto-server`'s README told you to publish the engine with `cd ../tto-client && ./gradlew
+  :core:publishToMavenLocal` — a module that has not existed here since the engine moved to
+  `tto-core`. Both corrected. They were found while chasing the catalog drift that *The catalogs
+  the server copies* now documents, which is the pattern worth noticing: the doc that is wrong
+  about where a thing lives is usually near the bug about a thing living in two places.
 - Coverage is JaCoCo, **not Kover** (Kover cannot be applied to this module at all), measured on the
   desktop target only, gated at 90% line / 75% branch as a floor rather than a target.
 - ktlint plugin is pinned at 12.1.2 and Material 3 at 1.9.0 (it versions separately from the rest of

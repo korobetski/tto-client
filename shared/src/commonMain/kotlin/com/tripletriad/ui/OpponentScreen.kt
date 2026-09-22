@@ -130,7 +130,8 @@ internal sealed interface RosterView {
  *
  * The places replace the level gate: every opponent of an open place can be challenged whatever
  * the level, so [NpcCatalog.available] is asked with [EVERY_LEVEL]. The hours and the achievement
- * doors still hold, and a place shows the opponents they keep out, dimmed, with their hours.
+ * doors still hold, and a place shows the opponents they keep out, dimmed, with their hours. A
+ * place that is not open yet is not shown at all — see [homeItems].
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -282,7 +283,6 @@ internal fun OpponentScreen(
             when (view) {
                 RosterView.Home -> homeItems(
                     places = places,
-                    zones = zones,
                     tour = tour,
                     canQuickMatch = opponents.isNotEmpty(),
                     onQuickMatch = {

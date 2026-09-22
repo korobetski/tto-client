@@ -511,13 +511,17 @@ class StringsBundleTest {
         // all four `app-*` bundles at once, so the gaps are unchanged. Measured on 2026-09-20 from
         // a `:shared:desktopTest --tests "*StringsBundleTest*"` run and pasted.
 
-        const val UNION_KEYS = 2227
+        // −6 to every bundle since: Balamb Garden folded into Balamb, taking its place, its
+        // tournament and their two achievements with it — the six `*_BALAMB_GARDEN*` keys. Removed
+        // from all four bundles at once, so the gaps are unchanged. 2026-09-22.
+
+        const val UNION_KEYS = 2221
 
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 2223,
-            AppLocale.FR_FR to 2224,
-            AppLocale.DE_DE to 2152,
-            AppLocale.JA_JA to 2184,
+            AppLocale.EN_US to 2217,
+            AppLocale.FR_FR to 2218,
+            AppLocale.DE_DE to 2146,
+            AppLocale.JA_JA to 2178,
         )
 
         val EXPECTED_GAPS = mapOf(

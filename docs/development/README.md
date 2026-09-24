@@ -13,6 +13,7 @@ Phase 0, Task 1.6 deliverables. How this project is written, tested, reviewed an
 | [design-system.md](./design-system.md) | colours, type, spacing and the shared controls |
 | [testing-strategy.md](./testing-strategy.md) | what is tested today, what is not, and how to know a test can fail |
 | [performance-guidelines.md](./performance-guidelines.md) | targets, how to measure them, Compose specifics, the app-size decision |
+| [port-reference.md](./port-reference.md) | card geometry, the original sounds, the rules engine's design decisions, dated measurements — reference material moved out of the README |
 | [tutorial-and-help-proposal.md](./tutorial-and-help-proposal.md) | **a design, not a standard** — the lesson academy and the rules sandbox that replace the one-rule tutorial, and the animated examples for the help screen |
 
 The first three are the Phase 1 Task 1.13 deliverables, together with

@@ -124,7 +124,7 @@ class InventoryUiTest {
         onNodeWithTag(inventoryMenuTestTag(potion)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { existsUnmerged(inventoryEffectTestTag(potion)) }
         assertEquals(
-            "MGP boosted for your next $matches matches",
+            "Gil boosted for your next $matches matches",
             lineOf(inventoryEffectTestTag(potion)),
             "the menu does not say what the potion does",
         )

@@ -94,7 +94,7 @@ fun auctionDurationTestTag(duration: AuctionDuration): String =
  *
  * 5% of the reserve, charged when the lot opens whatever happens afterwards. A seller who reads it
  * for the first time in their purse has been surprised by a charge, which is the one thing a
- * marketplace must never do — so the number is on screen, in MGP, and it moves as they type.
+ * marketplace must never do — so the number is on screen, in Gil, and it moves as they type.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -104,6 +104,7 @@ internal fun ColumnScope.AuctionSellBody(
     cards: Map<Int, Card>,
     sets: List<CardSet>,
     openLots: Int,
+    consign: Int? = null,
 ) {
     val strings = LocalStrings.current
     val scope = rememberCoroutineScope()
@@ -126,7 +127,13 @@ internal fun ColumnScope.AuctionSellBody(
         return
     }
 
-    var chosenId by remember(sellable) { mutableStateOf(sellable.first().id) }
+    // The card sent from the collection when there is one and it is still spare — a listing just
+    // made from it may have taken the last — and the first card otherwise.
+    var chosenId by remember(sellable) {
+        mutableStateOf(
+            consign?.takeIf { id -> sellable.any { it.id == id } } ?: sellable.first().id,
+        )
+    }
     var picking by remember(sellable) { mutableStateOf(false) }
     val chosen = sellable.firstOrNull { it.id == chosenId } ?: sellable.first()
 

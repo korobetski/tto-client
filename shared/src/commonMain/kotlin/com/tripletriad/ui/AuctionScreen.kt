@@ -79,6 +79,7 @@ internal fun ColumnScope.AuctionBody(
     cards: Map<Int, Card>,
     sets: List<CardSet>,
     clock: Clock,
+    consign: Int? = null,
 ) {
     val strings = LocalStrings.current
     val unlocks = LocalUnlocks.current
@@ -93,7 +94,7 @@ internal fun ColumnScope.AuctionBody(
         when {
             !open -> AuctionClosed(strings.format(StringKeys.LOCKED_LEVEL, "${unlocks.auction}"))
             session == null -> AuctionUnserved()
-            else -> AuctionRoom(session, profile, cards, sets, clock)
+            else -> AuctionRoom(session, profile, cards, sets, clock, consign)
         }
     }
 }
@@ -105,11 +106,18 @@ private fun ColumnScope.AuctionRoom(
     cards: Map<Int, Card>,
     sets: List<CardSet>,
     clock: Clock,
+    // A card sent here from the collection: the room opens on the desk with it chosen, instead of
+    // on the board, because the player already said what they came to do.
+    consign: Int?,
 ) {
     val strings = LocalStrings.current
     val scope = rememberCoroutineScope()
     val now = rememberNow(clock)
-    var tab by remember { mutableStateOf(AuctionTab.BOARD) }
+    var tab by remember {
+        mutableStateOf(
+            if (consign != null) AuctionTab.SELL else AuctionTab.BOARD,
+        )
+    }
 
     // One poll for the whole screen rather than one per tab: the lots behind a tab the player is
     // not looking at are the lots they will look at next, and a tab switch that starts a fresh
@@ -171,6 +179,7 @@ private fun ColumnScope.AuctionRoom(
                 // Only this tab needs them; the board and the lots draw cards they were handed.
                 sets = sets,
                 openLots = session.mine.count { it.yours && !it.status.isFinished },
+                consign = consign,
             )
         }
     }

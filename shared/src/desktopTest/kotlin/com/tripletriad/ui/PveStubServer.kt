@@ -210,7 +210,7 @@ internal class PveStubServer(
      * The profile a client pushed — everything it is still allowed to decide for itself.
      *
      * Not everything is. `GameSave.withServerOwnedFrom` is what keeps a client from paying itself:
-     * MGP, XP and the match record come back from the server's copy whatever was sent. What does
+     * Gil, XP and the match record come back from the server's copy whatever was sent. What does
      * travel this way is the player's own housekeeping — decks, options, and the entry fee a
      * campaign charges before there is any match to referee.
      */

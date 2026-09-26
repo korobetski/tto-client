@@ -52,6 +52,9 @@ internal fun StoreScreen(
     onUseItem: suspend (Item) -> ItemEffect?,
     onIntent: suspend (Intent) -> IntentOutcome,
     onBack: () -> Unit,
+    // The card the collection's auction shortcut was pressed on: opens the house on its desk with
+    // that card already chosen. Only read with `initial == AUCTION`.
+    auctionCard: Int? = null,
 ) {
     val strings = LocalStrings.current
     val scope = rememberCoroutineScope()
@@ -189,6 +192,7 @@ internal fun StoreScreen(
                 cards = catalog.byId,
                 sets = catalog.sets,
                 clock = clock,
+                consign = auctionCard.takeIf { initial == StoreTab.AUCTION },
             )
         }
     }

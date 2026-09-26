@@ -255,7 +255,7 @@ private fun FinalReward(campaign: Campaign, cards: Map<Int, Card>, owned: Map<In
  * enter is comparing a total against a fee they are about to hand over, and reporting the halves
  * apart here would make the decision harder rather than more honest.
  *
- * The XP carries the ladder's multiplier for the same reason the MGP carries its payout: what is
+ * The XP carries the ladder's multiplier for the same reason the Gil carries its payout: what is
  * quoted has to be what arrives.
  */
 private fun finalRewardLine(strings: Strings, campaign: Campaign): String {

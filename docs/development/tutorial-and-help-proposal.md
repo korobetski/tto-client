@@ -292,7 +292,7 @@ again.
    forfeit. `LessonRecordTest` walks the pair across the whole course.
 
    This changes the first lesson, which used to pay the tt-master's full reward — a choice
-   `TutorialScreen`'s KDoc argued for at five MGP a match, and which does not survive the
+   `TutorialScreen`'s KDoc argued for at five Gil a match, and which does not survive the
    requirement that a tutorial not touch the record.
 3. ~~**The list, and progress in `SettingsStore`.**~~ **Done.** `LessonsScreen`, reached from a
    dashboard card carrying a `done / total` badge, with `UserSettings.lessonsDone` behind it.

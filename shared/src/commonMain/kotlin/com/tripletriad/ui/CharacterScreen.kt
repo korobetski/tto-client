@@ -84,7 +84,7 @@ internal enum class CharacterTab {
  * Wins, defeats and draws are one quantity split three ways; eight rows of identical weight said
  * they were eight unrelated facts, and gave the win rate — the only number anybody opens this
  * screen for — exactly the prominence of the draw count. Forfeits are a subtraction
- * ([GameSave.forfeits]) and read as a note. The MGP row is gone: the app bar above it has said the
+ * ([GameSave.forfeits]) and read as a note. The Gil row is gone: the app bar above it has said the
  * same number all along.
  */
 @Composable

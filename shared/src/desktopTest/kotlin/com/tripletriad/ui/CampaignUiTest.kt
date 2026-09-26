@@ -159,7 +159,7 @@ class CampaignUiTest {
      * comparing it against the total, so the total is what the line has to say.
      *
      * The charging itself is `AccountRoutes`' `/me/campaign/enter` and cannot be asserted here:
-     * MGP is server-owned, `GameSave.withServerOwnedFrom` throws a client's copy away on arrival,
+     * Gil is server-owned, `GameSave.withServerOwnedFrom` throws a client's copy away on arrival,
      * and the stub server does not price ladders. `IntentRoutesTest.enteringALadderCostsItsFee` is
      * where that is held.
      */

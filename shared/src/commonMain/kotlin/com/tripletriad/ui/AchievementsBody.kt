@@ -214,7 +214,7 @@ internal fun ColumnScope.AchievementsBody(profile: GameSave, cards: Map<Int, Car
 }
 
 /**
- * Tiers earned, MGP they paid, cards they gave — the three sums the grid is the detail of.
+ * Tiers earned, Gil they paid, cards they gave — the three sums the grid is the detail of.
  *
  * Counted over the whole catalogue whatever the filters say: a total that shrank when a chip was
  * lit would be a second, quieter way of saying what the grid already shows.
@@ -547,7 +547,7 @@ private fun Medallion(
 
         // The reward of whatever the player can still reach — the *next* rung, not the face.
         // Showing the face's would tell someone who has just earned tier I what they have already
-        // been paid, and leave the 5 000 MGP at the top of the ladder invisible until they are all
+        // been paid, and leave the 5 000 Gil at the top of the ladder invisible until they are all
         // but standing on it. Once the family is finished there is no next rung and the face's own
         // reward is the right thing to show, as a record of what it paid.
         val paying = next ?: family.face
@@ -618,9 +618,9 @@ private fun StandingBadge(family: AchievementFamily) {
 /**
  * "Reward: Tozol Huatotl", or nothing at all.
  *
- * A card reward is named from the card table, so it reads as the card and not as an id; MGP is
- * formatted through its own key because the currency's name is translated (PGS in French) and a
- * bare number would say nothing.
+ * A card reward is named from the card table, so it reads as the card and not as an id; Gil is
+ * formatted through its own key because the currency's name is translated (Gils in French, ギル in
+ * Japanese) and a bare number would say nothing.
  *
  * @param tag null in the tiers, where the card beside them already carries the same tag.
  */

@@ -73,13 +73,13 @@ class AuctionUiTest {
         // so the pane is never a blank half of a wide screen with a full list beside it.
         house(listOf(lot(), lot(id = OTHER, startPrice = 777, topBid = 900))) {
             onNodeWithTag(AUCTION_DESK_TEST_TAG).assertExists()
-            onNodeWithText("777 MGP").assertDoesNotExist()
+            onNodeWithText("777 Gil").assertDoesNotExist()
 
             onNodeWithTag(auctionLotTestTag(OTHER)).performClick()
 
             // The desk is the only place a starting price is written with its unit; the row
             // beside it prints the current price against a coin.
-            onNodeWithText("777 MGP").assertExists()
+            onNodeWithText("777 Gil").assertExists()
         }
     }
 
@@ -90,7 +90,7 @@ class AuctionUiTest {
             onNodeWithTag(AUCTION_BID_FIELD_TEST_TAG).performTextReplacement("$FLOOR")
 
             // 100 bid, 3 tax. The bid is the auction; this is what leaves the purse.
-            onNodeWithText("103 MGP").assertExists()
+            onNodeWithText("103 Gil").assertExists()
             onNodeWithTag(AUCTION_BID_TEST_TAG).assertIsEnabled()
         }
     }
@@ -128,13 +128,13 @@ class AuctionUiTest {
             onNodeWithTag(auctionLotTestTag(LOT)).performClick()
 
             // No `reservePrice` on the wire, because the server only sends it to the seller —
-            // publishing it would hand every bidder the figure to stop one MGP short of.
+            // publishing it would hand every bidder the figure to stop one Gil short of.
             onNodeWithText("Not met").assertExists()
         }
         house(listOf(lot(yours = true, reservePrice = 800))) {
             onNodeWithTag(auctionLotTestTag(LOT)).performClick()
 
-            onNodeWithText("800 MGP").assertExists()
+            onNodeWithText("800 Gil").assertExists()
         }
     }
 
@@ -180,11 +180,11 @@ class AuctionUiTest {
     fun theListingFeeIsFivePercentOfTheReserveAndItMovesAsItIsTyped() {
         sell {
             // Seeded at the floor: 100 for a rank-1 card, what the shop pays for it.
-            onNodeWithText("5 MGP").assertExists()
+            onNodeWithText("5 Gil").assertExists()
 
             onNodeWithTag(AUCTION_RESERVE_FIELD_TEST_TAG).performTextReplacement("1000")
 
-            onNodeWithText("50 MGP").assertExists()
+            onNodeWithText("50 Gil").assertExists()
         }
     }
 
@@ -230,8 +230,8 @@ class AuctionUiTest {
             onNodeWithTag(AUCTION_START_FIELD_TEST_TAG).performTextReplacement("500")
 
             // 5% of a reserve that moved with it. Left behind at the floor the fee would read
-            // 5 MGP and the button would be grey.
-            onNodeWithText("25 MGP").assertExists()
+            // 5 Gil and the button would be grey.
+            onNodeWithText("25 Gil").assertExists()
             onNodeWithTag(AUCTION_LIST_TEST_TAG).assertIsEnabled()
         }
     }
@@ -243,7 +243,7 @@ class AuctionUiTest {
             onNodeWithTag(AUCTION_START_FIELD_TEST_TAG).performTextReplacement("500")
 
             // Still 5% of the seller's own thousand, not of the five hundred they just typed.
-            onNodeWithText("50 MGP").assertExists()
+            onNodeWithText("50 Gil").assertExists()
         }
     }
 
@@ -253,7 +253,7 @@ class AuctionUiTest {
         sell {
             onNodeWithTag(auctionPriceTestTag(FLOOR * 2)).performClick()
 
-            onNodeWithText("10 MGP").assertExists()
+            onNodeWithText("10 Gil").assertExists()
             onNodeWithTag(AUCTION_LIST_TEST_TAG).assertIsEnabled()
         }
     }
@@ -329,6 +329,19 @@ class AuctionUiTest {
     fun theDeskNamesTheCardItIsAboutToConsign() {
         sell {
             onNodeWithText(strings[cheap.nameKey]).assertExists()
+        }
+    }
+
+    /**
+     * Sent from the collection's shortcut, the desk opens on *that* card — the one that is not
+     * the first, so a desk that ignored the request would fail here rather than pass by luck.
+     */
+    @Test
+    fun aCardSentFromTheCollectionIsTheOneOnTheDesk() {
+        val other = if (first.id == cheap.id) dear else cheap
+        sell(held = mapOf(cheap.id to 2, dear.id to 2), consign = other.id) {
+            onNodeWithText(strings[other.nameKey]).assertExists()
+            onNodeWithText(strings[first.nameKey]).assertDoesNotExist()
         }
     }
 
@@ -706,6 +719,7 @@ class AuctionUiTest {
      */
     private fun sell(
         held: Map<Int, Int> = mapOf(cheap.id to 2),
+        consign: Int? = null,
         block: ComposeUiTest.() -> Unit,
     ): MockEngine {
         val engine = pageEngine(emptyList())
@@ -727,6 +741,7 @@ class AuctionUiTest {
                                 cards = catalog,
                                 sets = pvpCards.sets,
                                 openLots = 0,
+                                consign = consign,
                             )
                         }
                     }

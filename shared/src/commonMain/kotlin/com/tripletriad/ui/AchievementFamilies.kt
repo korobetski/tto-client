@@ -125,7 +125,7 @@ internal fun visibleAchievements(profile: GameSave): List<Achievement> =
  *
  * @param mgpEarned what the earned tiers paid, not the purse: the purse is in the app bar already,
  *   and most of it was won at the table.
- * @param cardsTotal the tiers that pay a card at all — most pay MGP or nothing.
+ * @param cardsTotal the tiers that pay a card at all — most pay Gil or nothing.
  * @param hiddenLeft hidden tiers not yet earned. The totals count them — a total that grew the
  *   day one was found would say the same thing less clearly than this line does.
  */

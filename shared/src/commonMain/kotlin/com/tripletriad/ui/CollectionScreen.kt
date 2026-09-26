@@ -36,6 +36,8 @@ internal fun CollectionScreen(
     onPersist: suspend (GameSave) -> Unit,
     onIntent: suspend (Intent) -> IntentOutcome,
     onBack: () -> Unit,
+    // A card id, handed to the store's auction desk. Null with no server: there is no house.
+    onAuction: ((Int) -> Unit)? = null,
 ) {
     val strings = LocalStrings.current
     var tab by remember { mutableStateOf(initial) }
@@ -83,6 +85,7 @@ internal fun CollectionScreen(
                 // the tab: a refusal that arrives after the player has switched to the decks is
                 // still an answer to the tap they made.
                 note = note,
+                onAuction = onAuction?.let { go -> { card -> go(card.id) } },
             )
 
             CollectionTab.DECKS -> DecksBody(

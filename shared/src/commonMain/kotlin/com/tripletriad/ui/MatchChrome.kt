@@ -412,7 +412,7 @@ private fun OutcomeCard(
             // did for every match that goes on the record.
             //
             // A lesson does not (`MatchScript.counted`). Left unconditional, the tutorial ended on
-            // `+0 MGP` in the affirmative colour: a line announcing a reward, in the place a reward
+            // `+0 Gil` in the affirmative colour: a line announcing a reward, in the place a reward
             // is announced, for a match deliberately paying none.
             val payout = buildList {
                 if (reward.mgp > 0) add("+${reward.mgp} ${strings[StringKeys.MGP]}")
@@ -431,7 +431,7 @@ private fun OutcomeCard(
 
             // **Named, not counted.** This said `Rewards: 1` — a line that tells the player
             // something happened and refuses to say what, about the only part of a match whose
-            // contents are not already visible somewhere else. The MGP is in the payout above and
+            // contents are not already visible somewhere else. The Gil is in the payout above and
             // the cards flipped on the board in front of them; a dropped item exists nowhere but
             // here until they go and look in the bag for it.
             //
@@ -490,7 +490,7 @@ private fun OutcomeCard(
  * What a match unlocked, announced here or nowhere.
  *
  * An achievement or a quest that finished mid-match and said nothing is a reward the player only
- * discovers by going looking for it. The MGP is already on the payout line — `MatchRewards` credits
+ * discovers by going looking for it. The Gil is already on the payout line — `MatchRewards` credits
  * quests into the same total — so this says what was *finished*, not what it paid.
  *
  * Shared by both result panels rather than written twice, which is the point: multiplayer credited

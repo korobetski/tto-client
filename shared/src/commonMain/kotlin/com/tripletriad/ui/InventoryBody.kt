@@ -373,7 +373,7 @@ private fun useNote(strings: Strings, effect: ItemEffect, cards: Map<Int, Card>)
             cards[effect.cardId]?.let { strings[it.nameKey] } ?: "#${effect.cardId}",
         )
 
-        // The boon is shown by the character bar's `MGP ×n`, which is the fact itself rather than
+        // The boon is shown by the character bar's `Gil ×n`, which is the fact itself rather than
         // a sentence about it — and it is on screen the moment the potion is drunk.
         is ItemEffect.BoonRaised -> null
 

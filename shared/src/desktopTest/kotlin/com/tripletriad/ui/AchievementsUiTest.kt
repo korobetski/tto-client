@@ -84,7 +84,7 @@ class AchievementsUiTest {
         openWith(GameSave.new(createdAt = 0L))
 
         pick(ACHIEVEMENT_CATEGORY_MENU_TEST_TAG)
-        // MGP rather than Campaigns: one family, where the tournaments are twenty now and a
+        // Gil rather than Campaigns: one family, where the tournaments are twenty now and a
         // lazy grid would not compose them all to be counted.
         pick(achievementCategoryTestTag(AchievementCategory.MGP.tag))
 
@@ -94,7 +94,7 @@ class AchievementsUiTest {
         // whole catalogue has dozens not started — so the chip counts inside the category.
         onNodeWithTag(achievementStandingTestTag(Standing.NOT_STARTED.tag))
             .assertTextEquals("Not started · 0")
-        onNodeWithTag(ACHIEVEMENT_CATEGORY_MENU_TEST_TAG).assertTextEquals("MGP ▾")
+        onNodeWithTag(ACHIEVEMENT_CATEGORY_MENU_TEST_TAG).assertTextEquals("Gil ▾")
     }
 
     @Test

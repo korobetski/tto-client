@@ -15,7 +15,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 
 /**
- * A sum of MGP, typed.
+ * A sum of Gil, typed.
  *
  * ### Why a field and not a slider
  *

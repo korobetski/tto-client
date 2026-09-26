@@ -182,7 +182,7 @@ private fun DeskTerms(lot: AuctionLot, now: Long, session: AuctionSession) {
         TermRow(strings[StringKeys.AUCTION_BID_COUNT], bidCountText(strings, lot))
 
         // The seller's own reserve is a number; everybody else gets the fact. Publishing it would
-        // hand every bidder the exact figure to stop one MGP short of, which is the reserve doing
+        // hand every bidder the exact figure to stop one Gil short of, which is the reserve doing
         // the opposite of its job — and the server only ever sends it to the seller anyway.
         lot.reservePrice
             ?.let { TermRow(strings[StringKeys.AUCTION_RESERVE], priceText(strings, it)) }

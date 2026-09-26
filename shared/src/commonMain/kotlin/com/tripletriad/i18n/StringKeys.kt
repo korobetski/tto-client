@@ -265,7 +265,7 @@ object StringKeys {
      */
     const val ACHIEVEMENT_REWARD: String = "APP_ACHIEVEMENT_REWARD"
 
-    /** A sum of MGP as a reward's name — the `{0}` of [ACHIEVEMENT_REWARD]. */
+    /** A sum of Gil as a reward's name — the `{0}` of [ACHIEVEMENT_REWARD]. */
     const val ACHIEVEMENT_REWARD_MGP: String = "APP_ACHIEVEMENT_REWARD_MGP"
 
     // ---- The daily quests, which the original had no equivalent of at all.
@@ -1206,6 +1206,9 @@ object StringKeys {
     const val SELL_FEWER: String = "APP_SELL_FEWER"
     const val SELL_MORE: String = "APP_SELL_MORE"
 
+    /** Under the card list's Sell button: the same spare copy, offered to players instead. */
+    const val CARD_AUCTION: String = "APP_CARD_AUCTION"
+
     /** A potion's row in the bag, which names the boon already: `next {0} matches`. */
     const val ITEM_GIST_BOON: String = "APP_ITEM_GIST_BOON"
 
@@ -1401,7 +1404,7 @@ object StringKeys {
         TAB_SHOP, TAB_BAG, TAB_AUCTION, NO_PACK_AFFORDABLE,
         OPEN, ACTIVATE, ADD_TO_COLLECTION,
         BADGE_NEW, BADGE_DUPLICATE, ADD_NEW_CARDS, SELL_DUPLICATES,
-        DUPLICATES, CARD_COPIES, SELL_FEWER, SELL_MORE,
+        DUPLICATES, CARD_COPIES, SELL_FEWER, SELL_MORE, CARD_AUCTION,
         ITEM_GIST_BOON, PACK_MISSING_SHORT, PACK_MISSING_OF, PACK_POOL, SHOP_BALANCE,
         SHOP_PICK_OFFER, QUANTITY, BUY_FEWER, BUY_MORE, BUY_MOST,
         SELECT_CARDS, CARDS_SELECTED, SELL_KEEPS_ONE,

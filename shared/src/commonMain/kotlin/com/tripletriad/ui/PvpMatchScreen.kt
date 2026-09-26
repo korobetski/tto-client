@@ -278,7 +278,7 @@ internal fun PvpMatchScreen(
                 selected = selected,
                 revealed = revealed,
                 // **Never over a wager**, whatever the player has set. Against a program the aid
-                // is the player's own business; against a person with cards or MGP on the table it
+                // is the player's own business; against a person with cards or Gil on the table it
                 // is an advantage the other side did not agree to and cannot see. `isFree` is the
                 // line `PvpStake` already draws for the lobby, and it is the right one here.
                 hints = LocalCaptureHints.current && wire.stake.isFree,

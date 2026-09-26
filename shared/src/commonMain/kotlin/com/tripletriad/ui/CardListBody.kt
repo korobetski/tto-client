@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -23,6 +25,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -57,6 +60,9 @@ const val CARD_DETAIL_EMPTY_TEST_TAG: String = "card-detail-empty"
 const val CARD_SHEET_TEST_TAG: String = "card-sheet"
 
 const val CARD_SELL_TEST_TAG: String = "card-sell"
+
+/** Beside Sell: the same spare copy, taken to the auction house's consignment desk. */
+const val CARD_AUCTION_TEST_TAG: String = "card-auction"
 
 const val CARD_ANY_FILTER_TEST_TAG: String = "card-filter-any"
 
@@ -132,6 +138,9 @@ internal fun ColumnScope.CardListBody(
     opponents: NpcCatalog?,
     onIntent: suspend (Intent) -> IntentOutcome,
     note: NoteHost,
+    // Null where there is no house to go to: no server behind the character. The level gate is
+    // checked where the button is drawn, against the profile it is drawn for.
+    onAuction: ((Card) -> Unit)? = null,
 ) {
     val strings = LocalStrings.current
     val scope = rememberCoroutineScope()
@@ -319,6 +328,7 @@ internal fun ColumnScope.CardListBody(
                 profile = profile,
                 opponents = opponents,
                 onSell = sell,
+                onAuction = onAuction,
                 modifier = Modifier.width(DetailPaneWidth).fillMaxHeight(),
             )
         }
@@ -374,6 +384,7 @@ internal fun ColumnScope.CardListBody(
                     profile = profile,
                     opponents = opponents,
                     onSell = sell,
+                    onAuction = onAuction,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(CardPanelHeight)
@@ -449,6 +460,7 @@ private fun CardDetail(
     profile: GameSave,
     opponents: NpcCatalog?,
     onSell: (Card, Int) -> Unit,
+    onAuction: ((Card) -> Unit)?,
     modifier: Modifier = Modifier.fillMaxWidth().height(CardPanelHeight),
 ) {
     val strings = LocalStrings.current
@@ -476,7 +488,7 @@ private fun CardDetail(
             // The panel the auction's lectern reads a card in too — see [CardPanel] for why the
             // sprite is at full size and why the height has to come from here.
             else -> CardPanel(card = card, tag = CARD_DETAIL_TEST_TAG, sources = sources) {
-                SellControls(card, profile, onSell)
+                SellControls(card, profile, onSell, onAuction)
             }
         }
     }
@@ -494,9 +506,18 @@ private fun CardDetail(
  * and on the spare count, so a sale that shrinks the spares starts it over at one rather than
  * leaving it pointing past the end.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ColumnScope.SellControls(card: Card, profile: GameSave, onSell: (Card, Int) -> Unit) {
+private fun ColumnScope.SellControls(
+    card: Card,
+    profile: GameSave,
+    onSell: (Card, Int) -> Unit,
+    onAuction: ((Card) -> Unit)?,
+) {
     val strings = LocalStrings.current
+    // The house's own gate, asked here rather than by the caller: below the level the tab would
+    // open on a locked door, and a shortcut to a locked door is not a shortcut.
+    val auction = onAuction?.takeIf { LocalUnlocks.current.allowsAuction(profile) }
     val copies = profile.copiesOf(card.id)
     val spare = profile.spareCopiesOf(card.id)
     if (copies < 1) return
@@ -542,9 +563,40 @@ private fun ColumnScope.SellControls(card: Card, profile: GameSave, onSell: (Car
     // panel is the loudest thing on a screen whose subject is the card beside it, and every dp it
     // spans is a dp the description does not get. Selling is an occasional action on a duplicate,
     // not the reason anybody opened the collection.
+    // A flow rather than a row: the side pane is 260 dp, and "Versteigern" beside "Verkaufen" and a
+    // four-digit price does not fit in it. The pair wraps, Sell last so it stays under the thumb.
+    FlowRow(
+        modifier = Modifier.align(Alignment.End),
+        horizontalArrangement = Arrangement.spacedBy(SpaceXs, Alignment.End),
+        verticalArrangement = Arrangement.spacedBy(SpaceXs),
+    ) {
+        // Quieter than Sell, which is the answer most of the time: the counter pays now, the house
+        // pays later and maybe more. One copy, not `count` — a lot is one card, and the desk has
+        // its own prices to fill in, which the stepper's total says nothing about.
+        auction?.let { go ->
+            TextButton(
+                onClick = { go(card) },
+                modifier = Modifier.testTag(CARD_AUCTION_TEST_TAG),
+                contentPadding = PaddingValues(horizontal = SpaceMd, vertical = SpaceSm),
+            ) {
+                Text(
+                    text = strings[StringKeys.CARD_AUCTION],
+                    style = MaterialTheme.typography.labelLarge,
+                    maxLines = 1,
+                    softWrap = false,
+                )
+            }
+        }
+        SellButton(card, count, onSell)
+    }
+}
+
+@Composable
+private fun SellButton(card: Card, count: Int, onSell: (Card, Int) -> Unit) {
+    val strings = LocalStrings.current
     FilledTonalButton(
         onClick = { onSell(card, count) },
-        modifier = Modifier.testTag(CARD_SELL_TEST_TAG).align(Alignment.End),
+        modifier = Modifier.testTag(CARD_SELL_TEST_TAG),
         shape = MaterialTheme.shapes.large,
         contentPadding = PaddingValues(horizontal = SpaceLg, vertical = SpaceSm),
     ) {

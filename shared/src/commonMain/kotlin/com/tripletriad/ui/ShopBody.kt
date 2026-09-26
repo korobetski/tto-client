@@ -225,7 +225,7 @@ private fun ShelfGrid(
     ) {
         when (shelf) {
             Shelf.BOOSTERS -> {
-                // A purse that reaches no pack is the purse of a player who needs MGP, and the
+                // A purse that reaches no pack is the purse of a player who needs Gil, and the
                 // boons are what makes more of it. They are a shelf away, so the ones it does
                 // reach are brought here rather than left for the player to go looking for.
                 val reachable = shelves.boons.filter { it.isAffordableBy(profile) }

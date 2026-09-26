@@ -19,7 +19,7 @@ import com.tripletriad.i18n.StringKeys
 import com.tripletriad.ui.theme.LocalTtoColors
 
 /**
- * A sum of MGP: the game's own coin, then the number.
+ * A sum of Gil: the game's own coin, then the number.
  *
  * The coin is the one the purse in the top bar shows, so every price in the app reads as the
  * number that purse is about to change — a shelf, a bid, a resale. It was drawn by hand on each

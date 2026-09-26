@@ -64,7 +64,7 @@ fun historyRowTestTag(id: String): String = "history-$id"
  * ### What is deliberately absent
  *
  * A duration, because nothing on the wire carries when a match was dealt — see
- * `PveMatchView.asRecord`. And no MGP-per-day curve: the rows carry what each match paid, but a
+ * `PveMatchView.asRecord`. And no Gil-per-day curve: the rows carry what each match paid, but a
  * daily total is a different screen's question and a chart of a dozen points is decoration.
  */
 @Composable
@@ -300,7 +300,7 @@ private fun MatchRecord.opponentLabel(strings: Strings, opponents: NpcCatalog?):
 private fun MatchRecord.facts(strings: Strings): String = buildList {
     add(isoDate(timestamp))
     if (opponentKind == OpponentKind.PVP) add(strings[StringKeys.MULTIPLAYER])
-    // Signed, because a wagered match can take MGP as well as pay it — see `PvpMatchView.asRecord`,
+    // Signed, because a wagered match can take Gil as well as pay it — see `PvpMatchView.asRecord`,
     // which folds the stake in for exactly this reason.
     if (mgpDelta != 0) add("${mgpDelta.signed()} ${strings[StringKeys.MGP]}")
     if (xpGained != 0L) add("+$xpGained ${strings[StringKeys.XP]}")

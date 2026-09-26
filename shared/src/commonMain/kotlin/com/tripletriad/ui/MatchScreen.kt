@@ -141,7 +141,7 @@ internal fun MatchView.turnTag(): String? = currentPlayer
  * happen as claimed. See `PveMatchScreen`.
  *
  * A lesson is exempt because a lesson **settles nothing**. `MatchScript.counted` is false for every
- * one of them: no MGP, no XP, no drops, no started-match counter, nothing written to a profile.
+ * one of them: no Gil, no XP, no drops, no started-match counter, nothing written to a profile.
  * There is nothing here to cheat *at*, and asking a referee to arbitrate a composed position whose
  * whole point is that it cannot be lost would be a round trip per placement to reach a foregone
  * conclusion.

@@ -1067,6 +1067,7 @@ private fun CharacterDestination(
                 // rather than a way to navigate away to it.
                 auctions = auctions,
                 clock = clock,
+                onNavigate = onNavigate,
                 onBack = toDashboard,
             )
         }
@@ -1672,8 +1673,16 @@ private fun CollectionDestination(
     gate: ProfileGate,
     auctions: AuctionSession?,
     clock: Clock,
+    onNavigate: (Screen) -> Unit,
     onBack: () -> Unit,
 ) {
+    // The card the collection's auction shortcut was pressed on. Held here, above both screens,
+    // because the shortcut is a navigation: the list is left and the store is entered, so neither
+    // could keep it. Read only on `AUCTION`, so reaching the house some other way later does not
+    // open it on a card chosen an errand ago.
+    var consign by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(destination) { if (destination != Screen.AUCTION) consign = null }
+
     // The shelf is a property of the format, not of the character — see `ShopCatalog.offers`.
     // Resolved here rather than one level up so the browse arm stays a single `?.let`.
     val format = startup.formats?.default ?: return
@@ -1692,6 +1701,16 @@ private fun CollectionDestination(
             onPersist = gate.persist,
             onIntent = gate.perform,
             onBack = onBack,
+            // Only with a house to go to. The level gate is the button's to check — it has the
+            // profile the button is drawn for.
+            onAuction = if (auctions == null) {
+                null
+            } else {
+                { cardId ->
+                    consign = cardId
+                    onNavigate(Screen.AUCTION)
+                }
+            },
         )
 
         Screen.SHOP, Screen.INVENTORY, Screen.AUCTION -> StoreScreen(
@@ -1711,6 +1730,7 @@ private fun CollectionDestination(
             onUseItem = gate.useItem,
             onIntent = gate.perform,
             onBack = onBack,
+            auctionCard = consign.takeIf { destination == Screen.AUCTION },
         )
 
         else -> Unit

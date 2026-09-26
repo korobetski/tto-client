@@ -43,6 +43,7 @@ import com.tripletriad.model.CardType
 import com.tripletriad.model.Deeds
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.Side
+import com.tripletriad.protocol.Unlocks
 import com.tripletriad.settings.InMemorySettingsStore
 import com.tripletriad.settings.SettingsStore
 import com.tripletriad.settings.UnownedCards
@@ -718,7 +719,7 @@ class CollectionUiTest {
         val DODO = Card.idFor(block = 1, number = 1)
 
         /**
-         * `STR_FF14_CARD_13`, on the shop's shelf at 150 MGP and in two opponents' drop tables at
+         * `STR_FF14_CARD_13`, on the shop's shelf at 150 Gil and in two opponents' drop tables at
          * 20 % — the one card in the shipped data that exercises both halves of the index at once.
          * Authored data, so this moves with `cards.json` and `npcs.json`; when it does, pick
          * another card that is both bought and dropped.
@@ -1026,6 +1027,47 @@ class CollectionUiTest {
         assertEquals(1, asked.size, "the run went on after the server declined")
     }
 
+    /**
+     * The shortcut hands the house the card the panel is showing, and nothing else: which copy,
+     * at what price, for how long are the desk's questions, not the list's.
+     */
+    @Test
+    fun aSpareCardIsTakenToTheAuctionDeskFromItsPanel() = runComposeUiTest {
+        val spare = STARTER_CARDS.first { it !in STARTER_DECK }
+        val profile = freshSave().let { it.copy(cards = it.cards + (spare to 2)) }
+        val sent = mutableListOf<Int>()
+        setContent {
+            Cards(profile, onAuction = { sent += it }, unlocks = Unlocks(auction = 0)) {
+                IntentOutcome.APPLIED
+            }
+        }
+
+        openDetail(spare)
+        onNodeWithTag(CARD_AUCTION_TEST_TAG).performClick()
+
+        assertEquals(listOf(spare), sent.toList())
+    }
+
+    /**
+     * Below the house's level the auction tab is a locked door, so the shortcut is not drawn — the
+     * counter still is. Same card, same spare, only the level differs from the test above.
+     */
+    @Test
+    fun theAuctionShortcutWaitsForTheHousesLevel() = runComposeUiTest {
+        val spare = STARTER_CARDS.first { it !in STARTER_DECK }
+        val profile = freshSave().let { it.copy(cards = it.cards + (spare to 2)) }
+        setContent {
+            Cards(profile, onAuction = {}, unlocks = Unlocks(auction = profile.level + 1)) {
+                IntentOutcome.APPLIED
+            }
+        }
+
+        openDetail(spare)
+
+        assertTrue(exists(CARD_SELL_TEST_TAG), "the counter went with the house")
+        assertFalse(exists(CARD_AUCTION_TEST_TAG), "a shortcut to a locked door was drawn")
+    }
+
     private fun ComposeUiTest.openDetail(cardId: Int) {
         onNodeWithTag(CARD_GRID_TEST_TAG).performScrollToNode(hasTestTag(cardCellTestTag(cardId)))
         onNodeWithTag(cardCellTestTag(cardId)).performClick()
@@ -1033,8 +1075,13 @@ class CollectionUiTest {
     }
 
     @Composable
-    private fun Cards(profile: GameSave, onIntent: suspend (Intent) -> IntentOutcome) {
-        CompositionLocalProvider(LocalStrings provides strings) {
+    private fun Cards(
+        profile: GameSave,
+        onAuction: ((Int) -> Unit)? = null,
+        unlocks: Unlocks = Unlocks(),
+        onIntent: suspend (Intent) -> IntentOutcome,
+    ) {
+        CompositionLocalProvider(LocalStrings provides strings, LocalUnlocks provides unlocks) {
             TripleTriadTheme {
                 CollectionScreen(
                     profile = profile,
@@ -1045,6 +1092,7 @@ class CollectionUiTest {
                     onPersist = {},
                     onIntent = onIntent,
                     onBack = {},
+                    onAuction = onAuction,
                 )
             }
         }

@@ -176,7 +176,7 @@ class MatchUiTest {
         )
         // Every result pays in this game, so the payout line is always there and always positive.
         assertVisible("+", "the payout should be shown")
-        assertVisible("MGP", "the payout should name MGP")
+        assertVisible("Gil", "the payout should name the currency")
     }
 
     @Test

@@ -521,19 +521,29 @@ class StringsBundleTest {
         // `APP_ZONE_NEEDS_ANY` went, unread since shut places stopped being listed. All four
         // bundles at once, so the gaps are unchanged. 2026-09-22.
 
-        const val UNION_KEYS = 2224
+        // +1 to every bundle since: `APP_CARD_AUCTION`, the card list's shortcut to the auction
+        // desk. All four bundles at once, so the gaps are unchanged. 2026-09-26.
+
+        // The currency is called gil now, in every language — FF's own, where the imported
+        // bundles said MGP or PGS. `STR_MGP` and its boosts and savings achievements are
+        // overridden in all four `app-*.json`, which moves nothing where the key was already
+        // imported. German is the exception: its bundle never had `STR_SMALL_MGP_BOOST` or
+        // `STR_BIG_MGP_BOOST` and fell back to English, so it gains those two and its gaps
+        // shrink by as many. 2026-09-26.
+
+        const val UNION_KEYS = 2225
 
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 2220,
-            AppLocale.FR_FR to 2221,
-            AppLocale.DE_DE to 2149,
-            AppLocale.JA_JA to 2181,
+            AppLocale.EN_US to 2221,
+            AppLocale.FR_FR to 2222,
+            AppLocale.DE_DE to 2152,
+            AppLocale.JA_JA to 2182,
         )
 
         val EXPECTED_GAPS = mapOf(
             AppLocale.EN_US to 4,
             AppLocale.FR_FR to 3,
-            AppLocale.DE_DE to 75,
+            AppLocale.DE_DE to 73,
             AppLocale.JA_JA to 43,
         )
     }

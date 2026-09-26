@@ -196,19 +196,25 @@ fun App(
             // because two screens open it and neither of them owns it.
             var optionsOpen by remember { mutableStateOf(false) }
             val choice = remember { Choice() }
+            // Every write to `screen` goes through here, so the roster can tell a round trip into a
+            // match from a fresh arrival — see [Choice.navigatingTo].
+            val go = { next: Screen ->
+                choice.navigatingTo(next)
+                screen = next
+            }
 
             val gate = rememberGate(session, account, startup.catalog, clock, random)
             val reporter = server?.reporter ?: MatchReporter.None
 
             StartupEffects(startup, server, account, session, pvp) {
-                if (screen == Screen.SPLASH) screen = Screen.TITLE
+                if (screen == Screen.SPLASH) go(Screen.TITLE)
             }
 
             HostedTableWatch(
                 pvp = pvp,
                 clock = clock,
                 screen = screen,
-                onOpened = { screen = Screen.PVP_MATCH },
+                onOpened = { go(Screen.PVP_MATCH) },
             )
 
             // Everything else in this file watches for something to *draw*. This one watches for
@@ -252,7 +258,7 @@ fun App(
             // old API is removed rather than deprecated.
             @Suppress("DEPRECATION")
             BackHandler(enabled = screen != screen.up) {
-                screen = screen.up
+                go(screen.up)
             }
 
             // The music belongs to the match, as in `BaseMatchScreen.as:114` — it starts when a
@@ -365,7 +371,7 @@ fun App(
                                     clock = clock,
                                     random = random,
                                     reporter = reporter,
-                                    onNavigate = { screen = it },
+                                    onNavigate = go,
                                     onOptions = { optionsOpen = true },
                                     onQuit = onQuit,
                                 )
@@ -380,7 +386,7 @@ fun App(
                                 pvp = pvp,
                                 clock = clock,
                                 strings = strings,
-                                onJoin = { screen = Screen.PVP_MATCH },
+                                onJoin = { go(Screen.PVP_MATCH) },
                             )
                         }
 
@@ -396,11 +402,7 @@ fun App(
                                         optionsOpen = false
                                         // Every screen behind this one is about a character that
                                         // no longer exists.
-                                        screen = if (account != null) {
-                                            Screen.ACCOUNT
-                                        } else {
-                                            Screen.PROFILES
-                                        }
+                                        go(if (account != null) Screen.ACCOUNT else Screen.PROFILES)
                                     },
                                     onDismiss = { optionsOpen = false },
                                 )
@@ -938,6 +940,8 @@ private fun CharacterDestination(
                 },
                 onTab = toPlayTab,
                 onBack = toDashboard,
+                view = choice.roster,
+                onView = { choice.roster = it },
                 resumable = resumable,
                 // The same door a challenge goes through, and that is the point: the board it
                 // opens resumes `against` this opponent and finds the match already there, so
@@ -1577,7 +1581,45 @@ internal class Choice {
      * the same rule wants it.
      */
     var helpRule: String? by mutableStateOf(null)
+
+    /**
+     * Where the solo roster was left: its home, one place, or everybody.
+     *
+     * Here rather than in [OpponentScreen], because a challenge takes the roster out of composition
+     * and anything it remembered went with it — so a player who declined the rematch was put back
+     * on the home, a scroll and a tap away from the place they had just chosen from.
+     */
+    var roster: RosterView by mutableStateOf(RosterView.Home)
+
+    /**
+     * Whether the roster has been left for somewhere other than its own round trips since it was
+     * last shown. Plain rather than state: nothing draws it, [navigatingTo] only reads it.
+     */
+    private var rosterKept = false
+
+    /**
+     * Told of every navigation **before** the screen changes, so the roster that comes in is
+     * already the right one rather than corrected a frame later under the transition.
+     *
+     * The roster survives a trip into a match or a place's tournament and back, and nothing else:
+     * coming from the lobby or another tab is starting over, and opens on the home. It is reset on
+     * the way *in* rather than on the way out, because the roster being left is still on screen,
+     * sliding off — a reset then would change its title under the animation.
+     */
+    fun navigatingTo(next: Screen) {
+        when {
+            next !in ROSTER_ROUND_TRIP -> rosterKept = false
+            next == Screen.OPPONENTS && !rosterKept -> {
+                roster = RosterView.Home
+                rosterKept = true
+            }
+        }
+    }
 }
+
+/** The screens a roster view outlives: itself, and what a place's tiles and tournament open. */
+private val ROSTER_ROUND_TRIP =
+    setOf(Screen.OPPONENTS, Screen.MATCH, Screen.CAMPAIGN, Screen.CAMPAIGN_MATCH)
 
 internal val PLAYING_SCREENS =
     setOf(Screen.MATCH, Screen.TUTORIAL, Screen.CAMPAIGN_MATCH, Screen.PVP_MATCH)

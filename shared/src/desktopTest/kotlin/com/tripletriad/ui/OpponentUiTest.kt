@@ -1,11 +1,15 @@
 package com.tripletriad.ui
 
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.FF14_FORMAT
 import com.tripletriad.FF8_BLOCK
@@ -532,6 +536,74 @@ class OpponentUiTest {
         onNodeWithTag(campaignRowTestTag(STARTER_LADDER)).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(CAMPAIGN_START_TEST_TAG) }
         assertFalse(exists(CAMPAIGN_LOCKED_TEST_TAG), "a cleared place's ladder should be open")
+    }
+
+    /**
+     * **Declining the rematch goes back to the place the opponent was chosen from.**
+     *
+     * The view was the roster's own `remember`, and a challenge takes the roster out of
+     * composition — so the result panel's exit landed on the home, a scroll and a tap away from the
+     * place the player had been working through. See `Choice.roster`.
+     */
+    @Test
+    fun leavingAFinishedMatchGoesBackToThePlace() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), server = stub.connection) }
+        openDashboard()
+        openOpponents()
+        openPlace(STARTER_PLACE)
+        onNodeWithTag(RANDOM_OPPONENT_TEST_TAG).performClick()
+        settleDeck()
+        awaitPlayer()
+        playOut()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(MATCH_DONE_TEST_TAG) }
+
+        onNodeWithTag(MATCH_DONE_TEST_TAG).performClick()
+        awaitOpponents()
+
+        assertTrue(exists(zoneStatusTestTag(STARTER_PLACE)), "back on the place's own list")
+        assertFalse(exists(QUICK_MATCH_TEST_TAG), "back on the roster's home instead")
+    }
+
+    /** Arriving from the lobby is starting over: the roster opens on its home, not a place. */
+    @Test
+    fun theRosterOpensOnItsHomeFromTheLobby() = runComposeUiTest {
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US)) }
+        newCharacter()
+        openOpponents()
+        openPlace(STARTER_PLACE)
+        assertFalse(exists(QUICK_MATCH_TEST_TAG), "the place did not open")
+
+        onNodeWithTag(navTestTag("home")).performClick()
+        awaitDashboard()
+        openOpponents()
+
+        assertTrue(exists(QUICK_MATCH_TEST_TAG), "the roster should open on its home")
+    }
+
+    /** A swipe inside a place goes to the next open place, in the order the home lists them. */
+    @Test
+    fun swipingInAPlaceOpensTheNextOne() = runComposeUiTest {
+        val save = explorerSave()
+        val documents = seeded(save)
+        val open = shippedZones.progress(
+            catalog.playing(assertNotNull(pvpFormats.default).id),
+            save,
+            pvpCards.all.associateBy { it.id },
+        ).filter { it.isOpen }.map { it.zone.id }
+        val here = open.indexOf(STARTER_PLACE)
+        val next = assertNotNull(open.getOrNull(here + 1), "no place after $STARTER_PLACE: $open")
+        setContent { TestApp(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        loadCharacter(documents)
+        openOpponents()
+        openPlace(STARTER_PLACE)
+
+        onNodeWithTag(OPPONENT_PLACES_TEST_TAG).performTouchInput { swipeLeft() }
+        waitForIdle()
+
+        // Not displayed rather than absent: the pager keeps the page it left composed, at zero
+        // size.
+        onNodeWithTag(zoneStatusTestTag(STARTER_PLACE)).assertIsNotDisplayed()
+        onNodeWithTag(zoneStatusTestTag(next)).assertIsDisplayed()
     }
 
     private val eveningOpponent: Npc

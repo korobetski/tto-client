@@ -240,11 +240,25 @@ internal fun ComposeUiTest.signOut() {
     onNodeWithTag(DASHBOARD_LOGOUT_TEST_TAG).performClick()
 }
 
+/**
+ * The chevron, as many times as it takes to reach the lobby.
+ *
+ * Once used to be enough from anywhere a test stood. The roster is the exception now: a match comes
+ * back to the view its opponent was chosen from — a place, or the full list `challenge` scrolls —
+ * and that view is one chevron above the roster's own home.
+ */
 @OptIn(ExperimentalTestApi::class)
 internal fun ComposeUiTest.backToDashboard() {
-    onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
+    repeat(MAX_BACK_STEPS) {
+        if (exists(DASHBOARD_PLAY_TEST_TAG)) return
+        onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
+        waitForIdle()
+    }
     awaitDashboard()
 }
+
+/** The deepest a test goes below the lobby with a chevron at every step: view, roster, lobby. */
+private const val MAX_BACK_STEPS = 3
 
 /**
  * Straight to the dashboard of the profile the **server** holds.

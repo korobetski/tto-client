@@ -8,11 +8,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyGridState
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -149,6 +147,9 @@ internal fun OpponentScreen(
     onChallenge: (Npc) -> Unit,
     onTab: (PlayTab) -> Unit,
     onBack: () -> Unit,
+    /** Hoisted to the caller so it outlives a match; see `Choice.roster`. */
+    view: RosterView,
+    onView: (RosterView) -> Unit,
     /**
      * The opponent of a match the server still has open, or null when there is nothing to go back
      * to.
@@ -195,9 +196,10 @@ internal fun OpponentScreen(
         npc.iconId in reachable && npc.isEarnedBy(earned) && npc.availability.isOpenAtHour(hour)
     }
 
-    var view by remember(formatId) { mutableStateOf<RosterView>(RosterView.Home) }
+    // The pages a place swipes between: the places its home lists, in the same order.
+    val open = remember(places) { places.filter { it.isOpen } }
     val place = (view as? RosterView.Place)?.let { v ->
-        places.firstOrNull { it.zone.id == v.zoneId }
+        open.firstOrNull { it.zone.id == v.zoneId }
     }
 
     val filters = rememberOpponentFilters(opponents, sets)
@@ -222,7 +224,7 @@ internal fun OpponentScreen(
     var detailIcon by remember(view, shown) { mutableStateOf<String?>(null) }
     val detail = roster.firstOrNull { it.iconId == detailIcon }
     val sheetState = rememberModalBottomSheetState()
-    val home = { view = RosterView.Home }
+    val home = { onView(RosterView.Home) }
 
     CharacterScaffold(
         profile = profile,
@@ -253,23 +255,11 @@ internal fun OpponentScreen(
     ) {
         PlayTabs(current = PlayTab.SOLO, waiting = waiting, onSelect = onTab)
 
-        // One scrolling container for the whole screen rather than a static header above a
-        // separately-scrolling list. Everything above the tiles is a full-width span in the same
-        // grid, so nothing above the fold can starve what is below it on a short window — the
-        // same fix `ShopBody` makes for the same reason.
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(TileMinWidth),
-            // One grid for three views: each opens at its top rather than at the scroll the last
-            // one was left at, which on a long home would be past the full roster's filters.
-            state = remember(view) { LazyGridState() },
-            modifier = Modifier.testTag(OPPONENT_LIST_TEST_TAG).fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(SpaceSm),
-            horizontalArrangement = Arrangement.spacedBy(SpaceSm),
-        ) {
-            // **First, and filled.** A match already under way is the one thing on this screen
-            // that is not a choice: everything below it starts something new, and starting
-            // something new is what abandons the match — the server closes the live one when the
-            // next is opened (`PveStore.open`). So it goes above everything else, in every view.
+        // First, and filled, in every view: a match already under way is the one thing on this
+        // screen that is not a choice. Everything below it starts something new, and starting
+        // something new is what abandons the match — the server closes the live one when the next
+        // is opened (`PveStore.open`).
+        val resume: LazyGridScope.() -> Unit = {
             resumable?.let { npc ->
                 fullWidth(RESUME_KEY) {
                     WideButton(
@@ -279,62 +269,76 @@ internal fun OpponentScreen(
                     )
                 }
             }
+        }
 
-            when (view) {
-                RosterView.Home -> homeItems(
-                    places = places,
-                    tour = tour,
-                    canQuickMatch = opponents.isNotEmpty(),
-                    onQuickMatch = {
-                        QuickMatch.pick(opponents, profile, hour)?.let(onChallenge)
-                    },
-                    onPlace = { view = RosterView.Place(it) },
-                    onEveryone = { view = RosterView.Everyone },
-                    tile = { npc, caption ->
-                        OpponentTile(
-                            npc = npc,
-                            cards = cards,
-                            owned = profile.cards,
-                            caption = caption,
-                            note = npc.absenceNote(strings, hour, earned),
-                            beaten = npc.isBeatenBy(profile),
-                            onClick = { detailIcon = npc.iconId },
-                        )
-                    },
-                )
-
-                is RosterView.Place -> place?.let { progress ->
-                    val tournament = campaigns.openedBy(progress.zone.id)?.let {
-                        PlaceTournament(
-                            campaign = it,
-                            locked = !it.isUnlockedFor(profile),
-                            lockedNote = lockedNote(strings, it, zones),
-                            onOpen = { onCampaign(it) },
-                        )
-                    }
-                    placeItems(progress, tournament) { npc ->
-                        OpponentTile(
-                            npc = npc,
-                            cards = cards,
-                            owned = profile.cards,
-                            note = npc.absenceNote(strings, hour, earned) ?: npc.hoursNote(strings),
-                            dimmed = !challengeable(npc),
-                            beaten = npc.isBeatenBy(profile),
-                            onClick = { detailIcon = npc.iconId },
-                        )
-                    }
+        if (place != null) {
+            PlacePager(
+                open = open,
+                current = place.zone.id,
+                onSettle = { onView(RosterView.Place(it)) },
+            ) { progress ->
+                resume()
+                val tournament = campaigns.openedBy(progress.zone.id)?.let {
+                    PlaceTournament(
+                        campaign = it,
+                        locked = !it.isUnlockedFor(profile),
+                        lockedNote = lockedNote(strings, it, zones),
+                        onOpen = { onCampaign(it) },
+                    )
                 }
-
-                RosterView.Everyone -> everyoneItems(
-                    filters = filters,
-                    opponents = opponents,
-                    cards = cards,
-                    profile = profile,
-                    tiers = tiers,
-                    locked = locked,
-                    unearned = unearned,
-                    onOpen = { detailIcon = it.iconId },
-                )
+                placeItems(progress, tournament) { npc ->
+                    OpponentTile(
+                        npc = npc,
+                        cards = cards,
+                        owned = profile.cards,
+                        note = npc.absenceNote(strings, hour, earned) ?: npc.hoursNote(strings),
+                        dimmed = !challengeable(npc),
+                        beaten = npc.isBeatenBy(profile),
+                        onClick = { detailIcon = npc.iconId },
+                    )
+                }
+            }
+        } else {
+            // One grid for the home and the full list: each opens at its top rather than at the
+            // scroll the other was left at, which on a long home would be past the filters.
+            RosterGrid(state = remember(view) { LazyGridState() }) {
+                resume()
+                if (view == RosterView.Everyone) {
+                    everyoneItems(
+                        filters = filters,
+                        opponents = opponents,
+                        cards = cards,
+                        profile = profile,
+                        tiers = tiers,
+                        locked = locked,
+                        unearned = unearned,
+                        onOpen = { detailIcon = it.iconId },
+                    )
+                } else {
+                    // The home, and a place that is not open — which only a stale view can name,
+                    // and which the home is the honest answer to.
+                    homeItems(
+                        places = places,
+                        tour = tour,
+                        canQuickMatch = opponents.isNotEmpty(),
+                        onQuickMatch = {
+                            QuickMatch.pick(opponents, profile, hour)?.let(onChallenge)
+                        },
+                        onPlace = { onView(RosterView.Place(it)) },
+                        onEveryone = { onView(RosterView.Everyone) },
+                        tile = { npc, caption ->
+                            OpponentTile(
+                                npc = npc,
+                                cards = cards,
+                                owned = profile.cards,
+                                caption = caption,
+                                note = npc.absenceNote(strings, hour, earned),
+                                beaten = npc.isBeatenBy(profile),
+                                onClick = { detailIcon = npc.iconId },
+                            )
+                        },
+                    )
+                }
             }
         }
     }
@@ -459,8 +463,6 @@ private const val EMPTY_KEY = "empty"
 private const val LOCKED_KEY = "locked-note"
 
 private const val UNEARNED_KEY = "unearned-note"
-
-private val TileMinWidth = 104.dp
 
 private val FeeCoinSize = 13.dp
 

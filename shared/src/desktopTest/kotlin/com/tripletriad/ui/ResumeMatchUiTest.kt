@@ -95,7 +95,9 @@ class ResumeMatchUiTest {
         onNodeWithTag(MATCH_DONE_TEST_TAG).performClick()
         awaitOpponents()
 
-        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(QUICK_MATCH_TEST_TAG) }
+        // Back on the full list `startMatch` challenged from rather than on the home — a match
+        // returns to the view it was chosen in — and every view carries the resume button.
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(OPPONENT_RULE_FILTER_TEST_TAG) }
         waitForIdle()
         assertFalse(exists(OPPONENT_RESUME_TEST_TAG), "the match is over, not paused")
     }
